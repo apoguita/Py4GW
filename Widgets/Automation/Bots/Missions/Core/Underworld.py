@@ -171,7 +171,7 @@ bot = Botting(
     upkeep_honeycomb_active             = ConsSettings._active["honeycomb"],
     upkeep_honeycomb_restock            = ConsSettings._restock["honeycomb"],
 )
-bot.Templates.Aggressive()
+bot.Templates.Aggressive(account_isolation=False)
 bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())
 
@@ -274,6 +274,7 @@ def _get_adapter():
 def _uw_aggressive(b: Botting, **kwargs) -> None:
     """Wrapper around Templates.Aggressive() that undoes the HeroAI/Isolation
     side effects when running in CB mode."""
+    kwargs['account_isolation'] = False
     b.Templates.Aggressive(**kwargs)
     if BotSettings.BotMode != "heroai":
         b.Properties.Disable("hero_ai")
@@ -1163,6 +1164,22 @@ def _broadcast_all_pcons() -> None:
             )
 
 
+def _coro_stale_target_watchdog(bot: Botting):
+    """Every frame: if the player's current target is no longer a valid living
+    agent, clear it immediately by retargeting self.  This prevents the
+    AvSelect.cpp assertion crash that fires when a despawning enemy agent is
+    still held as the 'manual agent' while the engine tries to process it."""
+    while True:
+        yield  # one frame
+        if not bot.config.fsm_running:
+            continue
+        if not Routines.Checks.Map.MapValid():
+            continue
+        target_id = Player.GetTargetID()
+        if target_id and (not Agent.IsValid(target_id) or Agent.IsDead(target_id)):
+            Player.ChangeTarget(Player.GetAgentID())
+
+
 def _coro_pcon_upkeep_multibox(bot: Botting):
     """Periodically re-broadcast enabled consumables to multibox followers while
     inside the Underworld.  Broadcasts every 3 minutes; the UsePcon handler on
@@ -1216,6 +1233,7 @@ def _ensure_managed_coroutines(bot_ref: Botting) -> None:
     fsm.AddManagedCoroutine("UW_SkeletonDhuumWatchdog",    lambda: _coro_skeleton_dhuum_watchdog(bot_ref))
     fsm.AddManagedCoroutine("UW_DhuumSpiritFormWatchdog",  lambda: _coro_dhuum_spirit_form_watchdog(bot_ref))
     fsm.AddManagedCoroutine("UW_PconUpkeepMultibox",       lambda: _coro_pcon_upkeep_multibox(bot_ref))
+    fsm.AddManagedCoroutine("UW_StaleTargetWatchdog",      lambda: _coro_stale_target_watchdog(bot_ref))
 
 
 def bot_routine(bot: Botting):
@@ -1277,7 +1295,7 @@ def bot_routine(bot: Botting):
 def Enter_UW(bot_instance: Botting):
     from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.step_context import StepContext
     from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_movement import handle_random_travel, handle_wait_map_change, handle_leave_party
-    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_party import handle_summon_all_accounts, handle_invite_all_accounts, handle_set_hard_mode
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_party import handle_set_hard_mode
     from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_interaction import handle_use_item
 
     def _make_ctx(step: dict) -> StepContext:
@@ -1337,15 +1355,15 @@ def Enter_UW(bot_instance: Botting):
     bot_instance.Wait.ForTime(1000)
 
     # ── Form party ───────────────────────────────────────────────────
-    handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 10000}))
+    # Direct calls at build time so the coroutines land at the correct position
+    # in the FSM chain (not at the end via the lambda-wrapper pattern).
+    bot_instance.Multibox.SummonAllAccounts()
+    bot_instance.Wait.ForTime(10000)
 
-    # Wait until every account has loaded into the entrypoint map (up to 90 s).
-    bot_instance.Wait.UntilCondition(
-        lambda: all(int(acc.AgentData.Map.MapID) == _enter_ep[1] for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
-        duration=5000,
-    )
+    # Give followers time to load into the entrypoint map after SummonAllAccounts.
+    # UntilCondition is not suitable here (duration = polling interval, not timeout)
 
-    handle_invite_all_accounts(_make_ctx({"type": "invite_all_accounts", "name": "Invite Alts"}))
+    bot_instance.Multibox.InviteAllAccounts()
 
     # ── Apply hard mode before using scroll ──────────────────────────
     handle_set_hard_mode(_make_ctx({"type": "set_hard_mode", "name": "Set Hard Mode", "enabled": BotSettings.HardMode}))
