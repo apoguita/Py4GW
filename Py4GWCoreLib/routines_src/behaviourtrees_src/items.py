@@ -50,6 +50,7 @@ from collections.abc import Sequence
 
 from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
+from ...GlobalCache.WhiteboardLocks import clear_loot_lock, post_loot_lock
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...UIManager import UIManager
@@ -967,6 +968,7 @@ class BTItems:
         state = {
             "started_at": 0.0,
             "last_item_agent_id": 0,
+            "claimed_item_agent_id": 0,
         }
 
         def _loot_items() -> BehaviorTree.NodeState:
@@ -984,16 +986,48 @@ class BTItems:
             )
             if not loot_array:
                 state["started_at"] = 0.0
+                if state["claimed_item_agent_id"]:
+                    clear_loot_lock(state["claimed_item_agent_id"])
+                    state["claimed_item_agent_id"] = 0
                 return BehaviorTree.NodeState.SUCCESS
 
             if (time.monotonic() - state["started_at"]) * 1000 >= timeout_ms:
                 state["started_at"] = 0.0
+                if state["claimed_item_agent_id"]:
+                    clear_loot_lock(state["claimed_item_agent_id"])
+                    state["claimed_item_agent_id"] = 0
                 return BehaviorTree.NodeState.SUCCESS
 
-            item_agent_id = loot_array[0]
+            item_agent_id = 0
+            for candidate_item_id in loot_array:
+                owner_id = Agent.GetItemAgentOwnerID(candidate_item_id)
+                if owner_id == 0:
+                    if post_loot_lock(candidate_item_id) < 0:
+                        continue
+                    state["claimed_item_agent_id"] = candidate_item_id
+                else:
+                    state["claimed_item_agent_id"] = 0
+                item_agent_id = candidate_item_id
+                break
+            if item_agent_id == 0:
+                state["started_at"] = 0.0
+                return BehaviorTree.NodeState.SUCCESS
+
             state["last_item_agent_id"] = item_agent_id
             Player.ChangeTarget(item_agent_id)
             Player.Interact(item_agent_id, False)
+            if not Agent.IsValid(item_agent_id) and state["claimed_item_agent_id"]:
+                clear_loot_lock(state["claimed_item_agent_id"])
+                state["claimed_item_agent_id"] = 0
+            elif Agent.IsValid(item_agent_id):
+                live_loot = LootConfig().GetfilteredLootArray(
+                    distance=distance,
+                    multibox_loot=True,
+                    allow_unasigned_loot=False,
+                )
+                if item_agent_id not in live_loot and state["claimed_item_agent_id"]:
+                    clear_loot_lock(state["claimed_item_agent_id"])
+                    state["claimed_item_agent_id"] = 0
             return BehaviorTree.NodeState.RUNNING
 
         return BehaviorTree(

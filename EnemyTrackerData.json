@@ -53,6 +53,12 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
       "observed_skills": {}
@@ -72,6 +78,12 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
       "observed_skills": {}
@@ -1658,6 +1670,144 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534": {
+      "encoded_names": [
+        "\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4721
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "184": {
+          "id": 184,
+          "name": "Fire Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "884": {
+          "id": 884,
+          "name": "Searing Flames",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        4724
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1484": {
+          "id": 1484,
+          "name": "Mystic Sweep",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1503": {
+          "id": 1503,
+          "name": "Mystic Vigor",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1507": {
+          "id": 1507,
+          "name": "Heart of Holy Flame",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1761": {
+          "id": 1761,
+          "name": "Zealous Vow",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x0678\\\\x8EA8\\\\xAD51\\\\x78BA": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0678\\\\x8EA8\\\\xAD51\\\\x78BA"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        4722
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1551": {
+          "id": 1551,
+          "name": "Spear of Lightning",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1557": {
+          "id": 1557,
+          "name": "Anthem of Flame",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1584": {
+          "id": 1584,
+          "name": "Leader's Comfort",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1587": {
+          "id": 1587,
+          "name": "Angelic Bond",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": {
       "encoded_names": [
         "\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F"
@@ -1711,9 +1861,21 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
       "observed_skills": {
+        "1263": {
+          "id": 1263,
+          "name": "Renew Life",
+          "profession": "Monk",
+          "profession_id": 3
+        },
         "1393": {
           "id": 1393,
           "name": "Healer's Boon",
@@ -1744,7 +1906,7 @@
       "encoded_names": [
         "\\\\x8101\\\\x09C3\\\\xCD6C\\\\x8FE6\\\\x7BD7"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Warrior",
       "inferred_secondary": "",
       "model_ids": [
         4729
@@ -1755,9 +1917,28 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "320": {
+          "id": 320,
+          "name": "Hamstring",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "390": {
+          "id": 390,
+          "name": "Savage Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x8101\\\\x09C4\\\\xA88E\\\\xE8DD\\\\x2A21": {
       "encoded_names": [
@@ -1774,9 +1955,33 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
       "observed_skills": {
+        "1719": {
+          "id": 1719,
+          "name": "Screaming Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "399": {
+          "id": 399,
+          "name": "Distracting Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "402": {
+          "id": 402,
+          "name": "Determined Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
         "472": {
           "id": 472,
           "name": "Favorable Winds",
@@ -1789,7 +1994,7 @@
       "encoded_names": [
         "\\\\x8101\\\\x09C5\\\\xEFF1\\\\x247F"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Paragon",
       "inferred_secondary": "",
       "model_ids": [
         4731
@@ -1800,9 +2005,28 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "1549": {
+          "id": 1549,
+          "name": "Harrier's Toss",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1605": {
+          "id": 1605,
+          "name": "Wild Throw",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
     },
     "enc:\\\\x8101\\\\x09C7\\\\xA4FE\\\\xB958\\\\x2879": {
       "encoded_names": [
@@ -2417,6 +2641,50 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4682
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "185": {
+          "id": 185,
+          "name": "Mind Burn",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": {
       "encoded_names": [
         "\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3"
@@ -2645,6 +2913,132 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x4E03\\\\x9EA3\\\\x0DD9": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E03\\\\x9EA3\\\\x0DD9"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4693
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1393": {
+          "id": 1393,
+          "name": "Healer's Boon",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E04\\\\xFC41\\\\xA546\\\\x637B": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E04\\\\xFC41\\\\xA546\\\\x637B"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4694
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1719": {
+          "id": 1719,
+          "name": "Screaming Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "402": {
+          "id": 402,
+          "name": "Determined Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "472": {
+          "id": 472,
+          "name": "Favorable Winds",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E05\\\\x9907\\\\xE210\\\\x3B37": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E05\\\\x9907\\\\xE210\\\\x3B37"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        4726
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1335": {
+          "id": 1335,
+          "name": "Wastrel's Demise",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "2": {
+          "id": 2,
+          "name": "Resurrection Signet",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "979": {
+          "id": 979,
+          "name": "Mistrust",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9": {
       "encoded_names": [
         "\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9"
@@ -2723,6 +3117,12 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
       "observed_skills": {
@@ -2738,6 +3138,12 @@
           "profession": "Necromancer",
           "profession_id": 4
         },
+        "152": {
+          "id": 152,
+          "name": "Taste of Death",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
         "1659": {
           "id": 1659,
           "name": "Toxic Chill",
@@ -2749,6 +3155,38 @@
           "name": "Animate Bone Minions",
           "profession": "Necromancer",
           "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x5136\\\\xEADE\\\\x1A59": {
+      "encoded_names": [
+        "\\\\x8101\\\\x5136\\\\xEADE\\\\x1A59"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4715
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1407": {
+          "id": 1407,
+          "name": "Lion's Comfort",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1409": {
+          "id": 1409,
+          "name": "Mokele Smash",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -2817,9 +3255,33 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
       "observed_skills": {
+        "1467": {
+          "id": 1467,
+          "name": "Arcing Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "394": {
+          "id": 394,
+          "name": "Power Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "399": {
+          "id": 399,
+          "name": "Distracting Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
         "446": {
           "id": 446,
           "name": "Troll Unguent",
@@ -2832,7 +3294,7 @@
       "encoded_names": [
         "\\\\x8101\\\\x513A\\\\xBDA7\\\\x8CA7\\\\x6E92"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Dervish",
       "inferred_secondary": "",
       "model_ids": [
         4720
@@ -2843,9 +3305,84 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "1483": {
+          "id": 1483,
+          "name": "Banishing Strike",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1488": {
+          "id": 1488,
+          "name": "Victorious Sweep",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1536": {
+          "id": 1536,
+          "name": "Wounding Strike",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1763": {
+          "id": 1763,
+          "name": "Zealous Renewal",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x513B\\\\xEC38\\\\xECCC\\\\x2A9F": {
+      "encoded_names": [
+        "\\\\x8101\\\\x513B\\\\xEC38\\\\xECCC\\\\x2A9F"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        4716
+      ],
+      "observed_maps": {
+        "402": {
+          "base_id": 402,
+          "id": 402,
+          "instance_type": "Explorable",
+          "name": "Resplendent Makuun"
+        }
+      },
+      "observed_skills": {
+        "1560": {
+          "id": 1560,
+          "name": "Song of Power",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1570": {
+          "id": 1570,
+          "name": "Song of Purification",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1575": {
+          "id": 1575,
+          "name": "Blazing Finale",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1584": {
+          "id": 1584,
+          "name": "Leader's Comfort",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
     },
     "enc:\\\\x8101\\\\x5150\\\\xA134\\\\xC3B2\\\\x5A26": {
       "encoded_names": [

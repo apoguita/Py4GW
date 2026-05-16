@@ -16,7 +16,12 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
 from HeroAI.cache_data import CacheData
-from HeroAI.follow.follower_runtime import FollowExecutionState, execute_follower_follow
+from HeroAI.follow.follower_runtime import (
+    FollowExecutionState,
+    execute_follower_follow,
+    get_follow_destination_distance,
+    is_follow_recovery_active,
+)
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui_base import HeroAI_BaseUI
@@ -36,6 +41,9 @@ build_contract_map_signature: tuple[int, int, int, int] | None = None
 def LootingNode(cached_data: CacheData)-> BehaviorTree.NodeState:
     options = cached_data.account_options
     if not options or not options.Looting:
+        return BehaviorTree.NodeState.FAILURE
+
+    if is_follow_recovery_active(cached_data, follow_execution_state):
         return BehaviorTree.NodeState.FAILURE
     
     if cached_data.data.in_aggro:
@@ -87,6 +95,9 @@ def HandleOutOfCombat(cached_data: CacheData):
         return False
     
     if cached_data.data.in_aggro:
+        return False
+
+    if is_follow_recovery_active(cached_data, follow_execution_state):
         return False
 
     player_agent_id = Player.GetAgentID()
@@ -271,8 +282,8 @@ GlobalGuardNode = BehaviorTree.SequenceNode(
         BehaviorTree.ConditionNode(
             name="DistanceSafe",
             condition_fn=lambda:
-                HeroAI_FloatingWindows.DistanceToDestination(cached_data)
-                < Range.SafeCompass.value
+                get_follow_destination_distance(cached_data) < Range.SafeCompass.value
+                or is_follow_recovery_active(cached_data, follow_execution_state)
         ),
 
         BehaviorTree.ConditionNode(
@@ -289,7 +300,10 @@ CastingBlockNode = BehaviorTree.ConditionNode(
     condition_fn=lambda:
         BehaviorTree.NodeState.RUNNING
         if (
-            cached_data.combat_handler.InCastingRoutine()
+            (
+                cached_data.combat_handler.InCastingRoutine()
+                and not is_follow_recovery_active(cached_data, follow_execution_state)
+            )
             or Agent.IsCasting(Player.GetAgentID())
         )
         else BehaviorTree.NodeState.SUCCESS

@@ -8,7 +8,12 @@ from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 from Py4GWCoreLib import ActionQueueManager, LootConfig, Range, SharedCommandType, ThrottledTimer, Utils
 
 from .cache_data import CacheData
-from .follow.follower_runtime import FollowExecutionState, execute_follower_follow
+from .follow.follower_runtime import (
+    FollowExecutionState,
+    execute_follower_follow,
+    get_follow_destination_distance,
+    is_follow_recovery_active,
+)
 from .settings import Settings
 
 
@@ -56,6 +61,10 @@ class HeroAIHeadlessTree:
     def _handle_looting(self) -> BehaviorTree.NodeState:
         options = self.cached_data.account_options
         if not options or not options.Looting:
+            self.cached_data.in_looting_routine = False
+            return BehaviorTree.NodeState.FAILURE
+
+        if is_follow_recovery_active(self.cached_data, self._follow_state):
             self.cached_data.in_looting_routine = False
             return BehaviorTree.NodeState.FAILURE
 
@@ -117,6 +126,9 @@ class HeroAIHeadlessTree:
         if self.cached_data.data.in_aggro:
             return False
 
+        if is_follow_recovery_active(self.cached_data, self._follow_state):
+            return False
+
         player_agent_id = Player.GetAgentID()
         if self.cached_data.combat_handler.InCastingRoutine() or Agent.IsCasting(player_agent_id):
             return False
@@ -138,20 +150,7 @@ class HeroAIHeadlessTree:
         return self.heroai_build.DidTickSucceed()
 
     def _distance_to_destination(self) -> float:
-        account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self.cached_data.account_email)
-        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(self.cached_data.account_email)
-
-        if not account or not options:
-            return 0.0
-
-        if options.IsFlagged:
-            if account.AgentPartyData.PartyPosition == 0:
-                destination = (options.AllFlag.x, options.AllFlag.y)
-            else:
-                destination = (options.FlagPos.x, options.FlagPos.y)
-        else:
-            destination = Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        return Utils.Distance(destination, Agent.GetXY(Player.GetAgentID()))
+        return get_follow_destination_distance(self.cached_data)
 
     def _is_user_interrupting(self) -> bool:
         return False
@@ -260,7 +259,10 @@ class HeroAIHeadlessTree:
                 ),
                 BehaviorTree.ConditionNode(
                     name="DistanceSafe",
-                    condition_fn=lambda: self._distance_to_destination() < Range.SafeCompass.value,
+                    condition_fn=lambda: (
+                        self._distance_to_destination() < Range.SafeCompass.value
+                        or is_follow_recovery_active(self.cached_data, self._follow_state)
+                    ),
                 ),
                 BehaviorTree.ConditionNode(
                     name="NotKnockedDown",
@@ -274,7 +276,10 @@ class HeroAIHeadlessTree:
             condition_fn=lambda: (
                 BehaviorTree.NodeState.RUNNING
                 if (
-                    self.cached_data.combat_handler.InCastingRoutine()
+                    (
+                        self.cached_data.combat_handler.InCastingRoutine()
+                        and not is_follow_recovery_active(self.cached_data, self._follow_state)
+                    )
                     or Agent.IsCasting(Player.GetAgentID())
                 )
                 else BehaviorTree.NodeState.SUCCESS

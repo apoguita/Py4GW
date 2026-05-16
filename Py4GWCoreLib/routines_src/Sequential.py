@@ -582,6 +582,7 @@ class Sequential:
         def LootItems(item_array:list[int], log=False):
             from ..Agent import Agent
             from ..GlobalCache import GLOBAL_CACHE
+            from ..GlobalCache.WhiteboardLocks import clear_loot_lock, post_loot_lock
             from ..Py4GWcorelib import ConsoleLog, Console, ActionQueueManager
             from .Checks import Checks
             if len(item_array) == 0:
@@ -595,19 +596,33 @@ class Sequential:
                 item_id = item_array.pop(0)
                 if item_id == 0:
                     continue
+                claimed_item_id = 0
+                owner_id = Agent.GetItemAgentOwnerID(item_id)
+                if owner_id == 0:
+                    if post_loot_lock(item_id) < 0:
+                        continue
+                    claimed_item_id = item_id
                 if not Agent.IsValid(item_id):
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
                     continue
                 item_x, item_y = Agent.GetXY(item_id)
                 if not Checks.Map.MapValid():
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
                     ActionQueueManager().ResetAllQueues()
                     return
                 Sequential.Movement.FollowPath([(item_x, item_y)])
                 if not Checks.Map.MapValid():
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
                     ActionQueueManager().ResetAllQueues()
                     return
                 if Agent.IsValid(item_id):
                     Player.Interact(item_id, False)
                     sleep(1.250)
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 
             if log and len(item_array) > 0:
                 ConsoleLog("LootItems", f"Looted {len(item_array)} items.", Console.MessageType.Info)
