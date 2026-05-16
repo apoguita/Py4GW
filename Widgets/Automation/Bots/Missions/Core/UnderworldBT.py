@@ -1147,12 +1147,7 @@ def _deamon_assassin_tree() -> _BT:
             dialog_id=0x806801,
         ),
         BT.Movement.Move(x=-3560, y=-5899),
-        _BT(_BT.WaitUntilNode(
-            name='WaitNoSlayerAlive',
-            condition_fn=_no_slayer_alive,
-            throttle_interval_ms=1000,
-            timeout_ms=300_000,
-        )),
+        _wait_quest_completed(),
         name='DeamonAssassin',
     )
 
@@ -1388,7 +1383,7 @@ def _terrorweb_queen_tree() -> _BT:
 
     def _blacklist_add(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-        EnemyBlacklist().add_name('obsidian behemoth')
+        EnemyBlacklist().add_name('obsidian guardian')
         return _BT.NodeState.SUCCESS
 
     def _queen_dead(node: _BT.Node) -> _BT.NodeState:
@@ -1554,31 +1549,76 @@ def _imprisoned_spirits_tree() -> _BT:
     )
 
 
+# How many consecutive ticks IsPartyWiped() must be True before recovery activates.
+# Kept high to avoid false positives from brief death windows in combat.
+_WIPE_CONFIRM_TICKS = 60  # ~3 seconds at 20 fps
+
+# During these steps the bot must always be in an explorable area.
+# If the map is ready but NOT explorable while in one of these steps → wipe.
+_UW_EXPLORABLE_STEPS: frozenset[str] = frozenset({
+    'Clear the Chamber', 'Pass the Mountains', 'Restore Mountains',
+    'Deamon Assassin', 'Restore Planes', 'The Four Horsemen',
+    'Restore Pools', 'Terrorweb Queen', 'Restore Pit',
+    'Imprisoned Spirits', 'Restore Vale', 'Wrathfull Spirits',
+    'Unwanted Guests', 'Restore Wastes', 'Servants of Grenth', 'Dhuum',
+})
+
+
 def _build_uw_wipe_recovery_tree() -> _BT:
     import time as _t
-    _state: dict = {'active': False, 'last_return_ms': 0.0}
+    _state: dict = {
+        'active': False,
+        'wipe_ticks': 0,
+        'last_return_ms': 0.0,
+    }
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib.Map import Map as _Map
         from Py4GWCoreLib.Routines import Routines as _R
 
         now = _t.monotonic() * 1000.0
-        is_wiped = bool(_R.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
+        map_ready     = _Map.IsMapReady()
+        in_explorable = map_ready and _Map.IsExplorable()
+        in_outpost    = map_ready and _Map.IsOutpost()
+
+        current_step = str(node.blackboard.get('current_step_name', '') or '')
+        in_uw_step   = current_step in _UW_EXPLORABLE_STEPS
+
+        # Signal A: in a UW quest step but already in outpost = kicked out after wipe.
+        #           Unambiguous – activate immediately, no debounce needed.
+        kicked_to_outpost = in_uw_step and in_outpost
+
+        # Signal B: all party members dead while still inside the explorable.
+        #           Requires _WIPE_CONFIRM_TICKS consecutive True ticks to filter
+        #           brief death windows (e.g. one member dies and is instantly rezzed).
+        #           IsPartyDefeated() is intentionally excluded: it fires unreliably
+        #           during combat and causes false ReturnToOutpost() calls.
+        all_dead_in_uw = in_explorable and in_uw_step and _R.Checks.Party.IsPartyWiped()
+
+        is_wiped = kicked_to_outpost or all_dead_in_uw
 
         if not _state['active']:
             if not is_wiped:
+                _state['wipe_ticks'] = 0
                 node.blackboard['party_wipe_recovery_active'] = False
                 return _BT.NodeState.RUNNING
+
+            _state['wipe_ticks'] += 1
+            if not kicked_to_outpost and _state['wipe_ticks'] < _WIPE_CONFIRM_TICKS:
+                return _BT.NodeState.RUNNING
+
             _state['active'] = True
+            _state['wipe_ticks'] = 0
             _state['last_return_ms'] = 0.0
             node.blackboard['party_wipe_recovery_active'] = True
             return _BT.NodeState.RUNNING
 
         node.blackboard['party_wipe_recovery_active'] = True
 
-        if _Map.IsMapReady() and _Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
+        if in_outpost and GLOBAL_CACHE.Party.IsPartyLoaded():
             node.blackboard['restart_step_name_request'] = 'Enter Underworld'
             _state['active'] = False
+            _state['wipe_ticks'] = 0
             _state['last_return_ms'] = 0.0
             node.blackboard['party_wipe_recovery_active'] = False
             return _BT.NodeState.SUCCESS
@@ -1621,6 +1661,31 @@ for _i, (_svc_name, _) in enumerate(bot._service_steps):
         bot._service_trees[_i] = (_wipe_svc, bot._coerce_runtime_tree(_build_uw_wipe_recovery_tree))
         bot._rebuild_root_tree()
         break
+
+# ── COMBAT_ACTIVE tightening ───────────────────────────────────────────────
+# The SharedMemory InAggro field can scan up to Spellcast range (~5000 units)
+# when any party member is in aggro AND the leader was recently in aggro
+# (stay-alert window = 750 ms).  In Underworld, followers are always fighting,
+# so this feedback loop keeps COMBAT_ACTIVE=True even when the leader is far
+# from every enemy, which freezes BT.Movement.Move (pause_on_combat=True).
+#
+# Fix: monkey-patch _tick_planner so that, just before the planner tree ticks
+# and its Move nodes read COMBAT_ACTIVE, we replace any True value from the
+# large-range SharedMemory scan with a live Earshot (≈1020 unit) scan.
+# HeroAI's own combat logic is untouched; only the planner pause is affected.
+_orig_tick_planner = bot._tick_planner
+
+
+def _tight_combat_active_planner_tick(node):  # type: ignore[override]
+    from Py4GWCoreLib.Routines import Routines as _R
+
+    bb = node.blackboard
+    if bb.get('COMBAT_ACTIVE', False):
+        bb['COMBAT_ACTIVE'] = bool(_R.Checks.Agents.InAggro())  # Earshot by default
+    return _orig_tick_planner(node)
+
+
+bot._tick_planner = _tight_combat_active_planner_tick  # type: ignore[method-assign]
 
 _map_stable_frames: int = 0
 _MAP_STABLE_THRESHOLD: int = 10
