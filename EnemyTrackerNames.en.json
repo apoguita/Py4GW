@@ -8,7 +8,8 @@
       "Pet - Elder Crocodile"
     ],
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": [
-      "Spirit of Favorable Winds"
+      "Spirit of Favorable Winds",
+      "Agent 84"
     ],
     "enc:\\\\x1232\\\\xF535\\\\x05E0": [
       "Agent 160",
@@ -144,6 +145,15 @@
     "enc:\\\\x7D54\\\\xF46D\\\\xEC6C\\\\x721C": [
       "Kournan Phalanx"
     ],
+    "enc:\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534": [
+      "Ruby Djinn"
+    ],
+    "enc:\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7": [
+      "Sapphire Djinn"
+    ],
+    "enc:\\\\x8101\\\\x0678\\\\x8EA8\\\\xAD51\\\\x78BA": [
+      "Diamond Djinn"
+    ],
     "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": [
       "Tormented Land"
     ],
@@ -213,6 +223,9 @@
     "enc:\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563": [
       "Beast Sworn Heket"
     ],
+    "enc:\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92": [
+      "Kormab, Burning Heart"
+    ],
     "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": [
       "Makdeh the Aggravating"
     ],
@@ -238,6 +251,15 @@
     "enc:\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2": [
       "Sergeant Behnwa"
     ],
+    "enc:\\\\x8101\\\\x4E03\\\\x9EA3\\\\x0DD9": [
+      "Josinq the Whisperer"
+    ],
+    "enc:\\\\x8101\\\\x4E04\\\\xFC41\\\\xA546\\\\x637B": [
+      "Bansheh, Gatherer of Branches"
+    ],
+    "enc:\\\\x8101\\\\x4E05\\\\x9907\\\\xE210\\\\x3B37": [
+      "Roaring Ether"
+    ],
     "enc:\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9": [
       "Stone Shard Crag"
     ],
@@ -247,6 +269,9 @@
     "enc:\\\\x8101\\\\x5134\\\\x877B\\\\x8D12\\\\x7167": [
       "Behemoth Gravebane"
     ],
+    "enc:\\\\x8101\\\\x5136\\\\xEADE\\\\x1A59": [
+      "Cobalt Mokele"
+    ],
     "enc:\\\\x8101\\\\x5137\\\\x9E87\\\\xCE88\\\\x5E97": [
       "Rock Beetle"
     ],
@@ -255,6 +280,9 @@
     ],
     "enc:\\\\x8101\\\\x513A\\\\xBDA7\\\\x8CA7\\\\x6E92": [
       "Scytheclaw Behemoth"
+    ],
+    "enc:\\\\x8101\\\\x513B\\\\xEC38\\\\xECCC\\\\x2A9F": [
+      "Cobalt Shrieker"
     ],
     "enc:\\\\x8101\\\\x5150\\\\xA134\\\\xC3B2\\\\x5A26": [
       "Hajok Earthguardian"

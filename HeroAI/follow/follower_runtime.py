@@ -18,6 +18,64 @@ class FollowExecutionState:
     last_follow_assigned_point: tuple[float, float, int] | None = None
     follow_map_entry_signature: tuple[int, int, int, int, int] | None = None
     last_leader_publish_signature: tuple[int, int, int, int, int] | None = None
+    recovery_active: bool = False
+
+
+FOLLOW_RECOVERY_START_DISTANCE = max(float(Range.Spellcast.value), float(Range.SafeCompass.value) * 0.85)
+FOLLOW_RECOVERY_RELEASE_DISTANCE = max(
+    float(Range.Spellcast.value),
+    FOLLOW_RECOVERY_START_DISTANCE - 700.0,
+)
+
+
+def get_follow_destination_distance(cached_data: CacheData) -> float:
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+    options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
+
+    if not account or not options:
+        return 0.0
+
+    if bool(getattr(options, "IsFlagged", False)):
+        if int(account.AgentPartyData.PartyPosition) == 0:
+            destination = (float(options.AllFlag.x), float(options.AllFlag.y))
+        else:
+            destination = (float(options.FlagPos.x), float(options.FlagPos.y))
+    else:
+        leader_agent_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        if leader_agent_id <= 0:
+            return 0.0
+        destination = Agent.GetXY(leader_agent_id)
+
+    return float(Utils.Distance(destination, Agent.GetXY(Player.GetAgentID())))
+
+
+def is_follow_recovery_active(cached_data: CacheData, state: FollowExecutionState) -> bool:
+    options = cached_data.account_options
+    player_agent_id = int(Player.GetAgentID())
+
+    if (
+        not options
+        or not bool(getattr(options, "Following", False))
+        or player_agent_id <= 0
+        or player_agent_id == int(GLOBAL_CACHE.Party.GetPartyLeaderID())
+    ):
+        state.recovery_active = False
+        return False
+
+    distance_to_destination = get_follow_destination_distance(cached_data)
+    if state.recovery_active:
+        state.recovery_active = distance_to_destination >= FOLLOW_RECOVERY_RELEASE_DISTANCE
+        return state.recovery_active
+
+    if distance_to_destination < FOLLOW_RECOVERY_START_DISTANCE:
+        return False
+
+    state.recovery_active = True
+    try:
+        Player.SendChat('#', 'Hey, Wait for me!.')
+    except Exception:
+        pass
+    return True
 
 
 def execute_follower_follow(
@@ -57,6 +115,7 @@ def execute_follower_follow(
 
     options = cached_data.account_options
     if not options or not options.Following:
+        state.recovery_active = False
         return BehaviorTree.NodeState.FAILURE
 
     if not cached_data.follow_throttle_timer.IsExpired():
@@ -64,8 +123,11 @@ def execute_follower_follow(
 
     player_agent_id = int(Player.GetAgentID())
     if player_agent_id == GLOBAL_CACHE.Party.GetPartyLeaderID():
+        state.recovery_active = False
         cached_data.follow_throttle_timer.Reset()
         return BehaviorTree.NodeState.FAILURE
+
+    recovery_active = is_follow_recovery_active(cached_data, state)
 
     if Agent.IsCasting(player_agent_id):
         return BehaviorTree.NodeState.FAILURE
@@ -160,7 +222,8 @@ def execute_follower_follow(
         state.last_follow_move_point = None
     state.last_follow_assigned_point = assigned_point
 
-    if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
+    effective_follow_distance = min(follow_distance, FOLLOW_RECOVERY_RELEASE_DISTANCE) if recovery_active else follow_distance
+    if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= effective_follow_distance:
         return BehaviorTree.NodeState.FAILURE
 
     xx = follow_x

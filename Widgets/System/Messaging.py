@@ -20,6 +20,7 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
+from Py4GWCoreLib.GlobalCache.WhiteboardLocks import post_loot_lock, clear_loot_lock
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -1454,6 +1455,7 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "Starting PickUpLoot routine", Console.MessageType.Info, False)
 
     SnapshotHeroAIOptions(message.ReceiverEmail)
+    claimed_item_id = 0
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
@@ -1461,13 +1463,25 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
             if len(loot_array) == 0:
                 break
-            item_id = loot_array.pop(0)
-            if item_id is None or item_id == 0:
-                continue
+            item_id = 0
+            for candidate_item_id in loot_array:
+                if candidate_item_id is None or candidate_item_id == 0:
+                    continue
+                owner_id = Agent.GetItemAgentOwnerID(candidate_item_id)
+                if owner_id == 0 and post_loot_lock(candidate_item_id) < 0:
+                    continue
+                item_id = candidate_item_id
+                claimed_item_id = candidate_item_id if owner_id == 0 else 0
+                break
+            if item_id == 0:
+                break
 
             exit_reason = _get_loot_exit_reason()
             if exit_reason:
                 LootConfig().AddItemIDToBlacklist(item_id)
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 if exit_reason == "map_invalid":
                     ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
                 elif exit_reason == "inventory_full":
@@ -1476,6 +1490,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 return
 
             if not Agent.IsValid(item_id):
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 yield from Routines.Yield.wait(100)
                 continue
 
@@ -1483,6 +1500,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=10000)
             if not follow_success:
                 LootConfig().AddItemIDToBlacklist(item_id)
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 ConsoleLog(
                     "PickUp Loot",
                     "Failed to follow path to loot item, halting.",
@@ -1494,6 +1514,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             yield from Routines.Yield.wait(100)
             exit_reason = _get_loot_exit_reason()
             if exit_reason:
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 RestoreHeroAISnapshot(message.ReceiverEmail)
                 return
             yield from Routines.Yield.Player.InteractAgent(item_id)
@@ -1506,6 +1529,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 delta = current_time - start_time
                 if delta > timeout:
                     LootConfig().AddItemIDToBlacklist(item_id)
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
+                        claimed_item_id = 0
                     ConsoleLog(
                         "PickUp Loot",
                         "Timeout reached while picking up loot, halting.",
@@ -1517,6 +1543,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 exit_reason = _get_loot_exit_reason()
                 if exit_reason:
                     LootConfig().AddItemIDToBlacklist(item_id)
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
+                        claimed_item_id = 0
                     if exit_reason == "map_invalid":
                         ConsoleLog(
                             "PickUp Loot",
@@ -1534,12 +1563,17 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
 
                 loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
                 if item_id not in loot_array or len(loot_array) == 0:
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
+                        claimed_item_id = 0
                     yield from Routines.Yield.wait(100)
                     break
                 yield from Routines.Yield.wait(100)
 
         ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info, False)
     finally:
+        if claimed_item_id:
+            clear_loot_lock(claimed_item_id)
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 #endregion
