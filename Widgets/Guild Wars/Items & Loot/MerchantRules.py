@@ -81,6 +81,22 @@ RULES_WORKSPACE_CLEANUP = "cleanup"
 RULES_WORKSPACE_DESTROY = "destroy"
 RULES_WORKSPACE_PROTECTIONS = "protections"
 RULES_WORKSPACE_SALVAGE = "salvage"
+PROTECTIONS_WORKSPACE_SUMMARY = "summary"
+PROTECTIONS_WORKSPACE_SELL = "sell"
+PROTECTIONS_WORKSPACE_CLEANUP = "cleanup"
+PROTECTIONS_WORKSPACE_DESTROY = "destroy"
+PROTECTIONS_WORKSPACE_ORDER: tuple[str, ...] = (
+    PROTECTIONS_WORKSPACE_SUMMARY,
+    PROTECTIONS_WORKSPACE_SELL,
+    PROTECTIONS_WORKSPACE_CLEANUP,
+    PROTECTIONS_WORKSPACE_DESTROY,
+)
+PROTECTIONS_WORKSPACE_LABELS: dict[str, str] = {
+    PROTECTIONS_WORKSPACE_SUMMARY: "Summary",
+    PROTECTIONS_WORKSPACE_SELL: "Sell",
+    PROTECTIONS_WORKSPACE_CLEANUP: "Cleanup",
+    PROTECTIONS_WORKSPACE_DESTROY: "Destroy",
+}
 MULTIBOX_REMOTE_TIMEOUT_MS = 45000
 MULTIBOX_EXECUTE_REMOTE_TIMEOUT_MS = 180000
 MULTIBOX_REMOTE_IDLE_WAIT_TIMEOUT_MS = 120000
@@ -4040,6 +4056,8 @@ class MerchantRulesWidget:
         self.active_buy_rule_kind = BUY_RULE_WORKSPACE_ORDER[0]
         self.active_sell_rule_kind = SELL_RULE_WORKSPACE_ORDER[0]
         self.active_destroy_rule_kind = DESTROY_RULE_WORKSPACE_ORDER[0]
+        self.active_protections_workspace = PROTECTIONS_WORKSPACE_SUMMARY
+        self.sell_protections_owner_filter = PROTECTION_FILTER_ALL
         self.protections_search_text = ""
         self.protections_owner_filter = PROTECTION_FILTER_ALL
         self.protections_type_filter = PROTECTION_FILTER_ALL
@@ -8045,7 +8063,7 @@ class MerchantRulesWidget:
         variant_setter=None,
         variant_threshold_setter=None,
         jump_anchor: str = "",
-        empty_text: str = "No protected entries selected yet.",
+        empty_text: str = "No entries selected yet.",
         value_column_label: str = "Keep If",
     ) -> bool:
         normalized_identifiers = _dedupe_identifiers(selected_identifiers)
@@ -8389,7 +8407,7 @@ class MerchantRulesWidget:
         tooltip_for_identifier: Callable[[str], str] | None = None,
     ) -> str:
         if not identifiers:
-            self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
+            self._draw_secondary_text("No entries selected yet.", wrapped=False)
             return ""
 
         removed_identifier = ""
@@ -9349,6 +9367,101 @@ class MerchantRulesWidget:
         if separator:
             return f"###{hidden_id}"
         return str(tree_label or "")
+
+    def _get_imgui_visible_label(self, label: str) -> str:
+        safe_label = str(label or "")
+        visible_label, separator, _hidden_id = safe_label.partition("###")
+        if separator:
+            return visible_label
+        visible_label, _separator, _hidden_id = safe_label.partition("##")
+        return visible_label
+
+    def _replace_imgui_visible_label(self, label: str, visible_label: str) -> str:
+        safe_label = str(label or "")
+        _old_visible_label, separator, hidden_id = safe_label.partition("###")
+        if separator:
+            return f"{visible_label}###{hidden_id}"
+        _old_visible_label, separator, hidden_id = safe_label.partition("##")
+        if separator:
+            return f"{visible_label}##{hidden_id}"
+        return str(visible_label or "")
+
+    def _measure_text_width(self, text: str) -> float:
+        try:
+            size = PyImGui.calc_text_size(str(text or ""))
+            return max(0.0, float(size[0]))
+        except Exception:
+            return float(len(str(text or "")) * 7)
+
+    def _get_available_content_width(self, fallback: float = 640.0) -> float:
+        try:
+            available = PyImGui.get_content_region_avail()
+            width = float(available[0])
+            return width if width > 0.0 else float(fallback)
+        except Exception:
+            return float(fallback)
+
+    def _fit_text_to_width(self, text: str, max_width: float) -> str:
+        safe_text = str(text or "")
+        if max_width <= 0.0:
+            return ""
+        if self._measure_text_width(safe_text) <= max_width:
+            return safe_text
+        ellipsis = "..."
+        ellipsis_width = self._measure_text_width(ellipsis)
+        if max_width <= ellipsis_width:
+            return ellipsis
+        trimmed = safe_text.rstrip()
+        while trimmed and self._measure_text_width(f"{trimmed}{ellipsis}") > max_width:
+            trimmed = trimmed[:-1].rstrip()
+        return f"{trimmed}{ellipsis}" if trimmed else ellipsis
+
+    def _get_small_button_width(self, label: str) -> float:
+        return self._measure_text_width(self._get_imgui_visible_label(label)) + 24.0
+
+    def _get_rule_header_fixed_width(self, type_label: str, rename_edit_key: str) -> float:
+        fixed_width = (
+            self._measure_text_width("|")
+            + self._measure_text_width(f"[{type_label}]")
+            + 32.0
+        )
+        if not rename_edit_key:
+            return fixed_width
+        if self.rule_name_edit_key == rename_edit_key:
+            return (
+                fixed_width
+                + 8.0
+                + 180.0
+                + self._get_small_button_width("Apply")
+                + 8.0
+                + self._get_small_button_width("Cancel")
+            )
+        return fixed_width + 8.0 + self._get_small_button_width("Rename")
+
+    def _get_rule_header_column_width(self, tree_label: str, type_label: str, rename_edit_key: str) -> float:
+        available_width = self._get_available_content_width()
+        is_renaming = bool(rename_edit_key and self.rule_name_edit_key == rename_edit_key)
+        summary_min_width = 96.0 if is_renaming else 120.0
+        max_rule_width = max(270.0, available_width - 95.0 - summary_min_width - 24.0)
+        max_rule_width = min(520.0, max_rule_width)
+        visible_label_width = self._measure_text_width(self._get_imgui_visible_label(tree_label))
+        needed_width = self._get_rule_header_fixed_width(type_label, rename_edit_key) + visible_label_width
+        return min(max(270.0, needed_width), max_rule_width)
+
+    def _fit_rule_header_tree_label(
+        self,
+        tree_label: str,
+        type_label: str,
+        rename_edit_key: str,
+        rule_column_width: float,
+    ) -> str:
+        visible_label = self._get_imgui_visible_label(tree_label)
+        is_renaming = bool(rename_edit_key and self.rule_name_edit_key == rename_edit_key)
+        if not visible_label or is_renaming:
+            return tree_label
+        max_label_width = rule_column_width - self._get_rule_header_fixed_width(type_label, rename_edit_key)
+        fitted_label = self._fit_text_to_width(visible_label, max_label_width)
+        return self._replace_imgui_visible_label(tree_label, fitted_label)
 
     def _draw_rule_header_rename_controls(
         self,
@@ -20995,7 +21108,7 @@ class MerchantRulesWidget:
         if _normalize_salvage_settings(self.salvage_settings).on_inventory_change:
             self._draw_warning_text("MR Salvage on inventory change is active.")
         if self.destroy_include_protected_items:
-            PyImGui.text_colored("Include Protected Items is active for this session.", UI_COLOR_DANGER)
+            PyImGui.text_colored("Destroy can include protected items this session.", UI_COLOR_DANGER)
         if self.last_instant_destroy_summary:
             self._draw_secondary_text(self.last_instant_destroy_summary)
         if self.last_identify_summary:
@@ -21156,9 +21269,21 @@ class MerchantRulesWidget:
         rule_name: str = "",
         force_open: bool = False,
     ) -> tuple[bool, bool, bool, str, bool]:
+        raw_tree_label = (
+            self._get_rule_header_tree_label(tree_label, rename_edit_key)
+            if rename_edit_key
+            else tree_label
+        )
+        rule_column_width = self._get_rule_header_column_width(raw_tree_label, type_label, rename_edit_key)
+        draw_tree_label = self._fit_rule_header_tree_label(
+            raw_tree_label,
+            type_label,
+            rename_edit_key,
+            rule_column_width,
+        )
         table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
         if PyImGui.begin_table(table_id, 3, table_flags):
-            PyImGui.table_setup_column("Rule", PyImGui.TableColumnFlags.WidthFixed, 270.0)
+            PyImGui.table_setup_column("Rule", PyImGui.TableColumnFlags.WidthFixed, rule_column_width)
             PyImGui.table_setup_column("Summary", PyImGui.TableColumnFlags.WidthStretch, 1.0)
             PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 95.0)
             PyImGui.table_next_row()
@@ -21174,7 +21299,6 @@ class MerchantRulesWidget:
             if force_open:
                 self._debug_log(f"Protections jump applying rule-header force-open before tree node: {tree_label}")
                 self._force_next_item_open(True)
-            draw_tree_label = self._get_rule_header_tree_label(tree_label, rename_edit_key) if rename_edit_key else tree_label
             self._push_rule_header_hover_style()
             opened = PyImGui.tree_node_ex(draw_tree_label, tree_flags)
             header_clicked = bool(PyImGui.is_item_clicked(0))
@@ -21205,7 +21329,6 @@ class MerchantRulesWidget:
         if force_open:
             self._debug_log(f"Protections jump applying rule-header force-open before tree node: {tree_label}")
             self._force_next_item_open(True)
-        draw_tree_label = self._get_rule_header_tree_label(tree_label, rename_edit_key) if rename_edit_key else tree_label
         self._push_rule_header_hover_style()
         opened = PyImGui.tree_node(draw_tree_label)
         header_clicked = bool(PyImGui.is_item_clicked(0))
@@ -21298,6 +21421,17 @@ class MerchantRulesWidget:
         self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"sell subsection changed to {next_kind}")
+
+    def _set_active_protections_workspace(self, workspace_id: str, *, preserve_sell_protection_jump: bool = False):
+        next_workspace = str(workspace_id or PROTECTIONS_WORKSPACE_SUMMARY)
+        if next_workspace not in PROTECTIONS_WORKSPACE_ORDER:
+            next_workspace = PROTECTIONS_WORKSPACE_SUMMARY
+        if next_workspace == self.active_protections_workspace:
+            return
+        self.active_protections_workspace = next_workspace
+        self._clear_pending_destructive_button()
+        if not preserve_sell_protection_jump:
+            self._clear_sell_protection_jump(f"protections workspace changed to {next_workspace}")
 
     def _get_sell_protection_jump_target(self) -> SellProtectionJumpTarget | None:
         target = self.sell_protection_jump_target
@@ -21413,9 +21547,12 @@ class MerchantRulesWidget:
         if self.sell_protection_jump_target is not None:
             self._clear_sell_protection_jump("replaced by another jump request")
         self._set_active_workspace(WORKSPACE_RULES, preserve_sell_protection_jump=True)
-        self._set_active_rules_workspace(RULES_WORKSPACE_SELL, preserve_sell_protection_jump=True)
+        self._set_active_rules_workspace(RULES_WORKSPACE_PROTECTIONS, preserve_sell_protection_jump=True)
+        self._set_active_protections_workspace(PROTECTIONS_WORKSPACE_SELL, preserve_sell_protection_jump=True)
         if rule_kind in SELL_RULE_WORKSPACE_ORDER:
             self._set_active_sell_rule_kind(rule_kind, preserve_sell_protection_jump=True)
+        if rule_kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+            self.sell_protections_owner_filter = rule_kind
         self.sell_protection_jump_target = SellProtectionJumpTarget(
             owner_rule_index=int(index),
             owner_rule_kind=str(rule_kind),
@@ -21551,7 +21688,7 @@ class MerchantRulesWidget:
             for model_id in normalized_rule.blacklist_model_ids:
                 append_entry(
                     PROTECTION_FILTER_MODELS,
-                    "Protected Model",
+                    "Kept Model",
                     self._format_model_label(model_id),
                     f"{int(model_id):09d}",
                     subsection_anchor=SELL_PROTECTION_ANCHOR_MODELS,
@@ -21562,7 +21699,7 @@ class MerchantRulesWidget:
                 for item_type_id in normalized_rule.blacklist_item_type_ids:
                     append_entry(
                         PROTECTION_FILTER_WEAPON_TYPES,
-                        "Protected Weapon Type",
+                        "Kept Weapon Type",
                         self._get_weapon_item_type_label(item_type_id),
                         f"{int(item_type_id):04d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_TYPES,
@@ -21577,7 +21714,7 @@ class MerchantRulesWidget:
                     perfect_suffix = " perfect" if bool(getattr(normalized_rule, "all_weapons_perfect_stats_only", False)) else ""
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
-                        "Req Range",
+                        "Requirement Keep",
                         f"All weapons{perfect_suffix} req {all_weapons_min_requirement}-{all_weapons_max_requirement}",
                         f"global-{all_weapons_min_requirement:02d}-{all_weapons_max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
@@ -21594,7 +21731,7 @@ class MerchantRulesWidget:
                     perfect_suffix = " perfect" if bool(getattr(requirement_rule, "perfect_stats_only", False)) else ""
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
-                        "Req Range",
+                        "Requirement Keep",
                         f"{self._format_model_label(requirement_rule.model_id)}{perfect_suffix} req {min_requirement}-{max_requirement}",
                         f"{int(requirement_rule.model_id):09d}-{min_requirement:02d}-{max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
@@ -21604,7 +21741,7 @@ class MerchantRulesWidget:
                 for identifier in normalized_rule.protected_weapon_mod_identifiers:
                     append_entry(
                         PROTECTION_FILTER_WEAPON_MODS,
-                        "Protected Weapon Mod",
+                        "Kept Weapon Upgrade",
                         self._get_weapon_mod_generic_label(identifier),
                         str(identifier),
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
@@ -21616,7 +21753,7 @@ class MerchantRulesWidget:
                     min_value = int(threshold_rule.min_value)
                     append_entry(
                         PROTECTION_FILTER_WEAPON_MODS,
-                        "Protected Weapon Mod Roll",
+                        "Kept Weapon Upgrade Roll",
                         self._format_weapon_mod_threshold_rule(threshold_rule),
                         f"{identifier}:{min_value:04d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
@@ -21627,7 +21764,7 @@ class MerchantRulesWidget:
                     variant_key = _weapon_mod_variant_rule_choice_key(variant_rule)
                     append_entry(
                         PROTECTION_FILTER_WEAPON_MODS,
-                        "Protected Weapon Mod Variant",
+                        "Kept Weapon Upgrade Variant",
                         self._format_weapon_mod_variant_rule(variant_rule),
                         variant_key,
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
@@ -21639,7 +21776,7 @@ class MerchantRulesWidget:
                     min_value = int(threshold_rule.min_value)
                     append_entry(
                         PROTECTION_FILTER_WEAPON_MODS,
-                        "Protected Weapon Mod Variant Roll",
+                        "Kept Weapon Upgrade Variant Roll",
                         self._format_weapon_mod_variant_threshold_rule(threshold_rule),
                         f"{variant_key}:{min_value:04d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
@@ -21649,7 +21786,7 @@ class MerchantRulesWidget:
                 for identifier in normalized_rule.protected_rune_identifiers:
                     append_entry(
                         PROTECTION_FILTER_RUNES,
-                        "Protected Rune / Insignia",
+                        "Kept Rune / Insignia",
                         self._get_rune_label(identifier),
                         str(identifier),
                         subsection_anchor=SELL_PROTECTION_ANCHOR_RUNES,
@@ -21706,10 +21843,10 @@ class MerchantRulesWidget:
             PyImGui.table_setup_column("Owner Rule", PyImGui.TableColumnFlags.WidthFixed, 300.0)
             PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 72.0)
             PyImGui.table_setup_column("Order", PyImGui.TableColumnFlags.WidthFixed, 58.0)
-            PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+            PyImGui.table_setup_column("Edit", PyImGui.TableColumnFlags.WidthFixed, 58.0)
 
             PyImGui.table_next_row()
-            for column_index, column_label in enumerate(("Source", "Type", "Value", "Owner Kind", "Owner Rule", "Enabled", "Order", "Jump")):
+            for column_index, column_label in enumerate(("Source", "Type", "Value", "Owner Kind", "Owner Rule", "Enabled", "Order", "Edit")):
                 PyImGui.table_set_column_index(column_index)
                 self._draw_secondary_text(column_label, wrapped=False)
 
@@ -21751,7 +21888,10 @@ class MerchantRulesWidget:
                 PyImGui.text(str(int(entry.owner_rule_order)))
 
                 PyImGui.table_set_column_index(7)
-                if PyImGui.small_button(f"Go##merchant_rules_protection_jump_{table_id}_{row_index}_{entry.owner_rule_index}"):
+                jump_button_label = (
+                    f"Edit##merchant_rules_protection_jump_{table_id}_{row_index}_{entry.owner_rule_index}"
+                )
+                if PyImGui.small_button(jump_button_label):
                     self._request_jump_to_sell_rule(
                         entry.owner_rule_index,
                         entry.owner_rule_kind,
@@ -21761,6 +21901,392 @@ class MerchantRulesWidget:
                     )
 
             PyImGui.end_table()
+
+    def _get_protections_workspace_color(self, workspace_id: str) -> tuple[float, float, float, float]:
+        if workspace_id == PROTECTIONS_WORKSPACE_SELL:
+            return UI_COLOR_SUCCESS
+        if workspace_id == PROTECTIONS_WORKSPACE_CLEANUP:
+            return UI_COLOR_INFO
+        if workspace_id == PROTECTIONS_WORKSPACE_DESTROY:
+            return UI_COLOR_DANGER
+        return UI_COLOR_INFO
+
+    def _draw_protections_workspace_tabs(self):
+        if self.active_protections_workspace not in PROTECTIONS_WORKSPACE_ORDER:
+            self.active_protections_workspace = PROTECTIONS_WORKSPACE_SUMMARY
+
+        for tab_index, workspace_id in enumerate(PROTECTIONS_WORKSPACE_ORDER):
+            label = PROTECTIONS_WORKSPACE_LABELS.get(workspace_id, workspace_id)
+            button_label = f"{label}##merchant_rules_protections_workspace_{workspace_id}"
+            if self._draw_workspace_button(
+                button_label,
+                active=self.active_protections_workspace == workspace_id,
+                color=self._get_protections_workspace_color(workspace_id),
+            ):
+                self._set_active_protections_workspace(workspace_id)
+            if tab_index + 1 < len(PROTECTIONS_WORKSPACE_ORDER):
+                PyImGui.same_line(0, 6)
+
+    def _draw_protections_summary_section(
+        self,
+        entries: list[ProtectionHubEntry],
+        filtered_entries: list[ProtectionHubEntry],
+        owner_rule_indices: set[int],
+        enabled_owner_rule_indices: set[int],
+        type_counts: dict[str, int],
+    ):
+        self._draw_section_heading("Summary")
+        entry_word = "entry" if len(entries) == 1 else "entries"
+        disabled_owner_rule_count = max(0, len(owner_rule_indices) - len(enabled_owner_rule_indices))
+        self._draw_secondary_text(
+            (
+                f"{len(entries)} protection {entry_word} across {len(owner_rule_indices)} sell rule(s). "
+                f"{len(enabled_owner_rule_indices)} owner rule(s) enabled, {disabled_owner_rule_count} disabled."
+            ),
+            wrapped=False,
+        )
+        summary_parts = [
+            f"{label}: {int(type_counts.get(filter_key, 0))}"
+            for filter_key, label in PROTECTION_TYPE_FILTER_OPTIONS
+            if filter_key != PROTECTION_FILTER_ALL
+        ]
+        self._draw_secondary_text(" | ".join(summary_parts), wrapped=False)
+
+        PyImGui.spacing()
+        updated_search_text = PyImGui.input_text(
+            "Search Protections##merchant_rules_protections_search",
+            self.protections_search_text,
+        )
+        if updated_search_text != self.protections_search_text:
+            self.protections_search_text = updated_search_text
+
+        active_only = PyImGui.checkbox(
+            "Active Only##merchant_rules_protections_active_only",
+            bool(self.protections_active_only),
+        )
+        if active_only != self.protections_active_only:
+            self.protections_active_only = active_only
+
+        owner_filter_labels = [label for _key, label in PROTECTION_OWNER_FILTER_OPTIONS]
+        owner_filter_keys = [key for key, _label in PROTECTION_OWNER_FILTER_OPTIONS]
+        current_owner_filter_value = self.protections_owner_filter
+        current_owner_filter_index = (
+            owner_filter_keys.index(current_owner_filter_value)
+            if current_owner_filter_value in owner_filter_keys
+            else 0
+        )
+        next_owner_filter_index = PyImGui.combo(
+            "Owner Scope##merchant_rules_protections_owner_filter",
+            current_owner_filter_index,
+            owner_filter_labels,
+        )
+        if 0 <= next_owner_filter_index < len(owner_filter_keys):
+            self.protections_owner_filter = owner_filter_keys[next_owner_filter_index]
+
+        type_filter_labels = [label for _key, label in PROTECTION_TYPE_FILTER_OPTIONS]
+        type_filter_keys = [key for key, _label in PROTECTION_TYPE_FILTER_OPTIONS]
+        current_type_filter_value = self.protections_type_filter
+        current_type_filter_index = (
+            type_filter_keys.index(current_type_filter_value)
+            if current_type_filter_value in type_filter_keys
+            else 0
+        )
+        next_type_filter_index = PyImGui.combo(
+            "Type##merchant_rules_protections_type_filter",
+            current_type_filter_index,
+            type_filter_labels,
+        )
+        if 0 <= next_type_filter_index < len(type_filter_keys):
+            self.protections_type_filter = type_filter_keys[next_type_filter_index]
+
+        PyImGui.spacing()
+        if not entries:
+            self._draw_secondary_text(
+                (
+                    "No protection entries are configured yet. Add protections to weapon or armor sell rules "
+                    "and they will appear here."
+                )
+            )
+        elif not filtered_entries:
+            self._draw_secondary_text("No protection entries match the current search and filters.")
+        else:
+            self._draw_secondary_text(
+                "Open a category to view its entries. Tables scroll sideways and column dividers can be dragged wider.",
+                wrapped=False,
+            )
+
+            if PyImGui.begin_child(
+                "merchant_rules_protections_table_child",
+                (0, 260),
+                True,
+                PyImGui.WindowFlags.HorizontalScrollbar,
+            ):
+                protection_type_order = {
+                    "Kept Model": 0,
+                    "Kept Weapon Type": 1,
+                    "Requirement Keep": 2,
+                    "Kept Weapon Upgrade": 3,
+                    "Kept Weapon Upgrade Roll": 4,
+                    "Kept Weapon Upgrade Variant": 5,
+                    "Kept Weapon Upgrade Variant Roll": 6,
+                    "Kept Rune / Insignia": 7,
+                }
+                grouped_entries: dict[str, list[ProtectionHubEntry]] = {}
+                for entry in filtered_entries:
+                    grouped_entries.setdefault(entry.protection_type_label, []).append(entry)
+
+                for group_index, protection_type_label in enumerate(
+                    sorted(grouped_entries, key=lambda label: (protection_type_order.get(label, 99), label))
+                ):
+                    group_entries = grouped_entries[protection_type_label]
+                    header_label = (
+                        f"{protection_type_label} ({len(group_entries)})"
+                        f"##merchant_rules_protection_group_{group_index}"
+                    )
+                    if PyImGui.collapsing_header(header_label):
+                        safe_table_label = str(protection_type_label).lower().replace(" ", "_").replace("/", "_")
+                        self._draw_protection_entries_table(
+                            f"merchant_rules_protections_table_{group_index}_{safe_table_label}",
+                            group_entries,
+                        )
+                        PyImGui.spacing()
+            PyImGui.end_child()
+
+        PyImGui.separator()
+        self._draw_salvage_safety_summary()
+
+    def _draw_sell_rule_protection_owner_editor(self, index: int, rule: SellRule) -> bool:
+        if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+            return False
+
+        changed = False
+        jump_target = self._get_sell_protection_jump_target()
+        is_target_rule = bool(jump_target is not None and int(jump_target.owner_rule_index) == int(index))
+        summary_text, ready = self._get_sell_rule_summary(rule)
+        state_label, state_color = self._get_rule_state_badge(enabled=bool(rule.enabled), ready=ready)
+        owner_label = self._format_sell_rule_reference(index, rule)
+        header_label = (
+            f"{owner_label} | {state_label} | {summary_text}"
+            f"##merchant_rules_protections_sell_owner_{index}"
+        )
+        if is_target_rule and jump_target is not None and bool(jump_target.force_rule_open):
+            self._force_next_item_open(True)
+        opened = PyImGui.collapsing_header(header_label)
+        self._draw_hover_tooltip(owner_label)
+        if is_target_rule and jump_target is not None and bool(jump_target.pending_rule_scroll):
+            PyImGui.set_scroll_here_y(0.25)
+            jump_target.pending_rule_scroll = False
+            jump_target.force_rule_open = False
+        if not opened:
+            return changed
+
+        PyImGui.text_colored(state_label, state_color)
+        PyImGui.same_line(0, 8)
+        self._draw_secondary_text(
+            f"Owner: {SELL_RULE_WORKSPACE_LABELS.get(rule.kind, 'Sell Rule')}. Sell criteria stay in Sell.",
+            wrapped=False,
+        )
+
+        self._begin_sell_jump_target_group(
+            index,
+            "",
+            "General Keeps",
+            "These options keep matching customized or unidentified items out of this sell rule.",
+        )
+        skip_customized = self._draw_protection_checkbox(
+            f"Keep customized items##protections_sell_skip_customized_{index}",
+            bool(rule.skip_customized),
+            "Keeps matching customized items out of this sell rule.",
+        )
+        if skip_customized != rule.skip_customized:
+            rule.skip_customized = skip_customized
+            changed = True
+        PyImGui.same_line(0, 8)
+        skip_unidentified = self._draw_protection_checkbox(
+            f"Keep unidentified items##protections_sell_skip_unidentified_{index}",
+            bool(rule.skip_unidentified),
+            "Keeps matching unidentified items out of this sell rule.",
+        )
+        if skip_unidentified != rule.skip_unidentified:
+            rule.skip_unidentified = skip_unidentified
+            changed = True
+        self._end_sell_jump_target_group(index, "")
+
+        self._draw_light_separator()
+        changed = self._draw_sell_rule_blacklist_editor(index, rule) or changed
+        if rule.kind == SELL_KIND_WEAPONS:
+            self._draw_light_separator()
+            changed = self._draw_sell_rule_weapon_type_blacklist_editor(index, rule) or changed
+            self._draw_light_separator()
+            changed = self._draw_sell_rule_weapon_requirement_editor(index, rule) or changed
+            self._draw_light_separator()
+            changed = self._draw_protected_identifier_editor(
+                index,
+                rule,
+                title="Keep Items With These Weapon Upgrades",
+                selected_identifiers=rule.protected_weapon_mod_identifiers,
+                entries=self.weapon_mod_entries,
+                formatter=self._get_weapon_mod_label,
+                setter=self._set_sell_rule_weapon_mod_identifiers,
+                search_cache=self.sell_weapon_mod_search_cache,
+                cache_suffix="weapon_mods",
+                threshold_rules=rule.protected_weapon_mod_thresholds,
+                threshold_setter=self._set_sell_rule_weapon_mod_thresholds,
+                selected_variants=rule.protected_weapon_mod_variants,
+                variant_setter=self._set_sell_rule_weapon_mod_variants,
+                variant_threshold_rules=rule.protected_weapon_mod_variant_thresholds,
+                variant_threshold_setter=self._set_sell_rule_weapon_mod_variant_thresholds,
+            ) or changed
+        else:
+            self._draw_light_separator()
+            changed = self._draw_protected_identifier_editor(
+                index,
+                rule,
+                title="Keep Armor With These Runes / Insignias",
+                selected_identifiers=rule.protected_rune_identifiers,
+                entries=self.rune_entries,
+                formatter=self._get_rune_label,
+                setter=self._set_sell_rule_rune_identifiers,
+                search_cache=self.sell_rune_search_cache,
+                cache_suffix="runes",
+            ) or changed
+            self._draw_secondary_text(
+                "Rune and insignia keeps match attached upgrade names, not the armor display name."
+            )
+
+        return changed
+
+    def _draw_sell_protections_editor(self) -> bool:
+        section_changed = False
+        sell_rule_indices = [
+            index
+            for index, rule in enumerate(self.sell_rules)
+            if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR)
+        ]
+        owner_counts = {
+            SELL_KIND_WEAPONS: sum(
+                1
+                for index in sell_rule_indices
+                if self.sell_rules[index].kind == SELL_KIND_WEAPONS
+            ),
+            SELL_KIND_ARMOR: sum(
+                1
+                for index in sell_rule_indices
+                if self.sell_rules[index].kind == SELL_KIND_ARMOR
+            ),
+        }
+        self._draw_section_heading("Sell Protections")
+        self._draw_secondary_text(
+            "These settings keep matching weapon and armor items out of sell, destroy, and salvage decisions.",
+        )
+        if not sell_rule_indices:
+            self._draw_secondary_text(
+                "No weapon or armor sell rules exist yet. Add one in Sell to create a protection owner."
+            )
+            return False
+
+        available_owner_filters = [PROTECTION_FILTER_ALL]
+        available_owner_filters.extend(
+            kind
+            for kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR)
+            if int(owner_counts.get(kind, 0)) > 0
+        )
+        if self.sell_protections_owner_filter not in available_owner_filters:
+            self.sell_protections_owner_filter = PROTECTION_FILTER_ALL
+
+        if len(available_owner_filters) > 2:
+            self._draw_subsection_label("Show:")
+            PyImGui.same_line(0, 8)
+            owner_filter_labels = {
+                PROTECTION_FILTER_ALL: "All",
+                SELL_KIND_WEAPONS: "Weapons",
+                SELL_KIND_ARMOR: "Armor",
+            }
+            owner_filter_counts = {
+                PROTECTION_FILTER_ALL: len(sell_rule_indices),
+                SELL_KIND_WEAPONS: int(owner_counts.get(SELL_KIND_WEAPONS, 0)),
+                SELL_KIND_ARMOR: int(owner_counts.get(SELL_KIND_ARMOR, 0)),
+            }
+            for filter_index, owner_filter in enumerate(available_owner_filters):
+                label = owner_filter_labels.get(owner_filter, owner_filter)
+                count = max(0, int(owner_filter_counts.get(owner_filter, 0)))
+                button_label = f"{label} ({count})##merchant_rules_sell_protections_owner_filter_{owner_filter}"
+                button_color = (
+                    UI_COLOR_INFO
+                    if owner_filter == PROTECTION_FILTER_ALL
+                    else self._get_rule_type_presentation(owner_filter)[1]
+                )
+                if self._draw_workspace_button(
+                    button_label,
+                    active=self.sell_protections_owner_filter == owner_filter,
+                    color=button_color,
+                ):
+                    self.sell_protections_owner_filter = owner_filter
+                if filter_index + 1 < len(available_owner_filters):
+                    PyImGui.same_line(0, 6)
+            PyImGui.spacing()
+
+        visible_sell_rule_indices = [
+            index
+            for index in sell_rule_indices
+            if self.sell_protections_owner_filter == PROTECTION_FILTER_ALL
+            or self.sell_rules[index].kind == self.sell_protections_owner_filter
+        ]
+        if not visible_sell_rule_indices:
+            self._draw_secondary_text("No sell protections match the current view.")
+            return False
+
+        for visible_position, index in enumerate(list(visible_sell_rule_indices)):
+            if index >= len(self.sell_rules):
+                break
+            rule = self.sell_rules[index]
+            section_changed = self._draw_sell_rule_protection_owner_editor(index, rule) or section_changed
+            if visible_position + 1 < len(visible_sell_rule_indices):
+                PyImGui.spacing()
+
+        if section_changed:
+            self.sell_rules = _normalize_sell_rules(self.sell_rules)
+            self._rebuild_text_caches()
+            self._save_profile()
+            self._mark_preview_dirty("Sell protections changed. Preview again before execution.")
+        return section_changed
+
+    def _draw_destroy_protection_safety_section(self) -> bool:
+        changed = False
+        self._draw_section_heading("Destroy Safety")
+        self._draw_secondary_text("Protected items are skipped by Destroy unless you allow them for this session.")
+        include_protected_items = PyImGui.checkbox(
+            "Allow destroying protected items this session##merchant_rules_protections_destroy_include_protected",
+            bool(self.destroy_include_protected_items),
+        )
+        if include_protected_items != self.destroy_include_protected_items:
+            self.destroy_include_protected_items = include_protected_items
+            changed = True
+            if self.destroy_instant_enabled:
+                self._request_instant_destroy_rescan()
+        if self.destroy_include_protected_items:
+            PyImGui.text_colored("Protected items can be destroyed in this session.", UI_COLOR_DANGER)
+        if changed:
+            self._mark_preview_dirty("Destroy protection settings changed. Preview again before execution.")
+        return changed
+
+    def _draw_salvage_safety_summary(self) -> None:
+        settings = _normalize_salvage_settings(self.salvage_settings)
+        upgrade_target_count = sum(_get_salvage_rule_upgrade_target_count(rule) for rule in settings.rules)
+        self._draw_section_heading("Salvage Safety")
+        self._draw_secondary_text(
+            (
+                "Sell protections are checked before MR Salvage. Specific upgrade targets stay in Salvage "
+                "because they define what to extract."
+            ),
+        )
+        if upgrade_target_count > 0:
+            self._draw_secondary_text(
+                f"{upgrade_target_count} specific upgrade target(s) are configured in Salvage rules.",
+                wrapped=False,
+            )
+        else:
+            self._draw_secondary_text("No specific upgrade targets are configured in Salvage rules.", wrapped=False)
 
     def _draw_protections_section(self):
         entries = self._build_protection_hub_entries()
@@ -21775,95 +22301,45 @@ class MerchantRulesWidget:
 
         self._draw_section_heading("Protections")
         self._draw_colored_text(
-            "Protections currently aggregates protection entries owned by Sell rules. It is a central hub, not a separate protection engine yet.",
+            "Protections keeps item safety settings in one place while preserving the existing rule behavior.",
             UI_COLOR_INFO,
         )
         self._draw_secondary_text(
-            "Destroy consults these protections by default. Use Jump to Rule to edit the owning sell rule; entries here are read-mostly for now."
+            "Sell protection settings still belong to their owner sell rules in the profile for compatibility."
         )
         if self.destroy_include_protected_items:
             PyImGui.text_colored(
-                "Include Protected Items is active for this session, so Destroy may still include protected items in Preview, Execute, and Instant Destroy.",
+                "Destroy is currently allowed to include protected items for this session.",
                 UI_COLOR_DANGER,
             )
 
         PyImGui.separator()
-        self._draw_section_heading("Summary")
-        self._draw_secondary_text(
-            (
-                f"{len(entries)} protection entr{'y' if len(entries) == 1 else 'ies'} across {len(owner_rule_indices)} sell rule(s). "
-                f"{len(enabled_owner_rule_indices)} owner rule(s) enabled, {max(0, len(owner_rule_indices) - len(enabled_owner_rule_indices))} disabled."
-            ),
-            wrapped=False,
-        )
-        summary_parts = [
-            f"{label}: {int(type_counts.get(filter_key, 0))}"
-            for filter_key, label in PROTECTION_TYPE_FILTER_OPTIONS
-            if filter_key != PROTECTION_FILTER_ALL
-        ]
-        self._draw_secondary_text(" | ".join(summary_parts), wrapped=False)
+        self._draw_protections_workspace_tabs()
+        PyImGui.separator()
 
-        PyImGui.spacing()
-        updated_search_text = PyImGui.input_text("Search Protections##merchant_rules_protections_search", self.protections_search_text)
-        if updated_search_text != self.protections_search_text:
-            self.protections_search_text = updated_search_text
-
-        active_only = PyImGui.checkbox("Active Only##merchant_rules_protections_active_only", bool(self.protections_active_only))
-        if active_only != self.protections_active_only:
-            self.protections_active_only = active_only
-
-        owner_filter_labels = [label for _key, label in PROTECTION_OWNER_FILTER_OPTIONS]
-        owner_filter_keys = [key for key, _label in PROTECTION_OWNER_FILTER_OPTIONS]
-        current_owner_filter_index = owner_filter_keys.index(self.protections_owner_filter) if self.protections_owner_filter in owner_filter_keys else 0
-        next_owner_filter_index = PyImGui.combo("Owner Scope##merchant_rules_protections_owner_filter", current_owner_filter_index, owner_filter_labels)
-        if 0 <= next_owner_filter_index < len(owner_filter_keys):
-            self.protections_owner_filter = owner_filter_keys[next_owner_filter_index]
-
-        type_filter_labels = [label for _key, label in PROTECTION_TYPE_FILTER_OPTIONS]
-        type_filter_keys = [key for key, _label in PROTECTION_TYPE_FILTER_OPTIONS]
-        current_type_filter_index = type_filter_keys.index(self.protections_type_filter) if self.protections_type_filter in type_filter_keys else 0
-        next_type_filter_index = PyImGui.combo("Type##merchant_rules_protections_type_filter", current_type_filter_index, type_filter_labels)
-        if 0 <= next_type_filter_index < len(type_filter_keys):
-            self.protections_type_filter = type_filter_keys[next_type_filter_index]
-
-        PyImGui.spacing()
-        if not entries:
-            self._draw_secondary_text("No protection entries are configured yet. Add protections to weapon or armor sell rules and they will appear here.")
-            return
-        if not filtered_entries:
-            self._draw_secondary_text("No protection entries match the current search and filters.")
-            return
-
-        self._draw_secondary_text("Open a category to view its entries. Tables scroll sideways and column dividers can be dragged wider.", wrapped=False)
-
-        if PyImGui.begin_child("merchant_rules_protections_table_child", (0, 0), True, PyImGui.WindowFlags.HorizontalScrollbar):
-            protection_type_order = {
-                "Protected Model": 0,
-                "Protected Weapon Type": 1,
-                "Req Range": 2,
-                "Protected Weapon Mod": 3,
-                "Protected Weapon Mod Roll": 4,
-                "Protected Weapon Mod Variant": 5,
-                "Protected Weapon Mod Variant Roll": 6,
-                "Protected Rune / Insignia": 7,
-            }
-            grouped_entries: dict[str, list[ProtectionHubEntry]] = {}
-            for entry in filtered_entries:
-                grouped_entries.setdefault(entry.protection_type_label, []).append(entry)
-
-            for group_index, protection_type_label in enumerate(
-                sorted(grouped_entries, key=lambda label: (protection_type_order.get(label, 99), label))
-            ):
-                group_entries = grouped_entries[protection_type_label]
-                header_label = f"{protection_type_label} ({len(group_entries)})##merchant_rules_protection_group_{group_index}"
-                if PyImGui.collapsing_header(header_label):
-                    safe_table_label = str(protection_type_label).lower().replace(" ", "_").replace("/", "_")
-                    self._draw_protection_entries_table(
-                        f"merchant_rules_protections_table_{group_index}_{safe_table_label}",
-                        group_entries,
-                    )
-                    PyImGui.spacing()
-        PyImGui.end_child()
+        if self.active_protections_workspace == PROTECTIONS_WORKSPACE_SUMMARY:
+            self._draw_protections_summary_section(
+                entries,
+                filtered_entries,
+                owner_rule_indices,
+                enabled_owner_rule_indices,
+                type_counts,
+            )
+        elif self.active_protections_workspace == PROTECTIONS_WORKSPACE_SELL:
+            self._draw_sell_protections_editor()
+        elif self.active_protections_workspace == PROTECTIONS_WORKSPACE_CLEANUP:
+            self._draw_cleanup_protections_editor()
+        elif self.active_protections_workspace == PROTECTIONS_WORKSPACE_DESTROY:
+            self._draw_destroy_protection_safety_section()
+        else:
+            self.active_protections_workspace = PROTECTIONS_WORKSPACE_SUMMARY
+            self._draw_protections_summary_section(
+                entries,
+                filtered_entries,
+                owner_rule_indices,
+                enabled_owner_rule_indices,
+                type_counts,
+            )
 
     def _draw_buy_rule_merchant_stock_editor(self, index: int, rule: BuyRule) -> bool:
         changed = False
@@ -23005,13 +23481,13 @@ class MerchantRulesWidget:
         self._begin_sell_jump_target_group(
             index,
             SELL_PROTECTION_ANCHOR_MODELS,
-            "Never Sell These Models",
-            "Items with these model IDs are protected from this sell rule.",
+            "Keep These Models",
+            "Items with these model IDs are kept out of this sell rule.",
         )
-        if self._draw_confirm_destructive_button(f"Clear Protected Models##sell_blacklist_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Kept Models##sell_blacklist_clear_{index}"):
             if self._set_sell_rule_blacklist_model_ids(rule, []):
                 changed = True
-            self.sell_blacklist_import_feedback_cache[index] = ("Cleared all protected models.", UI_COLOR_MUTED)
+            self.sell_blacklist_import_feedback_cache[index] = ("Cleared all kept models.", UI_COLOR_MUTED)
         PyImGui.same_line(0, 8)
         if self._draw_confirm_destructive_button(f"Import From Clipboard##sell_blacklist_import_{index}"):
             try:
@@ -23041,8 +23517,8 @@ class MerchantRulesWidget:
                         if new_count > 0:
                             changed = True
 
-        self._draw_subsection_label(f"Protected Models: {len(rule.blacklist_model_ids)}")
-        self._draw_hover_tooltip("This count is for model protection only.")
+        self._draw_subsection_label(f"Kept Models: {len(rule.blacklist_model_ids)}")
+        self._draw_hover_tooltip("This count is for model keeps only.")
         removed_model_id = self._draw_selected_model_ids(
             "sell_blacklist_models",
             index,
@@ -23072,7 +23548,7 @@ class MerchantRulesWidget:
             )
 
         search_text = self.sell_blacklist_search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Add Protected Models##sell_blacklist_search_{index}", search_text)
+        updated_search_text = PyImGui.input_text(f"Add Models to Keep##sell_blacklist_search_{index}", search_text)
         self._draw_hover_tooltip("Search by model name, model ID, type, or alias.")
         if updated_search_text != search_text:
             self.sell_blacklist_search_cache[index] = updated_search_text
@@ -23128,15 +23604,15 @@ class MerchantRulesWidget:
         self._begin_sell_jump_target_group(
             index,
             SELL_PROTECTION_ANCHOR_WEAPON_TYPES,
-            "Never Sell These Weapon Types",
-            "All selected weapon types are protected from this sell rule.",
+            "Keep These Weapon Types",
+            "All selected weapon types are kept out of this sell rule.",
         )
-        if self._draw_confirm_destructive_button(f"Clear Weapon Type Protection##sell_weapon_type_blacklist_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Kept Weapon Types##sell_weapon_type_blacklist_clear_{index}"):
             if self._set_sell_rule_blacklist_item_type_ids(rule, []):
                 changed = True
 
-        self._draw_subsection_label(f"Protected Weapon Types: {len(rule.blacklist_item_type_ids)}")
-        self._draw_hover_tooltip("This count is for broad weapon-type protection.")
+        self._draw_subsection_label(f"Kept Weapon Types: {len(rule.blacklist_item_type_ids)}")
+        self._draw_hover_tooltip("This count is for broad weapon-type keeps.")
         if rule.blacklist_item_type_ids:
             selected_labels = [self._get_weapon_item_type_label(item_type_id) for item_type_id in rule.blacklist_item_type_ids]
             PyImGui.text_wrapped(", ".join(selected_labels))
@@ -23161,7 +23637,7 @@ class MerchantRulesWidget:
             if (option_index + 1) % 3 != 0 and option_index + 1 < len(WEAPON_ITEM_TYPE_OPTIONS):
                 PyImGui.same_line(0, 8)
 
-        self._draw_secondary_text("Weapon-type protection is checked before requirement and weapon mod protection.")
+        self._draw_secondary_text("Weapon-type keeps are checked before requirement and weapon upgrade keeps.")
         self._end_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_WEAPON_TYPES)
         return changed
 
@@ -23185,8 +23661,8 @@ class MerchantRulesWidget:
         self._begin_sell_jump_target_group(
             index,
             SELL_PROTECTION_ANCHOR_REQUIREMENTS,
-            "Protect All Weapons In Req Range",
-            "Protects any weapon whose requirement falls inside this range.",
+            "Keep All Weapons In Requirement Range",
+            "Keeps any weapon whose requirement falls inside this range.",
         )
         self._draw_subsection_label("Low Req")
         self._draw_hover_tooltip("Lowest requirement protected by this range.")
@@ -23220,7 +23696,7 @@ class MerchantRulesWidget:
             bool(getattr(rule, "all_weapons_perfect_stats_only", False)),
         )
         self._draw_hover_tooltip(
-            "When enabled, this range protects only weapon-like items whose base damage, energy, or armor exactly matches the perfect-base value."
+            "When enabled, this range keeps only weapons whose base damage, energy, or armor exactly matches the perfect-base value."
         )
         if new_all_weapons_perfect_stats_only != bool(getattr(rule, "all_weapons_perfect_stats_only", False)):
             rule.all_weapons_perfect_stats_only = bool(new_all_weapons_perfect_stats_only)
@@ -23252,16 +23728,16 @@ class MerchantRulesWidget:
 
         self._draw_light_separator()
         self._draw_protection_heading(
-            "Never Sell These Models In Req Range",
-            "Protects selected weapon models only when their requirement is inside the saved range.",
+            "Keep These Models In Requirement Range",
+            "Keeps selected weapon models only when their requirement is inside the saved range.",
         )
-        if self._draw_confirm_destructive_button(f"Clear Model Requirement Protection##sell_weapon_requirement_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Model Requirement Keeps##sell_weapon_requirement_clear_{index}"):
             if self._set_sell_rule_weapon_requirement_rules(rule, []):
                 changed = True
 
         requirement_rules = list(rule.protected_weapon_requirement_rules)
-        self._draw_subsection_label(f"Protected Models: {len(requirement_rules)}")
-        self._draw_hover_tooltip("This count is for model-specific requirement protection.")
+        self._draw_subsection_label(f"Kept Models: {len(requirement_rules)}")
+        self._draw_hover_tooltip("This count is for model-specific requirement keeps.")
         if requirement_rules:
             updated_rules = [
                 WeaponRequirementRule(
@@ -23340,7 +23816,7 @@ class MerchantRulesWidget:
                                 bool(getattr(requirement_rule, "perfect_stats_only", False)),
                             )
                         )
-                        self._draw_hover_tooltip("Protect this model only when its base stats exactly match the perfect-base value.")
+                        self._draw_hover_tooltip("Keep this model only when its base stats exactly match the perfect-base value.")
 
                         PyImGui.table_set_column_index(4)
                         if PyImGui.small_button(f"X##sell_weapon_requirement_remove_{index}_{requirement_rule.model_id}"):
@@ -23357,10 +23833,10 @@ class MerchantRulesWidget:
             elif self._set_sell_rule_weapon_requirement_rules(rule, updated_rules):
                 changed = True
         else:
-            self._draw_secondary_text("No requirement-protected weapon models selected yet.", wrapped=False)
+            self._draw_secondary_text("No requirement-based weapon keeps selected yet.", wrapped=False)
 
         search_text = self.sell_weapon_requirement_search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Add Requirement-Protected Models##sell_weapon_requirement_search_{index}", search_text)
+        updated_search_text = PyImGui.input_text(f"Add Requirement-Based Keeps##sell_weapon_requirement_search_{index}", search_text)
         self._draw_hover_tooltip("Search by weapon model name, model ID, type, or alias.")
         if updated_search_text != search_text:
             self.sell_weapon_requirement_search_cache[index] = updated_search_text
@@ -23417,9 +23893,9 @@ class MerchantRulesWidget:
         selected_variant_rules = _normalize_weapon_mod_variant_rules(selected_variants or [])
         selected_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(variant_threshold_rules or [])
         tooltip_text = (
-            "Protects items with matching weapon upgrades or saved roll thresholds."
+            "Keeps items with matching weapon upgrades or saved roll thresholds."
             if cache_suffix == "weapon_mods"
-            else "Protects armor with matching rune or insignia names."
+            else "Keeps armor with matching rune or insignia names."
         )
         self._begin_sell_jump_target_group(index, anchor, title, tooltip_text)
         if self._draw_confirm_destructive_button(f"Clear {title}##sell_protected_clear_{cache_suffix}_{index}"):
@@ -23450,8 +23926,8 @@ class MerchantRulesWidget:
                 ]
             )
             protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
-            self._draw_subsection_label(f"Protected Entries: {len(protected_choice_keys)}")
-            self._draw_hover_tooltip("Entries here can protect exact upgrades or minimum roll values.")
+            self._draw_subsection_label(f"Kept Entries: {len(protected_choice_keys)}")
+            self._draw_hover_tooltip("Entries here can keep exact upgrades or minimum roll values.")
             if self._draw_selected_weapon_mod_protections(
                 f"sell_protected_{cache_suffix}",
                 index,
@@ -23472,8 +23948,8 @@ class MerchantRulesWidget:
                 selected_variant_rules = list(rule.protected_weapon_mod_variants)
                 selected_variant_threshold_rules = list(rule.protected_weapon_mod_variant_thresholds)
         else:
-            self._draw_subsection_label(f"Protected Entries: {len(selected_identifiers)}")
-            self._draw_hover_tooltip("Entries here protect matching rune or insignia names.")
+            self._draw_subsection_label(f"Kept Entries: {len(selected_identifiers)}")
+            self._draw_hover_tooltip("Entries here keep matching rune or insignia names.")
             text_color_for_identifier = self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None
             removed_identifier = self._draw_selected_identifiers(
                 f"sell_protected_{cache_suffix}",
@@ -23490,7 +23966,7 @@ class MerchantRulesWidget:
                     selected_identifiers = list(rule.protected_rune_identifiers)
 
         search_text = search_cache.get(index, "")
-        search_label = "Add Protected Upgrades" if cache_suffix == "weapon_mods" else "Add Protected Runes / Insignias"
+        search_label = "Add Upgrades to Keep" if cache_suffix == "weapon_mods" else "Add Runes / Insignias to Keep"
         updated_search_text = PyImGui.input_text(f"{search_label}##sell_protected_search_{cache_suffix}_{index}", search_text)
         self._draw_hover_tooltip("Search by name or identifier.")
         if updated_search_text != search_text:
@@ -23689,25 +24165,6 @@ class MerchantRulesWidget:
 
             changed = self._draw_sell_rule_rarity_toggles(index, rule) or changed
 
-            skip_customized = self._draw_protection_checkbox(
-                f"Never Sell Customized Items##sell_skip_customized_{index}",
-                bool(rule.skip_customized),
-                "Keeps customized matching items out of this sell rule.",
-            )
-            if skip_customized != rule.skip_customized:
-                rule.skip_customized = skip_customized
-                changed = True
-
-            PyImGui.same_line(0, 8)
-            skip_unidentified = self._draw_protection_checkbox(
-                f"Never Sell Unidentified Items##sell_skip_unidentified_{index}",
-                bool(rule.skip_unidentified),
-                "Keeps unidentified matching items out of this sell rule.",
-            )
-            if skip_unidentified != rule.skip_unidentified:
-                rule.skip_unidentified = skip_unidentified
-                changed = True
-
             if rule.kind == SELL_KIND_ARMOR:
                 include_standalone_runes = PyImGui.checkbox(
                     f"Also sell loose runes and insignias##sell_include_standalone_runes_{index}",
@@ -23718,65 +24175,7 @@ class MerchantRulesWidget:
                     changed = True
                 self._draw_secondary_text("For exact rune choices, use Sell -> Runes & Insignias.", wrapped=False)
 
-            self._draw_light_separator()
-            if is_target_rule and jump_target is not None and bool(jump_target.requires_advanced) and bool(jump_target.force_advanced_open):
-                self._debug_log(
-                    f"Protections jump forcing Advanced open for rule {int(index)} | "
-                    f"{self._format_sell_protection_jump_target_debug(jump_target)}"
-                )
-                self._force_next_item_open(True)
-            advanced_open = PyImGui.collapsing_header(f"Advanced##sell_advanced_{index}")
-            if is_target_rule and jump_target is not None and bool(jump_target.requires_advanced):
-                if advanced_open:
-                    jump_target.force_advanced_open = False
-                elif not bool(jump_target.force_advanced_open):
-                    self._clear_sell_protection_jump(f"Advanced hidden for target rule {int(index)}")
-                    jump_target = None
-                    is_target_rule = False
-            if advanced_open:
-                self._draw_section_heading("Model Protection")
-                changed = self._draw_sell_rule_blacklist_editor(index, rule) or changed
-                if rule.kind == SELL_KIND_WEAPONS:
-                    self._draw_light_separator()
-                    self._draw_section_heading("Weapon Type Protection")
-                    changed = self._draw_sell_rule_weapon_type_blacklist_editor(index, rule) or changed
-                    self._draw_light_separator()
-                    self._draw_section_heading("Requirement Protection")
-                    changed = self._draw_sell_rule_weapon_requirement_editor(index, rule) or changed
-                    self._draw_light_separator()
-                    self._draw_section_heading("Upgrade Protection")
-                    changed = self._draw_protected_identifier_editor(
-                        index,
-                        rule,
-                        title="Never Sell Items With These Weapon Mods",
-                        selected_identifiers=rule.protected_weapon_mod_identifiers,
-                        entries=self.weapon_mod_entries,
-                        formatter=self._get_weapon_mod_label,
-                        setter=self._set_sell_rule_weapon_mod_identifiers,
-                        search_cache=self.sell_weapon_mod_search_cache,
-                        cache_suffix="weapon_mods",
-                        threshold_rules=rule.protected_weapon_mod_thresholds,
-                        threshold_setter=self._set_sell_rule_weapon_mod_thresholds,
-                        selected_variants=rule.protected_weapon_mod_variants,
-                        variant_setter=self._set_sell_rule_weapon_mod_variants,
-                        variant_threshold_rules=rule.protected_weapon_mod_variant_thresholds,
-                        variant_threshold_setter=self._set_sell_rule_weapon_mod_variant_thresholds,
-                    ) or changed
-                else:
-                    self._draw_light_separator()
-                    self._draw_section_heading("Upgrade Protection")
-                    changed = self._draw_protected_identifier_editor(
-                        index,
-                        rule,
-                        title="Never Sell Items With These Runes / Insignias",
-                        selected_identifiers=rule.protected_rune_identifiers,
-                        entries=self.rune_entries,
-                        formatter=self._get_rune_label,
-                        setter=self._set_sell_rule_rune_identifiers,
-                        search_cache=self.sell_rune_search_cache,
-                        cache_suffix="runes",
-                    ) or changed
-                    self._draw_secondary_text("Protection matches attached exact rune or insignia names, not the armor display name.")
+            self._draw_secondary_text("Protection settings for this rule are managed in Protections.", wrapped=False)
         elif rule.kind == SELL_KIND_COMMON_MATERIALS:
             material_merchant_types = self._get_sell_material_merchant_types(rule.model_ids)
             merchant_labels = [
@@ -23934,8 +24333,8 @@ class MerchantRulesWidget:
 
     def _draw_destroy_runtime_controls(self) -> bool:
         changed = False
-        self._draw_section_heading("Session Safety")
-        self._draw_secondary_text("These toggles reset to off whenever Merchant Rules or its live config reloads.")
+        self._draw_section_heading("Instant Destroy")
+        self._draw_secondary_text("Instant Destroy resets to off whenever Merchant Rules or its live config reloads.")
 
         instant_destroy_enabled = PyImGui.checkbox(
             "Instant Destroy (Session Only)##merchant_rules_destroy_instant",
@@ -23949,21 +24348,10 @@ class MerchantRulesWidget:
             else:
                 self.instant_destroy_rescan_requested = False
 
-        include_protected_items = PyImGui.checkbox(
-            "Include Protected Items (Session Only)##merchant_rules_destroy_include_protected",
-            bool(self.destroy_include_protected_items),
-        )
-        if include_protected_items != self.destroy_include_protected_items:
-            self.destroy_include_protected_items = include_protected_items
-            changed = True
-            if self.destroy_instant_enabled:
-                self._request_instant_destroy_rescan()
-
-        self._draw_secondary_text("Include Protected Items affects both Instant Destroy and Preview/Execute for this session only.")
         if self.destroy_instant_enabled:
             PyImGui.text_colored("Instant Destroy is active for this session.", UI_COLOR_DANGER)
         if self.destroy_include_protected_items:
-            PyImGui.text_colored("Protected items can be destroyed in this session.", UI_COLOR_DANGER)
+            PyImGui.text_colored("Protected items can be destroyed in this session. Change this in Protections.", UI_COLOR_DANGER)
         if self.last_instant_destroy_summary:
             self._draw_secondary_text(self.last_instant_destroy_summary)
         return changed
@@ -24009,7 +24397,7 @@ class MerchantRulesWidget:
             else:
                 self._draw_secondary_text("Matching equippable armor pieces will be destroyed locally.")
             changed = self._draw_destroy_rule_rarity_toggles(index, rule) or changed
-            self._draw_secondary_text("Protected items are skipped by default unless Include Protected Items is enabled for this session.")
+            self._draw_secondary_text("Protected items are skipped by default unless Protections allows them for this session.")
         else:
             if rule.kind == DESTROY_KIND_MATERIALS:
                 self._draw_secondary_text("Matching material stacks honor Keep Count by quantity. Preview blocks partial destroys when a safe split slot is unavailable.")
@@ -24910,6 +25298,211 @@ class MerchantRulesWidget:
         else:
             self._draw_inline_badge("Manual", UI_COLOR_MUTED)
 
+    def _draw_cleanup_protections_editor(self) -> bool:
+        cleanup_changed = False
+        cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+        cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
+
+        self._draw_section_heading("Cleanup Protections")
+        self._draw_secondary_text(
+            "These settings control what Cleanup leaves on your character and how protected sell-rule matches are sent to Xunlai.",
+        )
+
+        self._draw_section_heading("Keep Out Of Cleanup")
+        self._draw_secondary_text(
+            "Choose exact item or material models that Cleanup should leave on your character.",
+        )
+        if cleanup_blacklist_model_ids:
+            self._draw_warning_text("These items stay on your character during cleanup.")
+
+        removed_cleanup_blacklist_model_id = 0
+        display_blacklist_model_ids = self._sort_model_ids_for_display(cleanup_blacklist_model_ids)
+        if display_blacklist_model_ids:
+            child_height = min(220, 58 + (32 * len(display_blacklist_model_ids)))
+            if PyImGui.begin_child("merchant_rules_cleanup_blacklist", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_blacklist_table", 2, self._get_dense_list_table_flags()):
+                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text("Item")
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text("Remove")
+
+                    for model_id in display_blacklist_model_ids:
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        PyImGui.text(self._format_model_label_short(model_id))
+
+                        PyImGui.table_set_column_index(1)
+                        if PyImGui.small_button(f"X##merchant_rules_cleanup_blacklist_remove_{model_id}"):
+                            removed_cleanup_blacklist_model_id = int(model_id)
+                            break
+                    PyImGui.end_table()
+            PyImGui.end_child()
+        else:
+            PyImGui.text_colored("No cleanup keep-outs selected yet.", UI_COLOR_MUTED)
+
+        if removed_cleanup_blacklist_model_id > 0:
+            next_blacklist_model_ids = [
+                model_id
+                for model_id in cleanup_blacklist_model_ids
+                if int(model_id) != removed_cleanup_blacklist_model_id
+            ]
+            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+        updated_cleanup_blacklist_search = PyImGui.input_text(
+            "Search Items / Materials##merchant_rules_cleanup_blacklist_search",
+            self.cleanup_blacklist_search_text,
+        )
+        if updated_cleanup_blacklist_search != self.cleanup_blacklist_search_text:
+            self.cleanup_blacklist_search_text = updated_cleanup_blacklist_search
+
+        picked_cleanup_blacklist_model_id, visible_cleanup_blacklist_model_ids = self._draw_search_results(
+            "merchant_rules_cleanup_blacklist_search_results",
+            self.cleanup_blacklist_search_text,
+        )
+        existing_cleanup_blacklist_model_ids = {int(model_id) for model_id in cleanup_blacklist_model_ids}
+        addable_cleanup_blacklist_model_ids = [
+            int(model_id)
+            for model_id in visible_cleanup_blacklist_model_ids
+            if int(model_id) not in existing_cleanup_blacklist_model_ids
+        ]
+        if self._draw_add_all_matches_button(
+            "merchant_rules_cleanup_blacklist_add_all_matches",
+            len(visible_cleanup_blacklist_model_ids),
+            len(addable_cleanup_blacklist_model_ids),
+        ):
+            next_blacklist_model_ids = list(cleanup_blacklist_model_ids) + addable_cleanup_blacklist_model_ids
+            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+        if picked_cleanup_blacklist_model_id > 0:
+            if self._add_cleanup_blacklist_model_id(picked_cleanup_blacklist_model_id):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+            self.cleanup_blacklist_search_text = self._get_model_name(picked_cleanup_blacklist_model_id) or str(picked_cleanup_blacklist_model_id)
+
+        PyImGui.spacing()
+        self._draw_section_heading("Send Protected Items To Xunlai")
+        self._draw_secondary_text(
+            "Link a weapon or armor sell rule to deposit items that rule keeps. Cleanup keep-outs still stay on your character.",
+        )
+        if cleanup_sources:
+            PyImGui.text_colored("Linked protection deposits are active and still respect cleanup keep-outs.", UI_COLOR_INFO)
+
+        removed_cleanup_source_id = ""
+        if cleanup_sources:
+            child_height = min(220, 58 + (32 * len(cleanup_sources)))
+            if PyImGui.begin_child("merchant_rules_cleanup_sources", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_sources_table", 4, self._get_dense_list_table_flags()):
+                    PyImGui.table_setup_column("Sell Rule", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthFixed, 90.0)
+                    PyImGui.table_setup_column("Edit", PyImGui.TableColumnFlags.WidthFixed, 92.0)
+                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text("Sell Rule")
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text("Status")
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.text("Edit")
+                    PyImGui.table_set_column_index(3)
+                    PyImGui.text("Remove")
+
+                    for source in cleanup_sources:
+                        safe_rule_id = _normalize_rule_id(source.sell_rule_id)
+                        sell_rule_index = self._get_sell_rule_index_by_id(safe_rule_id)
+                        sell_rule = self._get_sell_rule_by_id(safe_rule_id)
+                        status_label = "Missing"
+                        status_color = UI_COLOR_DANGER
+                        rule_label = safe_rule_id or "Missing rule"
+                        if sell_rule is not None and sell_rule_index >= 0:
+                            rule_label = self._format_sell_rule_reference(sell_rule_index, sell_rule)
+                            if sell_rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+                                status_label = "Invalid"
+                                status_color = UI_COLOR_WARNING
+                            elif not sell_rule.enabled:
+                                status_label = "Disabled"
+                                status_color = UI_COLOR_WARNING
+                            else:
+                                status_label = "Ready"
+                                status_color = UI_COLOR_SUCCESS
+
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        PyImGui.text(rule_label)
+
+                        PyImGui.table_set_column_index(1)
+                        PyImGui.text_colored(status_label, status_color)
+
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.begin_disabled(sell_rule is None or sell_rule_index < 0)
+                        edit_clicked = PyImGui.small_button(f"Edit##merchant_rules_cleanup_jump_{safe_rule_id}")
+                        PyImGui.end_disabled()
+                        if edit_clicked and sell_rule is not None and sell_rule_index >= 0:
+                            subsection_anchor, target_key = self._get_default_sell_rule_protection_jump_target(sell_rule)
+                            self._request_jump_to_sell_rule(
+                                sell_rule_index,
+                                sell_rule.kind,
+                                subsection_anchor=subsection_anchor,
+                                target_key=target_key,
+                                requires_advanced=bool(subsection_anchor),
+                            )
+
+                        PyImGui.table_set_column_index(3)
+                        if PyImGui.small_button(f"X##merchant_rules_cleanup_source_remove_{safe_rule_id}"):
+                            removed_cleanup_source_id = safe_rule_id
+                            break
+                    PyImGui.end_table()
+            PyImGui.end_child()
+        else:
+            PyImGui.text_colored("No linked protected-item deposits yet.", UI_COLOR_MUTED)
+
+        if removed_cleanup_source_id:
+            next_sources = [
+                source
+                for source in cleanup_sources
+                if _normalize_rule_id(source.sell_rule_id) != removed_cleanup_source_id
+            ]
+            if self._set_cleanup_protection_sources(next_sources):
+                cleanup_changed = True
+                cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
+
+        linked_source_ids = {_normalize_rule_id(source.sell_rule_id) for source in cleanup_sources}
+        available_linkable_rules = [
+            sell_rule
+            for sell_rule in self._get_cleanup_linkable_sell_rules()
+            if _normalize_rule_id(getattr(sell_rule, "rule_id", "")) not in linked_source_ids
+        ]
+        if available_linkable_rules:
+            PyImGui.text_colored("Available weapon and armor sell rules:", UI_COLOR_INFO)
+            if PyImGui.begin_child("merchant_rules_cleanup_linkable_rules", (0, 120), True, PyImGui.WindowFlags.NoFlag):
+                for sell_rule in available_linkable_rules:
+                    safe_rule_id = _normalize_rule_id(getattr(sell_rule, "rule_id", ""))
+                    sell_rule_index = self._get_sell_rule_index_by_id(safe_rule_id)
+                    if PyImGui.small_button(f"Link##merchant_rules_cleanup_link_{safe_rule_id}"):
+                        if self._add_cleanup_protection_source(safe_rule_id):
+                            cleanup_changed = True
+                            cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
+                    PyImGui.same_line(0, 8)
+                    rule_label = self._format_sell_rule_reference(sell_rule_index, sell_rule)
+                    state_suffix = "Enabled" if sell_rule.enabled else "Disabled"
+                    self._draw_secondary_text(f"{rule_label} | {state_suffix}", wrapped=False)
+            PyImGui.end_child()
+        else:
+            PyImGui.text_colored("No additional weapon or armor sell rules are available to link.", UI_COLOR_MUTED)
+
+        if cleanup_changed:
+            self._save_profile()
+            self._mark_preview_dirty("Cleanup protections changed. Preview again before execution.")
+        return cleanup_changed
+
     def _draw_cleanup_workspace(self):
         cleanup_changed = False
         automation_changed = False
@@ -25047,195 +25640,10 @@ class MerchantRulesWidget:
             self.cleanup_model_search_text = self._get_model_name(picked_cleanup_model_id) or str(picked_cleanup_model_id)
 
         PyImGui.separator()
-        self._draw_section_heading("Cleanup Blacklist")
+        self._draw_section_heading("Protection Handling")
         self._draw_secondary_text(
-            "Blacklist exact item or material models to keep Cleanup / Xunlai from depositing them, even when explicit targets or linked protection sources would otherwise move them."
+            "Cleanup keep-outs and protected-item deposits are managed in Protections.",
         )
-        if cleanup_blacklist_model_ids:
-            self._draw_warning_text("Blacklisted items always stay on character during cleanup.")
-
-        removed_cleanup_blacklist_model_id = 0
-        display_blacklist_model_ids = self._sort_model_ids_for_display(cleanup_blacklist_model_ids)
-        if display_blacklist_model_ids:
-            child_height = min(220, 58 + (32 * len(display_blacklist_model_ids)))
-            if PyImGui.begin_child("merchant_rules_cleanup_blacklist", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table("merchant_rules_cleanup_blacklist_table", 2, self._get_dense_list_table_flags()):
-                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
-                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
-
-                    PyImGui.table_next_row()
-                    PyImGui.table_set_column_index(0)
-                    PyImGui.text("Item")
-                    PyImGui.table_set_column_index(1)
-                    PyImGui.text("Remove")
-
-                    for model_id in display_blacklist_model_ids:
-                        PyImGui.table_next_row()
-                        PyImGui.table_set_column_index(0)
-                        PyImGui.text(self._format_model_label_short(model_id))
-
-                        PyImGui.table_set_column_index(1)
-                        if PyImGui.small_button(f"X##merchant_rules_cleanup_blacklist_remove_{model_id}"):
-                            removed_cleanup_blacklist_model_id = int(model_id)
-                            break
-                    PyImGui.end_table()
-            PyImGui.end_child()
-        else:
-            PyImGui.text_colored("No cleanup blacklist items yet.", UI_COLOR_MUTED)
-
-        if removed_cleanup_blacklist_model_id > 0:
-            next_blacklist_model_ids = [
-                model_id
-                for model_id in cleanup_blacklist_model_ids
-                if int(model_id) != removed_cleanup_blacklist_model_id
-            ]
-            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
-                cleanup_changed = True
-                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
-
-        updated_cleanup_blacklist_search = PyImGui.input_text(
-            "Search Items / Materials##merchant_rules_cleanup_blacklist_search",
-            self.cleanup_blacklist_search_text,
-        )
-        if updated_cleanup_blacklist_search != self.cleanup_blacklist_search_text:
-            self.cleanup_blacklist_search_text = updated_cleanup_blacklist_search
-
-        picked_cleanup_blacklist_model_id, visible_cleanup_blacklist_model_ids = self._draw_search_results(
-            "merchant_rules_cleanup_blacklist_search_results",
-            self.cleanup_blacklist_search_text,
-        )
-        existing_cleanup_blacklist_model_ids = {int(model_id) for model_id in cleanup_blacklist_model_ids}
-        addable_cleanup_blacklist_model_ids = [
-            int(model_id)
-            for model_id in visible_cleanup_blacklist_model_ids
-            if int(model_id) not in existing_cleanup_blacklist_model_ids
-        ]
-        if self._draw_add_all_matches_button(
-            "merchant_rules_cleanup_blacklist_add_all_matches",
-            len(visible_cleanup_blacklist_model_ids),
-            len(addable_cleanup_blacklist_model_ids),
-        ):
-            next_blacklist_model_ids = list(cleanup_blacklist_model_ids) + addable_cleanup_blacklist_model_ids
-            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
-                cleanup_changed = True
-                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
-
-        if picked_cleanup_blacklist_model_id > 0:
-            if self._add_cleanup_blacklist_model_id(picked_cleanup_blacklist_model_id):
-                cleanup_changed = True
-                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
-            self.cleanup_blacklist_search_text = self._get_model_name(picked_cleanup_blacklist_model_id) or str(picked_cleanup_blacklist_model_id)
-
-        PyImGui.separator()
-        self._draw_section_heading("Linked Protection Sources")
-        self._draw_secondary_text(
-            "Link a weapon or armor sell rule here to deposit whatever that rule currently hard-protects during cleanup. Cleanup blacklist entries still override those deposits."
-        )
-        if cleanup_sources:
-            PyImGui.text_colored("Linked protection deposits are active and still respect the cleanup blacklist.", UI_COLOR_INFO)
-
-        removed_cleanup_source_id = ""
-        if cleanup_sources:
-            child_height = min(220, 58 + (32 * len(cleanup_sources)))
-            if PyImGui.begin_child("merchant_rules_cleanup_sources", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table("merchant_rules_cleanup_sources_table", 4, self._get_dense_list_table_flags()):
-                    PyImGui.table_setup_column("Sell Rule", PyImGui.TableColumnFlags.WidthStretch)
-                    PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthFixed, 90.0)
-                    PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 92.0)
-                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
-
-                    PyImGui.table_next_row()
-                    PyImGui.table_set_column_index(0)
-                    PyImGui.text("Sell Rule")
-                    PyImGui.table_set_column_index(1)
-                    PyImGui.text("Status")
-                    PyImGui.table_set_column_index(2)
-                    PyImGui.text("Jump")
-                    PyImGui.table_set_column_index(3)
-                    PyImGui.text("Remove")
-
-                    for source in cleanup_sources:
-                        safe_rule_id = _normalize_rule_id(source.sell_rule_id)
-                        sell_rule_index = self._get_sell_rule_index_by_id(safe_rule_id)
-                        sell_rule = self._get_sell_rule_by_id(safe_rule_id)
-                        status_label = "Missing"
-                        status_color = UI_COLOR_DANGER
-                        rule_label = safe_rule_id or "Missing rule"
-                        if sell_rule is not None and sell_rule_index >= 0:
-                            rule_label = self._format_sell_rule_reference(sell_rule_index, sell_rule)
-                            if sell_rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
-                                status_label = "Invalid"
-                                status_color = UI_COLOR_WARNING
-                            elif not sell_rule.enabled:
-                                status_label = "Disabled"
-                                status_color = UI_COLOR_WARNING
-                            else:
-                                status_label = "Ready"
-                                status_color = UI_COLOR_SUCCESS
-
-                        PyImGui.table_next_row()
-                        PyImGui.table_set_column_index(0)
-                        PyImGui.text(rule_label)
-
-                        PyImGui.table_set_column_index(1)
-                        PyImGui.text_colored(status_label, status_color)
-
-                        PyImGui.table_set_column_index(2)
-                        PyImGui.begin_disabled(sell_rule is None or sell_rule_index < 0)
-                        jump_clicked = PyImGui.small_button(f"Jump To Rule##merchant_rules_cleanup_jump_{safe_rule_id}")
-                        PyImGui.end_disabled()
-                        if jump_clicked and sell_rule is not None and sell_rule_index >= 0:
-                            subsection_anchor, target_key = self._get_default_sell_rule_protection_jump_target(sell_rule)
-                            self._request_jump_to_sell_rule(
-                                sell_rule_index,
-                                sell_rule.kind,
-                                subsection_anchor=subsection_anchor,
-                                target_key=target_key,
-                                requires_advanced=bool(subsection_anchor),
-                            )
-
-                        PyImGui.table_set_column_index(3)
-                        if PyImGui.small_button(f"X##merchant_rules_cleanup_source_remove_{safe_rule_id}"):
-                            removed_cleanup_source_id = safe_rule_id
-                            break
-                    PyImGui.end_table()
-            PyImGui.end_child()
-        else:
-            PyImGui.text_colored("No linked protection sources yet.", UI_COLOR_MUTED)
-
-        if removed_cleanup_source_id:
-            next_sources = [
-                source
-                for source in cleanup_sources
-                if _normalize_rule_id(source.sell_rule_id) != removed_cleanup_source_id
-            ]
-            if self._set_cleanup_protection_sources(next_sources):
-                cleanup_changed = True
-                cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
-
-        linked_source_ids = {_normalize_rule_id(source.sell_rule_id) for source in cleanup_sources}
-        available_linkable_rules = [
-            sell_rule
-            for sell_rule in self._get_cleanup_linkable_sell_rules()
-            if _normalize_rule_id(getattr(sell_rule, "rule_id", "")) not in linked_source_ids
-        ]
-        if available_linkable_rules:
-            PyImGui.text_colored("Available weapon and armor sell rules:", UI_COLOR_INFO)
-            if PyImGui.begin_child("merchant_rules_cleanup_linkable_rules", (0, 120), True, PyImGui.WindowFlags.NoFlag):
-                for sell_rule in available_linkable_rules:
-                    safe_rule_id = _normalize_rule_id(getattr(sell_rule, "rule_id", ""))
-                    sell_rule_index = self._get_sell_rule_index_by_id(safe_rule_id)
-                    if PyImGui.small_button(f"Link##merchant_rules_cleanup_link_{safe_rule_id}"):
-                        if self._add_cleanup_protection_source(safe_rule_id):
-                            cleanup_changed = True
-                            cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
-                    PyImGui.same_line(0, 8)
-                    rule_label = self._format_sell_rule_reference(sell_rule_index, sell_rule)
-                    state_suffix = "Enabled" if sell_rule.enabled else "Disabled"
-                    self._draw_secondary_text(f"{rule_label} | {state_suffix}", wrapped=False)
-            PyImGui.end_child()
-        else:
-            PyImGui.text_colored("No additional weapon or armor sell rules are available to link.", UI_COLOR_MUTED)
 
         PyImGui.separator()
         self._draw_section_heading("Cleanup Preview")
@@ -26126,15 +26534,15 @@ def tooltip():
     PyImGui.text(MODULE_NAME)
     PyImGui.separator()
     PyImGui.bullet_text("Single-account merchant planner with optional auto-travel.")
-    PyImGui.bullet_text("Weapon and armor sell rules can filter by rarity and protect items with selected mods, runes, or insignias.")
+    PyImGui.bullet_text("Weapon and armor sell rules can filter by rarity while Protections manages kept models, upgrades, runes, and insignias.")
     PyImGui.bullet_text("Pinned travel targets and searchable outpost selection.")
     PyImGui.bullet_text("Preview projects the full post-travel merchant plan without moving the character.")
     PyImGui.bullet_text("Optional auto-travel to a selected outpost before merchant handling.")
     PyImGui.bullet_text("Top-level Overview, Rules, and Profiles workspaces, with live-config recovery under Profiles.")
-    PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets, blacklist entries, linked protection sources, and optional outpost-entry auto cleanup.")
-    PyImGui.bullet_text("Protections is a central hub over current sell-owned protection entries, with owner state, rule order, and Jump to Rule.")
+    PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets and optional outpost-entry auto cleanup.")
+    PyImGui.bullet_text("Protections manages sell keeps, cleanup keep-outs, linked protected-item deposits, and destroy safety.")
     PyImGui.bullet_text("Identify can target exact rarities and optionally run before Execute rebuilds the live merchant plan.")
-    PyImGui.bullet_text("Destroy supports Preview -> Execute plus session-only Instant Destroy and Include Protected Items toggles.")
+    PyImGui.bullet_text("Destroy supports Preview -> Execute plus session-only Instant Destroy.")
     PyImGui.bullet_text("Leader-driven multibox sync, preview, and execute for selected active accounts.")
     PyImGui.bullet_text("Shared named profiles load locally first, then propagate only through explicit Sync Rules to Selected.")
     PyImGui.bullet_text("Standalone weapon mods, runes, and insignias can route through Rune Trader when found.")
