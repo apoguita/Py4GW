@@ -27,26 +27,13 @@ from .AccountStruct import AccountStruct
 from .KeyStruct import KeyStruct
 from .IntentStruct import IntentStruct
 
-# Master toggle for ALL whiteboard POST/CLEAR/SWEEP console logs.
-# Set to False to silence everything in one place.
+# Master toggle for all whiteboard/lock debug logs.
+# Default is silent. Flip this single flag when you want visibility again.
 #
 # Runtime toggle:
 #   from Py4GWCoreLib.GlobalCache.shared_memory_src import AllAccounts as _wb_mod
-#   _wb_mod.WHITEBOARD_DEBUG = False
-WHITEBOARD_DEBUG: bool = True
-
-# Per-kind overrides keyed by WhiteboardLockKind int value. Missing key
-# falls back to WHITEBOARD_DEBUG. Present + False silences that kind even
-# when WHITEBOARD_DEBUG is True. Use this to focus on one lock kind during
-# debugging without losing the rest.
-#
-# Runtime toggle (silence SKILL_TARGET spam, keep HEX_REMOVAL_TARGET):
-#   from Py4GWCoreLib.GlobalCache.shared_memory_src import AllAccounts as _wb_mod
-#   from Py4GWCoreLib.enums_src.Whiteboard_enums import WhiteboardLockKind
-#   _wb_mod.WHITEBOARD_DEBUG_KINDS[int(WhiteboardLockKind.SKILL_TARGET)] = False
-WHITEBOARD_DEBUG_KINDS: dict[int, bool] = {
-    int(WhiteboardLockKind.SKILL_TARGET): False,
-}
+#   _wb_mod.WHITEBOARD_DEBUG = True
+WHITEBOARD_DEBUG: bool = False
 _HERO_SUBMIT_RETRY_AFTER: dict[tuple[int, int], int] = {}
 _PET_SUBMIT_RETRY_AFTER: dict[tuple[int, int], int] = {}
 _SLOT_SUBMIT_RETRY_COOLDOWN_MS = 5000
@@ -1049,18 +1036,8 @@ class AllAccounts(Structure):
     #region Whiteboard (cross-hero cast-intent)
 
     def _wb_log(self, kind_id: int, msg: str) -> None:
-        """Gated debug log for whiteboard state transitions.
-
-        Two-stage gate:
-          1. ``WHITEBOARD_DEBUG`` master toggle — False silences everything.
-          2. ``WHITEBOARD_DEBUG_KINDS[kind_id]`` per-kind override — present
-             + False silences this kind even when the master is True.
-
-        Missing key in WHITEBOARD_DEBUG_KINDS = use master toggle.
-        """
+        """Gated debug log for whiteboard state transitions."""
         if not WHITEBOARD_DEBUG:
-            return
-        if not WHITEBOARD_DEBUG_KINDS.get(int(kind_id), True):
             return
         ConsoleLog("Whiteboard", msg, Py4GW.Console.MessageType.Info)
 

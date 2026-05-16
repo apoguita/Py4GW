@@ -66,6 +66,7 @@ class SharedCommandType(IntEnum):
     LootEx = auto() # privately Handled Command, by frenkey
     Pycons = auto()
     BroadcastChatCommand = auto() 
+    ConsoleMessage = auto()
     #endregion
 
     

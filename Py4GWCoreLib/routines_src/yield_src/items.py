@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Callable, Generator, Any
 
 from ...Agent import Agent
+from ...GlobalCache.WhiteboardLocks import clear_loot_lock, post_loot_lock
 from ...Player import Player
 from ...GlobalCache import GLOBAL_CACHE
 from ...Py4GWcorelib import ConsoleLog, Console, ActionQueueManager
@@ -258,21 +259,33 @@ class Items:
             item_id = item_array.pop(0)
             if item_id == 0:
                 continue
+            claimed_item_id = 0
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
+            if owner_id == 0:
+                if post_loot_lock(item_id) < 0:
+                    continue
+                claimed_item_id = item_id
 
             free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
             if free_slots_in_inventory <= 0:
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 Items._finish_active_pick_up_loot_message()
                 return False
 
             if not Checks.Map.MapValid():
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 Items._finish_active_pick_up_loot_message()
                 return False
 
             if not Agent.IsValid(item_id):
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 continue
 
             item_x, item_y = Agent.GetXY(item_id)
@@ -280,12 +293,16 @@ class Items:
             if not item_reached:
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 Items._finish_active_pick_up_loot_message()
                 return False
 
             if not Checks.Map.MapValid():
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 Items._finish_active_pick_up_loot_message()
                 return False
             if Agent.IsValid(item_id):
@@ -295,6 +312,8 @@ class Items:
                     live_items = AgentArray.GetItemArray()
                     if item_id not in live_items:
                         break
+            if claimed_item_id:
+                clear_loot_lock(claimed_item_id)
 
             if progress_callback and total_items > 0:
                 progress_callback(1 - len(item_array) / total_items)
@@ -325,25 +344,39 @@ class Items:
             item_id = item_array.pop(0)
             if item_id == 0:
                 continue
+            claimed_item_id = 0
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
+            if owner_id == 0:
+                if post_loot_lock(item_id) < 0:
+                    continue
+                claimed_item_id = item_id
 
             free_slots_in_inventory = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
             if free_slots_in_inventory <= 0:
                 ConsoleLog("LootItems", "No free slots in inventory, stopping loot.", Console.MessageType.Warning)
                 ActionQueueManager().ResetAllQueues()
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 Items._finish_active_pick_up_loot_message()
                 return failed_items + item_array
 
             if not Checks.Map.MapValid():
                 ActionQueueManager().ResetAllQueues()
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 Items._finish_active_pick_up_loot_message()
                 return failed_items + item_array
 
             if not Agent.IsValid(item_id):
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 continue
 
             item_x, item_y = Agent.GetXY(item_id)
             item_reached = yield from Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
             if not item_reached:
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
                 ConsoleLog("LootItems", f"Failed to reach item {item_id}, skipping.", Console.MessageType.Warning)
                 failed_items.append(item_id)
                 continue
@@ -369,6 +402,8 @@ class Items:
                 if not picked_up:
                     ConsoleLog("Loot", f"Failed to pick up item {item_id} after {max_attempts} attempts.")
                     failed_items.append(item_id)
+            if claimed_item_id:
+                clear_loot_lock(claimed_item_id)
 
             if progress_callback and total_items > 0:
                 progress_callback(1 - len(item_array) / total_items)

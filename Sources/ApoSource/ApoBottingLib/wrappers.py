@@ -49,7 +49,8 @@ def Sequence(name: str,
              map_prep: BehaviorTree | BehaviorTree.Node | None = None,
              children: list[BehaviorTree | BehaviorTree.Node] | None = None,
              random_travel: bool = False,
-             region_pool: str = "eu"
+             region_pool: str = "eu",
+             hard_mode: bool | None = None,
              ) -> BehaviorTree:
     """
     Build a sequence wrapper with an optional leading map-travel step.
@@ -74,6 +75,9 @@ def Sequence(name: str,
         When `True`, use random-district travel for the prepended travel step.
     region_pool
         Region pool forwarded to random travel.
+    hard_mode
+        Optional party difficulty applied after the prepended travel step.
+        Pass `True` for hard mode, `False` for normal mode, or `None` to skip.
 
     Returns
     -------
@@ -87,6 +91,7 @@ def Sequence(name: str,
                            target_map_name=map_id_or_name if isinstance(map_id_or_name, str) else "",
                            random_travel=random_travel,
                            region_pool=region_pool,
+                           hard_mode=hard_mode,
                           )] if map_id_or_name else []
 
     prep_child = [BehaviorTree(Node(map_prep))] if map_prep is not None else []
@@ -638,10 +643,41 @@ def TargetAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str,
    
 
 #region travel
-def Travel(target_map_id: int = 0, target_map_name: str = "", random_travel: bool = False, region_pool: str = "eu") -> BehaviorTree:
-    if random_travel:
-        return RoutinesBT.Map.TravelToRandomDistrict(target_map_id=target_map_id,target_map_name=target_map_name,region_pool=region_pool,)
-    return RoutinesBT.Map.TravelToOutpost(outpost_id=target_map_id, outpost_name=target_map_name)
+def SetHardMode(hard_mode: bool = True, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Map.SetHardMode(hard_mode=hard_mode, log=log)
+
+
+def Travel(
+    target_map_id: int = 0,
+    target_map_name: str = "",
+    random_travel: bool = False,
+    region_pool: str = "eu",
+    hard_mode: bool | None = None,
+    log: bool = False,
+) -> BehaviorTree:
+    travel_tree = (
+        RoutinesBT.Map.TravelToRandomDistrict(
+            target_map_id=target_map_id,
+            target_map_name=target_map_name,
+            region_pool=region_pool,
+            log=log,
+        )
+        if random_travel
+        else RoutinesBT.Map.TravelToOutpost(
+            outpost_id=target_map_id,
+            outpost_name=target_map_name,
+            log=log,
+        )
+    )
+
+    if hard_mode is None:
+        return travel_tree
+
+    return RoutinesBT.Composite.Sequence(
+        travel_tree,
+        SetHardMode(hard_mode=hard_mode, log=log),
+        name="TravelAndSetHardMode",
+    )
 
 def TravelGH() -> BehaviorTree:
     return RoutinesBT.Map.TravelGH()

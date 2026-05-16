@@ -714,6 +714,7 @@ class LootConfig:
     def GetfilteredLootArray(self, distance: float = Range.SafeCompass.value, multibox_loot: bool = False, allow_unasigned_loot=False) -> list[int]:
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
+        from ..GlobalCache.WhiteboardLocks import is_loot_lock_blocked
         from ..Routines import Routines
         from ..Agent import Agent
         from ..Item import Item
@@ -725,6 +726,8 @@ class LootConfig:
                 return False    
             player_agent_id = Player.GetAgentID()
             owner_id = Agent.GetItemAgentOwnerID(item_id)
+            if owner_id == 0 and is_loot_lock_blocked(item_id):
+                return False
             return ((owner_id == player_agent_id) or (owner_id == 0))
         
         def IsValidLeaderItem(item_id, allow_unasigned_loot: bool):

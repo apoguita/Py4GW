@@ -18,6 +18,8 @@ RESURRECTION_LOCK_KEY = 0
 RESURRECTION_LOCK_MIN_DURATION_MS = 1000
 HEX_REMOVAL_LOCK_KEY = 0
 HEX_REMOVAL_LOCK_MIN_DURATION_MS = 750
+LOOT_LOCK_KEY = 0
+LOOT_LOCK_MIN_DURATION_MS = 4000
 
 
 @frame_cache(category="WhiteboardLocks", source_lib="OwnerContext")
@@ -312,6 +314,109 @@ def clear_hex_removal_lock(hexed_ally_agent_id: int) -> bool:
             email,
             int(WhiteboardLockKind.HEX_REMOVAL_TARGET),
             int(hexed_ally_agent_id),
+            int(group_id),
+        ))
+        return cleared > 0
+    except Exception:
+        return False
+
+
+def is_loot_lock_blocked(item_agent_id: int, now_tick: int | None = None) -> bool:
+    """True when another account already reserved this ground item for pickup."""
+    if item_agent_id <= 0:
+        return False
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return False
+        if now_tick is None:
+            now_tick = int(Py4GW.Game.get_tick_count64())
+        return bool(GLOBAL_CACHE.ShMem.IsLockBlocked(
+            int(WhiteboardLockKind.LOOT_ITEM),
+            LOOT_LOCK_KEY,
+            int(item_agent_id),
+            int(group_id),
+            email,
+            int(now_tick),
+            int(WhiteboardLockMode.EXCLUSIVE),
+            1,
+            int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+            int(WhiteboardClaimStrength.HARD),
+        ))
+    except Exception:
+        return False
+
+
+def filter_unlocked_loot_items(item_agent_ids: list[int]) -> list[int]:
+    """Return ground items not currently held by a loot lock."""
+    if not item_agent_ids:
+        return []
+    now_tick = int(Py4GW.Game.get_tick_count64())
+    return [
+        int(agent_id)
+        for agent_id in item_agent_ids
+        if agent_id and not is_loot_lock_blocked(int(agent_id), now_tick)
+    ]
+
+
+def post_loot_lock(item_agent_id: int, minimum_ms: int = LOOT_LOCK_MIN_DURATION_MS) -> int:
+    """Reserve a ground item for loot pickup. Returns slot index or -1."""
+    if item_agent_id <= 0:
+        return -1
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return -1
+        now = int(Py4GW.Game.get_tick_count64())
+
+        for slot_index, intent in GLOBAL_CACHE.ShMem.GetAllAccounts().GetAllIntents():
+            if intent.OwnerEmail != email:
+                continue
+            if int(intent.KindID) != int(WhiteboardLockKind.LOOT_ITEM):
+                continue
+            if int(intent.TargetAgentID) != int(item_agent_id):
+                continue
+            if int(intent.IsolationGroupID) != int(group_id):
+                continue
+            if int(intent.ExpiresAtTick) <= now:
+                continue
+            return int(slot_index)
+
+        expires_at = now + max(int(minimum_ms), LOOT_LOCK_MIN_DURATION_MS)
+        return int(GLOBAL_CACHE.ShMem.PostLock(
+            email,
+            int(WhiteboardLockKind.LOOT_ITEM),
+            LOOT_LOCK_KEY,
+            int(item_agent_id),
+            int(expires_at),
+            int(group_id),
+            int(WhiteboardLockMode.EXCLUSIVE),
+            1,
+            int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+            int(WhiteboardClaimStrength.HARD),
+        ))
+    except Exception:
+        return -1
+
+
+def clear_loot_lock(item_agent_id: int) -> bool:
+    """Release the local loot lock early after a successful pickup or skip."""
+    if item_agent_id <= 0:
+        return False
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return False
+        cleared = int(GLOBAL_CACHE.ShMem.ClearLockByOwnerKindTarget(
+            email,
+            int(WhiteboardLockKind.LOOT_ITEM),
+            int(item_agent_id),
             int(group_id),
         ))
         return cleared > 0
