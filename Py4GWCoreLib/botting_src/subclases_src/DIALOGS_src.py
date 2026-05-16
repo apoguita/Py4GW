@@ -21,19 +21,21 @@ class _DIALOGS:
     def _coro_pause_hero_ai(self):
         self.hero_ai_status = self._config.upkeep.hero_ai.is_active()
         self.hero_ai_pause_status = bool(getattr(self._config.upkeep, "hero_ai_paused", None) and self._config.upkeep.hero_ai_paused.is_active())
-        self._config.upkeep.hero_ai.set_now("active", False)
         if hasattr(self._config.upkeep, "hero_ai_paused"):
             self._config.upkeep.hero_ai_paused.set_now("active", True)
+        else:
+            self._config.upkeep.hero_ai.set_now("active", False)
         ActionQueueManager().ResetAllQueues()
         yield
-    
+
     def _coro_restore_hero_ai(self):
         from ...Routines import Routines
         # Give dialog/UI actions time to settle before AI resumes.
         yield from Routines.Yield.wait(350)
-        self._config.upkeep.hero_ai.set_now("active", self.hero_ai_status)
         if hasattr(self._config.upkeep, "hero_ai_paused"):
             self._config.upkeep.hero_ai_paused.set_now("active", self.hero_ai_pause_status)
+        else:
+            self._config.upkeep.hero_ai.set_now("active", self.hero_ai_status)
         yield
         
     def _coro_at_xy(self, x: float, y: float, dialog:int):
