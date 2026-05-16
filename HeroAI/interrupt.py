@@ -217,6 +217,11 @@ class CastObserver:
         live_keys: set[tuple[int, int]] = set()
 
         for agent_id in enemies:
+            if not Agent.IsValid(agent_id):
+                # Slot recycled since AgentArray was captured — drop any
+                # prior observation under this id and skip the deref.
+                self._drop_agent(agent_id)
+                continue
             try:
                 if not Agent.IsCasting(agent_id):
                     self._drop_agent(agent_id)
@@ -275,6 +280,11 @@ class CastObserver:
 
             # SUCCESS: target no longer casting that skill in the sampler.
             if self.elapsed_ms(target, enemy_skill) is None:
+                self._log_outcome("SUCCESS", target, enemy_skill, our_skill, now - fired_at)
+                continue
+
+            # Target slot was recycled since we queued the outcome — the enemy is gone (died / despawned)
+            if not Agent.IsValid(target):
                 self._log_outcome("SUCCESS", target, enemy_skill, our_skill, now - fired_at)
                 continue
 
@@ -346,6 +356,8 @@ def _safe_skill_name(skill_id: int) -> str:
 
 
 def _safe_agent_name(agent_id: int) -> str:
+    if not agent_id or not Agent.IsValid(agent_id):
+        return "?"
     try:
         return str(Agent.GetNameByID(agent_id) or "").strip() or "?"
     except Exception:
@@ -578,7 +590,7 @@ def is_interrupt_feasible(
     # is reserved for actionable cases (range, instant, etc).
     our_name = _safe_skill_name(our_skill_id)
 
-    if not target_agent_id:
+    if not target_agent_id or not Agent.IsValid(target_agent_id):
         return False
 
     try:
