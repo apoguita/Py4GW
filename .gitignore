@@ -80,6 +80,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Injector logs
+**/Py4GW_injection_log.txt
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -218,3 +221,6 @@ cython_debug/
 # macOS system files
 .DS_Store
 /Sources/frenkeyLib/Scripts/output
+
+# Claude
+.claude

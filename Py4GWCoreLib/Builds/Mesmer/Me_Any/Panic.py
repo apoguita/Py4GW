@@ -27,7 +27,6 @@ class _PanicBarSnapshot:
     enemy_casting: bool = False
     enemy_casting_spell: bool = False
     enemy_casting_spell_or_chant: bool = False
-    dead_ally_in_spellcast: int = 0
     player_energy_pct: float = 1.0
 
 
@@ -76,7 +75,6 @@ class Panic(BuildMgr):
     def _get_bar_snapshot(self) -> _PanicBarSnapshot:
         snapshot = _PanicBarSnapshot()
         snapshot.in_aggro = bool(self.IsInAggro())
-        snapshot.dead_ally_in_spellcast = int(Routines.Agents.GetDeadAlly(Range.Spellcast.value) or 0)
         snapshot.player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
 
         if not snapshot.in_aggro:
@@ -104,7 +102,7 @@ class Panic(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Flesh_of_My_Flesh_ID):
-            dead_ally_id = snapshot.dead_ally_in_spellcast
+            dead_ally_id = Routines.Agents.GetDeadAlly(Range.Spellcast.value) or 0
             if dead_ally_id and (yield from self.CastSkillIDAndRestoreTarget(
                 skill_id=Flesh_of_My_Flesh_ID,
                 target_agent_id=dead_ally_id,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Range, Routines, ThrottledTimer, Utils
+from Py4GWCoreLib import Range, Routines, ThrottledTimer
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
@@ -30,40 +30,14 @@ class BloodMagic:
         if not self.build.IsInAggro():
             return False
 
-        player_pos = Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(
-            player_pos[0], player_pos[1], Range.Spellcast.value
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=Range.Adjacent.value,
+            preferred_condition=lambda agent_id: not Routines.Checks.Agents.HasEffect(agent_id, blood_bond_id),
+            filter_radius=Range.Spellcast.value,
         )
-        candidates = AgentArray.Filter.ByCondition(
-            enemy_array,
-            lambda agent_id: (
-                Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.GetHealth(agent_id) < 0.5
-            ),
-        )
-        if not candidates:
+        if not target_agent_id:
             return False
-
-        candidates = sorted(
-            candidates,
-            key=lambda agent_id: (
-                Agent.GetHealth(agent_id),
-                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
-            ),
-        )
-
-        target_agent_id = candidates[0]
-        target_pos = Agent.GetXY(target_agent_id)
-        aoe_range = Range.Adjacent.value
-        nearby = Routines.Agents.GetFilteredEnemyArray(
-            target_pos[0], target_pos[1], aoe_range
-        )
-        nearby = AgentArray.Filter.ByCondition(
-            nearby,
-            lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
-        )
-        if max(0, len(nearby) - 1) < 2:
+        if Routines.Checks.Agents.HasEffect(target_agent_id, blood_bond_id):
             return False
 
         return (yield from self.build.CastSkillIDAndRestoreTarget(

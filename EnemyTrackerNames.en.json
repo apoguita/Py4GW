@@ -15,6 +15,49 @@
       "Agent 191",
       "Bone Minion"
     ],
+    "enc:\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6": [
+      "Shadow Mesmer"
+    ],
+    "enc:\\\\x14CF\\\\xEC6F\\\\xE73F\\\\x49BD": [
+      "Shadow Elemental"
+    ],
+    "enc:\\\\x14D0\\\\x8168\\\\xA1A6\\\\x40C1": [
+      "Shadow Monk"
+    ],
+    "enc:\\\\x14D1\\\\xBDB0\\\\x7A68": [
+      "Shadow Warrior"
+    ],
+    "enc:\\\\x14D2\\\\x970D\\\\xD742\\\\x7F11": [
+      "Shadow Ranger"
+    ],
+    "enc:\\\\x14D5\\\\xD7A9\\\\xCF5D\\\\x1A7C": [
+      "Shadow Beast"
+    ],
+    "enc:\\\\x14D6\\\\xC88A\\\\xEAA4\\\\x3C28": [
+      "Abyssal"
+    ],
+    "enc:\\\\x14DB\\\\x873D\\\\xC69B\\\\x0875": [
+      "Skeletal Ether Breaker"
+    ],
+    "enc:\\\\x14DC\\\\xBC13\\\\x9392\\\\x5197": [
+      "Skeletal Icehand"
+    ],
+    "enc:\\\\x14DD\\\\x9664\\\\xE898\\\\x575D": [
+      "Skeletal Bond"
+    ],
+    "enc:\\\\x14DE\\\\x83D6\\\\x2C89": [
+      "Skeletal Berserker"
+    ],
+    "enc:\\\\x14DF\\\\x9EA7\\\\xD567\\\\x3343": [
+      "Skeletal Impaler",
+      "Agent 212"
+    ],
+    "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": [
+      "Agent 261",
+      "Shadow Lord Vogris",
+      "Agent 262",
+      "Agent 286"
+    ],
     "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": [
       "Kayali the Brave"
     ],
@@ -178,6 +221,10 @@
     ],
     "enc:\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88": [
       "Spirit of Infuriating Heat"
+    ],
+    "enc:\\\\x8101\\\\x4735\\\\xAEF1\\\\x9C2E\\\\x28EF": [
+      "Agent 311",
+      "Jagged Horror"
     ],
     "enc:\\\\x8101\\\\x4C88\\\\xB01C\\\\xF31C\\\\x3879": [
       "Kournan Guard"

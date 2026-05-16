@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 
-from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Utils, Weapon
+from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Range, Utils, Weapon
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
@@ -11,7 +10,6 @@ from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 from ..cache_data import CacheData
-from .vector_fields import compute_mixed_follow_target, load_follow_movement_config
 
 
 @dataclass(slots=True)
@@ -33,9 +31,6 @@ def execute_follower_follow(
         state.last_follow_move_point = None
         state.last_follow_assigned_point = None
 
-    def _cached_xy(account) -> tuple[float, float]:
-        return (float(account.AgentData.Pos.x), float(account.AgentData.Pos.y))
-
     def _account_map_signature(account) -> tuple[int, int, int, int, int] | None:
         if account is None or not bool(getattr(account, "IsSlotActive", False)):
             return None
@@ -46,17 +41,6 @@ def execute_follower_follow(
             int(account.AgentData.Map.Language),
             int(account.AgentPartyData.PartyID),
         )
-
-    def _cached_ally_positions(own_agent_id: int) -> list[tuple[float, float]]:
-        positions: list[tuple[float, float]] = []
-        for account in cached_data.party:
-            agent_id = int(account.AgentData.AgentID)
-            if agent_id == 0 or agent_id == own_agent_id:
-                continue
-            if not bool(account.IsSlotActive):
-                continue
-            positions.append(_cached_xy(account))
-        return positions
 
     def _assigned_point_changed(
         previous: tuple[float, float, int] | None,
@@ -142,7 +126,7 @@ def execute_follower_follow(
             _reset_follow_runtime()
             return BehaviorTree.NodeState.FAILURE
 
-    party_in_aggro = bool(getattr(cached_data.data, "party_in_aggro", cached_data.data.in_aggro))
+    combat_active = bool(cached_data.data.in_aggro)
     is_melee = cached_data.data.weapon_type in {
         Weapon.Axe.value,
         Weapon.Hammer.value,
@@ -151,19 +135,19 @@ def execute_follower_follow(
         Weapon.Sword.value,
     }
 
-    if party_in_aggro and is_melee:
-        state.last_follow_move_point = None
-        state.last_follow_assigned_point = None
-        cached_data.follow_throttle_timer.Reset()
-        return BehaviorTree.NodeState.FAILURE
-
-    if party_in_aggro:
+    if combat_active:
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
             follow_distance = max(0.0, follow_threshold_raw)
     else:
         follow_distance = max(0.0, follow_threshold_raw)
+
+    if combat_active and is_melee and not own_flag_active and not all_flag_active:
+        melee_leash_distance = max(follow_distance, float(Range.Spellcast.value))
+        if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= melee_leash_distance:
+            cached_data.follow_throttle_timer.Reset()
+            return BehaviorTree.NodeState.FAILURE
 
     assigned_point = (follow_x, follow_y, follow_z)
     destination_refresh_distance = max(25.0, min(150.0, follow_distance * 0.25))
@@ -176,40 +160,20 @@ def execute_follower_follow(
         state.last_follow_move_point = None
     state.last_follow_assigned_point = assigned_point
 
-    avoidance_enabled = bool(options.Avoidance)
-    if (
-        (not party_in_aggro or follow_z != 0 or not avoidance_enabled)
-        and Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance
-    ):
+    if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
         return BehaviorTree.NodeState.FAILURE
 
     xx = follow_x
     yy = follow_y
 
-    if party_in_aggro and follow_z == 0 and avoidance_enabled:
-        own_account = cached_data.account_data
-        own_agent_id = int(own_account.AgentData.AgentID)
-        if own_agent_id == 0:
-            return BehaviorTree.NodeState.FAILURE
-        mixed_target = compute_mixed_follow_target(
-            current_pos=_cached_xy(own_account),
-            assigned_pos=(follow_x, follow_y),
-            follow_distance=follow_distance,
-            in_combat=True,
-            config=load_follow_movement_config(),
-            ally_positions=_cached_ally_positions(own_agent_id),
-        )
-        if mixed_target is None:
-            return BehaviorTree.NodeState.FAILURE
-        xx, yy = mixed_target
-
     if not assigned_changed and state.last_follow_move_point is not None:
         last_x, last_y = state.last_follow_move_point
-        if abs(xx - last_x) <= 10 and abs(yy - last_y) <= 10:
-            xx += random.uniform(-5.0, 5.0)
-            yy += random.uniform(-5.0, 5.0)
+        if Utils.Distance((last_x, last_y), (xx, yy)) <= 10.0:
+            return BehaviorTree.NodeState.FAILURE
 
-    ActionQueueManager().ResetQueue("ACTION")
+    if not ActionQueueManager().IsEmpty("ACTION"):
+        return BehaviorTree.NodeState.FAILURE
+
     if follow_z == 0:
         Player.Move(xx, yy)
     else:
@@ -219,6 +183,4 @@ def execute_follower_follow(
     state.last_follow_move_point = (xx, yy)
 
     cached_data.follow_throttle_timer.Reset()
-    if party_in_aggro and is_melee:
-        return BehaviorTree.NodeState.SUCCESS
     return BehaviorTree.NodeState.FAILURE

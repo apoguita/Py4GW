@@ -11,7 +11,6 @@ from Py4GWCoreLib.Player import Player
 
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import NUMBER_OF_SKILLS
-from HeroAI.follow.vector_fields import load_follow_movement_config, save_follow_movement_config
 from HeroAI.utils import DrawFlagAll, DrawHeroFlag, IsHeroFlagged
 from HeroAI.windows import HeroAI_FloatingWindows, HeroAI_Windows
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
@@ -63,10 +62,10 @@ class HeroAI_BaseUI:
     follow_formations_ids: list[str] = []
     follow_formations_selected_index = 0
     follow_move_threshold_default = float(Range.Area.value)
-    follow_move_threshold_combat = float(Range.Touch.value)
+    follow_move_threshold_combat = float(Range.Adjacent.value)
     follow_move_threshold_flagged = 0.0
     follow_move_threshold_default_mode = "Area"
-    follow_move_threshold_combat_mode = "Touch"
+    follow_move_threshold_combat_mode = "Adjacent"
     follow_move_threshold_flagged_mode = "Zero"
     _build_match_timer = ThrottledTimer(750)
     _build_match_rows: list[tuple[int, str, int, int, str, str, str]] = []
@@ -1458,10 +1457,10 @@ class HeroAI_BaseUI:
             im.add_bool(ini_key, "show_broadcast_follow_threshold_rings", "FollowRuntime", "show_broadcast_follow_threshold_rings", True)
             im.add_bool(ini_key, "show_flagging_window", "FollowRuntime", "show_flagging_window", False)
             im.add_float(ini_key, "follow_move_threshold_default", "FollowRuntime", "follow_move_threshold_default", float(Range.Area.value))
-            im.add_float(ini_key, "follow_move_threshold_combat", "FollowRuntime", "follow_move_threshold_combat", float(Range.Touch.value))
+            im.add_float(ini_key, "follow_move_threshold_combat", "FollowRuntime", "follow_move_threshold_combat", float(Range.Adjacent.value))
             im.add_float(ini_key, "follow_move_threshold_flagged", "FollowRuntime", "follow_move_threshold_flagged", 0.0)
             im.add_str(ini_key, "follow_move_threshold_default_mode", "FollowRuntime", "follow_move_threshold_default_mode", "Area")
-            im.add_str(ini_key, "follow_move_threshold_combat_mode", "FollowRuntime", "follow_move_threshold_combat_mode", "Touch")
+            im.add_str(ini_key, "follow_move_threshold_combat_mode", "FollowRuntime", "follow_move_threshold_combat_mode", "Adjacent")
             im.add_str(ini_key, "follow_move_threshold_flagged_mode", "FollowRuntime", "follow_move_threshold_flagged_mode", "Zero")
             HeroAI_BaseUI.follow_window_ini_vars_registered = True
             HeroAI_BaseUI.follow_window_ini_vars_registered_key = ini_key
@@ -1478,10 +1477,10 @@ class HeroAI_BaseUI:
         hero_globals.show_broadcast_follow_threshold_rings = bool(im.getBool(ini_key, "show_broadcast_follow_threshold_rings", True, section="FollowRuntime"))
         hero_globals.show_flagging_window = bool(im.getBool(ini_key, "show_flagging_window", False, section="FollowRuntime"))
         HeroAI_BaseUI.follow_move_threshold_default = max(0.0, float(im.getFloat(ini_key, "follow_move_threshold_default", float(Range.Area.value), section="FollowRuntime")))
-        HeroAI_BaseUI.follow_move_threshold_combat = max(0.0, float(im.getFloat(ini_key, "follow_move_threshold_combat", float(Range.Touch.value), section="FollowRuntime")))
+        HeroAI_BaseUI.follow_move_threshold_combat = max(0.0, float(im.getFloat(ini_key, "follow_move_threshold_combat", float(Range.Adjacent.value), section="FollowRuntime")))
         HeroAI_BaseUI.follow_move_threshold_flagged = max(0.0, float(im.getFloat(ini_key, "follow_move_threshold_flagged", 0.0, section="FollowRuntime")))
         HeroAI_BaseUI.follow_move_threshold_default_mode = str(im.getStr(ini_key, "follow_move_threshold_default_mode", "Area", section="FollowRuntime"))
-        HeroAI_BaseUI.follow_move_threshold_combat_mode = str(im.getStr(ini_key, "follow_move_threshold_combat_mode", "Touch", section="FollowRuntime"))
+        HeroAI_BaseUI.follow_move_threshold_combat_mode = str(im.getStr(ini_key, "follow_move_threshold_combat_mode", "Adjacent", section="FollowRuntime"))
         HeroAI_BaseUI.follow_move_threshold_flagged_mode = str(im.getStr(ini_key, "follow_move_threshold_flagged_mode", "Zero", section="FollowRuntime"))
 
     @staticmethod
@@ -1827,52 +1826,6 @@ class HeroAI_BaseUI:
                 if HeroAI_BaseUI.follow_move_threshold_flagged_mode != "Manual":
                     HeroAI_BaseUI.follow_move_threshold_flagged_mode = "Manual"
                 dirty_runtime_cfg = True
-
-            movement_cfg = load_follow_movement_config()
-            PyImGui.separator()
-            PyImGui.text("Combat Movement Mix")
-
-            new_recovery_distance = max(1.0, float(PyImGui.input_float("Slot Recovery Distance", float(movement_cfg.slot_recovery_distance))))
-            if abs(new_recovery_distance - movement_cfg.slot_recovery_distance) > 0.0001:
-                movement_cfg.slot_recovery_distance = new_recovery_distance
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-
-            new_ally_radius = max(0.0, float(PyImGui.input_float("Ally Repulsion Radius", float(movement_cfg.ally_repulsion_radius))))
-            if abs(new_ally_radius - movement_cfg.ally_repulsion_radius) > 0.0001:
-                movement_cfg.ally_repulsion_radius = new_ally_radius
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-
-            new_ally_weight = max(0.0, float(PyImGui.input_float("Ally Repulsion Weight", float(movement_cfg.ally_repulsion_weight))))
-            if abs(new_ally_weight - movement_cfg.ally_repulsion_weight) > 0.0001:
-                movement_cfg.ally_repulsion_weight = new_ally_weight
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-
-            new_enemy_radius = max(0.0, float(PyImGui.input_float("Enemy Repulsion Radius", float(movement_cfg.enemy_repulsion_radius))))
-            if abs(new_enemy_radius - movement_cfg.enemy_repulsion_radius) > 0.0001:
-                movement_cfg.enemy_repulsion_radius = new_enemy_radius
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-
-            new_enemy_weight = max(0.0, float(PyImGui.input_float("Enemy Repulsion Weight", float(movement_cfg.enemy_repulsion_weight))))
-            if abs(new_enemy_weight - movement_cfg.enemy_repulsion_weight) > 0.0001:
-                movement_cfg.enemy_repulsion_weight = new_enemy_weight
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-
-            new_move_clamp = max(1.0, float(PyImGui.input_float("Local Move Clamp", float(movement_cfg.local_move_clamp))))
-            if abs(new_move_clamp - movement_cfg.local_move_clamp) > 0.0001:
-                movement_cfg.local_move_clamp = new_move_clamp
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-
-            new_min_move = max(0.0, float(PyImGui.input_float("Local Min Move Threshold", float(movement_cfg.min_move_threshold))))
-            if abs(new_min_move - movement_cfg.min_move_threshold) > 0.0001:
-                movement_cfg.min_move_threshold = new_min_move
-                save_follow_movement_config(movement_cfg)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             if dirty_runtime_cfg:
                 HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
