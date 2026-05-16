@@ -76,6 +76,596 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6": {
+      "encoded_names": [
+        "\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2855
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "26": {
+          "id": 26,
+          "name": "Empathy",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "38": {
+          "id": 38,
+          "name": "Channeling",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x14CF\\\\xEC6F\\\\xE73F\\\\x49BD": {
+      "encoded_names": [
+        "\\\\x14CF\\\\xEC6F\\\\xE73F\\\\x49BD"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2856
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "179": {
+          "id": 179,
+          "name": "Incendiary Bonds",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x14D0\\\\x8168\\\\xA1A6\\\\x40C1": {
+      "encoded_names": [
+        "\\\\x14D0\\\\x8168\\\\xA1A6\\\\x40C1"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2857
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "271": {
+          "id": 271,
+          "name": "Zealot's Fire",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "280": {
+          "id": 280,
+          "name": "Heal Area",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "282": {
+          "id": 282,
+          "name": "Word of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "314": {
+          "id": 314,
+          "name": "Restore Life",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x14D1\\\\xBDB0\\\\x7A68": {
+      "encoded_names": [
+        "\\\\x14D1\\\\xBDB0\\\\x7A68"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2858
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "327": {
+          "id": 327,
+          "name": "Griffon's Sweep",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "385": {
+          "id": 385,
+          "name": "Final Thrust",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x14D2\\\\x970D\\\\xD742\\\\x7F11": {
+      "encoded_names": [
+        "\\\\x14D2\\\\x970D\\\\xD742\\\\x7F11"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2859
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "394": {
+          "id": 394,
+          "name": "Power Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "395": {
+          "id": 395,
+          "name": "Barrage",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "396": {
+          "id": 396,
+          "name": "Dual Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x14D5\\\\xD7A9\\\\xCF5D\\\\x1A7C": {
+      "encoded_names": [
+        "\\\\x14D5\\\\xD7A9\\\\xCF5D\\\\x1A7C"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2860
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "121": {
+          "id": 121,
+          "name": "Spiteful Spirit",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "133": {
+          "id": 133,
+          "name": "Dark Pact",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "150": {
+          "id": 150,
+          "name": "Mark of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "98": {
+          "id": 98,
+          "name": "Consume Corpse",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x14D6\\\\xC88A\\\\xEAA4\\\\x3C28": {
+      "encoded_names": [
+        "\\\\x14D6\\\\xC88A\\\\xEAA4\\\\x3C28"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2861
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "352": {
+          "id": 352,
+          "name": "Crushing Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "354": {
+          "id": 354,
+          "name": "Earth Shaker",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x14DB\\\\x873D\\\\xC69B\\\\x0875": {
+      "encoded_names": [
+        "\\\\x14DB\\\\x873D\\\\xC69B\\\\x0875"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2867
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "34": {
+          "id": 34,
+          "name": "Sympathetic Visage",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "57": {
+          "id": 57,
+          "name": "Cry of Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "77": {
+          "id": 77,
+          "name": "Chaos Storm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x14DC\\\\xBC13\\\\x9392\\\\x5197": {
+      "encoded_names": [
+        "\\\\x14DC\\\\xBC13\\\\x9392\\\\x5197"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2868
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "199": {
+          "id": 199,
+          "name": "Glyph of Energy",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "215": {
+          "id": 215,
+          "name": "Maelstrom",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "232": {
+          "id": 232,
+          "name": "Lightning Touch",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "234": {
+          "id": 234,
+          "name": "Deep Freeze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "235": {
+          "id": 235,
+          "name": "Blurred Vision",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x14DD\\\\x9664\\\\xE898\\\\x575D": {
+      "encoded_names": [
+        "\\\\x14DD\\\\x9664\\\\xE898\\\\x575D"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2869
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "241": {
+          "id": 241,
+          "name": "Life Bond",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "273": {
+          "id": 273,
+          "name": "Spell Breaker",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "291": {
+          "id": 291,
+          "name": "Live Vicariously",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "292": {
+          "id": 292,
+          "name": "Infuse Health",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x14DE\\\\x83D6\\\\x2C89": {
+      "encoded_names": [
+        "\\\\x14DE\\\\x83D6\\\\x2C89"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2870
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "334": {
+          "id": 334,
+          "name": "Axe Rake",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "337": {
+          "id": 337,
+          "name": "Dismember",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "342": {
+          "id": 342,
+          "name": "Axe Twist",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x14DF\\\\x9EA7\\\\xD567\\\\x3343": {
+      "encoded_names": [
+        "\\\\x14DF\\\\x9EA7\\\\xD567\\\\x3343"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2871
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "399": {
+          "id": 399,
+          "name": "Distracting Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "457": {
+          "id": 457,
+          "name": "Dust Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "458": {
+          "id": 458,
+          "name": "Barbed Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "459": {
+          "id": 459,
+          "name": "Flame Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "461": {
+          "id": 461,
+          "name": "Spike Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": {
+      "encoded_names": [
+        "\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2860
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
+        }
+      },
+      "observed_skills": {
+        "121": {
+          "id": 121,
+          "name": "Spiteful Spirit",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "133": {
+          "id": 133,
+          "name": "Dark Pact",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "150": {
+          "id": 150,
+          "name": "Mark of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "98": {
+          "id": 98,
+          "name": "Consume Corpse",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
     "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": {
       "encoded_names": [
         "\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048"
@@ -1905,6 +2495,25 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x4735\\\\xAEF1\\\\x9C2E\\\\x28EF": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4735\\\\xAEF1\\\\x9C2E\\\\x28EF"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5765
+      ],
+      "observed_maps": {
+        "34": {
+          "base_id": 34,
+          "id": 34,
+          "instance_type": "Explorable",
+          "name": "The Fissure of Woe"
         }
       },
       "observed_skills": {}

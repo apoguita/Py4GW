@@ -42,6 +42,7 @@ class GameData:
 
         
         #combat field data
+        self.local_in_aggro = False
         self.in_aggro = False
         self.leader_in_aggro = False
         self.party_in_aggro = False
@@ -207,14 +208,11 @@ class CacheData:
     def GetActiveScanRange(self) -> float:
         from .settings import Settings
 
-        is_party_leader = bool(
-            getattr(getattr(self.account_data, "AgentPartyData", None), "IsPartyLeader", False)
-        )
-        if is_party_leader or Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
+        if Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
             return Range.Earshot.value if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else Range.Spellcast.value
 
-        HighRange = Range.Longbow.value if not self.data.party_in_aggro else Range.Spellcast.value
-        LowRange = Range.Longbow.value if self.data.party_in_aggro else Range.Earshot.value
+        HighRange = Range.Longbow.value if not self.data.in_aggro else Range.Spellcast.value
+        LowRange = Range.Longbow.value if not self.data.in_aggro else Range.Earshot.value
         return LowRange if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else HighRange
         
     def UpdateCombat(self):
@@ -272,13 +270,21 @@ class CacheData:
                     if account_in_aggro:
                         self.data.party_in_aggro = True
                     
-                self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), self.GetActiveScanRange())
-                    
-                if self.data.in_aggro:
+                local_in_aggro = self.InAggro(AgentArray.GetEnemyArray(), self.GetActiveScanRange())
+                self.data.local_in_aggro = local_in_aggro
+
+                from .settings import Settings
+                if Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
+                    effective_in_aggro = local_in_aggro
+                else:
+                    effective_in_aggro = self.data.party_in_aggro
+
+                if effective_in_aggro:
                     self.stay_alert_timer.Reset()
-                    
+
                 if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                    self.data.in_aggro = True
+                    effective_in_aggro = True
+                self.data.in_aggro = effective_in_aggro
                 self.auto_attack_time = self.GetWeaponAttackAftercast()
                 
         except Exception as e:

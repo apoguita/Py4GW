@@ -209,12 +209,34 @@ class AllAccounts(Structure):
     def _find_account_slot_by_email(self, account_email: str) -> int:
         if not account_email:
             return -1
+        candidates: list[int] = []
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             account = all_accounts[i]
             if account.AccountEmail == account_email and account.IsAccount:
-                return i
-        return -1
+                candidates.append(i)
+
+        if not candidates:
+            return -1
+        if len(candidates) == 1:
+            return candidates[0]
+
+        try:
+            local_hwnd = int(Py4GW.Console.get_gw_window_handle() or 0)
+        except Exception:
+            local_hwnd = 0
+
+        if local_hwnd:
+            for i in candidates:
+                key = self.Keys[i]
+                if key.HWND == local_hwnd and key.EntityType == 0 and self._is_slot_active(i):
+                    return i
+
+        active_candidates = [i for i in candidates if self._is_slot_active(i)]
+        if active_candidates:
+            return max(active_candidates, key=lambda idx: (int(self.AccountData[idx].LastUpdated), idx))
+
+        return max(candidates, key=lambda idx: (int(self.AccountData[idx].LastUpdated), idx))
 
     def _find_player_slot_by_key(self, account_email: str, hwnd: int) -> int:
         if not account_email or not hwnd:

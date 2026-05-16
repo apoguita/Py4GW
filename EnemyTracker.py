@@ -586,8 +586,13 @@ class EnemyTracker:
             record = self._ensure_record(key, name, enc_name, model_id)
             self._observe_map(key, record, map_info)
 
+            living = Agent.GetLivingAgentByID(agent_id)
+            native_skill_id = int(getattr(living, "skill", 0) or 0)
+            self._observe_cast(agent_id, record, native_skill_id)
+
             casting_skill_id = int(Agent.GetCastingSkillID(agent_id) if Agent.IsCasting(agent_id) else 0)
-            self._observe_cast(agent_id, record, casting_skill_id)
+            if casting_skill_id and casting_skill_id != native_skill_id:
+                self._observe_cast(agent_id, record, casting_skill_id)
             primary, secondary = self._infer_professions(record)
 
             rows.append(

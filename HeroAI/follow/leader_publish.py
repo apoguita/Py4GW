@@ -56,12 +56,13 @@ class FollowIniConfig:
     max_follow_slots: int = 11
     ini_reload_ms: int = 1000
     publish_interval_ms: int = 100
+    combat_publish_interval_ms: int = 1000
 
 
 @dataclass(slots=True)
 class FollowThresholdConfig:
     default_follow_threshold: float = field(default_factory=lambda: float(Range.Area.value))
-    combat_follow_threshold: float = field(default_factory=lambda: float(Range.Touch.value))
+    combat_follow_threshold: float = field(default_factory=lambda: float(Range.Adjacent.value))
     flagged_follow_threshold: float = 0.0
     disabled_threshold: float = -1.0
 
@@ -106,6 +107,7 @@ class FollowFormationPublisher:
         self.state.points_cache = self._get_default_follow_points()
         self.ini_reload_timer = ThrottledTimer(self.ini.ini_reload_ms)
         self.publish_timer = ThrottledTimer(self.ini.publish_interval_ms)
+        self.combat_publish_timer = ThrottledTimer(self.ini.combat_publish_interval_ms)
 
     def _get_default_follow_points(self) -> list[tuple[float, float]]:
         # Stable built-in fallback so follow publication never collapses to an empty template.
@@ -223,7 +225,7 @@ class FollowFormationPublisher:
         )
         self.thresholds.combat_follow_threshold = max(
             0.0,
-            float(im.getFloat(self.state.runtime_ini_key, "follow_move_threshold_combat", float(Range.Touch.value), section=self.ini.runtime_section))
+            float(im.getFloat(self.state.runtime_ini_key, "follow_move_threshold_combat", float(Range.Adjacent.value), section=self.ini.runtime_section))
         )
         self.thresholds.flagged_follow_threshold = max(
             0.0,
@@ -445,6 +447,28 @@ class FollowFormationPublisher:
             self.state.combat_anchor_facing = None
         self.state.leader_in_combat_last = leader_in_combat
 
+    def _is_combat_active_for_mode(
+        self,
+        all_accounts: AllAccounts,
+        leader_index: int,
+        leader_account: AccountStruct,
+    ) -> bool:
+        from HeroAI.settings import Settings
+
+        mode = Settings().get_combat_range_mode()
+        if mode == Settings.COMBAT_RANGE_MODE_LEGACY:
+            return bool(getattr(leader_account, "InAggro", False))
+
+        for index in range(self.shared_memory_manager.max_num_players):
+            account = all_accounts.AccountData[index]
+            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
+                continue
+            if not self._same_party_and_map(leader_account, account):
+                continue
+            if bool(getattr(account, "InAggro", False)):
+                return True
+        return False
+
     def _resolve_anchor(
         self,
         leader_options: HeroAIOptionStruct,
@@ -478,13 +502,7 @@ class FollowFormationPublisher:
         leader_zplane: int,
         fallback_candidates: list[tuple[float, float]] | None = None,
     ) -> tuple[float, float]:
-        """Snap raw FollowPos to navmesh, or fall back to anchor.
-
-        On elevated terrain (zplane > 1) returns anchor immediately so the
-        follower's cross-layer keypress fallback handles stair traversal.
-        """
-        if leader_zplane > 1:
-            return (fallback_x, fallback_y)
+        """Use the raw FollowPos when valid; otherwise fall back near party mass."""
 
         navmesh = _get_navmesh()
         if navmesh is None:
@@ -493,56 +511,77 @@ class FollowFormationPublisher:
         try:
             if navmesh.contains(raw_x, raw_y, self.tuning.followpos_contains_margin):
                 return (raw_x, raw_y)
-            snapped = navmesh.find_nearest_reachable((raw_x, raw_y))
         except Exception:
             return (raw_x, raw_y)
-        if snapped is None:
-            return (fallback_x, fallback_y)
+        max_fallback_distance = float(Range.Spellcast.value)
 
-        snap_x = float(snapped[0])
-        snap_y = float(snapped[1])
-        displacement = math.hypot(snap_x - raw_x, snap_y - raw_y)
-        if displacement <= self.tuning.followpos_max_reach:
-            # Prefer stacking on the leader anchor over publishing a reachable
-            # point that drifts too far away from the intended formation slot.
-            desired_anchor_distance = math.hypot(raw_x - fallback_x, raw_y - fallback_y)
-            snapped_anchor_distance = math.hypot(snap_x - fallback_x, snap_y - fallback_y)
-            if snapped_anchor_distance <= desired_anchor_distance + self.tuning.followpos_anchor_slack:
-                return (snap_x, snap_y)
-
-        # The anchor itself can be the bad point that forced repositioning.
-        # When the desired slot is invalid, prefer another clear point that is
-        # still close to the intended formation position before collapsing all
-        # the way back to the anchor stack.
-        candidate_points: list[tuple[float, float]] = []
-        if fallback_candidates:
-            candidate_points.extend(
-                (float(candidate_x), float(candidate_y))
-                for candidate_x, candidate_y in fallback_candidates
-            )
-        candidate_points.append((float(fallback_x), float(fallback_y)))
-        desired_anchor_distance = math.hypot(raw_x - fallback_x, raw_y - fallback_y)
-
-        best_candidate: tuple[float, float] | None = None
-        best_distance = float("inf")
-        for candidate_x, candidate_y in candidate_points:
+        def _resolve_candidate(candidate_x: float, candidate_y: float) -> tuple[float, float] | None:
             try:
-                if not navmesh.contains(candidate_x, candidate_y, self.tuning.followpos_contains_margin):
-                    continue
+                if navmesh.contains(candidate_x, candidate_y, self.tuning.followpos_contains_margin):
+                    resolved_x = float(candidate_x)
+                    resolved_y = float(candidate_y)
+                else:
+                    snapped = navmesh.find_nearest_reachable((candidate_x, candidate_y))
+                    if snapped is None:
+                        return None
+                    resolved_x = float(snapped[0])
+                    resolved_y = float(snapped[1])
             except Exception:
-                continue
+                return None
 
-            candidate_anchor_distance = math.hypot(candidate_x - fallback_x, candidate_y - fallback_y)
-            if candidate_anchor_distance > desired_anchor_distance + self.tuning.followpos_anchor_slack:
-                continue
+            if math.hypot(resolved_x - fallback_x, resolved_y - fallback_y) > max_fallback_distance:
+                return None
+            return (resolved_x, resolved_y)
 
-            candidate_distance = math.hypot(candidate_x - raw_x, candidate_y - raw_y)
-            if candidate_distance < best_distance:
-                best_distance = candidate_distance
-                best_candidate = (candidate_x, candidate_y)
+        candidate_centers = [
+            (float(candidate_x), float(candidate_y))
+            for candidate_x, candidate_y in (fallback_candidates or [])
+        ]
 
-        if best_candidate is not None:
-            return best_candidate
+        midpoint_candidates: list[tuple[float, float]] = []
+        candidate_count = len(candidate_centers)
+        for i in range(candidate_count):
+            left_x, left_y = candidate_centers[i]
+            for j in range(i + 1, candidate_count):
+                right_x, right_y = candidate_centers[j]
+                midpoint_candidates.append(
+                    ((left_x + right_x) / 2.0, (left_y + right_y) / 2.0)
+                )
+
+        midpoint_candidates.sort(key=lambda pos: math.hypot(pos[0] - raw_x, pos[1] - raw_y))
+        for midpoint_x, midpoint_y in midpoint_candidates:
+            resolved_midpoint = _resolve_candidate(midpoint_x, midpoint_y)
+            if resolved_midpoint is not None:
+                return resolved_midpoint
+
+        candidate_centers.sort(key=lambda pos: math.hypot(pos[0] - raw_x, pos[1] - raw_y))
+        adjacent_radius = float(Range.Adjacent.value)
+        for center_x, center_y in candidate_centers:
+            vec_x = raw_x - center_x
+            vec_y = raw_y - center_y
+            length = math.hypot(vec_x, vec_y)
+            if length <= 0.001:
+                norm_x, norm_y = 0.0, -1.0
+            else:
+                norm_x, norm_y = vec_x / length, vec_y / length
+
+            tang_x, tang_y = -norm_y, norm_x
+            search_points = [
+                (center_x + (norm_x * adjacent_radius), center_y + (norm_y * adjacent_radius)),
+                (center_x - (norm_x * adjacent_radius), center_y - (norm_y * adjacent_radius)),
+                (center_x + (tang_x * adjacent_radius), center_y + (tang_y * adjacent_radius)),
+                (center_x - (tang_x * adjacent_radius), center_y - (tang_y * adjacent_radius)),
+                (center_x, center_y),
+            ]
+
+            for candidate_x, candidate_y in search_points:
+                resolved_candidate = _resolve_candidate(candidate_x, candidate_y)
+                if resolved_candidate is not None:
+                    return resolved_candidate
+
+        resolved_raw_snap = _resolve_candidate(raw_x, raw_y)
+        if resolved_raw_snap is not None:
+            return resolved_raw_snap
 
         return (fallback_x, fallback_y)
 
@@ -583,10 +622,6 @@ class FollowFormationPublisher:
         self.ini_reload_timer.Reset()
 
     def publish(self, force: bool = False) -> None:
-        if not force and not self.publish_timer.IsExpired():
-            return
-        self.publish_timer.Reset()
-
         account_email = Player.GetAccountEmail()
         if not account_email:
             return
@@ -639,7 +674,19 @@ class FollowFormationPublisher:
             if Utils.Distance((leader_x, leader_y), (entry_x, entry_y)) > self.tuning.leader_move_release_distance:
                 self.state.hold_until_leader_moves = False
 
-        leader_in_combat = bool(getattr(leader_account, "InAggro", False))
+        leader_in_combat = self._is_combat_active_for_mode(all_accounts, leader_index, leader_account)
+        if not force:
+            if leader_in_combat:
+                if not self.combat_publish_timer.IsExpired():
+                    return
+                self.combat_publish_timer.Reset()
+                self.publish_timer.Reset()
+            else:
+                if not self.publish_timer.IsExpired():
+                    return
+                self.publish_timer.Reset()
+                self.combat_publish_timer.Reset()
+
         self._update_combat_anchor_facing(leader_in_combat, leader_facing)
         anchor_x, anchor_y, anchor_facing, move_threshold, combat_threshold = self._resolve_anchor(
             leader_options,
@@ -682,19 +729,11 @@ class FollowFormationPublisher:
             options.FollowMoveThreshold = float(self.thresholds.default_follow_threshold)
             options.FollowMoveThresholdCombat = float(self.thresholds.combat_follow_threshold)
             options.LeaderFollowReady = False
-
-            opposite_local_x = -float(local_x)
-            opposite_local_y = -float(local_y)
-            opposite_rx, opposite_ry = self._rotate_local_to_world(
-                opposite_local_x,
-                opposite_local_y,
-                anchor_facing,
-            )
-            fallback_candidates: list[tuple[float, float]] = [
-                (float(anchor_x + opposite_rx), float(anchor_y + opposite_ry)),
-                (float(leader_x), float(leader_y)),
+            fallback_candidates = [
+                pos for pos in party_positions
+                if abs(float(pos[0]) - float(account.AgentData.Pos.x)) > self.tuning.nonzero_epsilon
+                or abs(float(pos[1]) - float(account.AgentData.Pos.y)) > self.tuning.nonzero_epsilon
             ]
-            fallback_candidates.extend(party_positions)
 
             if self.state.hold_until_leader_moves:
                 self._apply_held_slot(options, account, leader_zplane)
