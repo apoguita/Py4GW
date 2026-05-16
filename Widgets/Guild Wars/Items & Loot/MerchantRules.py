@@ -239,15 +239,21 @@ SALVAGE_CATEGORY_ORDER: tuple[tuple[str, str], ...] = (
 )
 SALVAGE_OPTION_DEFAULT = "default"
 SALVAGE_OPTION_MATERIALS = "materials"
+SALVAGE_OPTION_AUTO_UPGRADE = "auto_upgrade"
 SALVAGE_OPTION_PREFIX = "prefix"
 SALVAGE_OPTION_SUFFIX = "suffix"
 SALVAGE_OPTION_INSCRIPTION = "inscription"
 SALVAGE_OPTION_ORDER: tuple[tuple[str, str], ...] = (
     (SALVAGE_OPTION_DEFAULT, "Default (legacy behavior)"),
     (SALVAGE_OPTION_MATERIALS, "Salvage materials"),
+    (SALVAGE_OPTION_AUTO_UPGRADE, "Specific upgrade"),
     (SALVAGE_OPTION_PREFIX, "Salvage prefix"),
     (SALVAGE_OPTION_SUFFIX, "Salvage suffix"),
     (SALVAGE_OPTION_INSCRIPTION, "Salvage inscription"),
+)
+SALVAGE_OPTION_DROPDOWN_ORDER: tuple[tuple[str, str], ...] = (
+    (SALVAGE_OPTION_MATERIALS, "Materials"),
+    (SALVAGE_OPTION_AUTO_UPGRADE, "Specific upgrade"),
 )
 SALVAGE_SESSION_OPTIONS: frozenset[str] = frozenset({
     SALVAGE_OPTION_MATERIALS,
@@ -639,11 +645,12 @@ PROJECTED_PREVIEW_CONTEXT_COORDS = (0.0, 0.0)
 UI_COLOR_INFO = (0.30, 0.72, 1.00, 1.0)
 UI_COLOR_SUCCESS = (0.18, 0.86, 0.40, 1.0)
 UI_COLOR_WARNING = (1.00, 0.76, 0.20, 1.0)
+UI_COLOR_WARNING_SOFT = (0.76, 0.63, 0.42, 1.0)
 UI_COLOR_DANGER = (0.97, 0.29, 0.29, 1.0)
 UI_COLOR_MUTED = (0.68, 0.71, 0.76, 1.0)
 UI_COLOR_SUBTLE = (0.90, 0.92, 0.96, 1.0)
 UI_COLOR_SECONDARY_TEXT = (0.84, 0.86, 0.90, 1.0)
-UI_COLOR_SECTION_HEADING = (0.79, 0.81, 0.86, 1.0)
+UI_COLOR_SECTION_HEADING = UI_COLOR_WARNING
 UI_COLOR_TAB_ACTIVE = (0.18, 0.86, 0.40, 1.0)
 UI_COLOR_TEAL = (0.14, 0.79, 0.76, 1.0)
 UI_COLOR_INDIGO = (0.48, 0.62, 1.00, 1.0)
@@ -1056,7 +1063,7 @@ class SalvageRule:
     target_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
     target_weapon_mod_variants: list[WeaponModVariantRule] = field(default_factory=list)
     target_weapon_mod_variant_thresholds: list[WeaponModVariantThresholdRule] = field(default_factory=list)
-    salvage_option: str = SALVAGE_OPTION_DEFAULT
+    salvage_option: str = SALVAGE_OPTION_MATERIALS
     name: str = ""
 
 
@@ -1197,6 +1204,13 @@ class SalvageCandidate:
 class SalvageUpgradeTargetMatch:
     label: str = ""
     required_option: str = ""
+
+
+@dataclass(frozen=True)
+class SalvageUpgradeSlotResolution:
+    selected_option: str = ""
+    matched_labels: tuple[str, ...] = ()
+    block_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -2398,6 +2412,19 @@ def _normalize_catalog_search_text(raw_value: object) -> str:
     return text.strip()
 
 
+def _strip_item_display_markup(raw_value: object) -> str:
+    text = str(raw_value or "").strip()
+    if not text:
+        return ""
+    previous = None
+    while previous != text:
+        previous = text
+        text = re.sub(r"<c=@[^>]+>(.*?)</c>", r"\1", text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def _build_catalog_alias_labels(name: object, skin: object = "", wiki_url: object = "") -> dict[str, str]:
     alias_labels: dict[str, str] = {}
 
@@ -3535,11 +3562,18 @@ def _normalize_destroy_rules(rules: list[DestroyRule]) -> list[DestroyRule]:
 def _normalize_salvage_option(raw_option: object) -> str:
     safe_option = str(raw_option or "").strip().lower()
     aliases = {
-        "": SALVAGE_OPTION_DEFAULT,
-        "current": SALVAGE_OPTION_DEFAULT,
-        "default/current behavior": SALVAGE_OPTION_DEFAULT,
+        "": SALVAGE_OPTION_MATERIALS,
+        "current": SALVAGE_OPTION_MATERIALS,
+        "default": SALVAGE_OPTION_MATERIALS,
+        "default/current behavior": SALVAGE_OPTION_MATERIALS,
         "salvage materials": SALVAGE_OPTION_MATERIALS,
         "material": SALVAGE_OPTION_MATERIALS,
+        "auto": SALVAGE_OPTION_AUTO_UPGRADE,
+        "auto upgrade": SALVAGE_OPTION_AUTO_UPGRADE,
+        "auto exact upgrade": SALVAGE_OPTION_AUTO_UPGRADE,
+        "auto exact upgrade slot": SALVAGE_OPTION_AUTO_UPGRADE,
+        "automatic exact upgrade slot": SALVAGE_OPTION_AUTO_UPGRADE,
+        "specific upgrade": SALVAGE_OPTION_AUTO_UPGRADE,
         "prefix": SALVAGE_OPTION_PREFIX,
         "salvage prefix": SALVAGE_OPTION_PREFIX,
         "suffix": SALVAGE_OPTION_SUFFIX,
@@ -3549,7 +3583,7 @@ def _normalize_salvage_option(raw_option: object) -> str:
     }
     safe_option = aliases.get(safe_option, safe_option)
     valid_options = {option for option, _label in SALVAGE_OPTION_ORDER}
-    return safe_option if safe_option in valid_options else SALVAGE_OPTION_DEFAULT
+    return safe_option if safe_option in valid_options else SALVAGE_OPTION_MATERIALS
 
 
 def _resolve_salvage_session_option(raw_option: object) -> str:
@@ -3564,7 +3598,19 @@ def _get_salvage_option_label(raw_option: object) -> str:
     for option, label in SALVAGE_OPTION_ORDER:
         if option == safe_option:
             return label
-    return "Default (legacy behavior)"
+    return "Salvage materials"
+
+
+def _get_salvage_option_dropdown_label(raw_option: object) -> str:
+    safe_option = _normalize_salvage_option(raw_option)
+    for option, label in SALVAGE_OPTION_DROPDOWN_ORDER:
+        if option == safe_option:
+            return label
+    return f"Legacy: {_get_salvage_option_label(safe_option)}"
+
+
+def _is_auto_exact_upgrade_salvage_option(raw_option: object) -> bool:
+    return _normalize_salvage_option(raw_option) == SALVAGE_OPTION_AUTO_UPGRADE
 
 
 def _get_salvage_rule_upgrade_target_count(rule: object) -> int:
@@ -3678,7 +3724,7 @@ def _normalize_salvage_settings(raw_settings: object) -> SalvageSettings:
                     model_ids=list(legacy_model_ids),
                     rarities=dict(legacy_rarities),
                     categories=dict(legacy_categories),
-                    salvage_option=SALVAGE_OPTION_DEFAULT,
+                    salvage_option=SALVAGE_OPTION_MATERIALS,
                 )
             ]
         return SalvageSettings(
@@ -3710,7 +3756,7 @@ def _normalize_salvage_settings(raw_settings: object) -> SalvageSettings:
                 model_ids=list(legacy_model_ids),
                 rarities=dict(legacy_rarities),
                 categories=dict(legacy_categories),
-                salvage_option=SALVAGE_OPTION_DEFAULT,
+                salvage_option=SALVAGE_OPTION_MATERIALS,
             )
         ]
 
@@ -9464,6 +9510,34 @@ class MerchantRulesWidget:
             return item_name
         return f"Model {int(item.model_id)}"
 
+    def _format_inventory_item_log_label(self, item: InventoryItemInfo) -> str:
+        safe_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        raw_name = str(getattr(item, "name", "") or "").strip()
+        plain_name = _strip_item_display_markup(raw_name)
+        generic_model_name = f"model {safe_model_id}".casefold() if safe_model_id > 0 else ""
+
+        if plain_name and plain_name.casefold() != generic_model_name:
+            normalized_name = _normalize_catalog_search_text(plain_name)
+            matching_model_ids = [
+                int(model_id)
+                for model_id in self.catalog_alias_to_model_ids.get(normalized_name, [])
+                if max(0, _safe_int(model_id, 0)) > 0
+            ]
+            if not matching_model_ids or safe_model_id in matching_model_ids:
+                return raw_name
+
+        if safe_model_id > 0:
+            model_label = self._format_model_label_short(safe_model_id)
+            if model_label and model_label != "No item selected":
+                return model_label
+
+        if raw_name:
+            return raw_name
+        if item_id > 0:
+            return f"Item {item_id}"
+        return "Unknown Item"
+
     def _get_perfect_base_spec(self, item: InventoryItemInfo) -> tuple[tuple[int, int] | None, int, int]:
         item_type_id = int(getattr(item, "item_type_id", 0))
         return (
@@ -9993,12 +10067,71 @@ class MerchantRulesWidget:
         labels = _dedupe_identifiers([target_match.label for target_match in target_matches])
         return f"specific upgrade target {self._format_compact_list(labels, limit=3)}"
 
+    def _get_auto_salvage_upgrade_slot_resolution(
+        self,
+        rule: SalvageRule,
+        item: InventoryItemInfo,
+    ) -> SalvageUpgradeSlotResolution:
+        target_matches = self._get_salvage_rule_upgrade_target_matches(rule, item)
+        matched_labels = tuple(_dedupe_identifiers([target_match.label for target_match in target_matches]))
+        if not target_matches:
+            return SalvageUpgradeSlotResolution(
+                matched_labels=matched_labels,
+                block_reason="specific upgrade salvage requires a matching specific upgrade target",
+            )
+
+        unknown_option_labels = [
+            target_match.label
+            for target_match in target_matches
+            if not str(target_match.required_option or "").strip()
+        ]
+        if unknown_option_labels:
+            return SalvageUpgradeSlotResolution(
+                matched_labels=matched_labels,
+                block_reason=(
+                    "specific upgrade salvage cannot infer slot for target: "
+                    f"{self._format_compact_list(_dedupe_identifiers(unknown_option_labels), limit=3)}"
+                ),
+            )
+
+        required_options = sorted({
+            str(target_match.required_option or "").strip()
+            for target_match in target_matches
+            if str(target_match.required_option or "").strip()
+        })
+        if len(required_options) != 1:
+            required_option_labels = [
+                _get_salvage_option_label(required_option)
+                for required_option in required_options
+            ]
+            return SalvageUpgradeSlotResolution(
+                matched_labels=matched_labels,
+                block_reason=(
+                    "specific upgrade salvage ambiguous: matched targets require "
+                    f"{self._format_compact_list(required_option_labels, limit=3)}"
+                ),
+            )
+
+        inferred_option = required_options[0]
+        if inferred_option not in SALVAGE_UPGRADE_OPTIONS:
+            return SalvageUpgradeSlotResolution(
+                matched_labels=matched_labels,
+                block_reason=(
+                    "specific upgrade salvage cannot infer slot for target: "
+                    f"{self._format_compact_list(matched_labels, limit=3)}"
+                ),
+            )
+        return SalvageUpgradeSlotResolution(selected_option=inferred_option, matched_labels=matched_labels)
+
     def _get_salvage_upgrade_target_option_block_reason(
         self,
         rule: SalvageRule,
         item: InventoryItemInfo,
         selected_option: object,
     ) -> str:
+        if _is_auto_exact_upgrade_salvage_option(selected_option):
+            return self._get_auto_salvage_upgrade_slot_resolution(rule, item).block_reason
+
         target_matches = self._get_salvage_rule_upgrade_target_matches(rule, item)
         if not target_matches:
             return ""
@@ -10167,7 +10300,7 @@ class MerchantRulesWidget:
 
     def _get_salvage_kit_id_for_option(self, option: object) -> int:
         session_option = _resolve_salvage_session_option(option)
-        if session_option in SALVAGE_UPGRADE_OPTIONS:
+        if session_option in SALVAGE_UPGRADE_OPTIONS or _is_auto_exact_upgrade_salvage_option(option):
             return self._get_upgrade_salvage_kit_id()
         return self._get_normal_salvage_kit_id()
 
@@ -10200,9 +10333,16 @@ class MerchantRulesWidget:
             selection_reason = rule_match[2] if rule_match is not None else ""
         if not selection_reason:
             return "not selected by salvage settings"
+        raw_selected_option = getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT)
+        if (
+            selected_rule is not None
+            and _is_auto_exact_upgrade_salvage_option(raw_selected_option)
+            and not self._get_salvage_rule_upgrade_target_matches(selected_rule, item)
+        ):
+            return "specific upgrade salvage requires a matching specific upgrade target"
         if require_salvage_kit:
             selected_option = _resolve_salvage_session_option(
-                getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT)
+                raw_selected_option
             )
             if selected_rule is not None:
                 option_block_reason = self._get_salvage_upgrade_target_option_block_reason(
@@ -10212,6 +10352,11 @@ class MerchantRulesWidget:
                 )
                 if option_block_reason:
                     return option_block_reason
+                if _is_auto_exact_upgrade_salvage_option(selected_option):
+                    selected_option = self._get_auto_salvage_upgrade_slot_resolution(
+                        selected_rule,
+                        item,
+                    ).selected_option
             if selected_option in SALVAGE_UPGRADE_OPTIONS:
                 session_supported, session_reason = self._get_salvage_upgrade_session_support_status()
                 if not session_supported:
@@ -10251,6 +10396,9 @@ class MerchantRulesWidget:
             ("unidentified non-white:", "unidentified non-white"),
             ("exact-upgrade salvage disabled:", "exact-upgrade salvage disabled"),
             ("upgrade salvage backend unavailable:", "upgrade salvage backend unavailable"),
+            ("specific upgrade salvage requires", "specific upgrade salvage not executable"),
+            ("specific upgrade salvage cannot infer", "specific upgrade salvage not executable"),
+            ("specific upgrade salvage ambiguous", "specific upgrade salvage not executable"),
             ("specific upgrade target option unknown:", "specific upgrade target option unknown"),
             ("specific upgrade target requires", "specific upgrade target not executable"),
             ("no normal salvage kit", "no normal salvage kit"),
@@ -10296,7 +10444,8 @@ class MerchantRulesWidget:
                 if bucket and bucket != "not selected":
                     blocked_counts[bucket] = blocked_counts.get(bucket, 0) + 1
                 if bucket != "not selected":
-                    self._debug_log(f"MR Salvage skipped {item.name} ({item.item_id}): {reason}")
+                    item_label = self._format_inventory_item_log_label(item)
+                    self._debug_log(f"MR Salvage skipped {item_label} ({item.item_id}): {reason}")
                 continue
             candidates.append(
                 SalvageCandidate(
@@ -17880,8 +18029,28 @@ class MerchantRulesWidget:
         if live_item is None:
             return "missing_item"
 
-        selected_option = _resolve_salvage_session_option(rule.salvage_option)
-        salvage_kit_id = self._get_salvage_kit_id_for_option(rule.salvage_option)
+        live_item_label = self._format_inventory_item_log_label(live_item)
+        preflight_block_reason = self._get_salvage_candidate_block_reason(
+            live_item,
+            enabled_sell_rules,
+            salvage_rule=rule,
+            require_salvage_kit=False,
+            mode=mode,
+        )
+        if preflight_block_reason:
+            self._debug_log(
+                f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): {preflight_block_reason}"
+            )
+            return "blocked"
+
+        configured_option = _normalize_salvage_option(rule.salvage_option)
+        selected_option = _resolve_salvage_session_option(configured_option)
+        auto_slot_resolution = SalvageUpgradeSlotResolution()
+        if _is_auto_exact_upgrade_salvage_option(configured_option):
+            auto_slot_resolution = self._get_auto_salvage_upgrade_slot_resolution(rule, live_item)
+            if auto_slot_resolution.selected_option:
+                selected_option = auto_slot_resolution.selected_option
+        salvage_kit_id = self._get_salvage_kit_id_for_option(selected_option)
         block_reason = self._get_salvage_candidate_block_reason(
             live_item,
             enabled_sell_rules,
@@ -17891,21 +18060,33 @@ class MerchantRulesWidget:
             mode=mode,
         )
         if block_reason:
-            self._debug_log(f"MR Salvage recheck skipped {live_item.name} ({live_item.item_id}): {block_reason}")
+            self._debug_log(f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): {block_reason}")
             return "blocked"
 
         item_id = int(live_item.item_id)
         starting_quantity = max(1, int(live_item.quantity))
         rarity_key = _normalize_rarity_key(str(live_item.rarity or ""))
         selection_reason = candidate.reason or self._get_salvage_rule_filter_reason(rule, live_item)
-        option_label = _get_salvage_option_label(rule.salvage_option)
+        option_label = _get_salvage_option_label(configured_option)
+        if _is_auto_exact_upgrade_salvage_option(configured_option):
+            if selected_option not in SALVAGE_UPGRADE_OPTIONS:
+                self._debug_log(
+                    f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): "
+                    "specific upgrade salvage did not resolve to an upgrade slot"
+                )
+                return "blocked"
+            inferred_label = _get_salvage_option_label(selected_option)
+            matched_label_text = self._format_compact_list(auto_slot_resolution.matched_labels, limit=3)
+            option_label = f"{option_label} -> {inferred_label}"
+            if matched_label_text:
+                selection_reason = f"{selection_reason}; inferred {inferred_label} from {matched_label_text}"
         self._debug_log(
-            f"MR Salvage starting {live_item.name} ({item_id}) using kit {int(salvage_kit_id)}; "
+            f"MR Salvage starting {live_item_label} ({item_id}) using kit {int(salvage_kit_id)}; "
             f"{selection_reason}; {option_label}."
         )
         rule_reference = self._format_salvage_rule_reference(int(candidate.rule_index), rule) if int(candidate.rule_index) >= 0 else "Salvage Rule"
         self._salvage_flow_log(
-            f"MR Salvage matched {live_item.name} ({item_id}) with {rule_reference}: "
+            f"MR Salvage matched {live_item_label} ({item_id}) with {rule_reference}: "
             f"requested={option_label}; kit={int(salvage_kit_id)} ({self._get_salvage_kit_label(int(salvage_kit_id))})."
         )
 
@@ -17923,7 +18104,7 @@ class MerchantRulesWidget:
             if not bool(getattr(bridge_result, "success", False)):
                 ConsoleLog(
                     MODULE_NAME,
-                    f"MR Salvage skipped {live_item.name} ({item_id}): "
+                    f"MR Salvage skipped {live_item_label} ({item_id}): "
                     f"{bridge_reason or 'exact-upgrade salvage backend failed'}.",
                     Console.MessageType.Warning,
                 )
@@ -17965,23 +18146,23 @@ class MerchantRulesWidget:
             yield from Routines.Yield.wait(50)
             waited_ms += 50
             if item_id not in set(self._get_inventory_item_ids()):
-                self._debug_log(f"MR Salvage completed {live_item.name} ({item_id}); item left inventory.")
+                self._debug_log(f"MR Salvage completed {live_item_label} ({item_id}); item left inventory.")
                 return "salvaged"
             try:
                 current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
             except Exception:
                 current_quantity = starting_quantity
             if current_quantity < starting_quantity:
-                self._debug_log(f"MR Salvage completed {live_item.name} ({item_id}); quantity dropped.")
+                self._debug_log(f"MR Salvage completed {live_item_label} ({item_id}); quantity dropped.")
                 return "salvaged"
             current_item = self._build_inventory_item_info(item_id)
             if current_item is not None and not bool(current_item.salvageable):
-                self._debug_log(f"MR Salvage processed {live_item.name} ({item_id}); item is no longer salvageable.")
+                self._debug_log(f"MR Salvage processed {live_item_label} ({item_id}); item is no longer salvageable.")
                 return "processed"
             if selected_option in SALVAGE_UPGRADE_OPTIONS and self._has_salvage_upgrade_removed(item_id, selected_option):
                 option_suffix = f" option_item_id={option_item_id}" if option_item_id > 0 else ""
                 self._debug_log(
-                    f"MR Salvage processed {live_item.name} ({item_id}); "
+                    f"MR Salvage processed {live_item_label} ({item_id}); "
                     f"{_get_salvage_option_label(selected_option)} removed.{option_suffix}"
                 )
                 return "processed"
@@ -18308,8 +18489,8 @@ class MerchantRulesWidget:
     def _draw_inline_badge(self, label: str, color: tuple[float, float, float, float]):
         PyImGui.text_colored(f"[{label}]", color)
 
-    def _draw_section_heading(self, label: str):
-        PyImGui.text_colored(label, UI_COLOR_SECTION_HEADING)
+    def _draw_section_heading(self, label: str, color: tuple[float, float, float, float] = UI_COLOR_SECTION_HEADING):
+        PyImGui.text_colored(label, color)
 
     def _draw_hover_tooltip(self, text: str):
         if not text or not PyImGui.is_item_hovered():
@@ -18346,6 +18527,127 @@ class MerchantRulesWidget:
         else:
             PyImGui.text(text)
         PyImGui.pop_style_color(1)
+
+    def _draw_colored_text(
+        self,
+        text: str,
+        color: tuple[float, float, float, float],
+        *,
+        wrapped: bool = True,
+    ):
+        if not text:
+            return
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
+        if wrapped:
+            PyImGui.text_wrapped(text)
+        else:
+            PyImGui.text(text)
+        PyImGui.pop_style_color(1)
+
+    def _draw_subsection_label(self, text: str, *, wrapped: bool = False):
+        self._draw_colored_text(text, UI_COLOR_WARNING_SOFT, wrapped=wrapped)
+
+    def _draw_warning_text(self, text: str, *, wrapped: bool = True):
+        self._draw_colored_text(text, UI_COLOR_WARNING, wrapped=wrapped)
+
+    def _draw_rule_summary_text(self, summary_text: str, *, wrapped: bool = False) -> bool:
+        safe_summary = str(summary_text or "").strip()
+        if not safe_summary:
+            return False
+
+        labeled_prefixes = ("Rarities:", "Categories:")
+        segments: list[str] = []
+        for raw_segment in [segment.strip() for segment in safe_summary.split(" | ") if segment.strip()]:
+            semicolon_parts = [part.strip() for part in raw_segment.split("; ") if part.strip()]
+            if len(semicolon_parts) > 1 and any(
+                any(part.startswith(prefix) for prefix in labeled_prefixes)
+                for part in semicolon_parts
+            ):
+                segments.extend(semicolon_parts)
+            else:
+                segments.append(raw_segment)
+        if not any(any(segment.startswith(prefix) for prefix in labeled_prefixes) for segment in segments):
+            if wrapped:
+                PyImGui.text_wrapped(safe_summary)
+            else:
+                PyImGui.text(safe_summary)
+            return False
+
+        def get_text_width(text: str) -> float:
+            try:
+                size = PyImGui.calc_text_size(str(text))
+                return max(0.0, float(size[0]))
+            except Exception:
+                return float(len(str(text)) * 7)
+
+        def get_available_width() -> float:
+            try:
+                available = PyImGui.get_content_region_avail()
+                return max(80.0, float(available[0]))
+            except Exception:
+                return 260.0
+
+        def fit_text_to_width(text: str, max_width: float) -> str:
+            safe_text = str(text or "")
+            if get_text_width(safe_text) <= max_width:
+                return safe_text
+            ellipsis = "..."
+            ellipsis_width = get_text_width(ellipsis)
+            if max_width <= ellipsis_width:
+                return ellipsis
+            trimmed = safe_text.rstrip()
+            while trimmed and get_text_width(f"{trimmed}{ellipsis}") > max_width:
+                trimmed = trimmed[:-1].rstrip()
+            return f"{trimmed}{ellipsis}" if trimmed else ellipsis
+
+        def split_labeled_segment(segment: str) -> tuple[str, str]:
+            for prefix in labeled_prefixes:
+                if segment.startswith(prefix):
+                    return prefix, segment[len(prefix):].strip()
+            return "", segment
+
+        def measure_segment(segment: str, max_width: float) -> float:
+            prefix, value_text = split_labeled_segment(segment)
+            if prefix:
+                value_width = max(0.0, max_width - get_text_width(prefix) - 4.0)
+                fitted_value = fit_text_to_width(value_text, value_width) if value_text else ""
+                return min(max_width, get_text_width(prefix) + (4.0 if fitted_value else 0.0) + get_text_width(fitted_value))
+            return min(max_width, get_text_width(fit_text_to_width(segment, max_width)))
+
+        def draw_segment(segment: str, max_width: float = 260.0):
+            rendered_label = False
+            prefix, value_text = split_labeled_segment(segment)
+            if prefix:
+                PyImGui.text_colored(prefix, UI_COLOR_WARNING)
+                if value_text:
+                    value_width = max(0.0, max_width - get_text_width(prefix) - 4.0)
+                    PyImGui.same_line(0, 4)
+                    PyImGui.text(fit_text_to_width(value_text, value_width))
+                rendered_label = True
+            if not rendered_label:
+                PyImGui.text(fit_text_to_width(segment, max_width))
+
+        if segments:
+            draw_segment(segments[0])
+        detail_segments = segments[1:]
+        available_width = get_available_width()
+        separator_width = get_text_width("|") + 8.0
+        line_width = 0.0
+        for segment_index, segment in enumerate(detail_segments):
+            segment_width = measure_segment(segment, available_width)
+            separator_needed = line_width > 0.0
+            next_width = line_width + (separator_width if separator_needed else 0.0) + segment_width
+            if separator_needed and next_width > available_width:
+                line_width = 0.0
+                separator_needed = False
+            if separator_needed:
+                PyImGui.same_line(0, 4)
+                PyImGui.text("|")
+                PyImGui.same_line(0, 4)
+                line_width += separator_width
+            draw_segment(segment, available_width)
+            line_width += segment_width
+        return True
 
     def _draw_rule_kind_tabs(
         self,
@@ -19212,9 +19514,8 @@ class MerchantRulesWidget:
         if not messages:
             return
         self._draw_section_heading("Diagnostics")
-        PyImGui.text_colored(
+        self._draw_warning_text(
             "Potential rule overlap detected. Hard protections win first; otherwise earlier sell rules claim matching items.",
-            UI_COLOR_WARNING,
         )
         for message in messages[:6]:
             self._draw_secondary_text(message)
@@ -20559,12 +20860,14 @@ class MerchantRulesWidget:
         inventory_plus = get_widget_handler().get_widget_info("Inventory Plus")
 
         self._draw_section_heading("Status")
-        PyImGui.text(f"Map: {current_map_name} ({current_map_id})")
+        self._draw_subsection_label("Map:")
+        PyImGui.same_line(0, 6)
+        PyImGui.text(f"{current_map_name} ({current_map_id})")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(support_label, support_color)
         self._draw_secondary_text(supported_reason)
 
-        PyImGui.text("Preview:")
+        self._draw_subsection_label("Preview:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(preview_label, preview_color)
         if self.preview_ready and (actionable_entries or skipped_entries):
@@ -20580,23 +20883,23 @@ class MerchantRulesWidget:
                 if self._can_use_local_storage_actions()
                 else "Storage-aware planning is still partial. Exact Xunlai counts will stay estimated until Execute reaches an outpost or Guild Hall and can open storage."
             )
-            PyImGui.text_colored(exact_scan_message, UI_COLOR_WARNING)
+            self._draw_warning_text(exact_scan_message)
         elif self.preview_ready and str(self.preview_plan.storage_plan_state) == STORAGE_PLAN_STATE_EXACT_READY:
             self._draw_secondary_text("Xunlai is open, so storage-aware planning is using exact inventory + storage counts where needed.")
         elif self.preview_ready and self._plan_has_conditional_cleanup_actions(self.preview_plan):
             self._draw_secondary_text("Planned Xunlai cleanup steps will wait until storage can be opened during Execute.")
         if self.preview_ready and not supported_map and self._plan_has_local_destroy_actions(self.preview_plan) and self._plan_has_local_storage_actions(self.preview_plan):
-            PyImGui.text_colored("Merchant NPC support is unavailable here, but local destroy actions and Xunlai cleanup work can still execute.", UI_COLOR_WARNING)
+            self._draw_warning_text("Merchant NPC support is unavailable here, but local destroy actions and Xunlai cleanup work can still execute.")
         elif self.preview_ready and not supported_map and self._plan_has_local_destroy_actions(self.preview_plan):
-            PyImGui.text_colored("Local destroy actions are still executable here even though merchant NPC support is unavailable.", UI_COLOR_WARNING)
+            self._draw_warning_text("Local destroy actions are still executable here even though merchant NPC support is unavailable.")
         elif self.preview_ready and not supported_map and self._plan_has_local_storage_actions(self.preview_plan):
-            PyImGui.text_colored("Merchant NPC support is unavailable here, but Xunlai cleanup work can still execute.", UI_COLOR_WARNING)
+            self._draw_warning_text("Merchant NPC support is unavailable here, but Xunlai cleanup work can still execute.")
         if self.execute_drift_requires_confirmation and self.preview_inventory_diff_summary:
-            PyImGui.text_colored(self.preview_inventory_diff_summary, UI_COLOR_WARNING)
+            self._draw_warning_text(self.preview_inventory_diff_summary)
 
         cleanup_state_label = "On" if self.auto_cleanup_on_outpost_entry else "Off"
         cleanup_state_color = UI_COLOR_SUCCESS if self.auto_cleanup_on_outpost_entry else UI_COLOR_MUTED
-        PyImGui.text("Cleanup:")
+        self._draw_subsection_label("Cleanup:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(cleanup_state_label, cleanup_state_color)
         PyImGui.same_line(0, 8)
@@ -20617,7 +20920,7 @@ class MerchantRulesWidget:
         if self.auto_sell_to_any_merchant and self._manual_vendor_any_merchant_groups_enabled():
             manual_vendor_modes.append("any merchant sells")
         manual_vendor_enabled = self._manual_vendor_settings_enabled()
-        PyImGui.text("Manual merchant:")
+        self._draw_subsection_label("Manual merchant:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(
             "On" if manual_vendor_enabled else "Off",
@@ -20638,7 +20941,7 @@ class MerchantRulesWidget:
             identify_modes.append("Execute")
         identify_state_label = "On" if identify_modes else "Off"
         identify_state_color = UI_COLOR_SUCCESS if identify_modes else UI_COLOR_MUTED
-        PyImGui.text("Identify:")
+        self._draw_subsection_label("Identify:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(identify_state_label, identify_state_color)
         PyImGui.same_line(0, 8)
@@ -20647,7 +20950,7 @@ class MerchantRulesWidget:
         if self.identify_running:
             PyImGui.text_colored("MR Identify is running.", UI_COLOR_INFO)
         if identify_selector_count > 0 and self._get_id_kit_id() <= 0:
-            PyImGui.text_colored("No ID kit found for MR Identify.", UI_COLOR_WARNING)
+            self._draw_warning_text("No ID kit found for MR Identify.")
 
         salvage_settings = _normalize_salvage_settings(self.salvage_settings)
         salvage_ready_rule_count = sum(
@@ -20657,7 +20960,7 @@ class MerchantRulesWidget:
         )
         salvage_state_label = "On" if salvage_settings.on_inventory_change else "Off"
         salvage_state_color = UI_COLOR_SUCCESS if salvage_settings.on_inventory_change else UI_COLOR_MUTED
-        PyImGui.text("Salvage:")
+        self._draw_subsection_label("Salvage:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(salvage_state_label, salvage_state_color)
         PyImGui.same_line(0, 8)
@@ -20665,7 +20968,7 @@ class MerchantRulesWidget:
         if self.salvage_running:
             PyImGui.text_colored("MR Salvage is running.", UI_COLOR_INFO)
 
-        PyImGui.text("NPCs:")
+        self._draw_subsection_label("NPCs:")
         PyImGui.same_line(0, 8)
         npc_badges = (
             ("Merchant", coords[MERCHANT_TYPE_MERCHANT] is not None),
@@ -20686,11 +20989,11 @@ class MerchantRulesWidget:
                 self._set_active_workspace(WORKSPACE_RULES)
 
         if inventory_plus and inventory_plus.enabled:
-            PyImGui.text_colored("Inventory Plus will pause while merchant actions run.", UI_COLOR_WARNING)
+            self._draw_warning_text("Inventory Plus will pause while merchant actions run.")
         if self.destroy_instant_enabled:
             PyImGui.text_colored("Instant Destroy is active for this session.", UI_COLOR_DANGER)
         if _normalize_salvage_settings(self.salvage_settings).on_inventory_change:
-            PyImGui.text_colored("MR Salvage on inventory change is active.", UI_COLOR_WARNING)
+            self._draw_warning_text("MR Salvage on inventory change is active.")
         if self.destroy_include_protected_items:
             PyImGui.text_colored("Include Protected Items is active for this session.", UI_COLOR_DANGER)
         if self.last_instant_destroy_summary:
@@ -20704,7 +21007,7 @@ class MerchantRulesWidget:
         if self.last_manual_vendor_summary:
             self._draw_secondary_text(self.last_manual_vendor_summary)
         if self.profile_warning:
-            PyImGui.text_colored(f"Live Config: {self.profile_warning}", UI_COLOR_WARNING)
+            self._draw_warning_text(f"Live Config: {self.profile_warning}")
         elif self.profile_notice:
             self._draw_secondary_text(f"Live Config: {self.profile_notice}")
         if self.last_error:
@@ -20737,7 +21040,7 @@ class MerchantRulesWidget:
                 self._reload_catalog()
             self._draw_secondary_text(self._get_catalog_summary_text())
             if self.catalog_load_error:
-                PyImGui.text_colored(self.catalog_load_error, UI_COLOR_WARNING)
+                self._draw_warning_text(self.catalog_load_error)
             PyImGui.separator()
             self._draw_section_heading("Runtime Diagnostics")
             self._draw_runtime_diagnostics_section()
@@ -20749,7 +21052,7 @@ class MerchantRulesWidget:
         else:
             target_label = self._format_outpost_label(self.target_outpost_id) if self.target_outpost_id > 0 else "Target not selected"
             target_color = UI_COLOR_INFO if self.target_outpost_id > 0 else UI_COLOR_WARNING
-            PyImGui.text("Target:")
+            self._draw_subsection_label("Target:")
             PyImGui.same_line(0, 8)
             PyImGui.text_colored(target_label, target_color)
             if self.target_outpost_id > 0:
@@ -20816,7 +21119,7 @@ class MerchantRulesWidget:
                 PyImGui.text_wrapped("No specific target selected. Auto-travel stays idle until you choose an outpost.")
 
             if self.favorite_outpost_ids:
-                PyImGui.text("Favorites")
+                self._draw_subsection_label("Favorites")
                 favorite_height = min(140, 28 + (22 * len(self.favorite_outpost_ids)))
                 if PyImGui.begin_child("travel_favorites", (0, favorite_height), True, PyImGui.WindowFlags.NoFlag):
                     for outpost_id in list(self.favorite_outpost_ids):
@@ -20855,8 +21158,8 @@ class MerchantRulesWidget:
     ) -> tuple[bool, bool, bool, str, bool]:
         table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
         if PyImGui.begin_table(table_id, 3, table_flags):
-            PyImGui.table_setup_column("Rule", PyImGui.TableColumnFlags.WidthStretch)
-            PyImGui.table_setup_column("Summary", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Rule", PyImGui.TableColumnFlags.WidthFixed, 270.0)
+            PyImGui.table_setup_column("Summary", PyImGui.TableColumnFlags.WidthStretch, 1.0)
             PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 95.0)
             PyImGui.table_next_row()
 
@@ -20888,7 +21191,7 @@ class MerchantRulesWidget:
             self._draw_inline_badge(state_label, state_color)
             if summary_text:
                 PyImGui.same_line(0, 6)
-                PyImGui.text_wrapped(summary_text)
+                self._draw_rule_summary_text(summary_text, wrapped=True)
 
             PyImGui.table_set_column_index(2)
             new_enabled = PyImGui.checkbox(checkbox_label, enabled)
@@ -20916,10 +21219,12 @@ class MerchantRulesWidget:
             )
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(state_label, state_color)
+        summary_stacked = False
         if summary_text:
             PyImGui.same_line(0, 6)
-            PyImGui.text(summary_text)
-        PyImGui.same_line(0, 8)
+            summary_stacked = self._draw_rule_summary_text(summary_text)
+        if not summary_stacked:
+            PyImGui.same_line(0, 8)
         new_enabled = PyImGui.checkbox(checkbox_label, enabled)
         return bool(opened), bool(new_enabled), header_clicked, updated_rule_name, renamed
 
@@ -21469,7 +21774,7 @@ class MerchantRulesWidget:
         }
 
         self._draw_section_heading("Protections")
-        PyImGui.text_colored(
+        self._draw_colored_text(
             "Protections currently aggregates protection entries owned by Sell rules. It is a central hub, not a separate protection engine yet.",
             UI_COLOR_INFO,
         )
@@ -21570,7 +21875,7 @@ class MerchantRulesWidget:
                 merchant_stock_targets = []
                 changed = True
 
-        PyImGui.text(f"Selected Items: {len(merchant_stock_targets)}")
+        self._draw_subsection_label(f"Selected Items: {len(merchant_stock_targets)}")
         if any(_is_scroll_trader_stock_model(target.model_id) for target in merchant_stock_targets):
             self._draw_secondary_text(
                 "Confirmed scroll trader stock in this legacy stock list will route to Scroll Trader / Rare Scroll Trader, never to a regular Merchant."
@@ -21665,7 +21970,7 @@ class MerchantRulesWidget:
                 scroll_targets = []
                 changed = True
 
-        PyImGui.text(f"Selected Scrolls: {len(scroll_targets)}")
+        self._draw_subsection_label(f"Selected Scrolls: {len(scroll_targets)}")
         if not scroll_targets:
             self._draw_secondary_text("No confirmed scroll trader stock selected yet.", wrapped=False)
             return changed
@@ -21755,7 +22060,7 @@ class MerchantRulesWidget:
                 crafter_targets = []
                 changed = True
 
-        PyImGui.text(f"Selected Consumables: {len(crafter_targets)}")
+        self._draw_subsection_label(f"Selected Consumables: {len(crafter_targets)}")
         if not crafter_targets:
             self._draw_secondary_text("No Embark Beach consumables selected yet.", wrapped=False)
             return changed
@@ -21895,7 +22200,7 @@ class MerchantRulesWidget:
                 material_targets = []
                 changed = True
 
-        PyImGui.text(f"Selected Materials: {len(material_targets)}")
+        self._draw_subsection_label(f"Selected Materials: {len(material_targets)}")
         if not material_targets:
             PyImGui.text_wrapped("No crafting materials selected yet.")
             return changed
@@ -21983,7 +22288,7 @@ class MerchantRulesWidget:
                 rune_targets = []
                 changed = True
 
-        PyImGui.text(f"Selected Targets: {len(rune_targets)}")
+        self._draw_subsection_label(f"Selected Targets: {len(rune_targets)}")
         if not rune_targets:
             self._draw_secondary_text("No rune or insignia targets selected yet.", wrapped=False)
         else:
@@ -22191,7 +22496,7 @@ class MerchantRulesWidget:
                 rune_targets = []
                 changed = True
 
-        PyImGui.text(f"Selected Runes / Insignias: {len(rune_targets)}")
+        self._draw_subsection_label(f"Selected Runes / Insignias: {len(rune_targets)}")
         if not rune_targets:
             self._draw_secondary_text("No rune or insignia targets selected yet.", wrapped=False)
         else:
@@ -22423,7 +22728,7 @@ class MerchantRulesWidget:
             }
 
             if self.catalog_merchant_essentials:
-                PyImGui.text("Quick Picks")
+                self._draw_subsection_label("Quick Picks")
                 for quick_index, entry in enumerate(self.catalog_merchant_essentials):
                     if PyImGui.small_button(f"{entry['name']}##buy_quick_{index}_{entry['model_id']}"):
                         default_target = max(0, _safe_int(entry.get("default_target", 0), 0))
@@ -22494,7 +22799,7 @@ class MerchantRulesWidget:
                 recipes = list(CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR.get(vendor_key, ()))
                 if not recipes:
                     continue
-                PyImGui.text(f"Quick Picks - {vendor_label}")
+                self._draw_subsection_label(f"Quick Picks - {vendor_label}")
                 added_row_count = 0
                 for recipe in recipes:
                     already_selected = int(recipe.model_id) in existing_crafter_target_ids
@@ -22526,7 +22831,7 @@ class MerchantRulesWidget:
             rare_entries = self._get_rare_material_catalog_entries()
 
             if common_entries:
-                PyImGui.text("Quick Picks - Common Materials")
+                self._draw_subsection_label("Quick Picks - Common Materials")
                 for quick_index, entry in enumerate(common_entries):
                     if PyImGui.small_button(f"{entry['name']}##buy_common_material_{index}_{entry['model_id']}"):
                         if self._add_buy_rule_material_target(rule, int(entry["model_id"])):
@@ -22536,7 +22841,7 @@ class MerchantRulesWidget:
                         PyImGui.same_line(0, 6)
 
             if rare_entries:
-                PyImGui.text("Quick Picks - Rare Materials")
+                self._draw_subsection_label("Quick Picks - Rare Materials")
                 for quick_index, entry in enumerate(rare_entries):
                     if PyImGui.small_button(f"{entry['name']}##buy_rare_material_{index}_{entry['model_id']}"):
                         if self._add_buy_rule_material_target(rule, int(entry["model_id"])):
@@ -22590,7 +22895,7 @@ class MerchantRulesWidget:
 
             scroll_entries = self._get_scroll_trader_stock_entries()
             if scroll_entries:
-                PyImGui.text("Quick Picks - Confirmed Stock")
+                self._draw_subsection_label("Quick Picks - Confirmed Stock")
                 for quick_index, entry in enumerate(scroll_entries):
                     model_id = int(entry.get("model_id", 0))
                     if PyImGui.small_button(f"{entry['name']}##buy_scroll_quick_{index}_{model_id}"):
@@ -22681,7 +22986,7 @@ class MerchantRulesWidget:
 
     def _draw_sell_rule_rarity_toggles(self, index: int, rule: SellRule) -> bool:
         changed = False
-        PyImGui.text("Rarity Filters")
+        self._draw_subsection_label("Rarity Filters")
         rarity_options = _get_rarity_options_for_rule(rule.kind)
         for rarity_index, (rarity_key, rarity_label) in enumerate(rarity_options):
             current_value = bool(rule.rarities.get(rarity_key, False))
@@ -22736,7 +23041,7 @@ class MerchantRulesWidget:
                         if new_count > 0:
                             changed = True
 
-        PyImGui.text(f"Protected Models: {len(rule.blacklist_model_ids)}")
+        self._draw_subsection_label(f"Protected Models: {len(rule.blacklist_model_ids)}")
         self._draw_hover_tooltip("This count is for model protection only.")
         removed_model_id = self._draw_selected_model_ids(
             "sell_blacklist_models",
@@ -22830,7 +23135,7 @@ class MerchantRulesWidget:
             if self._set_sell_rule_blacklist_item_type_ids(rule, []):
                 changed = True
 
-        PyImGui.text(f"Protected Weapon Types: {len(rule.blacklist_item_type_ids)}")
+        self._draw_subsection_label(f"Protected Weapon Types: {len(rule.blacklist_item_type_ids)}")
         self._draw_hover_tooltip("This count is for broad weapon-type protection.")
         if rule.blacklist_item_type_ids:
             selected_labels = [self._get_weapon_item_type_label(item_type_id) for item_type_id in rule.blacklist_item_type_ids]
@@ -22883,7 +23188,7 @@ class MerchantRulesWidget:
             "Protect All Weapons In Req Range",
             "Protects any weapon whose requirement falls inside this range.",
         )
-        PyImGui.text("Low Req")
+        self._draw_subsection_label("Low Req")
         self._draw_hover_tooltip("Lowest requirement protected by this range.")
         PyImGui.same_line(0, 6)
         PyImGui.push_item_width(80)
@@ -22894,7 +23199,7 @@ class MerchantRulesWidget:
         all_weapons_min_input_active = _get_last_imgui_item_active()
         PyImGui.pop_item_width()
         PyImGui.same_line(0, 12)
-        PyImGui.text("High Req")
+        self._draw_subsection_label("High Req")
         self._draw_hover_tooltip("Highest requirement protected by this range.")
         PyImGui.same_line(0, 6)
         PyImGui.push_item_width(80)
@@ -22955,7 +23260,7 @@ class MerchantRulesWidget:
                 changed = True
 
         requirement_rules = list(rule.protected_weapon_requirement_rules)
-        PyImGui.text(f"Protected Models: {len(requirement_rules)}")
+        self._draw_subsection_label(f"Protected Models: {len(requirement_rules)}")
         self._draw_hover_tooltip("This count is for model-specific requirement protection.")
         if requirement_rules:
             updated_rules = [
@@ -23145,7 +23450,7 @@ class MerchantRulesWidget:
                 ]
             )
             protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
-            PyImGui.text(f"Protected Entries: {len(protected_choice_keys)}")
+            self._draw_subsection_label(f"Protected Entries: {len(protected_choice_keys)}")
             self._draw_hover_tooltip("Entries here can protect exact upgrades or minimum roll values.")
             if self._draw_selected_weapon_mod_protections(
                 f"sell_protected_{cache_suffix}",
@@ -23167,7 +23472,7 @@ class MerchantRulesWidget:
                 selected_variant_rules = list(rule.protected_weapon_mod_variants)
                 selected_variant_threshold_rules = list(rule.protected_weapon_mod_variant_thresholds)
         else:
-            PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
+            self._draw_subsection_label(f"Protected Entries: {len(selected_identifiers)}")
             self._draw_hover_tooltip("Entries here protect matching rune or insignia names.")
             text_color_for_identifier = self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None
             removed_identifier = self._draw_selected_identifiers(
@@ -23514,7 +23819,7 @@ class MerchantRulesWidget:
             selected_label = "Selected Materials" if rule.kind == SELL_KIND_COMMON_MATERIALS else "Selected Items"
             item_column_label = "Material" if rule.kind == SELL_KIND_COMMON_MATERIALS else "Item"
             empty_text = "No crafting materials selected yet." if rule.kind == SELL_KIND_COMMON_MATERIALS else "No items selected yet."
-            PyImGui.text(f"{selected_label}: {len(whitelist_targets)}")
+            self._draw_subsection_label(f"{selected_label}: {len(whitelist_targets)}")
             updated_targets, removed_model_id = self._draw_whitelist_targets(
                 section_name="sell_models",
                 index=index,
@@ -23613,7 +23918,7 @@ class MerchantRulesWidget:
 
     def _draw_destroy_rule_rarity_toggles(self, index: int, rule: DestroyRule) -> bool:
         changed = False
-        PyImGui.text("Rarity Filters")
+        self._draw_subsection_label("Rarity Filters")
         rarity_options = _get_rarity_options_for_rule(rule.kind)
         for rarity_index, (rarity_key, rarity_label) in enumerate(rarity_options):
             current_value = bool(rule.rarities.get(rarity_key, False))
@@ -23733,7 +24038,7 @@ class MerchantRulesWidget:
             selected_label = "Selected Materials" if rule.kind == DESTROY_KIND_MATERIALS else "Selected Items"
             item_column_label = "Material" if rule.kind == DESTROY_KIND_MATERIALS else "Item"
             empty_text = "No crafting materials selected yet." if rule.kind == DESTROY_KIND_MATERIALS else "No items selected yet."
-            PyImGui.text(f"{selected_label}: {len(whitelist_targets)}")
+            self._draw_subsection_label(f"{selected_label}: {len(whitelist_targets)}")
             updated_targets, removed_model_id = self._draw_whitelist_targets(
                 section_name="destroy_models",
                 index=index,
@@ -23882,7 +24187,7 @@ class MerchantRulesWidget:
 
     def _draw_salvage_rarity_toggles(self, settings: SalvageRule | SalvageSettings, id_suffix: str = "") -> bool:
         changed = False
-        PyImGui.text("Rarity Selectors")
+        self._draw_subsection_label("Rarity Selectors")
         settings.rarities = _normalize_salvage_rarity_flags(settings.rarities)
         for rarity_index, (rarity_key, rarity_label) in enumerate(RARITY_OPTION_ORDER):
             current_value = bool(settings.rarities.get(rarity_key, False))
@@ -23943,7 +24248,7 @@ class MerchantRulesWidget:
         auto_enabled = bool(normalized_settings.before_execute or normalized_settings.on_inventory_change)
         ready = selector_count > 0
 
-        PyImGui.text("Identify:")
+        self._draw_subsection_label("Identify:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
         PyImGui.same_line(0, 6)
@@ -23974,7 +24279,7 @@ class MerchantRulesWidget:
         selector_count = self._draw_identify_status_badges(settings)
         self._draw_secondary_text(self._format_identify_filter_summary(settings), wrapped=False)
         if selector_count <= 0:
-            PyImGui.text_colored("Choose at least one rarity before Identify can find items.", UI_COLOR_WARNING)
+            self._draw_warning_text("Choose at least one rarity before Identify can find items.")
 
         PyImGui.separator()
         self._draw_section_heading("When to Identify")
@@ -24007,7 +24312,7 @@ class MerchantRulesWidget:
         if run_identify_reason:
             self._draw_secondary_text(f"Run Identify Now: {run_identify_reason}")
         if selector_count > 0 and self._get_id_kit_id() <= 0:
-            PyImGui.text_colored("No ID kit found. Matching items will be claimed in Preview but cannot be identified yet.", UI_COLOR_WARNING)
+            self._draw_warning_text("No ID kit found. Matching items will be claimed in Preview but cannot be identified yet.")
         if self.identify_running:
             PyImGui.text_colored("MR Identify is running.", UI_COLOR_INFO)
         if self.last_identify_summary:
@@ -24018,9 +24323,8 @@ class MerchantRulesWidget:
         PyImGui.separator()
         self._draw_section_heading("Rarities to Identify")
         changed = self._draw_identify_rarity_toggles(settings) or changed
-        PyImGui.text_colored(
+        self._draw_warning_text(
             "Selectors are exact. Blue identifies only blue items; it does not include purple, gold, or green.",
-            UI_COLOR_WARNING,
         )
 
         PyImGui.spacing()
@@ -24053,7 +24357,7 @@ class MerchantRulesWidget:
 
     def _draw_salvage_category_toggles(self, settings: SalvageRule | SalvageSettings, id_suffix: str = "") -> bool:
         changed = False
-        PyImGui.text("Category Selectors")
+        self._draw_subsection_label("Category Selectors")
         settings.categories = _normalize_salvage_category_flags(settings.categories)
         for category_index, (category_key, category_label) in enumerate(SALVAGE_CATEGORY_ORDER):
             current_value = bool(settings.categories.get(category_key, False))
@@ -24098,7 +24402,7 @@ class MerchantRulesWidget:
             if bool(normalized_rule.rarities.get(key, False))
         ]
         if rarity_labels:
-            selector_parts.append(f"rarities {', '.join(rarity_labels)}")
+            selector_parts.append(f"Rarities: {', '.join(rarity_labels)}")
 
         category_labels = [
             label
@@ -24106,16 +24410,36 @@ class MerchantRulesWidget:
             if bool(normalized_rule.categories.get(key, False))
         ]
         if category_labels:
-            selector_parts.append(f"categories {', '.join(category_labels)}")
+            selector_parts.append(f"Categories: {', '.join(category_labels)}")
 
         option_label = _get_salvage_option_label(normalized_rule.salvage_option)
         selected_option = _resolve_salvage_session_option(normalized_rule.salvage_option)
+        is_auto_upgrade_option = _is_auto_exact_upgrade_salvage_option(normalized_rule.salvage_option)
         upgrade_target_count = _get_salvage_rule_upgrade_target_count(normalized_rule)
+        if selected_option == SALVAGE_OPTION_MATERIALS and not is_auto_upgrade_option:
+            selector_parts = []
+            if normalized_rule.model_ids:
+                selector_parts.append(f"{len(normalized_rule.model_ids)} exact model(s)")
+            if rarity_labels:
+                selector_parts.append(f"Rarities: {', '.join(rarity_labels)}")
+            if category_labels:
+                selector_parts.append(f"Categories: {', '.join(category_labels)}")
+            if upgrade_target_count > 0:
+                selector_parts.append("upgrade targets ignored")
+            if not selector_parts:
+                return "Materials | Choose at least one selector.", False
+            return f"Materials | {' | '.join(selector_parts)}", True
+
+        if is_auto_upgrade_option and upgrade_target_count <= 0:
+            return f"{option_label} | Choose at least one specific upgrade target.", False
         if upgrade_target_count > 0:
             selector_parts.append(f"specific upgrades {upgrade_target_count}")
-            if selected_option not in SALVAGE_UPGRADE_OPTIONS:
+            if selected_option not in SALVAGE_UPGRADE_OPTIONS and not is_auto_upgrade_option:
                 option_label = f"{option_label} (specific-upgrade targets require prefix/suffix/inscription)"
-        if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
+        if (
+            (selected_option in SALVAGE_UPGRADE_OPTIONS or is_auto_upgrade_option)
+            and not self._has_salvage_upgrade_session_support()
+        ):
             option_label = f"{option_label} (exact-upgrade disabled)"
         if not selector_parts:
             return f"{option_label} | Choose at least one selector.", False
@@ -24132,7 +24456,7 @@ class MerchantRulesWidget:
         auto_enabled = bool(normalized_settings.on_inventory_change)
         ready = ready_rule_count > 0
 
-        PyImGui.text("Salvage:")
+        self._draw_subsection_label("Salvage:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
         PyImGui.same_line(0, 6)
@@ -24152,22 +24476,35 @@ class MerchantRulesWidget:
         return ready_rule_count
 
     def _draw_salvage_option_combo(self, index: int, rule: SalvageRule) -> bool:
-        option_values = [option for option, _label in SALVAGE_OPTION_ORDER]
-        option_labels = [label for _option, label in SALVAGE_OPTION_ORDER]
         current_option = _normalize_salvage_option(getattr(rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
-        current_index = option_values.index(current_option) if current_option in option_values else 0
-        PyImGui.push_item_width(220)
-        next_index = PyImGui.combo(
-            f"Upgrade to salvage##merchant_rules_salvage_option_{index}",
-            current_index,
-            option_labels,
-        )
-        PyImGui.pop_item_width()
-        next_index = max(0, min(int(next_index), len(option_values) - 1))
-        if next_index == current_index:
-            return False
-        rule.salvage_option = option_values[next_index]
-        return True
+        preview_label = _get_salvage_option_dropdown_label(current_option)
+        combo_flags = getattr(getattr(PyImGui, "ImGuiComboFlags", None), "NoFlag", 0)
+        selectable_flags = getattr(getattr(PyImGui, "SelectableFlags", None), "NoFlag", 0)
+        changed = False
+        PyImGui.push_item_width(260)
+        try:
+            if PyImGui.begin_combo(
+                f"Upgrade to salvage##merchant_rules_salvage_option_{index}",
+                preview_label,
+                combo_flags,
+            ):
+                try:
+                    for option, label in SALVAGE_OPTION_DROPDOWN_ORDER:
+                        selected = option == current_option
+                        if PyImGui.selectable(
+                            f"{label}##merchant_rules_salvage_option_{index}_{option}",
+                            selected,
+                            selectable_flags,
+                            (0, 0),
+                        ):
+                            if option != current_option:
+                                rule.salvage_option = option
+                                changed = True
+                finally:
+                    PyImGui.end_combo()
+        finally:
+            PyImGui.pop_item_width()
+        return changed
 
     def _draw_salvage_upgrade_target_editor(self, index: int, rule: SalvageRule) -> bool:
         changed = False
@@ -24197,24 +24534,30 @@ class MerchantRulesWidget:
 
         target_choice_keys = build_target_choice_keys()
         selected_option = _resolve_salvage_session_option(rule.salvage_option)
+        is_auto_upgrade_option = _is_auto_exact_upgrade_salvage_option(rule.salvage_option)
 
         self._draw_secondary_text(
             "Targets matching items for Merchant Rules salvage planning/protection. "
             "Run Salvage extracts only when a deterministic upgrade-slot backend is available."
         )
-        if selected_option not in SALVAGE_UPGRADE_OPTIONS and target_choice_keys:
-            PyImGui.text_colored(
+        if is_auto_upgrade_option and not target_choice_keys:
+            self._draw_secondary_text("Specific upgrade needs at least one specific upgrade target.")
+        elif selected_option not in SALVAGE_UPGRADE_OPTIONS and not is_auto_upgrade_option and target_choice_keys:
+            self._draw_colored_text(
                 "Specific-upgrade targets require prefix, suffix, or inscription salvage. "
                 "Run Salvage skips these targets while this rule uses default/material salvage.",
-                UI_COLOR_WARNING,
+                UI_COLOR_WARNING_SOFT,
             )
-        elif selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
+        elif (
+            (selected_option in SALVAGE_UPGRADE_OPTIONS or is_auto_upgrade_option)
+            and not self._has_salvage_upgrade_session_support()
+        ):
             self._draw_secondary_text(
                 "Exact-upgrade extraction is disabled because the current backend cannot guarantee the requested slot. "
                 "Matching items stay protected and Run Salvage skips extraction."
             )
 
-        PyImGui.text(f"Target Entries: {len(target_choice_keys)}")
+        self._draw_subsection_label(f"Target Entries: {len(target_choice_keys)}")
         self._draw_hover_tooltip("Exact upgrade names and minimum roll targets can match items for salvage planning.")
 
         if self._draw_confirm_destructive_button(f"Clear Specific Upgrade Targets##merchant_rules_salvage_upgrade_clear_{index}"):
@@ -24350,35 +24693,42 @@ class MerchantRulesWidget:
 
         self._draw_section_heading("Basic")
         changed = self._draw_salvage_option_combo(index, rule) or changed
+        configured_option = _normalize_salvage_option(rule.salvage_option)
         selected_option = _resolve_salvage_session_option(rule.salvage_option)
-        if selected_option in SALVAGE_UPGRADE_OPTIONS:
+        is_auto_upgrade_option = _is_auto_exact_upgrade_salvage_option(rule.salvage_option)
+        if selected_option in SALVAGE_UPGRADE_OPTIONS or is_auto_upgrade_option:
             if self._has_salvage_upgrade_session_support():
-                self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
+                if is_auto_upgrade_option:
+                    self._draw_secondary_text(
+                        "Infers prefix, suffix, or inscription from the matched specific upgrade target."
+                    )
+                else:
+                    self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
             else:
                 self._draw_secondary_text(
                     "Prefix, suffix, and inscription extraction require deterministic slot targeting. "
                     "Matching items stay protected, but Run Salvage skips them safely."
                 )
         else:
-            self._draw_secondary_text("Default (legacy behavior) and materials use normal Salvage Kits.")
+            self._draw_secondary_text("Materials use normal Salvage Kits.")
 
         PyImGui.spacing()
-        self._draw_section_heading("Rarities")
+        self._draw_section_heading("Rarities", UI_COLOR_WARNING)
         changed = self._draw_salvage_rarity_toggles(rule, f"rule_{index}") or changed
 
         PyImGui.spacing()
-        self._draw_section_heading("Categories")
+        self._draw_section_heading("Categories", UI_COLOR_WARNING)
         changed = self._draw_salvage_category_toggles(rule, f"rule_{index}") or changed
         if bool(rule.categories.get(SALVAGE_CATEGORY_OTHER, False)):
-            PyImGui.text_colored("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.", UI_COLOR_WARNING)
+            self._draw_warning_text("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.")
 
         PyImGui.separator()
-        self._draw_section_heading("Specific Upgrade Targets")
+        self._draw_section_heading("Specific Upgrade Targets", UI_COLOR_WARNING)
         changed = self._draw_salvage_upgrade_target_editor(index, rule) or changed
 
         PyImGui.separator()
-        self._draw_section_heading("Specific Items")
-        PyImGui.text(f"Selected Models: {len(rule.model_ids)}")
+        self._draw_section_heading("Specific Items", UI_COLOR_WARNING)
+        self._draw_subsection_label(f"Selected Models: {len(rule.model_ids)}")
         removed_model_id = self._draw_selected_model_ids(f"salvage_models_{index}", index, rule.model_ids)
         if removed_model_id > 0:
             changed = self._set_salvage_rule_model_ids(
@@ -24466,7 +24816,7 @@ class MerchantRulesWidget:
         ready_rule_count = self._draw_salvage_status_badges(settings)
         self._draw_secondary_text(self._format_salvage_filter_summary(settings))
         if ready_rule_count <= 0:
-            PyImGui.text_colored("Add or configure a salvage rule before Salvage can find items.", UI_COLOR_WARNING)
+            self._draw_warning_text("Add or configure a salvage rule before Salvage can find items.")
 
         PyImGui.separator()
         self._draw_section_heading("When to Salvage")
@@ -24536,7 +24886,7 @@ class MerchantRulesWidget:
         linked_count = len(_normalize_cleanup_protection_sources(cleanup_sources))
         ready = (target_count + linked_count) > 0
 
-        PyImGui.text("Cleanup:")
+        self._draw_subsection_label("Cleanup:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
         PyImGui.same_line(0, 6)
@@ -24591,9 +24941,9 @@ class MerchantRulesWidget:
             wrapped=False,
         )
         if run_cleanup_reason:
-            PyImGui.text_colored(f"Run Cleanup Now: {run_cleanup_reason}", UI_COLOR_WARNING)
+            self._draw_warning_text(f"Run Cleanup Now: {run_cleanup_reason}")
         elif not cleanup_targets and not cleanup_sources:
-            PyImGui.text_colored("Cleanup needs at least one explicit target or linked protection source.", UI_COLOR_WARNING)
+            self._draw_warning_text("Cleanup needs at least one explicit target or linked protection source.")
         if self.auto_cleanup_running:
             PyImGui.text_colored("Cleanup / Xunlai is running.", UI_COLOR_INFO)
         if self.last_cleanup_summary:
@@ -24702,7 +25052,7 @@ class MerchantRulesWidget:
             "Blacklist exact item or material models to keep Cleanup / Xunlai from depositing them, even when explicit targets or linked protection sources would otherwise move them."
         )
         if cleanup_blacklist_model_ids:
-            PyImGui.text_colored("Blacklisted items always stay on character during cleanup.", UI_COLOR_WARNING)
+            self._draw_warning_text("Blacklisted items always stay on character during cleanup.")
 
         removed_cleanup_blacklist_model_id = 0
         display_blacklist_model_ids = self._sort_model_ids_for_display(cleanup_blacklist_model_ids)
@@ -25234,7 +25584,7 @@ class MerchantRulesWidget:
                     self._compare_current_inventory_against_preview()
                 if self.preview_inventory_diff_summary:
                     diff_color = UI_COLOR_SUCCESS if not self.preview_inventory_diff_rows else UI_COLOR_WARNING
-                    PyImGui.text_colored(self.preview_inventory_diff_summary, diff_color)
+                    self._draw_colored_text(self.preview_inventory_diff_summary, diff_color)
                     if self.preview_inventory_diff_rows:
                         for diff_row in self.preview_inventory_diff_rows:
                             self._draw_secondary_text(diff_row)
@@ -25244,21 +25594,16 @@ class MerchantRulesWidget:
                         if self._can_use_local_storage_actions()
                         else "Storage-aware planning is still partial. Xunlai counts will stay estimated until Execute reaches an outpost or Guild Hall and can open storage."
                     )
-                    PyImGui.text_colored(
-                        exact_scan_message,
-                        UI_COLOR_WARNING,
-                    )
+                    self._draw_warning_text(exact_scan_message)
                     PyImGui.spacing()
                 elif self._plan_has_conditional_cleanup_actions(self.preview_plan):
-                    PyImGui.text_colored(
+                    self._draw_warning_text(
                         "* Planned Xunlai cleanup steps will wait until storage can be opened during Execute.",
-                        UI_COLOR_WARNING,
                     )
                     PyImGui.spacing()
                 if conditional_count > 0:
-                    PyImGui.text_colored(
+                    self._draw_warning_text(
                         "* Some entries need a live merchant, trader, crafter, or Xunlai check before MR can confirm them.",
-                        UI_COLOR_WARNING,
                     )
                     self._draw_secondary_text(
                         "MR can try these actions, but current stock, crafter recipes, trader offers, quotes, or Xunlai access still decide the final result."
@@ -25271,13 +25616,13 @@ class MerchantRulesWidget:
                         if destination_label
                         else f"* Multi-stop route: Travel to {embark_label}, run Consumable Crafter buys, then stop there."
                     )
-                    PyImGui.text_colored(route_detail, UI_COLOR_INFO)
+                    self._draw_colored_text(route_detail, UI_COLOR_INFO)
                     self._draw_secondary_text(
                         "Destination rows are rebuilt after travel; green rows can also run here through Execute Here."
                     )
                 elif self._preview_has_execute_travel_pending():
                     target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
-                    PyImGui.text_colored(
+                    self._draw_colored_text(
                         f"* Projected preview assumes Auto Travel reaches {target_label}. Travel + Execute will travel there and rebuild live before running merchant handling.",
                         UI_COLOR_INFO,
                     )
@@ -25340,7 +25685,7 @@ class MerchantRulesWidget:
             changed = True
 
         if self.auto_sell_to_any_merchant:
-            PyImGui.text_colored("These items may sell for less than they would at a trader.", UI_COLOR_WARNING)
+            self._draw_warning_text("These items may sell for less than they would at a trader.")
             normal_items = PyImGui.checkbox(
                 "Normal merchant sell items##merchant_rules_manual_vendor_any_normal",
                 bool(self.auto_sell_any_merchant_normal_items),
@@ -25365,9 +25710,8 @@ class MerchantRulesWidget:
                 self.auto_sell_any_merchant_runes = bool(runes)
                 changed = True
 
-            PyImGui.text_colored(
+            self._draw_warning_text(
                 "Scrolls and other trader items are skipped because MR does not currently have sell rules for them.",
-                UI_COLOR_WARNING,
             )
 
         if self.manual_vendor_running:
@@ -25423,7 +25767,7 @@ class MerchantRulesWidget:
             storage_scan_clicked = False
 
         if self.execute_drift_requires_confirmation:
-            PyImGui.text_colored("Execution paused because inventory drift was detected after preview.", UI_COLOR_WARNING)
+            self._draw_warning_text("Execution paused because inventory drift was detected after preview.")
             for diff_row in self.preview_inventory_diff_rows:
                 self._draw_secondary_text(diff_row)
             PyImGui.begin_disabled(bool(preview_reason))
@@ -25486,19 +25830,15 @@ class MerchantRulesWidget:
         )
 
         if self.shared_profile_warning:
-            PyImGui.text_colored(
+            self._draw_warning_text(
                 f"Shared Profiles: {self.shared_profile_warning}",
-                UI_COLOR_WARNING,
             )
         elif self.shared_profile_notice:
             self._draw_secondary_text(
                 f"Shared Profiles: {self.shared_profile_notice}"
             )
         if self.shared_profile_scan_warning:
-            PyImGui.text_colored(
-                self.shared_profile_scan_warning,
-                UI_COLOR_WARNING,
-            )
+            self._draw_warning_text(self.shared_profile_scan_warning)
 
         if PyImGui.small_button("Refresh Library##merchant_rules_shared_profiles_refresh"):
             self._refresh_shared_profile_entries()
@@ -25578,7 +25918,9 @@ class MerchantRulesWidget:
                 if selected_profile.serialized_payload == current_payload_serialized
                 else UI_COLOR_WARNING
             )
-            PyImGui.text(f"Name: {selected_profile.display_name}")
+            self._draw_subsection_label("Name:")
+            PyImGui.same_line(0, 6)
+            PyImGui.text(selected_profile.display_name)
             if selected_profile.saved_at_label:
                 self._draw_secondary_text(
                     f"Saved: {selected_profile.saved_at_label}",
@@ -25659,9 +26001,8 @@ class MerchantRulesWidget:
             "and its last automatic backup without changing the shared profiles library."
         )
         if self.profile_warning:
-            PyImGui.text_colored(
+            self._draw_warning_text(
                 f"Live Config: {self.profile_warning}",
-                UI_COLOR_WARNING,
             )
         elif self.profile_notice:
             self._draw_secondary_text(f"Live Config: {self.profile_notice}")

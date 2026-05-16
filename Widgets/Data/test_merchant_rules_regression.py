@@ -183,6 +183,7 @@ def _install_stub_modules(project_root: Path) -> None:
     imgui.TableFlags = types.SimpleNamespace(NoFlag=0, Borders=1, RowBg=2, BordersInnerV=4)
     imgui.TableColumnFlags = types.SimpleNamespace(WidthFixed=1, WidthStretch=2)
     imgui.TreeNodeFlags = types.SimpleNamespace(NoFlag=0, SpanFullWidth=1)
+    imgui.ImGuiComboFlags = types.SimpleNamespace(NoFlag=0)
     imgui.ImGuiCol = types.SimpleNamespace(
         Button=0,
         ButtonHovered=1,
@@ -194,7 +195,12 @@ def _install_stub_modules(project_root: Path) -> None:
     )
     imgui.push_style_color = lambda *_args, **_kwargs: None
     imgui.pop_style_color = lambda *_args, **_kwargs: None
+    imgui.push_item_width = lambda *_args, **_kwargs: None
+    imgui.pop_item_width = lambda *_args, **_kwargs: None
     imgui.checkbox = lambda _label, checked: bool(checked)
+    imgui.begin_combo = lambda *_args, **_kwargs: False
+    imgui.end_combo = lambda *_args, **_kwargs: None
+    imgui.selectable = lambda *_args, **_kwargs: False
     imgui.is_item_hovered = lambda *_args, **_kwargs: False
     sys.modules["PyImGui"] = imgui
 
@@ -560,6 +566,16 @@ def _install_weapon_mod_catalog_fixture(module):
                 value_min=1,
                 value_max=5,
             ),
+            '"Forget Me Not"': _fake_weapon_mod(
+                '"Forget Me Not"',
+                "Inherent",
+                {
+                    module.ItemType.Offhand: "Inscription_Offhand",
+                    module.ItemType.Shield: "Inscription_OffhandOrShield",
+                },
+                value_min=10,
+                value_max=20,
+            ),
         },
         runes={},
     )
@@ -913,6 +929,219 @@ def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
     _expect(not any(saved_payload["identify_settings"]["rarities"].values()), "Saved identify rarity selectors should remain off by default.")
     _expect(not saved_payload["identify_settings"]["before_execute"], "Saved Identify before Execute should remain off by default.")
     _expect(not saved_payload["identify_settings"]["on_inventory_change"], "Saved on-pickup/inventory-change identify should remain off by default.")
+
+
+def _test_salvage_auto_exact_upgrade_option_profile_roundtrip(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "salvage_auto_upgrade_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "salvage_settings": {
+            "rules": [
+                {
+                    "enabled": True,
+                    "salvage_option": "auto exact upgrade slot",
+                    "target_weapon_mod_thresholds": [
+                        {"identifier": '"Forget Me Not"', "min_value": 17},
+                    ],
+                }
+            ],
+        },
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        widget.salvage_settings.rules[0].salvage_option == module.SALVAGE_OPTION_AUTO_UPGRADE,
+        "Specific upgrade salvage option should normalize from legacy profile aliases.",
+    )
+    _expect(
+        module._normalize_salvage_option("specific upgrade") == module.SALVAGE_OPTION_AUTO_UPGRADE,
+        "Specific upgrade salvage option should normalize from the current UI label.",
+    )
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(
+        saved_payload["salvage_settings"]["rules"][0]["salvage_option"] == module.SALVAGE_OPTION_AUTO_UPGRADE,
+        "Specific upgrade salvage option should save as the stable profile value.",
+    )
+
+
+def _install_salvage_option_combo_stubs(module, *, opened: bool = True, clicked_label: str = "") -> dict:
+    imgui = module.PyImGui
+    calls = {
+        "begin": [],
+        "selectables": [],
+        "ended": 0,
+        "pushed_widths": [],
+        "popped_widths": 0,
+    }
+
+    def begin_combo(label, preview, flags=0):
+        calls["begin"].append((label, preview, flags))
+        return bool(opened)
+
+    def selectable(label, selected, flags=0, size=(0, 0)):
+        visible_label = str(label or "").split("##", 1)[0]
+        calls["selectables"].append((visible_label, bool(selected), flags, size))
+        return visible_label == str(clicked_label or "")
+
+    def end_combo():
+        calls["ended"] += 1
+
+    def push_item_width(width):
+        calls["pushed_widths"].append(width)
+
+    def pop_item_width():
+        calls["popped_widths"] += 1
+
+    imgui.begin_combo = begin_combo
+    imgui.selectable = selectable
+    imgui.end_combo = end_combo
+    imgui.push_item_width = push_item_width
+    imgui.pop_item_width = pop_item_width
+    return calls
+
+
+def _test_salvage_option_dropdown_public_choices_are_limited(module) -> None:
+    _expect(
+        module.SALVAGE_OPTION_DROPDOWN_ORDER
+        == (
+            (module.SALVAGE_OPTION_MATERIALS, "Materials"),
+            (module.SALVAGE_OPTION_AUTO_UPGRADE, "Specific upgrade"),
+        ),
+        "Normal salvage option dropdown should expose only Materials and Specific upgrade.",
+    )
+    dropdown_values = {option for option, _label in module.SALVAGE_OPTION_DROPDOWN_ORDER}
+    _expect(module.SALVAGE_OPTION_DEFAULT not in dropdown_values, "Default should remain hidden from normal dropdown choices.")
+    _expect(module.SALVAGE_OPTION_PREFIX not in dropdown_values, "Prefix should remain hidden from normal dropdown choices.")
+    _expect(module.SALVAGE_OPTION_SUFFIX not in dropdown_values, "Suffix should remain hidden from normal dropdown choices.")
+    _expect(module.SALVAGE_OPTION_INSCRIPTION not in dropdown_values, "Inscription should remain hidden from normal dropdown choices.")
+
+
+def _test_salvage_default_option_normalizes_to_materials(module, temp_root: Path) -> None:
+    _expect(
+        module.SalvageRule().salvage_option == module.SALVAGE_OPTION_MATERIALS,
+        "New salvage rules should default to Materials.",
+    )
+    _expect(
+        module._normalize_salvage_option(module.SALVAGE_OPTION_DEFAULT) == module.SALVAGE_OPTION_MATERIALS,
+        "The old default salvage option should normalize to Materials.",
+    )
+    _expect(
+        module._get_salvage_option_dropdown_label(module.SALVAGE_OPTION_DEFAULT) == "Materials",
+        "The old default salvage option should display as Materials in the editor.",
+    )
+    normalized_rule = module._normalize_salvage_rule(
+        module.SalvageRule(salvage_option=module.SALVAGE_OPTION_DEFAULT)
+    )
+    _expect(
+        normalized_rule is not None and normalized_rule.salvage_option == module.SALVAGE_OPTION_MATERIALS,
+        "Rule normalization should collapse old default salvage options to Materials.",
+    )
+
+    widget = _make_widget(module)
+    config_path = temp_root / "salvage_default_option_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "salvage_settings": {
+            "rules": [
+                {
+                    "enabled": True,
+                    "salvage_option": "default",
+                    "categories": {module.SALVAGE_CATEGORY_WEAPONS: True},
+                }
+            ],
+        },
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        widget.salvage_settings.rules[0].salvage_option == module.SALVAGE_OPTION_MATERIALS,
+        "Old profile default salvage options should load as Materials.",
+    )
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(
+        saved_payload["salvage_settings"]["rules"][0]["salvage_option"] == module.SALVAGE_OPTION_MATERIALS,
+        "Rewritten profiles should save old default salvage options as Materials.",
+    )
+
+
+def _test_salvage_option_dropdown_legacy_current_labels(module) -> None:
+    expected_labels = {
+        module.SALVAGE_OPTION_PREFIX: "Legacy: Salvage prefix",
+        module.SALVAGE_OPTION_SUFFIX: "Legacy: Salvage suffix",
+        module.SALVAGE_OPTION_INSCRIPTION: "Legacy: Salvage inscription",
+    }
+    for option, expected_label in expected_labels.items():
+        _expect(
+            module._get_salvage_option_dropdown_label(option) == expected_label,
+            f"Hidden salvage option {option} should have a current-only legacy dropdown label.",
+        )
+    _expect(
+        module._get_salvage_option_dropdown_label(module.SALVAGE_OPTION_DEFAULT) == "Materials",
+        "The old default salvage option should not display as a legacy/current dropdown value.",
+    )
+    _expect(
+        module._get_salvage_option_dropdown_label(module.SALVAGE_OPTION_MATERIALS) == "Materials",
+        "Materials should use its public dropdown label.",
+    )
+    _expect(
+        module._get_salvage_option_dropdown_label(module.SALVAGE_OPTION_AUTO_UPGRADE) == "Specific upgrade",
+        "Specific upgrade should use its public dropdown label.",
+    )
+
+
+def _test_salvage_option_combo_preserves_hidden_current_on_noop(module) -> None:
+    widget = _make_widget(module)
+    rule = module.SalvageRule(salvage_option=module.SALVAGE_OPTION_SUFFIX)
+    calls = _install_salvage_option_combo_stubs(module, opened=True, clicked_label="")
+
+    changed = widget._draw_salvage_option_combo(0, rule)
+
+    _expect(not changed, "No-op salvage option combo drawing should not report a change.")
+    _expect(
+        rule.salvage_option == module.SALVAGE_OPTION_SUFFIX,
+        "No-op salvage option combo drawing should preserve a hidden current suffix option.",
+    )
+    _expect(
+        calls["begin"] and calls["begin"][0][1] == "Legacy: Salvage suffix",
+        "Hidden current suffix option should be shown as the combo preview.",
+    )
+    _expect(
+        [entry[0] for entry in calls["selectables"]] == ["Materials", "Specific upgrade"],
+        "Opened salvage option combo should only render public selectable options.",
+    )
+
+
+def _test_salvage_option_combo_selects_public_choices(module) -> None:
+    widget = _make_widget(module)
+
+    materials_rule = module.SalvageRule(salvage_option=module.SALVAGE_OPTION_SUFFIX)
+    _install_salvage_option_combo_stubs(module, opened=True, clicked_label="Materials")
+    _expect(
+        widget._draw_salvage_option_combo(0, materials_rule),
+        "Selecting Materials should report a salvage option change.",
+    )
+    _expect(
+        materials_rule.salvage_option == module.SALVAGE_OPTION_MATERIALS,
+        "Selecting Materials should write the materials internal option.",
+    )
+
+    specific_upgrade_rule = module.SalvageRule(salvage_option=module.SALVAGE_OPTION_DEFAULT)
+    _install_salvage_option_combo_stubs(module, opened=True, clicked_label="Specific upgrade")
+    _expect(
+        widget._draw_salvage_option_combo(1, specific_upgrade_rule),
+        "Selecting Specific upgrade should report a salvage option change.",
+    )
+    _expect(
+        specific_upgrade_rule.salvage_option == module.SALVAGE_OPTION_AUTO_UPGRADE,
+        "Selecting Specific upgrade should write the stable auto-upgrade internal option.",
+    )
 
 
 def _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root: Path) -> None:
@@ -1598,8 +1827,190 @@ def _test_salvage_filter_summary_describes_combined_filters(module) -> None:
 
     summary = widget._format_salvage_filter_summary(widget.salvage_settings)
     _expect(
-        "1 active rule(s)" in summary and "Default (legacy behavior)" in summary,
-        "Salvage filter summary should show the active rule count and salvage option label.",
+        "1 active rule(s)" in summary and "Salvage materials" in summary and "Default (legacy behavior)" not in summary,
+        "Salvage filter summary should show default salvage rules as materials.",
+    )
+
+
+def _test_salvage_rule_summary_materials_upgrade_targets_are_ignored(module) -> None:
+    widget = _make_widget(module)
+    materials_rule = module._normalize_salvage_rule(
+        module.SalvageRule(
+            salvage_option=module.SALVAGE_OPTION_MATERIALS,
+            rarities={"purple": True, "gold": True},
+            categories={
+                module.SALVAGE_CATEGORY_WEAPONS: True,
+                module.SALVAGE_CATEGORY_ARMOR: True,
+            },
+            target_weapon_mod_thresholds=[
+                module.WeaponModThresholdRule(identifier="of Defense", min_value=5)
+            ],
+        )
+    )
+
+    summary, ready = widget._get_salvage_rule_summary(materials_rule)
+
+    _expect(ready, "Materials salvage rule with rarity/category selectors should be ready.")
+    _expect(
+        summary == "Materials | Rarities: Purple, Gold | Categories: Weapons, Armor | upgrade targets ignored",
+        "Materials salvage rule summary should use clean wording when upgrade targets are configured.",
+    )
+    for forbidden_text in (
+        "Purple, Gold weapons, armor",
+        "prefix/suffix/inscription",
+        "specific-upgrade targets require",
+        "specific upgrades 1",
+        "Salvage materials",
+    ):
+        _expect(
+            forbidden_text not in summary,
+            f"Materials summary should not expose internal wording: {forbidden_text}.",
+        )
+
+    specific_upgrade_rule = module._normalize_salvage_rule(
+        module.SalvageRule(
+            salvage_option=module.SALVAGE_OPTION_AUTO_UPGRADE,
+            rarities={"gold": True},
+            categories={module.SALVAGE_CATEGORY_WEAPONS: True},
+            target_weapon_mod_thresholds=[
+                module.WeaponModThresholdRule(identifier="of Defense", min_value=5)
+            ],
+        )
+    )
+    specific_summary, specific_ready = widget._get_salvage_rule_summary(specific_upgrade_rule)
+
+    _expect(specific_ready, "Specific upgrade rule with configured targets should remain ready.")
+    _expect("Specific upgrade" in specific_summary, "Specific upgrade summary should keep its option label.")
+    _expect("specific upgrades 1" in specific_summary, "Specific upgrade summary should keep its target count.")
+    _expect(
+        "upgrade targets ignored" not in specific_summary,
+        "Specific upgrade summary should not use the Materials-only ignored-target wording.",
+    )
+
+
+def _test_rule_summary_renderer_colors_rarity_category_labels(module) -> None:
+    widget = _make_widget(module)
+    imgui = module.PyImGui
+    calls = []
+    original_text = getattr(imgui, "text", None)
+    original_text_wrapped = getattr(imgui, "text_wrapped", None)
+    original_text_colored = getattr(imgui, "text_colored", None)
+    original_same_line = getattr(imgui, "same_line", None)
+    original_calc_text_size = getattr(imgui, "calc_text_size", None)
+    original_get_content_region_avail = getattr(imgui, "get_content_region_avail", None)
+
+    imgui.text = lambda text: calls.append(("text", str(text)))
+    imgui.text_wrapped = lambda text: calls.append(("text_wrapped", str(text)))
+    imgui.text_colored = lambda text, color: calls.append(("text_colored", str(text), color))
+    imgui.same_line = lambda *args: calls.append(("same_line", args))
+    imgui.calc_text_size = lambda text: (float(len(str(text)) * 7), 14.0)
+    imgui.get_content_region_avail = lambda: (800.0, 0.0)
+    try:
+        compact = widget._draw_rule_summary_text(
+            "Materials | Rarities: Purple, Gold | Categories: Weapons, Armor | upgrade targets ignored",
+            wrapped=True,
+        )
+        wide_calls = list(calls)
+        calls.clear()
+        imgui.get_content_region_avail = lambda: (180.0, 0.0)
+        wrapped = widget._draw_rule_summary_text(
+            "Materials | Rarities: Purple, Gold | Categories: Weapons, Armor | upgrade targets ignored",
+            wrapped=True,
+        )
+        narrow_calls = list(calls)
+        calls.clear()
+        imgui.get_content_region_avail = lambda: (260.0, 0.0)
+        semicolon_rendered = widget._draw_rule_summary_text(
+            "Specific upgrade | Rarities: Blue, Purple, Gold, Green; Categories: Weapons, Armor; specific upgrades 1",
+            wrapped=True,
+        )
+        semicolon_calls = list(calls)
+    finally:
+        if original_text is not None:
+            imgui.text = original_text
+        if original_text_wrapped is not None:
+            imgui.text_wrapped = original_text_wrapped
+        if original_text_colored is not None:
+            imgui.text_colored = original_text_colored
+        if original_same_line is not None:
+            imgui.same_line = original_same_line
+        if original_calc_text_size is not None:
+            imgui.calc_text_size = original_calc_text_size
+        elif hasattr(imgui, "calc_text_size"):
+            delattr(imgui, "calc_text_size")
+        if original_get_content_region_avail is not None:
+            imgui.get_content_region_avail = original_get_content_region_avail
+        elif hasattr(imgui, "get_content_region_avail"):
+            delattr(imgui, "get_content_region_avail")
+
+    calls = wide_calls
+    _expect(compact, "Highlighted rule summaries should use the compact responsive mixed-color renderer.")
+    _expect(
+        ("text", "Materials") in calls,
+        "Rule summary renderer should keep the first summary segment beside the Ready badge.",
+    )
+    _expect(
+        ("text_colored", "Rarities:", module.UI_COLOR_WARNING) in calls,
+        "Rule summary renderer should color the Rarities label with the yellow/accent color.",
+    )
+    _expect(
+        ("text_colored", "Categories:", module.UI_COLOR_WARNING) in calls,
+        "Rule summary renderer should color the Categories label with the yellow/accent color.",
+    )
+    _expect(
+        ("text", "Purple, Gold") in calls,
+        "Rule summary renderer should draw rarity values in the normal text color.",
+    )
+    _expect(
+        ("text", "Weapons, Armor") in calls,
+        "Rule summary renderer should draw category values in the normal text color.",
+    )
+    _expect(
+        ("text", "upgrade targets ignored") in calls,
+        "Rule summary renderer should render non-field notes on the compact detail line.",
+    )
+    _expect(
+        calls.count(("text", "|")) == 2,
+        "Compact highlighted summaries should separate detail segments on the second line.",
+    )
+    materials_index = calls.index(("text", "Materials"))
+    rarity_index = calls.index(("text_colored", "Rarities:", module.UI_COLOR_WARNING))
+    category_index = calls.index(("text_colored", "Categories:", module.UI_COLOR_WARNING))
+    ignored_index = calls.index(("text", "upgrade targets ignored"))
+    _expect(
+        materials_index < rarity_index < category_index < ignored_index,
+        "Rule summary renderer should keep the option first, then render the detail segments inline after it.",
+    )
+    _expect(
+        not any(call[0] == "text_wrapped" for call in calls),
+        "Highlighted rule summaries should use the mixed-color inline renderer.",
+    )
+    _expect(wrapped, "Narrow highlighted rule summaries should still use the responsive mixed-color renderer.")
+    _expect(
+        narrow_calls.count(("text", "|")) < wide_calls.count(("text", "|")),
+        "Narrow highlighted summaries should wrap detail segments instead of forcing all separators onto one line.",
+    )
+    _expect(
+        ("text_colored", "Rarities:", module.UI_COLOR_WARNING) in narrow_calls
+        and ("text_colored", "Categories:", module.UI_COLOR_WARNING) in narrow_calls,
+        "Narrow highlighted summaries should preserve colored field labels after wrapping.",
+    )
+    _expect(
+        any(call[0] == "text" and "upgrade targets ignored" in call[1] for call in narrow_calls),
+        "Narrow highlighted summaries should still render the ignored-target note.",
+    )
+    _expect(
+        semicolon_rendered,
+        "Specific upgrade summaries should use the responsive mixed-color renderer.",
+    )
+    _expect(
+        ("text_colored", "Rarities:", module.UI_COLOR_WARNING) in semicolon_calls
+        and ("text_colored", "Categories:", module.UI_COLOR_WARNING) in semicolon_calls,
+        "Specific upgrade summaries should color semicolon-separated rarity/category labels.",
+    )
+    _expect(
+        any(call[0] == "text" and "specific upgrades 1" in call[1] for call in semicolon_calls),
+        "Specific upgrade summaries should render the target count as its own responsive detail segment.",
     )
 
 
@@ -1676,6 +2087,159 @@ def _make_specific_suffix_item(module, *, item_id: int = 40):
                 component_kind="DaggerHandle",
                 mod_type="Suffix",
             )
+        ],
+    )
+
+
+def _make_specific_prefix_salvage_rule(module, salvage_option: str):
+    return module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=salvage_option,
+            target_weapon_mod_variants=[
+                module.WeaponModVariantRule(
+                    identifier="Cruel",
+                    target_item_type="Hammer",
+                    component_kind="HammerHaft",
+                )
+            ],
+        )
+    )
+
+
+def _make_specific_prefix_item(module, *, item_id: int = 41):
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=4000 + item_id,
+        name="Cruel Hammer Haft",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Hammer),
+        item_type_name="Hammer",
+        weapon_mod_identifiers=["Cruel"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "Cruel",
+                None,
+                target_item_type="Hammer",
+                component_kind="HammerHaft",
+                mod_type="Prefix",
+            )
+        ],
+    )
+
+
+def _make_specific_inscription_salvage_rule(module, salvage_option: str):
+    return module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=salvage_option,
+            target_weapon_mod_thresholds=[
+                module.WeaponModThresholdRule(identifier='"Forget Me Not"', min_value=17)
+            ],
+        )
+    )
+
+
+def _make_specific_inscription_item(module, *, item_id: int = 42):
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=4000 + item_id,
+        name='"Forget Me Not" +17',
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Offhand),
+        item_type_name="Offhand",
+        weapon_mod_identifiers=['"Forget Me Not"'],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                '"Forget Me Not"',
+                17,
+                target_item_type="Offhand",
+                component_kind="Inscription_Offhand",
+                mod_type="Inherent",
+            )
+        ],
+    )
+
+
+def _make_unknown_specific_upgrade_salvage_rule(module, salvage_option: str):
+    return module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=salvage_option,
+            target_weapon_mod_identifiers=["Unknown Upgrade"],
+        )
+    )
+
+
+def _make_unknown_specific_upgrade_item(module, *, item_id: int = 43):
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=4000 + item_id,
+        name="Unknown Upgrade",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Sword),
+        item_type_name="Sword",
+        weapon_mod_identifiers=["Unknown Upgrade"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(module, "Unknown Upgrade", None)
+        ],
+    )
+
+
+def _make_ambiguous_specific_upgrade_salvage_rule(module, salvage_option: str):
+    return module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=salvage_option,
+            target_weapon_mod_identifiers=["Cruel", "of Defense"],
+        )
+    )
+
+
+def _make_ambiguous_specific_upgrade_item(module, *, item_id: int = 44):
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=4000 + item_id,
+        name="Cruel Dagger of Defense",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Daggers),
+        item_type_name="Daggers",
+        weapon_mod_identifiers=["Cruel", "of Defense"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "Cruel",
+                None,
+                target_item_type="Daggers",
+                component_kind="DaggerTang",
+                mod_type="Prefix",
+            ),
+            _make_weapon_mod_match(
+                module,
+                "of Defense",
+                5,
+                target_item_type="Daggers",
+                component_kind="DaggerHandle",
+                mod_type="Suffix",
+            ),
         ],
     )
 
@@ -1766,6 +2330,193 @@ def _test_specific_upgrade_salvage_target_accepts_compatible_option(module) -> N
             "specific upgrade target" in widget._get_salvage_selection_reason(item),
             "Specific upgrade target should produce a salvage selection reason.",
         )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_auto_specific_upgrade_salvage_infers_suffix_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(status == "processed", "Auto exact-upgrade salvage should process a resolved suffix target.")
+        _expect(len(fake_bridge.calls) == 1, "Auto exact-upgrade salvage should call the bridge once.")
+        _expect(
+            fake_bridge.calls[0]["option"] == module.SALVAGE_OPTION_SUFFIX,
+            "Auto exact-upgrade salvage should infer suffix from a suffix target.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_auto_specific_upgrade_salvage_infers_inscription_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_inscription_item(module)
+        rule = _make_specific_inscription_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(status == "processed", "Auto exact-upgrade salvage should process a resolved inscription target.")
+        _expect(len(fake_bridge.calls) == 1, "Auto inscription salvage should call the bridge once.")
+        _expect(
+            fake_bridge.calls[0]["option"] == module.SALVAGE_OPTION_INSCRIPTION,
+            "Auto exact-upgrade salvage should infer inscription from a quoted inscription target.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_auto_specific_upgrade_salvage_infers_prefix_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_prefix_item(module)
+        rule = _make_specific_prefix_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(status == "processed", "Auto exact-upgrade salvage should process a resolved prefix target.")
+        _expect(len(fake_bridge.calls) == 1, "Auto prefix salvage should call the bridge once.")
+        _expect(
+            fake_bridge.calls[0]["option"] == module.SALVAGE_OPTION_PREFIX,
+            "Auto exact-upgrade salvage should infer prefix from a prefix target.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_auto_specific_upgrade_salvage_no_target_match_skips(module) -> None:
+    widget = _make_widget(module)
+    fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+    _install_fake_exact_salvage_bridge(widget, fake_bridge)
+    rule = module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=module.SALVAGE_OPTION_AUTO_UPGRADE,
+            rarities=_rarity_flags("gold"),
+        )
+    )
+    item = _make_item(
+        module,
+        item_id=45,
+        model_id=4045,
+        name="Gold Hammer",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Hammer),
+        item_type_name="Hammer",
+    )
+
+    reason = widget._get_salvage_candidate_block_reason(
+        item,
+        [],
+        salvage_rule=rule,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
+    )
+
+    _expect(
+        reason == "specific upgrade salvage requires a matching specific upgrade target",
+        "Specific upgrade salvage should skip broad matches with no specific upgrade target match.",
+    )
+    _expect(fake_bridge.availability_checks == 0, "Auto no-target skips should not check backend availability.")
+    _expect(fake_bridge.calls == [], "Auto no-target skips should not call the salvage bridge.")
+
+
+def _test_auto_specific_upgrade_salvage_unknown_slot_skips(module) -> None:
+    widget = _make_widget(module)
+    fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+    _install_fake_exact_salvage_bridge(widget, fake_bridge)
+    rule = _make_unknown_specific_upgrade_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)
+    item = _make_unknown_specific_upgrade_item(module)
+
+    reason = widget._get_salvage_candidate_block_reason(
+        item,
+        [],
+        salvage_rule=rule,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
+    )
+
+    _expect(
+        reason.startswith("specific upgrade salvage cannot infer"),
+        "Specific upgrade salvage should skip when matched target slot inference is unknown.",
+    )
+    _expect(fake_bridge.availability_checks == 0, "Auto unknown-slot skips should not check backend availability.")
+    _expect(fake_bridge.calls == [], "Auto unknown-slot skips should not call the salvage bridge.")
+
+
+def _test_auto_specific_upgrade_salvage_multiple_slots_skip(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_ambiguous_specific_upgrade_item(module)
+        rule = _make_ambiguous_specific_upgrade_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            salvage_rule=rule,
+            require_salvage_kit=True,
+            salvage_kit_id=777,
+        )
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(
+            reason.startswith("specific upgrade salvage ambiguous"),
+            "Specific upgrade salvage should identify multiple matched target slots as ambiguous.",
+        )
+        _expect(status == "blocked", "Auto ambiguous-slot execution should block before bridge execution.")
+        _expect(fake_bridge.availability_checks == 0, "Auto ambiguous-slot skips should not check backend availability.")
+        _expect(fake_bridge.calls == [], "Auto ambiguous-slot skips should not call the salvage bridge.")
     finally:
         module.MOD_DB = original_db
 
@@ -2113,6 +2864,97 @@ def _test_specific_upgrade_salvage_protection_blocks_before_bridge(module) -> No
         module.MOD_DB = original_db
 
 
+def _test_auto_specific_upgrade_salvage_protection_blocks_before_inference(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)],
+        )
+        item = _make_specific_suffix_item(module)
+        protected_rule = module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+                blacklist_model_ids=[int(item.model_id)],
+            )
+        )
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [(0, protected_rule)],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(
+            reason.startswith("protected:"),
+            "Protected auto exact-upgrade targets should block before inference/backend checks.",
+        )
+        _expect(fake_bridge.availability_checks == 0, "Protected auto targets should not check backend availability.")
+        _expect(fake_bridge.calls == [], "Protected auto targets should not execute the salvage bridge.")
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_auto_specific_upgrade_salvage_customized_sell_protection_blocks_before_inference(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_AUTO_UPGRADE)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        item = replace(_make_specific_suffix_item(module), is_customized=True)
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        inference_calls = {"count": 0}
+        original_resolution = widget._get_auto_salvage_upgrade_slot_resolution
+
+        def counting_resolution(*args, **kwargs):
+            inference_calls["count"] += 1
+            return original_resolution(*args, **kwargs)
+
+        widget._get_auto_salvage_upgrade_slot_resolution = counting_resolution
+        protected_rule = module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+                skip_customized=True,
+            )
+        )
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [(0, protected_rule)],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [(0, protected_rule)],
+            )
+        )
+
+        _expect(
+            reason.startswith("protected:") and "Customized item" in reason,
+            "Never Sell Customized Items should hard-protect customized specific-upgrade targets.",
+        )
+        _expect(status == "blocked", "Customized specific-upgrade targets should not be salvaged.")
+        _expect(inference_calls["count"] == 0, "Customized protection should block before auto slot inference.")
+        _expect(fake_bridge.availability_checks == 0, "Customized protection should block before backend availability checks.")
+        _expect(fake_bridge.calls == [], "Customized specific-upgrade targets should not execute the salvage bridge.")
+    finally:
+        module.MOD_DB = original_db
+
+
 def _test_specific_upgrade_salvage_target_blocks_mismatched_option(module) -> None:
     original_db = _install_weapon_mod_catalog_fixture(module)
     try:
@@ -2182,6 +3024,48 @@ def _test_specific_upgrade_salvage_bridge_success_returns_processed(module) -> N
             fake_bridge.calls[0]["preferred_kit_id"] == 777,
             "The selected upgrade salvage kit should be passed through.",
         )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_explicit_prefix_and_inscription_still_execute(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        cases = [
+            (
+                _make_specific_prefix_item(module),
+                _make_specific_prefix_salvage_rule(module, module.SALVAGE_OPTION_PREFIX),
+                module.SALVAGE_OPTION_PREFIX,
+            ),
+            (
+                _make_specific_inscription_item(module),
+                _make_specific_inscription_salvage_rule(module, module.SALVAGE_OPTION_INSCRIPTION),
+                module.SALVAGE_OPTION_INSCRIPTION,
+            ),
+        ]
+        for item, rule, expected_option in cases:
+            widget = _make_widget(module)
+            fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+            _install_fake_exact_salvage_bridge(widget, fake_bridge)
+            widget.salvage_settings = _salvage_settings(module, rules=[rule])
+            widget._build_inventory_item_info = lambda item_id, item=item: (
+                item if int(item_id) == int(item.item_id) else None
+            )
+            widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+            status = _drain_generator_return(
+                widget._salvage_one_item_with_rule(
+                    _make_salvage_candidate(module, item, rule),
+                    [],
+                )
+            )
+
+            _expect(status == "processed", "Explicit exact-upgrade salvage options should still process.")
+            _expect(len(fake_bridge.calls) == 1, "Explicit exact-upgrade salvage should call the bridge once.")
+            _expect(
+                fake_bridge.calls[0]["option"] == expected_option,
+                "Explicit exact-upgrade salvage should pass the configured slot through unchanged.",
+            )
     finally:
         module.MOD_DB = original_db
 
@@ -7224,6 +8108,72 @@ def _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module) -
             setattr(module, name, value)
 
 
+def _test_inventory_item_log_label_avoids_stale_cached_names(module) -> None:
+    widget = _make_widget(module)
+    widget.catalog_by_model_id = {
+        1914: {
+            "model_id": 1914,
+            "name": "Hypnotic Staff",
+            "item_type": "Staff",
+            "source": "test",
+            "priority": 1,
+        },
+        2992: {
+            "model_id": 2992,
+            "name": "Salvage Kit",
+            "item_type": "kit",
+            "source": "test",
+            "priority": 1,
+        },
+    }
+    widget.catalog_alias_to_model_ids = {
+        module._normalize_catalog_search_text("Hypnotic Staff"): [1914],
+        module._normalize_catalog_search_text("Salvage Kit"): [2992],
+    }
+
+    stale_weapon = _make_item(
+        module,
+        item_id=104,
+        model_id=1914,
+        name='<c=@ItemCommon>Salvage Kit</c>',
+        item_type_id=int(module.ItemType.Staff),
+        item_type_name="Staff",
+        is_weapon_like=True,
+    )
+    stale_label = widget._format_inventory_item_log_label(stale_weapon)
+    _expect(
+        stale_label == "Hypnotic Staff (1914)",
+        "Salvage logs should fall back to the current model label when a cached name belongs to another model.",
+    )
+
+    real_kit = _make_item(
+        module,
+        item_id=105,
+        model_id=2992,
+        name='<c=@ItemCommon>Salvage Kit</c>',
+        item_type_id=int(module.ItemType.Salvage),
+        item_type_name="Salvage",
+    )
+    _expect(
+        widget._format_inventory_item_log_label(real_kit) == '<c=@ItemCommon>Salvage Kit</c>',
+        "Salvage logs should keep a runtime name when it matches the current model.",
+    )
+
+    generated_weapon = _make_item(
+        module,
+        item_id=106,
+        model_id=1914,
+        name="Sundering Hypnotic Staff of Fortitude",
+        item_type_id=int(module.ItemType.Staff),
+        item_type_name="Staff",
+        is_weapon_like=True,
+    )
+    _expect(
+        widget._format_inventory_item_log_label(generated_weapon) == "Sundering Hypnotic Staff of Fortitude",
+        "Salvage logs should keep unknown generated weapon names instead of over-normalizing them.",
+    )
+
+
 def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> None:
     widget = _make_widget(module)
     _seed_display_sort_fixture(widget)
@@ -8626,6 +9576,30 @@ def main() -> int:
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
             ("salvage_profile_defaults_are_off", lambda: _test_salvage_profile_defaults_are_off(module, temp_root)),
+            (
+                "salvage_auto_exact_upgrade_option_profile_roundtrip",
+                lambda: _test_salvage_auto_exact_upgrade_option_profile_roundtrip(module, temp_root),
+            ),
+            (
+                "salvage_option_dropdown_public_choices_are_limited",
+                lambda: _test_salvage_option_dropdown_public_choices_are_limited(module),
+            ),
+            (
+                "salvage_default_option_normalizes_to_materials",
+                lambda: _test_salvage_default_option_normalizes_to_materials(module, temp_root),
+            ),
+            (
+                "salvage_option_dropdown_legacy_current_labels",
+                lambda: _test_salvage_option_dropdown_legacy_current_labels(module),
+            ),
+            (
+                "salvage_option_combo_preserves_hidden_current_on_noop",
+                lambda: _test_salvage_option_combo_preserves_hidden_current_on_noop(module),
+            ),
+            (
+                "salvage_option_combo_selects_public_choices",
+                lambda: _test_salvage_option_combo_selects_public_choices(module),
+            ),
             ("manual_vendor_profile_defaults_and_roundtrip", lambda: _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root)),
             ("manual_vendor_runtime_queues_once_per_signature", lambda: _test_manual_vendor_runtime_queues_once_per_signature(module)),
             ("manual_vendor_matching_sell_uses_current_merchant_only", lambda: _test_manual_vendor_matching_sell_uses_current_merchant_only(module)),
@@ -8640,10 +9614,42 @@ def main() -> int:
             ("salvage_category_selection", lambda: _test_salvage_category_selection(module)),
             ("salvage_rarity_and_category_filters_combine", lambda: _test_salvage_rarity_and_category_filters_combine(module)),
             ("salvage_filter_summary_describes_combined_filters", lambda: _test_salvage_filter_summary_describes_combined_filters(module)),
+            (
+                "salvage_rule_summary_materials_upgrade_targets_are_ignored",
+                lambda: _test_salvage_rule_summary_materials_upgrade_targets_are_ignored(module),
+            ),
+            (
+                "rule_summary_renderer_colors_rarity_category_labels",
+                lambda: _test_rule_summary_renderer_colors_rarity_category_labels(module),
+            ),
             ("salvage_selected_items_block_destroy", lambda: _test_salvage_selected_items_block_destroy(module)),
             (
                 "specific_upgrade_salvage_target_accepts_compatible_option",
                 lambda: _test_specific_upgrade_salvage_target_accepts_compatible_option(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_infers_suffix_option",
+                lambda: _test_auto_specific_upgrade_salvage_infers_suffix_option(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_infers_inscription_option",
+                lambda: _test_auto_specific_upgrade_salvage_infers_inscription_option(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_infers_prefix_option",
+                lambda: _test_auto_specific_upgrade_salvage_infers_prefix_option(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_no_target_match_skips",
+                lambda: _test_auto_specific_upgrade_salvage_no_target_match_skips(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_unknown_slot_skips",
+                lambda: _test_auto_specific_upgrade_salvage_unknown_slot_skips(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_multiple_slots_skip",
+                lambda: _test_auto_specific_upgrade_salvage_multiple_slots_skip(module),
             ),
             (
                 "specific_upgrade_salvage_backend_unavailable_blocks",
@@ -8670,12 +9676,24 @@ def main() -> int:
                 lambda: _test_specific_upgrade_salvage_protection_blocks_before_bridge(module),
             ),
             (
+                "auto_specific_upgrade_salvage_protection_blocks_before_inference",
+                lambda: _test_auto_specific_upgrade_salvage_protection_blocks_before_inference(module),
+            ),
+            (
+                "auto_specific_upgrade_salvage_customized_sell_protection_blocks_before_inference",
+                lambda: _test_auto_specific_upgrade_salvage_customized_sell_protection_blocks_before_inference(module),
+            ),
+            (
                 "specific_upgrade_salvage_target_blocks_mismatched_option",
                 lambda: _test_specific_upgrade_salvage_target_blocks_mismatched_option(module),
             ),
             (
                 "specific_upgrade_salvage_bridge_success_returns_processed",
                 lambda: _test_specific_upgrade_salvage_bridge_success_returns_processed(module),
+            ),
+            (
+                "specific_upgrade_salvage_explicit_prefix_and_inscription_still_execute",
+                lambda: _test_specific_upgrade_salvage_explicit_prefix_and_inscription_still_execute(module),
             ),
             (
                 "specific_upgrade_salvage_wrong_slot_completion_returns_failed",
@@ -8847,6 +9865,10 @@ def main() -> int:
             (
                 "scroll_of_heros_insight_wins_duplicate_model_id_and_searches",
                 lambda: _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module),
+            ),
+            (
+                "inventory_item_log_label_avoids_stale_cached_names",
+                lambda: _test_inventory_item_log_label_avoids_stale_cached_names(module),
             ),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
