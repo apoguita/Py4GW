@@ -312,6 +312,10 @@ CastingBlockNode = BehaviorTree.ConditionNode(
     
     
 def movement_interrupt() -> BehaviorTree.NodeState:
+    # During a smart unstuck detour, BT.Move must be ticked at full HeroAI
+    # BT rate so it can steer the engine target continuously 
+    if follow_execution_state.stuck.mode != "idle":
+        return BehaviorTree.NodeState.FAILURE  # let Follow run every tick during detour
     if Agent.IsMoving(Player.GetAgentID()):
         return BehaviorTree.NodeState.SUCCESS   # block lower-priority automation for this tick
     return BehaviorTree.NodeState.FAILURE      # allow next branch

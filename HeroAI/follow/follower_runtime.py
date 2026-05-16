@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Range, SharedCommandType, Utils, Weapon
 from Py4GWCoreLib.Map import Map
@@ -10,6 +10,12 @@ from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 from ..cache_data import CacheData
+from .smart_unstuck import (
+    SMART_UNSTUCK_CFG,
+    SmartUnstuckState,
+    reset_smart_unstuck,
+    update_smart_unstuck,
+)
 
 
 @dataclass(slots=True)
@@ -20,6 +26,7 @@ class FollowExecutionState:
     last_leader_publish_signature: tuple[int, int, int, int, int] | None = None
     recovery_active: bool = False
     pet_recovery_notified: bool = False
+    stuck: SmartUnstuckState = field(default_factory=SmartUnstuckState)
 
 
 FOLLOW_RECOVERY_DISTANCE = 4000.0
@@ -134,6 +141,7 @@ def execute_follower_follow(
     def _reset_follow_runtime() -> None:
         state.last_follow_move_point = None
         state.last_follow_assigned_point = None
+        reset_smart_unstuck(state.stuck)
 
     def _account_map_signature(account) -> tuple[int, int, int, int, int] | None:
         if account is None or not bool(getattr(account, "IsSlotActive", False)):
@@ -163,6 +171,18 @@ def execute_follower_follow(
     if not options or not options.Following:
         state.recovery_active = False
         return BehaviorTree.NodeState.FAILURE
+
+    # During an active stuck-avoidance detour, BT.Move needs to tick at the
+    # full HeroAI BT rate (~33ms) so it can detect "almost there" mid-walk and
+    # switch the engine target BEFORE the follower physically arrives at a
+    # waypoint. Apo's "constantly steer" — at the previous 100ms throttle the
+    # follower covered an entire 89u waypoint between BT ticks, so BT only
+    # ever sampled the player at arrival moments and tolerance had no effect.
+    # Idle mode keeps the 250ms throttle since smoothness doesn't matter there.
+    if state.stuck.mode != "idle":
+        cached_data.follow_throttle_timer.SetThrottleTime(0)
+    else:
+        cached_data.follow_throttle_timer.SetThrottleTime(250)
 
     if not cached_data.follow_throttle_timer.IsExpired():
         return BehaviorTree.NodeState.FAILURE
@@ -268,8 +288,31 @@ def execute_follower_follow(
         state.last_follow_move_point = None
     state.last_follow_assigned_point = assigned_point
 
+    # Upstream "follow recovery": when the follower is far from its destination,
+    # tighten the tolerance to FOLLOW_RECOVERY_RELEASE_DISTANCE so it keeps
+    # closing the gap instead of stopping at the normal slot threshold.
     effective_follow_distance = min(follow_distance, FOLLOW_RECOVERY_RELEASE_DISTANCE) if recovery_active else follow_distance
     if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= effective_follow_distance:
+        reset_smart_unstuck(state.stuck)
+        return BehaviorTree.NodeState.FAILURE
+
+    if follow_z == 0 and not own_flag_active:
+        update_smart_unstuck(
+            state.stuck,
+            SMART_UNSTUCK_CFG,
+            current_xy=Player.GetXY(),
+            follow_xy=(follow_x, follow_y),
+            assigned_changed=assigned_changed,
+        )
+    else:
+        reset_smart_unstuck(state.stuck)
+
+    # During an active detour, BT.Move has already issued Player.Move with its
+    # own stall-aware pacing. Skip our Player.Move below — otherwise we clobber
+    # the in-flight pathing and reintroduce inter-waypoint stutter.
+    if state.stuck.mode != "idle":
+        state.last_follow_move_point = None
+        cached_data.follow_throttle_timer.Reset()
         return BehaviorTree.NodeState.FAILURE
 
     xx = follow_x
