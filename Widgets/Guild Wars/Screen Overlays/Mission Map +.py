@@ -235,6 +235,14 @@ def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_
 
 def GetEnemyTrackerRangeFilter() -> int:
     for module in list(sys.modules.values()):
+        module_file = str(getattr(module, "__file__", "") or "").replace("\\", "/")
+        module_name = str(getattr(module, "MODULE_NAME", "") or "").strip()
+        is_enemy_tracker_system_widget = (
+            module_name == "Enemy Tracker"
+            or module_file.endswith("/Widgets/System/Enemy Tracker.py")
+        )
+        if not is_enemy_tracker_system_widget:
+            continue
         floating_button = getattr(module, "FloatingButton", None)
         vars_obj = getattr(floating_button, "vars", None)
         if vars_obj is not None and hasattr(vars_obj, "range_filter"):
@@ -1505,19 +1513,6 @@ def DrawFrame():
         _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius, compass_outline_color, segments, 1.0)
         _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius-(2.85*zoom), color, segments, (5.7*zoom))
 
-    def _draw_enemy_tracker_range():
-        range_filter = GetEnemyTrackerRangeFilter()
-        if range_filter <= 0:
-            return
-        radius = RawGwinchToPixels(range_filter, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
-        if radius <= 0:
-            return
-        color = Utils.RGBToColor(80, 190, 255, 230)
-        outline_color = Utils.RGBToColor(0, 0, 0, 220)
-        segments = _segments_for_radius(radius)
-        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius + 1.0, outline_color, segments, 2.0)
-        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius, color, segments, 2.0)
-    
     #terrain 
     zoom = mission_map.zoom + mission_map.mega_zoom
     aggro_bubble_color = mission_map.aggro_bubble_color
@@ -1534,9 +1529,7 @@ def DrawFrame():
     if imgui_draw_window_open:
         _draw_aggro_bubble()
         _draw_compass_range(zoom)
-        _draw_enemy_tracker_range()
-    
-      
+     
     neutral_array = AgentArray.GetNeutralArray()
     minion_array = AgentArray.GetMinionArray()
     spirit_pet_array = AgentArray.GetSpiritPetArray()

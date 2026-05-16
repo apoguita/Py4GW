@@ -7,6 +7,61 @@
     "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001": [
       "Pet - Elder Crocodile"
     ],
+    "enc:\\\\x0BD7\\\\x82CB\\\\x0528": [
+      "Suit of 100 Armor",
+      "Agent 32"
+    ],
+    "enc:\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292": [
+      "Suit of 60 Armor",
+      "Agent 30",
+      "Agent 33"
+    ],
+    "enc:\\\\x0BD9\\\\xE564\\\\x5BF4": [
+      "Suit of 80 Armor",
+      "Agent 31"
+    ],
+    "enc:\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30": [
+      "Practice Target",
+      "Agent 189"
+    ],
+    "enc:\\\\x0BDC\\\\xF8B5\\\\xCE9B\\\\x6BFE": [
+      "Agent 123",
+      "Student of Blind"
+    ],
+    "enc:\\\\x0BDF\\\\xFB0B\\\\xF320\\\\x3739": [
+      "Student of Dazed"
+    ],
+    "enc:\\\\x0BE0\\\\x8D50\\\\xD487\\\\x7295": [
+      "Student of Disease"
+    ],
+    "enc:\\\\x0BE2\\\\x9F4A\\\\xCAE8\\\\x0687": [
+      "Student of Weakness"
+    ],
+    "enc:\\\\x0D39\\\\xCF3B\\\\xED6E\\\\x4EF1": [
+      "Guard of the Isles"
+    ],
+    "enc:\\\\x0D7F\\\\xB5A9\\\\x3373": [
+      "Adjacent"
+    ],
+    "enc:\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39": [
+      "In the Area"
+    ],
+    "enc:\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670": [
+      "Adjacent to Foe",
+      "Agent 191"
+    ],
+    "enc:\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A": [
+      "Nearby"
+    ],
+    "enc:\\\\x0D84\\\\xD392\\\\xA3B2\\\\x5FA9": [
+      "Longbow Target"
+    ],
+    "enc:\\\\x0D85\\\\xA4DF\\\\xAC95\\\\x3211": [
+      "Recurve Target"
+    ],
+    "enc:\\\\x0D86\\\\xEAEA\\\\xAF17\\\\x3173": [
+      "Short Bow Target"
+    ],
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": [
       "Spirit of Favorable Winds",
       "Agent 84"
@@ -165,6 +220,9 @@
     ],
     "enc:\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906": [
       "Earthen Abomination"
+    ],
+    "enc:\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72": [
+      "Master of Damage"
     ],
     "enc:\\\\x8101\\\\x0849\\\\xEF33\\\\x95FE\\\\x4CE1": [
       "Stoneaxe Heket"
@@ -343,6 +401,10 @@
     ],
     "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": [
       "Mandragor Smoke Devil"
+    ],
+    "enc:\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5": [
+      "Agent 156",
+      "Student of Cracked Armor"
     ]
   },
   "schema": "py4gw_enemy_tracker_names",

@@ -42,7 +42,7 @@ DEFAULT_HEX_REMOVAL_PRIORITY: HexRemovalPriority = HexRemovalPriority.MEDIUM
 MIN_HEX_REMAINING_MS_TO_REMOVE: int = 2500
 
 # Toggle for [HexRemoval] console logs.
-HEX_REMOVAL_DEBUG: bool = True
+HEX_REMOVAL_DEBUG: bool = False
 
 # Per-(agent, hex) detection log throttle in ms (0 disables).
 HEX_REMOVAL_DETECTION_THROTTLE_MS: int = 2000

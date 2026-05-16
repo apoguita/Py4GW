@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Range, Utils, Weapon
+from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Range, SharedCommandType, Utils, Weapon
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
@@ -19,34 +19,77 @@ class FollowExecutionState:
     follow_map_entry_signature: tuple[int, int, int, int, int] | None = None
     last_leader_publish_signature: tuple[int, int, int, int, int] | None = None
     recovery_active: bool = False
+    pet_recovery_notified: bool = False
 
 
-FOLLOW_RECOVERY_START_DISTANCE = max(float(Range.Spellcast.value), float(Range.SafeCompass.value) * 0.85)
-FOLLOW_RECOVERY_RELEASE_DISTANCE = max(
-    float(Range.Spellcast.value),
-    FOLLOW_RECOVERY_START_DISTANCE - 700.0,
-)
+FOLLOW_RECOVERY_DISTANCE = 4000.0
+FOLLOW_RECOVERY_START_DISTANCE = FOLLOW_RECOVERY_DISTANCE
+FOLLOW_RECOVERY_RELEASE_DISTANCE = Range.Spellcast.value
 
 
 def get_follow_destination_distance(cached_data: CacheData) -> float:
+    destination = get_follow_destination_xy(cached_data)
+    if destination is None:
+        return 0.0
+    return float(Utils.Distance(destination, Agent.GetXY(Player.GetAgentID())))
+
+
+def get_follow_destination_xy(cached_data: CacheData) -> tuple[float, float] | None:
     account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
     options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
 
     if not account or not options:
-        return 0.0
+        return None
 
     if bool(getattr(options, "IsFlagged", False)):
         if int(account.AgentPartyData.PartyPosition) == 0:
-            destination = (float(options.AllFlag.x), float(options.AllFlag.y))
+            return (float(options.AllFlag.x), float(options.AllFlag.y))
         else:
-            destination = (float(options.FlagPos.x), float(options.FlagPos.y))
+            return (float(options.FlagPos.x), float(options.FlagPos.y))
     else:
         leader_agent_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID())
         if leader_agent_id <= 0:
-            return 0.0
-        destination = Agent.GetXY(leader_agent_id)
+            return None
+        return Agent.GetXY(leader_agent_id)
 
-    return float(Utils.Distance(destination, Agent.GetXY(Player.GetAgentID())))
+
+def _notify_recovery_console_message(message_text: str) -> None:
+    sender_email = str(Player.GetAccountEmail() or "").strip()
+    leader_account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(0)
+    leader_email = str(getattr(leader_account, "AccountEmail", "") or "").strip() if leader_account else ""
+    if sender_email and leader_email and sender_email != leader_email:
+        GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            leader_email,
+            SharedCommandType.ConsoleMessage,
+            (0, 0, 0, 0),
+            (message_text,),
+        )
+
+
+def _maybe_notify_pet_recovery(cached_data: CacheData, state: FollowExecutionState) -> None:
+    player_agent_id = int(Player.GetAgentID())
+    pet_id = int(GLOBAL_CACHE.Party.Pets.GetPetID(player_agent_id) or 0)
+    if pet_id <= 0 or not Agent.IsValid(pet_id):
+        state.pet_recovery_notified = False
+        return
+
+    destination = get_follow_destination_xy(cached_data)
+    if destination is None:
+        state.pet_recovery_notified = False
+        return
+
+    pet_x, pet_y = Agent.GetXY(pet_id)
+    pet_distance = float(Utils.Distance(destination, (pet_x, pet_y)))
+    if pet_distance < float(FOLLOW_RECOVERY_START_DISTANCE):
+        state.pet_recovery_notified = False
+        return
+
+    if state.pet_recovery_notified:
+        return
+
+    _notify_recovery_console_message(f"pet lagged behind at x={pet_x:.0f}, y={pet_y:.0f}")
+    state.pet_recovery_notified = True
 
 
 def is_follow_recovery_active(cached_data: CacheData, state: FollowExecutionState) -> bool:
@@ -60,7 +103,10 @@ def is_follow_recovery_active(cached_data: CacheData, state: FollowExecutionStat
         or player_agent_id == int(GLOBAL_CACHE.Party.GetPartyLeaderID())
     ):
         state.recovery_active = False
+        state.pet_recovery_notified = False
         return False
+
+    _maybe_notify_pet_recovery(cached_data, state)
 
     distance_to_destination = get_follow_destination_distance(cached_data)
     if state.recovery_active:
@@ -72,7 +118,7 @@ def is_follow_recovery_active(cached_data: CacheData, state: FollowExecutionStat
 
     state.recovery_active = True
     try:
-        Player.SendChat('#', 'Hey, Wait for me!.')
+        _notify_recovery_console_message("Hey, Wait for me!")
     except Exception:
         pass
     return True
