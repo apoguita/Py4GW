@@ -233,6 +233,7 @@ class CombatClass:
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         self.leave_junundu = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+        self.junundu_siege = GLOBAL_CACHE.Skill.GetID("Junundu_Siege") or 1441
 
     @staticmethod
     def _normalize_weapon_requirement_name(value: str) -> str:
@@ -786,6 +787,10 @@ class CombatClass:
             v_target = GetEnemyKnockedDown(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
+        elif target_allegiance == Skilltarget.EnemyNotNearby:
+            v_target = Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
@@ -1081,6 +1086,10 @@ class CombatClass:
 
             if (self.skills[slot].skill_id == self.junundu_tunnel):
                 return Routines.Agents.GetNearestEnemy(self.get_combat_distance()) == 0
+
+            if (self.skills[slot].skill_id == self.junundu_siege):
+                return (Routines.Agents.GetNearestEnemy(Range.Nearby.value) != 0 and
+                        Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, Range.Earshot.value) != 0)
 
             if ((self.skills[slot].skill_id == self.unknown_junundu_ability) or
                 (self.skills[slot].skill_id == self.leave_junundu)
