@@ -1304,6 +1304,11 @@ class FrameInfo:
 WindowFrames:dict[str, FrameInfo] = {}
 
 class WindowFrame():
+    CloseWindowButtonFrame = FrameInfo(
+        FrameHash=3738633661,
+        WindowLabel="Close Window button"
+    )
+    
     #region Character Creation
     CharacterDeleteButtonFrame = FrameInfo(
         WindowName="DeleteCharacterButton",
@@ -1578,6 +1583,12 @@ class WindowFrame():
     MerchantWindowFrame = FrameInfo(
         WindowName="MerchantWindowFrame",
         FrameHash=3613855137
+    )
+    
+    MerchantWindowCloseButton = FrameInfo(
+        WindowName="CrafterWindow Close Button",
+        ParentFrameHash=MerchantWindowFrame.FrameHash,
+        ChildOffsets=[0, 0, 1]
     )
 
     CollectorWindowFrame = FrameInfo(
@@ -1922,11 +1933,35 @@ class SkillTrainerWindow:
     def IsOpen() -> bool:
         return WindowFrame.SkillTrainerWindowFrame.FrameExists()
 
+    @staticmethod
+    def Close() -> bool:
+        if not SkillTrainerWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.MerchantWindowCloseButton  
+        if not frame.FrameExists():
+            return False
+              
+        frame.FrameClick()
+        return True
+
 class MerchantWindow:
     @staticmethod
     @frame_cache(category="MerchantWindow", source_lib="IsOpen")
     def IsOpen() -> bool:
         return WindowFrame.MerchantWindowFrame.FrameExists()
+    
+    @staticmethod
+    def Close() -> bool:
+        if not MerchantWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.MerchantWindowCloseButton
+        if not frame.FrameExists():
+            return False
+                
+        frame.FrameClick()
+        return True
     
 class CollectorWindow:
     @staticmethod
@@ -1934,11 +1969,35 @@ class CollectorWindow:
     def IsOpen() -> bool:
         return WindowFrame.CollectorWindowFrame.FrameExists()
     
+    @staticmethod
+    def Close() -> bool:
+        if not CollectorWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.MerchantWindowCloseButton
+        if not frame.FrameExists():
+            return False
+                
+        frame.FrameClick()
+        return True
+    
 class CrafterWindow:
     @staticmethod
     @frame_cache(category="CrafterWindow", source_lib="IsOpen")
     def IsOpen() -> bool:
         return WindowFrame.CrafterWindowFrame.FrameExists()
+
+    @staticmethod
+    def Close() -> bool:
+        if not CrafterWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.MerchantWindowCloseButton
+        if not frame.FrameExists():
+            return False
+                
+        frame.FrameClick()
+        return True
 
 class UpgradeWindow:
     '''
