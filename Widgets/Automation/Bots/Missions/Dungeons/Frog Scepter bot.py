@@ -561,7 +561,7 @@ def _request_alt_salvage_kit_counts() -> Generator:
                 acc.AccountEmail,
                 SharedCommandType.MerchantItems,
                 (0, 0, 0, 0),
-                ("report_salvage_kits", _settings_ini_path, _ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail)),
+                ("report_salvage_kits", _settings_ini_rel_path, _ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail)),
             )
 
         yield from Routines.Yield.wait(_ALT_SALVAGE_POLL_TIMEOUT_MS)
