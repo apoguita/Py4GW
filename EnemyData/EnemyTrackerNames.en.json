@@ -73,7 +73,8 @@
     ],
     "enc:\\\\x1230\\\\x9354\\\\x94B4\\\\x654F": [
       "Agent 516",
-      "Bone Horror"
+      "Bone Horror",
+      "Agent 531"
     ],
     "enc:\\\\x1232\\\\xF535\\\\x05E0": [
       "Agent 160",
@@ -84,6 +85,10 @@
       "Agent 48",
       "Obsidian Behemoth",
       "Agent 33"
+    ],
+    "enc:\\\\x12A8\\\\xE724\\\\xC399\\\\x1FB5": [
+      "Agent 577",
+      "Obsidian Guardian"
     ],
     "enc:\\\\x12A9\\\\xE727\\\\xE80D\\\\x674A": [
       "Agent 218",
@@ -112,6 +117,21 @@
       "Banished Dream Rider",
       "Agent 382"
     ],
+    "enc:\\\\x12B7\\\\xEE5E\\\\xE8CB\\\\x660E": [
+      "Agent 149",
+      "Agent 397",
+      "Agent 460",
+      "Tortured Spirit"
+    ],
+    "enc:\\\\x12B9\\\\x8271\\\\xA9AA\\\\x5E8F": [
+      "Agent 65",
+      "Agent 101",
+      "Agent 332",
+      "Agent 519",
+      "Agent 535",
+      "Agent 554",
+      "Tortured Spirit"
+    ],
     "enc:\\\\x12BA\\\\xD696\\\\x4774": [
       "Agent 40",
       "Smite Crawler",
@@ -119,7 +139,8 @@
     ],
     "enc:\\\\x12BB\\\\xA3DC\\\\x0BDD": [
       "Agent 71",
-      "Mindblade Spectre"
+      "Mindblade Spectre",
+      "Agent 503"
     ],
     "enc:\\\\x12BC\\\\x98DC\\\\xFDF0\\\\x1FD0": [
       "Agent 436",
@@ -165,7 +186,7 @@
     "enc:\\\\x12C4\\\\xA887\\\\x7302": [
       "Agent 245",
       "Charged Blackness",
-      "Agent 230"
+      "Agent 246"
     ],
     "enc:\\\\x12C5\\\\xD142\\\\xFA22\\\\x1E49": [
       "Agent 326",
@@ -211,7 +232,28 @@
     ],
     "enc:\\\\x17C1\\\\xF036\\\\x8EDD\\\\x575E": [
       "Agent 52",
-      "Slayer"
+      "Slayer",
+      "Agent 230"
+    ],
+    "enc:\\\\x17D1\\\\xCF43\\\\xE7C9\\\\x07E0": [
+      "Agent 198",
+      "Madruk Dhuum"
+    ],
+    "enc:\\\\x17D2\\\\xFF3C\\\\xA981\\\\x3B99": [
+      "Agent 101",
+      "Thul Za Dhuum"
+    ],
+    "enc:\\\\x17D3\\\\x9397\\\\xB500\\\\x0B62": [
+      "Agent 183",
+      "Ghozer Dhuum"
+    ],
+    "enc:\\\\x17D4\\\\xD085\\\\xF7B5\\\\x7D6A": [
+      "Agent 559",
+      "Kazhad Dhuum"
+    ],
+    "enc:\\\\x17DF\\\\xAC9D\\\\xE33B\\\\x63DE": [
+      "Agent 485",
+      "Terrorweb Queen"
     ],
     "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": [
       "Agent 261",
@@ -509,6 +551,19 @@
     ],
     "enc:\\\\x8102\\\\x5BAD\\\\xE127\\\\xB7B2\\\\x53D7": [
       "Agent 98",
+      "Terrorweb Dryder",
+      "Agent 526"
+    ],
+    "enc:\\\\x8102\\\\x5BC2\\\\xF49A\\\\x2F66": [
+      "Agent 151",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BC3\\\\x8C90\\\\x93F3\\\\x72E5": [
+      "Agent 499",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BC4\\\\xE07F\\\\xB1FB\\\\x618A": [
+      "Agent 611",
       "Terrorweb Dryder"
     ],
     "enc:\\\\x8102\\\\x5BC5\\\\xAD7F\\\\x2811": [
@@ -535,6 +590,30 @@
       "Agent 375",
       "Terrorweb Dryder"
     ],
+    "enc:\\\\x8102\\\\x5BCB\\\\xB7C7\\\\x8D96\\\\x4246": [
+      "Agent 618",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BCC\\\\xCCCF\\\\x95DB\\\\x0333": [
+      "Agent 619",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BCD\\\\xD4EF\\\\x93DC\\\\x43B0": [
+      "Agent 620",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3": [
+      "Agent 645",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BD8\\\\xA0D5\\\\xCF7D\\\\x72A0": [
+      "Agent 646",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BD9\\\\xA373\\\\xA7FC\\\\x13A8": [
+      "Agent 647",
+      "Terrorweb Dryder"
+    ],
     "enc:\\\\x8102\\\\x5BDA\\\\xF058\\\\xC5A8\\\\x7549": [
       "Agent 406",
       "Terrorweb Dryder"
@@ -545,6 +624,18 @@
     ],
     "enc:\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881": [
       "Agent 408",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BDD\\\\xBB67\\\\xFD9F\\\\x1D0A": [
+      "Agent 651",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BDE\\\\xCB13\\\\xB90C\\\\x77B3": [
+      "Agent 652",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BDF\\\\x8C62\\\\xE0F5\\\\x490D": [
+      "Agent 653",
       "Terrorweb Dryder"
     ],
     "enc:\\\\x8102\\\\x5BE6\\\\xB232\\\\xAC0D\\\\x24B6": [
@@ -583,6 +674,18 @@
       "Agent 393",
       "Vengeful Aatxe"
     ],
+    "enc:\\\\x8102\\\\x5BEF\\\\xACD0\\\\xC41C\\\\x10AA": [
+      "Agent 636",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5BF0\\\\xEBDD\\\\xE2DE\\\\x5690": [
+      "Agent 637",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5BF1\\\\xC3D3\\\\xF3E7\\\\x66BF": [
+      "Agent 638",
+      "Vengeful Aatxe"
+    ],
     "enc:\\\\x8102\\\\x5BF8\\\\xA7FD\\\\xBDE3\\\\x0C3C": [
       "Agent 418",
       "Vengeful Aatxe"
@@ -593,6 +696,14 @@
     ],
     "enc:\\\\x8102\\\\x5BFA\\\\xAA70\\\\x84C6\\\\x106D": [
       "Agent 420",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B": [
+      "Agent 664",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5BFD\\\\xCB60\\\\x9669\\\\x3766": [
+      "Agent 665",
       "Vengeful Aatxe"
     ],
     "enc:\\\\x8102\\\\x5BFE\\\\xB5B0\\\\xB94F\\\\x4C53": [
@@ -607,12 +718,56 @@
       "Agent 426",
       "Vengeful Aatxe"
     ],
+    "enc:\\\\x8102\\\\x5C01\\\\xBF37\\\\x878F\\\\x3BD8": [
+      "Agent 669",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5C02\\\\xD1B6\\\\xF84E\\\\x6875": [
+      "Agent 670",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5C03\\\\xBB48\\\\x9F5A\\\\x473A": [
+      "Agent 671",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5C07\\\\x9FF9\\\\xEA8E\\\\x21FC": [
+      "Agent 675",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5C08\\\\xBE57\\\\xB5ED\\\\x5820": [
+      "Agent 676",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5C09\\\\xD1EA\\\\xC652\\\\x203D": [
+      "Agent 677",
+      "Vengeful Aatxe"
+    ],
+    "enc:\\\\x8102\\\\x5C20\\\\xE972\\\\xC523\\\\x3C91": [
+      "Agent 195",
+      "Skeleton of Dhuum"
+    ],
     "enc:\\\\x8102\\\\x5C24\\\\xD4AD\\\\xA729\\\\x57DF": [
       "Agent 48",
       "Agent 49",
       "Agent 50",
       "Skeleton of Dhuum",
       "Agent 47"
+    ],
+    "enc:\\\\x8102\\\\x5D15\\\\x907F\\\\xE303\\\\x64E5": [
+      "Agent 678",
+      "Skeleton of Dhuum"
+    ],
+    "enc:\\\\x8102\\\\x5D16\\\\xC984\\\\xA85C\\\\x4792": [
+      "Agent 679",
+      "Skeleton of Dhuum"
+    ],
+    "enc:\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0": [
+      "Agent 681",
+      "Skeleton of Dhuum"
+    ],
+    "enc:\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4": [
+      "Agent 683",
+      "Skeleton of Dhuum"
     ],
     "enc:\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1": [
       "Agent 442",
@@ -624,6 +779,14 @@
     ],
     "enc:\\\\x8102\\\\x5D1D\\\\xECC6\\\\x05DA": [
       "Agent 444",
+      "Skeleton of Dhuum"
+    ],
+    "enc:\\\\x8102\\\\x5D1F\\\\x9CA2\\\\xFA30\\\\x62A4": [
+      "Agent 688",
+      "Skeleton of Dhuum"
+    ],
+    "enc:\\\\x8102\\\\x5D20\\\\xC1F2\\\\xA0EC\\\\x76E7": [
+      "Agent 689",
       "Skeleton of Dhuum"
     ],
     "enc:\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5": [

@@ -499,11 +499,49 @@
         }
       }
     },
+    "enc:\\\\x12A8\\\\xE724\\\\xC399\\\\x1FB5": {
+      "encoded_names": [
+        "\\\\x12A8\\\\xE724\\\\xC399\\\\x1FB5"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2370
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "175": {
+          "id": 175,
+          "name": "Ward Against Elements",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "177": {
+          "id": 177,
+          "name": "Ward Against Foes",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "239": {
+          "id": 239,
+          "name": "Ward Against Harm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
     "enc:\\\\x12A9\\\\xE727\\\\xE80D\\\\x674A": {
       "encoded_names": [
         "\\\\x12A9\\\\xE727\\\\xE80D\\\\x674A"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Necromancer",
       "inferred_secondary": "",
       "model_ids": [
         2367
@@ -516,7 +554,14 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "141": {
+          "id": 141,
+          "name": "Rend Enchantments",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
     },
     "enc:\\\\x12AC\\\\x9F81\\\\xBFE4\\\\x3216": {
       "encoded_names": [
@@ -578,7 +623,7 @@
       "encoded_names": [
         "\\\\x12AD\\\\xF69B\\\\xBD35\\\\x7A5E"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Necromancer",
       "inferred_secondary": "",
       "model_ids": [
         2373
@@ -591,7 +636,26 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "137": {
+          "id": 137,
+          "name": "Rigor Mortis",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "142": {
+          "id": 142,
+          "name": "Lingering Curse",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "92": {
+          "id": 92,
+          "name": "Well of Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
     },
     "enc:\\\\x12AF\\\\x8B85\\\\x9E38\\\\x7FED": {
       "encoded_names": [
@@ -663,6 +727,82 @@
         "79": {
           "id": 79,
           "name": "Energy Drain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x12B7\\\\xEE5E\\\\xE8CB\\\\x660E": {
+      "encoded_names": [
+        "\\\\x12B7\\\\xEE5E\\\\xE8CB\\\\x660E"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2422
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "32": {
+          "id": 32,
+          "name": "Illusion of Weakness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "33": {
+          "id": 33,
+          "name": "Illusionary Weaponry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x12B9\\\\x8271\\\\xA9AA\\\\x5E8F": {
+      "encoded_names": [
+        "\\\\x12B9\\\\x8271\\\\xA9AA\\\\x5E8F"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2423
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "32": {
+          "id": 32,
+          "name": "Illusion of Weakness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "33": {
+          "id": 33,
+          "name": "Illusionary Weaponry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
           "profession": "Mesmer",
           "profession_id": 5
         }
@@ -762,9 +902,27 @@
         }
       },
       "observed_skills": {
+        "102": {
+          "id": 102,
+          "name": "Shadow Strike",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
         "83": {
           "id": 83,
           "name": "Animate Bone Horror",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "91": {
+          "id": 91,
+          "name": "Well of Power",
           "profession": "Necromancer",
           "profession_id": 4
         }
@@ -774,7 +932,7 @@
       "encoded_names": [
         "\\\\x12BD\\\\xB160\\\\xA954\\\\x4D4C"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Necromancer",
       "inferred_secondary": "",
       "model_ids": [
         2383
@@ -787,13 +945,44 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "150": {
+          "id": 150,
+          "name": "Mark of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "151": {
+          "id": 151,
+          "name": "Feast of Corruption",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "99": {
+          "id": 99,
+          "name": "Parasitic Bond",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
     },
     "enc:\\\\x12BE\\\\xB04F\\\\xE727\\\\x218F": {
       "encoded_names": [
         "\\\\x12BE\\\\xB04F\\\\xE727\\\\x218F"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Elementalist",
       "inferred_secondary": "",
       "model_ids": [
         2384
@@ -806,7 +995,44 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "204": {
+          "id": 204,
+          "name": "Rust",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "212": {
+          "id": 212,
+          "name": "Frozen Burst",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "213": {
+          "id": 213,
+          "name": "Shard Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "215": {
+          "id": 215,
+          "name": "Maelstrom",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "239": {
+          "id": 239,
+          "name": "Ward Against Harm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x12BF\\\\xF224\\\\xEA77\\\\x4E7D": {
       "encoded_names": [
@@ -844,7 +1070,7 @@
       "encoded_names": [
         "\\\\x12C0\\\\xCE4F\\\\xC177\\\\x75FE"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Elementalist",
       "inferred_secondary": "",
       "model_ids": [
         2385
@@ -857,7 +1083,38 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "169": {
+          "id": 169,
+          "name": "Earth Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "170": {
+          "id": 170,
+          "name": "Earthquake",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "176": {
+          "id": 176,
+          "name": "Ward Against Melee",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x12C2\\\\x968C\\\\xB2A0\\\\x1035": {
       "encoded_names": [
@@ -1549,6 +1806,256 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x17D1\\\\xCF43\\\\xE7C9\\\\x07E0": {
+      "encoded_names": [
+        "\\\\x17D1\\\\xCF43\\\\xE7C9\\\\x07E0"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2379
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "30": {
+          "id": 30,
+          "name": "Diversion",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "5": {
+          "id": 5,
+          "name": "Power Block",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "50": {
+          "id": 50,
+          "name": "Wastrel's Worry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "62": {
+          "id": 62,
+          "name": "Signet of Humility",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "68": {
+          "id": 68,
+          "name": "Drain Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x17D2\\\\xFF3C\\\\xA981\\\\x3B99": {
+      "encoded_names": [
+        "\\\\x17D2\\\\xFF3C\\\\xA981\\\\x3B99"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2379
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "68": {
+          "id": 68,
+          "name": "Drain Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x17D3\\\\x9397\\\\xB500\\\\x0B62": {
+      "encoded_names": [
+        "\\\\x17D3\\\\x9397\\\\xB500\\\\x0B62"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2379
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "30": {
+          "id": 30,
+          "name": "Diversion",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "50": {
+          "id": 50,
+          "name": "Wastrel's Worry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "57": {
+          "id": 57,
+          "name": "Cry of Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "62": {
+          "id": 62,
+          "name": "Signet of Humility",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "68": {
+          "id": 68,
+          "name": "Drain Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x17D4\\\\xD085\\\\xF7B5\\\\x7D6A": {
+      "encoded_names": [
+        "\\\\x17D4\\\\xD085\\\\xF7B5\\\\x7D6A"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2379
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "30": {
+          "id": 30,
+          "name": "Diversion",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "50": {
+          "id": 50,
+          "name": "Wastrel's Worry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "57": {
+          "id": 57,
+          "name": "Cry of Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "62": {
+          "id": 62,
+          "name": "Signet of Humility",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "68": {
+          "id": 68,
+          "name": "Drain Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x17DF\\\\xAC9D\\\\xE33B\\\\x63DE": {
+      "encoded_names": [
+        "\\\\x17DF\\\\xAC9D\\\\xE33B\\\\x63DE"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2374
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": {
       "encoded_names": [
@@ -5336,10 +5843,104 @@
       "encoded_names": [
         "\\\\x8102\\\\x5BAD\\\\xE127\\\\xB7B2\\\\x53D7"
       ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "Assassin",
+      "model_ids": [
+        2372
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "1095": {
+          "id": 1095,
+          "name": "Star Burst",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "187": {
+          "id": 187,
+          "name": "Meteor",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "952": {
+          "id": 952,
+          "name": "Death's Charge",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BC2\\\\xF49A\\\\x2F66": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC2\\\\xF49A\\\\x2F66"
+      ],
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
-        2372
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BC3\\\\x8C90\\\\x93F3\\\\x72E5": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC3\\\\x8C90\\\\x93F3\\\\x72E5"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BC4\\\\xE07F\\\\xB1FB\\\\x618A": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC4\\\\xE07F\\\\xB1FB\\\\x618A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
       ],
       "observed_maps": {
         "72": {
@@ -5412,7 +6013,7 @@
       "encoded_names": [
         "\\\\x8102\\\\x5BC8\\\\xC3DE\\\\xC58B\\\\x62FB"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Elementalist",
       "inferred_secondary": "",
       "model_ids": [
         2371
@@ -5425,12 +6026,131 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x8102\\\\x5BC9\\\\x9A55\\\\x4BAD": {
       "encoded_names": [
         "\\\\x8102\\\\x5BC9\\\\x9A55\\\\x4BAD"
       ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BCB\\\\xB7C7\\\\x8D96\\\\x4246": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BCB\\\\xB7C7\\\\x8D96\\\\x4246"
+      ],
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
@@ -5446,9 +6166,85 @@
       },
       "observed_skills": {}
     },
-    "enc:\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269": {
+    "enc:\\\\x8102\\\\x5BCC\\\\xCCCF\\\\x95DB\\\\x0333": {
       "encoded_names": [
-        "\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269"
+        "\\\\x8102\\\\x5BCC\\\\xCCCF\\\\x95DB\\\\x0333"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BCD\\\\xD4EF\\\\x93DC\\\\x43B0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BCD\\\\xD4EF\\\\x93DC\\\\x43B0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BD8\\\\xA0D5\\\\xCF7D\\\\x72A0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BD8\\\\xA0D5\\\\xCF7D\\\\x72A0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BD9\\\\xA373\\\\xA7FC\\\\x13A8": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BD9\\\\xA373\\\\xA7FC\\\\x13A8"
       ],
       "inferred_primary": "",
       "inferred_secondary": "",
@@ -5469,7 +6265,7 @@
       "encoded_names": [
         "\\\\x8102\\\\x5BDA\\\\xF058\\\\xC5A8\\\\x7549"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Elementalist",
       "inferred_secondary": "",
       "model_ids": [
         2371
@@ -5482,12 +6278,119 @@
           "name": "The Underworld"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x8102\\\\x5BDB\\\\x9A54\\\\xCCFE\\\\x083C": {
       "encoded_names": [
         "\\\\x8102\\\\x5BDB\\\\x9A54\\\\xCCFE\\\\x083C"
       ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BDD\\\\xBB67\\\\xFD9F\\\\x1D0A": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BDD\\\\xBB67\\\\xFD9F\\\\x1D0A"
+      ],
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
@@ -5503,9 +6406,28 @@
       },
       "observed_skills": {}
     },
-    "enc:\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881": {
+    "enc:\\\\x8102\\\\x5BDE\\\\xCB13\\\\xB90C\\\\x77B3": {
       "encoded_names": [
-        "\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881"
+        "\\\\x8102\\\\x5BDE\\\\xCB13\\\\xB90C\\\\x77B3"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BDF\\\\x8C62\\\\xE0F5\\\\x490D": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BDF\\\\x8C62\\\\xE0F5\\\\x490D"
       ],
       "inferred_primary": "",
       "inferred_secondary": "",
@@ -5693,6 +6615,63 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8102\\\\x5BEF\\\\xACD0\\\\xC41C\\\\x10AA": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BEF\\\\xACD0\\\\xC41C\\\\x10AA"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BF0\\\\xEBDD\\\\xE2DE\\\\x5690": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BF0\\\\xEBDD\\\\xE2DE\\\\x5690"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BF1\\\\xC3D3\\\\xF3E7\\\\x66BF": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BF1\\\\xC3D3\\\\xF3E7\\\\x66BF"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8102\\\\x5BF8\\\\xA7FD\\\\xBDE3\\\\x0C3C": {
       "encoded_names": [
         "\\\\x8102\\\\x5BF8\\\\xA7FD\\\\xBDE3\\\\x0C3C"
@@ -5734,6 +6713,44 @@
     "enc:\\\\x8102\\\\x5BFA\\\\xAA70\\\\x84C6\\\\x106D": {
       "encoded_names": [
         "\\\\x8102\\\\x5BFA\\\\xAA70\\\\x84C6\\\\x106D"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BFD\\\\xCB60\\\\x9669\\\\x3766": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFD\\\\xCB60\\\\x9669\\\\x3766"
       ],
       "inferred_primary": "",
       "inferred_secondary": "",
@@ -5807,6 +6824,152 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8102\\\\x5C01\\\\xBF37\\\\x878F\\\\x3BD8": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C01\\\\xBF37\\\\x878F\\\\x3BD8"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C02\\\\xD1B6\\\\xF84E\\\\x6875": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C02\\\\xD1B6\\\\xF84E\\\\x6875"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C03\\\\xBB48\\\\x9F5A\\\\x473A": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C03\\\\xBB48\\\\x9F5A\\\\x473A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C07\\\\x9FF9\\\\xEA8E\\\\x21FC": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C07\\\\x9FF9\\\\xEA8E\\\\x21FC"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C08\\\\xBE57\\\\xB5ED\\\\x5820": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C08\\\\xBE57\\\\xB5ED\\\\x5820"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C09\\\\xD1EA\\\\xC652\\\\x203D": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C09\\\\xD1EA\\\\xC652\\\\x203D"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C20\\\\xE972\\\\xC523\\\\x3C91": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C20\\\\xE972\\\\xC523\\\\x3C91"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x5C24\\\\xD4AD\\\\xA729\\\\x57DF": {
       "encoded_names": [
         "\\\\x8102\\\\x5C24\\\\xD4AD\\\\xA729\\\\x57DF"
@@ -5840,9 +7003,9 @@
         }
       }
     },
-    "enc:\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1": {
+    "enc:\\\\x8102\\\\x5D15\\\\x907F\\\\xE303\\\\x64E5": {
       "encoded_names": [
-        "\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1"
+        "\\\\x8102\\\\x5D15\\\\x907F\\\\xE303\\\\x64E5"
       ],
       "inferred_primary": "",
       "inferred_secondary": "",
@@ -5858,6 +7021,95 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D16\\\\xC984\\\\xA85C\\\\x4792": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D16\\\\xC984\\\\xA85C\\\\x4792"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
     },
     "enc:\\\\x8102\\\\x5D1C\\\\xC3B1\\\\xAE89\\\\x0358": {
       "encoded_names": [
@@ -5881,6 +7133,57 @@
     "enc:\\\\x8102\\\\x5D1D\\\\xECC6\\\\x05DA": {
       "encoded_names": [
         "\\\\x8102\\\\x5D1D\\\\xECC6\\\\x05DA"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5D1F\\\\x9CA2\\\\xFA30\\\\x62A4": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1F\\\\x9CA2\\\\xFA30\\\\x62A4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D20\\\\xC1F2\\\\xA0EC\\\\x76E7": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D20\\\\xC1F2\\\\xA0EC\\\\x76E7"
       ],
       "inferred_primary": "",
       "inferred_secondary": "",
