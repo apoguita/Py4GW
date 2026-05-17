@@ -1177,6 +1177,38 @@ def _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root: Path) 
         _expect(getattr(reloaded_widget, setting_name) is True, f"{setting_name} should reload as enabled.")
 
 
+def _test_helper_tooltips_profile_defaults_and_roundtrip(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    normalized = widget._normalize_profile_payload({"version": module.PROFILE_VERSION - 1})
+    _expect(
+        normalized["helper_tooltips_enabled"] is True,
+        "Helper tooltips should default on for legacy profiles.",
+    )
+    _expect(
+        widget.helper_tooltips_enabled is True,
+        "Helper tooltips should default on for new widgets.",
+    )
+
+    config_path = temp_root / "helper_tooltips_profile.json"
+    widget.config_path = str(config_path)
+    widget.helper_tooltips_enabled = False
+
+    _expect(widget._save_profile(), "Helper tooltip setting should save.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(
+        saved_payload["helper_tooltips_enabled"] is False,
+        "Saved profiles should persist disabled helper tooltips.",
+    )
+
+    reloaded_widget = _make_widget(module)
+    reloaded_widget.config_path = str(config_path)
+    reloaded_widget._load_profile()
+    _expect(
+        reloaded_widget.helper_tooltips_enabled is False,
+        "Helper tooltip setting should reload as disabled.",
+    )
+
+
 def _test_manual_vendor_runtime_queues_once_per_signature(module) -> None:
     widget = _make_widget(module)
     widget.auto_sell_on_manual_vendor_interaction = True
@@ -9601,6 +9633,10 @@ def main() -> int:
                 lambda: _test_salvage_option_combo_selects_public_choices(module),
             ),
             ("manual_vendor_profile_defaults_and_roundtrip", lambda: _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root)),
+            (
+                "helper_tooltips_profile_defaults_and_roundtrip",
+                lambda: _test_helper_tooltips_profile_defaults_and_roundtrip(module, temp_root),
+            ),
             ("manual_vendor_runtime_queues_once_per_signature", lambda: _test_manual_vendor_runtime_queues_once_per_signature(module)),
             ("manual_vendor_matching_sell_uses_current_merchant_only", lambda: _test_manual_vendor_matching_sell_uses_current_merchant_only(module)),
             ("manual_vendor_any_merchant_material_fallback", lambda: _test_manual_vendor_any_merchant_material_fallback(module)),
