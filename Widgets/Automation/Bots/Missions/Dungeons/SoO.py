@@ -22,6 +22,7 @@ from Py4GWCoreLib import (
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib.routines_src.Yield import Utils
 from Py4GWCoreLib.routines_src.Yield import Yield
+from Widgets.System.Messaging import get_inventory_count, reset_inventory_count
 
 # ==================== CONFIGURATION ====================
 BOT_NAME = "Shards of Orr"
@@ -53,7 +54,6 @@ _ALT_SALVAGE_SECTION  = "BDS Alt Salvage Kits"
 _CHAR_NAMES_SECTION   = "Character Names"
 
 _settings_ini_path     = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", f"{BOT_NAME}.ini")
-_settings_ini_rel_path = os.path.join("Widgets", "Config", f"{BOT_NAME}.ini")  # short form for IPC (fits in 64-char ExtraData)
 os.makedirs(os.path.dirname(_settings_ini_path), exist_ok=True)
 _settings_ini  = IniHandler(_settings_ini_path)
 _settings_loaded: bool = False
@@ -737,9 +737,13 @@ def _write_local_salvage_kit_count() -> None:
 
 
 def _request_alt_salvage_kit_counts() -> Generator:
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID as _ModelID
+    salvage_kit_id = int(_ModelID.Salvage_Kit.value)
+
     my_email = Player.GetAccountEmail()
     alt_accounts = [acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email]
     for acc in alt_accounts:
+        reset_inventory_count(acc.AccountEmail, salvage_kit_id, salvage_kit_id)
         _settings_ini.write_key(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), str(-1))
 
     pending_accounts = alt_accounts
@@ -752,16 +756,21 @@ def _request_alt_salvage_kit_counts() -> Generator:
             GLOBAL_CACHE.ShMem.SendMessage(
                 my_email,
                 acc.AccountEmail,
-                SharedCommandType.MerchantItems,
-                (0, 0, 0, 0),
-                ("report_salvage_kits", _settings_ini_rel_path, _ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail)),
+                SharedCommandType.InventoryQuery,
+                (float(salvage_kit_id), float(salvage_kit_id), 0.0, 0.0),
+                ("report_inventory_count",),
             )
 
         yield from Routines.Yield.wait(_ALT_SALVAGE_POLL_TIMEOUT_MS)
-        pending_accounts = [
-            acc for acc in pending_accounts
-            if _settings_ini.read_int(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), -1) < 0
-        ]
+
+        still_pending = []
+        for acc in pending_accounts:
+            count = get_inventory_count(acc.AccountEmail, salvage_kit_id, salvage_kit_id)
+            if count >= 0:
+                _settings_ini.write_key(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), str(count))
+            else:
+                still_pending.append(acc)
+        pending_accounts = still_pending
 
     if pending_accounts:
         pending_names = [acc.AgentData.CharacterName or acc.AccountEmail for acc in pending_accounts]
@@ -1986,38 +1995,44 @@ def _take_dungeon_entry_snapshot() -> Generator:
 
     max_attempts = max(1, _BDS_IPC_POLL_MAX_TOTAL_MS // max(1, _BDS_IPC_POLL_TIMEOUT_MS))
 
-    # Query each alt sequentially so their INI writes never race each other.
+    # Sequential querying is optional now -- host is sole INI writer.
     for acc in alt_accounts:
         acc_key = _account_key(acc.AccountEmail)
 
+        reset_inventory_count(acc.AccountEmail, BDS_MODEL_ID_MIN, BDS_MODEL_ID_MAX)
         _settings_ini.write_key(_BDS_SNAPSHOT_SECTION, acc_key, str(-1))
         GLOBAL_CACHE.ShMem.SendMessage(
             my_email, acc.AccountEmail,
             SharedCommandType.InventoryQuery,
             (float(BDS_MODEL_ID_MIN), float(BDS_MODEL_ID_MAX), 0.0, 0.0),
-            ("report_inventory_count", _settings_ini_rel_path, _BDS_SNAPSHOT_SECTION, acc_key),
+            ("report_inventory_count",),
         )
         responded = False
         for _ in range(max_attempts):
             yield from Routines.Yield.wait(_BDS_IPC_POLL_TIMEOUT_MS)
-            if _settings_ini.read_int(_BDS_SNAPSHOT_SECTION, acc_key, -1) >= 0:
+            count = get_inventory_count(acc.AccountEmail, BDS_MODEL_ID_MIN, BDS_MODEL_ID_MAX)
+            if count >= 0:
+                _settings_ini.write_key(_BDS_SNAPSHOT_SECTION, acc_key, str(count))
                 responded = True
                 break
         if not responded:
             name = acc.AgentData.CharacterName or acc.AccountEmail
             ConsoleLog(BOT_NAME, f"[BDS Stats] BDS snapshot timeout for: {name}", Py4GW.Console.MessageType.Warning)
 
+        reset_inventory_count(acc.AccountEmail, GB_MODEL_ID, GB_MODEL_ID)
         _settings_ini.write_key(_GB_SNAPSHOT_SECTION, acc_key, str(-1))
         GLOBAL_CACHE.ShMem.SendMessage(
             my_email, acc.AccountEmail,
             SharedCommandType.InventoryQuery,
             (float(GB_MODEL_ID), float(GB_MODEL_ID), 0.0, 0.0),
-            ("report_inventory_count", _settings_ini_rel_path, _GB_SNAPSHOT_SECTION, acc_key),
+            ("report_inventory_count",),
         )
         responded = False
         for _ in range(max_attempts):
             yield from Routines.Yield.wait(_BDS_IPC_POLL_TIMEOUT_MS)
-            if _settings_ini.read_int(_GB_SNAPSHOT_SECTION, acc_key, -1) >= 0:
+            count = get_inventory_count(acc.AccountEmail, GB_MODEL_ID, GB_MODEL_ID)
+            if count >= 0:
+                _settings_ini.write_key(_GB_SNAPSHOT_SECTION, acc_key, str(count))
                 responded = True
                 break
         if not responded:
@@ -2045,39 +2060,44 @@ def _record_drops_after_loot() -> Generator:
     if alt_accounts:
         max_attempts = max(1, _BDS_IPC_POLL_MAX_TOTAL_MS // max(1, _BDS_IPC_POLL_TIMEOUT_MS))
 
-        # Query each alt sequentially — concurrent INI writes race and the last writer
-        # silently overwrites the others.
+        # Sequential querying is optional now -- host is sole INI writer.
         for acc in alt_accounts:
             acc_key = _account_key(acc.AccountEmail)
 
+            reset_inventory_count(acc.AccountEmail, BDS_MODEL_ID_MIN, BDS_MODEL_ID_MAX)
             _settings_ini.write_key(_BDS_RUN_SECTION, acc_key, str(-1))
             GLOBAL_CACHE.ShMem.SendMessage(
                 my_email, acc.AccountEmail,
                 SharedCommandType.InventoryQuery,
                 (float(BDS_MODEL_ID_MIN), float(BDS_MODEL_ID_MAX), 0.0, 0.0),
-                ("report_inventory_count", _settings_ini_rel_path, _BDS_RUN_SECTION, acc_key),
+                ("report_inventory_count",),
             )
             responded = False
             for _ in range(max_attempts):
                 yield from Routines.Yield.wait(_BDS_IPC_POLL_TIMEOUT_MS)
-                if _settings_ini.read_int(_BDS_RUN_SECTION, acc_key, -1) >= 0:
+                count = get_inventory_count(acc.AccountEmail, BDS_MODEL_ID_MIN, BDS_MODEL_ID_MAX)
+                if count >= 0:
+                    _settings_ini.write_key(_BDS_RUN_SECTION, acc_key, str(count))
                     responded = True
                     break
             if not responded:
                 name = acc.AgentData.CharacterName or acc.AccountEmail
                 ConsoleLog(BOT_NAME, f"[BDS Stats] BDS count timeout for: {name}", Py4GW.Console.MessageType.Warning)
 
+            reset_inventory_count(acc.AccountEmail, GB_MODEL_ID, GB_MODEL_ID)
             _settings_ini.write_key(_GB_RUN_SECTION, acc_key, str(-1))
             GLOBAL_CACHE.ShMem.SendMessage(
                 my_email, acc.AccountEmail,
                 SharedCommandType.InventoryQuery,
                 (float(GB_MODEL_ID), float(GB_MODEL_ID), 0.0, 0.0),
-                ("report_inventory_count", _settings_ini_rel_path, _GB_RUN_SECTION, acc_key),
+                ("report_inventory_count",),
             )
             responded = False
             for _ in range(max_attempts):
                 yield from Routines.Yield.wait(_BDS_IPC_POLL_TIMEOUT_MS)
-                if _settings_ini.read_int(_GB_RUN_SECTION, acc_key, -1) >= 0:
+                count = get_inventory_count(acc.AccountEmail, GB_MODEL_ID, GB_MODEL_ID)
+                if count >= 0:
+                    _settings_ini.write_key(_GB_RUN_SECTION, acc_key, str(count))
                     responded = True
                     break
             if not responded:
