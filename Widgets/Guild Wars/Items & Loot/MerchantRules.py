@@ -18656,7 +18656,7 @@ class MerchantRulesWidget:
         PyImGui.end_tooltip()
 
     def _draw_protection_heading(self, label: str, tooltip: str = ""):
-        PyImGui.text_colored(label, UI_COLOR_SUBSECTION_HEADING)
+        PyImGui.text_colored(label, UI_COLOR_WARNING)
         self._draw_hover_tooltip(tooltip)
 
     def _draw_protection_checkbox(self, label: str, value: bool, tooltip: str = "") -> bool:
@@ -23356,7 +23356,7 @@ class MerchantRulesWidget:
             }
 
             if self.catalog_merchant_essentials:
-                self._draw_subsection_label("Quick Picks")
+                self._draw_subsection_heading("Common Merchant Items")
                 for quick_index, entry in enumerate(self.catalog_merchant_essentials):
                     if PyImGui.small_button(f"{entry['name']}##buy_quick_{index}_{entry['model_id']}"):
                         default_target = max(0, _safe_int(entry.get("default_target", 0), 0))
@@ -23427,7 +23427,7 @@ class MerchantRulesWidget:
                 recipes = list(CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR.get(vendor_key, ()))
                 if not recipes:
                     continue
-                self._draw_subsection_label(f"Quick Picks - {vendor_label}")
+                self._draw_colored_text(vendor_label, UI_COLOR_WARNING, wrapped=False)
                 added_row_count = 0
                 for recipe in recipes:
                     already_selected = int(recipe.model_id) in existing_crafter_target_ids
@@ -23459,7 +23459,7 @@ class MerchantRulesWidget:
             rare_entries = self._get_rare_material_catalog_entries()
 
             if common_entries:
-                self._draw_subsection_label("Quick Picks - Common Materials")
+                self._draw_subsection_heading("Common Materials")
                 for quick_index, entry in enumerate(common_entries):
                     if PyImGui.small_button(f"{entry['name']}##buy_common_material_{index}_{entry['model_id']}"):
                         if self._add_buy_rule_material_target(rule, int(entry["model_id"])):
@@ -23469,7 +23469,7 @@ class MerchantRulesWidget:
                         PyImGui.same_line(0, 6)
 
             if rare_entries:
-                self._draw_subsection_label("Quick Picks - Rare Materials")
+                self._draw_subsection_heading("Rare Materials")
                 for quick_index, entry in enumerate(rare_entries):
                     if PyImGui.small_button(f"{entry['name']}##buy_rare_material_{index}_{entry['model_id']}"):
                         if self._add_buy_rule_material_target(rule, int(entry["model_id"])):
@@ -23523,7 +23523,7 @@ class MerchantRulesWidget:
 
             scroll_entries = self._get_scroll_trader_stock_entries()
             if scroll_entries:
-                self._draw_subsection_label("Quick Picks - Confirmed Stock")
+                self._draw_subsection_heading("Confirmed Scroll Stock")
                 for quick_index, entry in enumerate(scroll_entries):
                     model_id = int(entry.get("model_id", 0))
                     if PyImGui.small_button(f"{entry['name']}##buy_scroll_quick_{index}_{model_id}"):
