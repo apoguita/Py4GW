@@ -55,6 +55,8 @@ class BotSettings:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 UW_MAP_ID = 72
+# Underworld "Keeper of Souls" (legacy FocusKeeperOfSouls in Underworld.py)
+_KEEPER_OF_SOULS_MODEL_ID = 2373
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
 DEFAULT_UW_ENTRYPOINT_KEY = 'embark_beach'
 UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
@@ -1507,6 +1509,123 @@ def _restore_pit_tree() -> _BT:
     )
 
 
+def _restore_vale_tree() -> _BT:
+    BT = Routines.BT
+    _r = 2000.0
+
+    return BT.Composite.Sequence(
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=-5806, y=12831,
+            dialog_id=0x806C01,
+        ),
+        BT.Movement.MoveAndKill(Vec2f(-8660, 5655), clear_area_radius=_r),
+        BT.Movement.MoveAndKill(Vec2f(-9431, 1659), clear_area_radius=_r),
+        BT.Movement.MoveAndKill(Vec2f(-11123, 2531), clear_area_radius=_r),
+        BT.Movement.MoveAndKill(Vec2f(-11926, 1146), clear_area_radius=_r),
+        BT.Movement.MoveAndKill(Vec2f(-10691, 98), clear_area_radius=_r),
+        BT.Movement.MoveAndKill(Vec2f(-15424, 1319), clear_area_radius=_r),
+        BT.Movement.MoveAndKill(Vec2f(-13246, 5110), clear_area_radius=_r),
+        name='RestoreVale',
+    )
+
+
+def _wrathfull_spirits_tree() -> _BT:
+    BT = Routines.BT
+
+    def _blacklist_tortured_spirit(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+        EnemyBlacklist().add_name('tortured spirit')
+        return _BT.NodeState.SUCCESS
+
+    def _unblacklist_tortured_spirit(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+        EnemyBlacklist().remove_name('tortured spirit')
+        return _BT.NodeState.SUCCESS
+
+    _kr = 2000.0
+
+    return BT.Composite.Sequence(
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        _force_local_skills_on(),
+        _BT(_BT.ActionNode(name='BlacklistTorturedSpirit', action_fn=_blacklist_tortured_spirit)),
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=-13217, y=5167,
+            dialog_id=0x806E01,
+        ),
+        BT.Movement.Move(x=-13422, y=973),
+        _BT(_BT.ActionNode(name='UnblacklistTorturedSpirit', action_fn=_unblacklist_tortured_spirit)),
+        BT.Movement.MoveAndKill(Vec2f(-13791, 1642), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-12889, 963), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-11445, 1154), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-10554, 1695), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-9481, 963), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-9949, 177), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-11498, -173), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-12677, -205), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-13622, 336), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-12974, 4116), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-14184, 7279), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-15055, 3755), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-13409, 4933), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(-13217, 5167), clear_area_radius=_kr),
+        BT.Agents.MoveTargetInteractAndAutomaticDialog(
+            x=-13217, y=5167,
+            button_number=0,
+        ),
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=-13217, y=5167,
+            dialog_id=0x8D,
+        ),
+        name='WrathfullSpirits',
+    )
+
+
+def _unwanted_guests_tree() -> _BT:
+    BT = Routines.BT
+    _fx, _fy = -2816.0, 10036.0
+
+    def _uw_keeper_cycle_clear(node: _BT.Node) -> _BT.NodeState:
+        node.blackboard['uw_keeper_cycle_active'] = False
+        return _BT.NodeState.SUCCESS
+
+    def _uw_keeper_cycle_enable(node: _BT.Node) -> _BT.NodeState:
+        node.blackboard['uw_keeper_cycle_active'] = True
+        return _BT.NodeState.SUCCESS
+
+    def _set_follower_flags_at_hold(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib import Agent as _Agent
+        facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            if int(account.AgentPartyData.PartyPosition) == 0:
+                continue
+            options.IsFlagged       = True
+            options.FlagPos.x       = _fx
+            options.FlagPos.y       = _fy
+            options.FlagFacingAngle = facing_angle
+        return _BT.NodeState.SUCCESS
+
+    return BT.Composite.Sequence(
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        _force_local_skills_on(),
+        _BT(_BT.ActionNode(name='ClearUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_clear)),
+        BT.Movement.Move(x=_fx, y=_fy),
+        _BT(_BT.ActionNode(name='SetFollowerFlagsUnwantedGuests', action_fn=_set_follower_flags_at_hold)),
+        BT.Movement.Move(x=-5850, y=12818),
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=-5850, y=12818,
+            dialog_id=0x806701,
+        ),
+        _BT(_BT.ActionNode(name='EnableUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_enable)),
+        BT.Movement.Move(x=_fx, y=_fy),
+        BT.Movement.Move(x=-5850, y=12818),
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=-5850, y=12818,
+            dialog_id=0x91,
+        ),
+        name='UnwantedGuests',
+    )
+
+
 def _unblacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
     EnemyBlacklist().remove_name('chained soul')
@@ -1520,17 +1639,26 @@ def _blacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
 
 
 def _imprisoned_spirits_tree() -> _BT:
-    import time as _time
     BT = Routines.BT
 
     LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779), (13845, 6489)]
     RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139), (12239, 2324)]
 
-    _is_timer: list[float] = [0.0]
+    _is_start_ms: list[int | None] = [None]
 
     def _start_timer(node: _BT.Node) -> _BT.NodeState:
-        _is_timer[0] = _time.monotonic()
+        # Same clock as BehaviorTree wait nodes (GetBaseTimestamp ms).
+        _is_start_ms[0] = int(Utils.GetBaseTimestamp())
         return _BT.NodeState.SUCCESS
+
+    def _wait_is_elapsed_ms(target_ms: int) -> _BT.NodeState:
+        start = _is_start_ms[0]
+        if start is None:
+            ConsoleLog(BOT_NAME, '[IS] Timer wait: start time missing (StartISTimer not run?).', Py4GW.Console.MessageType.Warning)
+            return _BT.NodeState.FAILURE
+        if int(Utils.GetBaseTimestamp()) - int(start) >= int(target_ms):
+            return _BT.NodeState.SUCCESS
+        return _BT.NodeState.RUNNING
 
     def _flag_teams(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib import Agent as _Agent
@@ -1579,17 +1707,17 @@ def _imprisoned_spirits_tree() -> _BT:
         ),
         _BT(_BT.ActionNode(name='StartISTimer', action_fn=_start_timer)),
         BT.Movement.Move(x=13924, y=6914),
-        _BT(_BT.WaitUntilNode(
+        _BT(_BT.WaitNode(
             name='WaitISTimer38s',
-            condition_fn=lambda: _time.monotonic() - _is_timer[0] >= 38.0,
-            timeout_ms=120_000,
+            check_fn=lambda: _wait_is_elapsed_ms(38_000),
+            timeout_ms=240_000,
         )),
         _clear_follower_flags(),
         BT.Movement.Move(x=12497, y=2022),
-        _BT(_BT.WaitUntilNode(
+        _BT(_BT.WaitNode(
             name='WaitISTimer90s',
-            condition_fn=lambda: _time.monotonic() - _is_timer[0] >= 90.0,
-            timeout_ms=180_000,
+            check_fn=lambda: _wait_is_elapsed_ms(90_000),
+            timeout_ms=360_000,
         )),
         _BT(_BT.ActionNode(
             name='UnblacklistChainedSoul',
@@ -1692,6 +1820,105 @@ def _build_uw_wipe_recovery_tree() -> _BT:
     return _BT(_BT.ActionNode(name='PartyWipeRecoveryService', action_fn=_tick, aftercast_ms=0))
 
 
+def _collect_keeper_of_souls_agent_ids() -> list[int]:
+    """Alive agents with Keeper of Souls model (see legacy FocusKeeperOfSouls).
+
+    Scans both the enemy list and the full agent array — some spawns may not appear
+    as enemies until briefly after aggro.
+    """
+    from Py4GWCoreLib.Agent import Agent as _Agent
+    from Py4GWCoreLib.AgentArray import AgentArray
+
+    seen: set[int] = set()
+    out: list[int] = []
+    for pool in (AgentArray.GetEnemyArray(), AgentArray.GetAgentArray()):
+        for raw in pool:
+            e = int(raw)
+            if e in seen:
+                continue
+            if not _Agent.IsAlive(e):
+                continue
+            try:
+                mid = int(_Agent.GetModelID(e))
+            except Exception:
+                continue
+            if mid != _KEEPER_OF_SOULS_MODEL_ID:
+                continue
+            seen.add(e)
+            out.append(e)
+    return out
+
+
+def _party_call_or_change_target(agent_id: int) -> None:
+    """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target."""
+    from Py4GWCoreLib.Agent import Agent as _Agent
+
+    if not agent_id or not _Agent.IsValid(agent_id):
+        return
+    try:
+        from HeroAI.call_target import CallTarget
+    except Exception:
+        CallTarget = None  # type: ignore[misc, assignment]
+
+    try:
+        leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+    except Exception:
+        leader_id = 0
+    local_id = int(Player.GetAgentID() or 0)
+
+    if CallTarget is not None and leader_id and local_id == leader_id:
+        if CallTarget(int(agent_id), interact=False):
+            return
+    Player.ChangeTarget(int(agent_id))
+
+
+def _build_keeper_of_souls_target_cycle_service() -> _BT:
+    """While Unwanted Guests is active *after* the 0x806701 dialog, retarget every 2s.
+
+    Cycles among alive Keepers of Souls (model 2373) like tab-targeting the next in a sorted list;
+    if the current target is not a Keeper, falls back to the nearest Keeper (legacy FocusKeeperOfSouls).
+
+    Uses HeroAI ``CallTarget`` on the party leader so the marked enemy is actually *called*
+    (party target), not only retargeted locally.
+    """
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib.Agent import Agent as _Agent
+
+        if str(node.blackboard.get('current_step_name', '') or '') != 'Unwanted Guests':
+            return _BT.NodeState.RUNNING
+        if not node.blackboard.get('uw_keeper_cycle_active'):
+            return _BT.NodeState.RUNNING
+        if int(Map.GetMapID()) != int(UW_MAP_ID):
+            return _BT.NodeState.RUNNING
+
+        keepers = _collect_keeper_of_souls_agent_ids()
+        if not keepers:
+            return _BT.NodeState.SUCCESS
+
+        keepers.sort()
+        cur = int(Player.GetTargetID() or 0)
+        if cur in keepers:
+            nxt = keepers[(keepers.index(cur) + 1) % len(keepers)]
+        else:
+            player_pos = Player.GetXY()
+            if player_pos:
+                px, py = float(player_pos[0]), float(player_pos[1])
+                nxt = min(
+                    keepers,
+                    key=lambda eid: (
+                        (px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2
+                    ),
+                )
+            else:
+                nxt = keepers[0]
+
+        _party_call_or_change_target(int(nxt))
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='KeeperOfSoulsTargetCycle', action_fn=_tick, aftercast_ms=2000))
+
+
 bot.SetNamedPlannerSteps([
     ('Enter Underworld',    _enter_underworld_tree),
     ('Clear the Chamber',   _clear_the_chamber_tree),
@@ -1704,9 +1931,9 @@ bot.SetNamedPlannerSteps([
     ('Terrorweb Queen',     _terrorweb_queen_tree),
     ('Restore Pit',         _restore_pit_tree),
     ('Imprisoned Spirits',  _imprisoned_spirits_tree),
-    ('Restore Vale',        lambda: _placeholder('Restore Vale')),
-    ('Wrathfull Spirits',   lambda: _placeholder('Wrathfull Spirits')),
-    ('Unwanted Guests',     lambda: _placeholder('Unwanted Guests')),
+    ('Restore Vale',        _restore_vale_tree),
+    ('Wrathfull Spirits',   _wrathfull_spirits_tree),
+    ('Unwanted Guests',     _unwanted_guests_tree),
     ('Restore Wastes',      lambda: _placeholder('Restore Wastes')),
     ('Servants of Grenth',  lambda: _placeholder('Servants of Grenth')),
     ('Dhuum',               lambda: _placeholder('Dhuum')),
@@ -1722,6 +1949,8 @@ for _i, (_svc_name, _) in enumerate(bot._service_steps):
         bot._rebuild_root_tree()
         break
 
+bot.AddServiceTree('KeeperOfSoulsTargetCycle', _build_keeper_of_souls_target_cycle_service)
+
 # ── COMBAT_ACTIVE tightening ───────────────────────────────────────────────
 # The SharedMemory InAggro field can scan up to Spellcast range (~5000 units)
 # when any party member is in aggro AND the leader was recently in aggro
@@ -1734,7 +1963,12 @@ for _i, (_svc_name, _) in enumerate(bot._service_steps):
 # large-range SharedMemory scan with a live radius scan (default ≈ Earshot).
 # HeroAI's own combat logic is untouched; only the planner pause is affected.
 _PAUSE_ON_DANGER_RANGE_DEFAULT: float = 1020.0
-_PAUSE_ON_DANGER_RANGE_PASS_MOUNTAINS: float = 400.0
+# Tighter radius so movement does not pause for distant enemies on these legs.
+_PAUSE_ON_DANGER_RANGE_TIGHT: float = 400.0
+_PAUSE_ON_DANGER_TIGHT_STEPS: frozenset[str] = frozenset({
+    'Pass the Mountains',
+    'Restore Mountains',
+})
 
 _orig_tick_planner = bot._tick_planner
 
@@ -1776,8 +2010,8 @@ def _in_aggro_excluding_blacklist(aggro_area: float = 1020.0) -> bool:
 
 def _planner_pause_on_danger_range(bb: dict) -> float:
     step = str(bb.get('current_step_name', '') or '')
-    if step == 'Pass the Mountains':
-        return _PAUSE_ON_DANGER_RANGE_PASS_MOUNTAINS
+    if step in _PAUSE_ON_DANGER_TIGHT_STEPS:
+        return _PAUSE_ON_DANGER_RANGE_TIGHT
     return _PAUSE_ON_DANGER_RANGE_DEFAULT
 
 
