@@ -350,6 +350,11 @@ def _now_ms() -> int:
 
 
 def _log(message: str) -> None:
+    # Gated on the "Draw Followers Unstuck (3D)" toggle so the console stays
+    # quiet during normal play. Verbose per-tick / per-sample lines remain
+    # gated by hero_globals.show_stuck_avoidance_debug on top of this.
+    if not hero_globals.show_followers_unstuck_overlay:
+        return
     try:
         Py4GW.Console.Log("HeroAI", message, Py4GW.Console.MessageType.Notice)
     except Exception:
@@ -359,6 +364,9 @@ def _log(message: str) -> None:
 def _log_first_call_once() -> None:
     global _first_call_logged
     if _first_call_logged:
+        return
+    # Gated on the "Draw Followers Unstuck (3D)" toggle — same policy as _log.
+    if not hero_globals.show_followers_unstuck_overlay:
         return
     _first_call_logged = True
     try:
