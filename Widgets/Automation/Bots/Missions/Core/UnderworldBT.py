@@ -796,10 +796,6 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 
 # ── Planner steps ──────────────────────────────────────────────────────────────
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree as _BT
-from Py4GWCoreLib.enums import SharedCommandType as _SCT
-
-
-
 
 def _placeholder(name: str) -> _BT:
     return _BT(_BT.ActionNode(name=name, action_fn=lambda node: _BT.NodeState.RUNNING))
@@ -841,30 +837,91 @@ def _force_local_skills_on() -> _BT:
     return _BT(_BT.ActionNode(name='ForceLocalSkillsOn', action_fn=_tick))
 
 
+_REQUIRED_WIDGETS: tuple[str, ...] = ('HeroAI', 'Dhuum Helper')
+
+
+def _enable_required_widgets_on_all_accounts(node: object) -> object:
+    """Enable HeroAI and Dhuum Helper locally and on every other account."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+    from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
+    from Py4GWCoreLib.Player import Player as _Player
+
+    handler = get_widget_handler()
+    for widget_name in _REQUIRED_WIDGETS:
+        if not handler.is_widget_enabled(widget_name):
+            handler.enable_widget(widget_name)
+
+    sender_email = _Player.GetAccountEmail()
+    for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData():
+        acc_email = str(getattr(account, 'AccountEmail', '') or '').strip().lower()
+        if not acc_email or acc_email == sender_email.lower():
+            continue
+        for widget_name in _REQUIRED_WIDGETS:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                acc_email,
+                SharedCommandType.EnableWidget,
+                (0, 0, 0, 0),
+                (widget_name, '', '', ''),
+            )
+    return _BT.NodeState.SUCCESS
+
+
 def _enter_underworld_tree() -> _BT:
     """
-    Step 1: Travel all accounts to the Guild Hall, then invite them.
+    Step 1: Leave party (all coordinated accounts) and travel to Guild Hall,
+    matching HeroAI "Leave & Travel to GH", then invite.
 
     Sequence:
-      1. Send TravelToGuildHall shared command to all followers.
-      2. Local leader travels to the Guild Hall.
-      3. Wait until every account in SharedMemory is on the same GH map.
-      4. Invite all accounts that are in the same map and not yet in the party.
-      5. Wait for the party to be loaded.
+      1. For every account in scope (same as HeroAI hotbar): LeaveParty then
+         TravelToGuildHall via shared commands.
+      2. Wait until every account in SharedMemory is on the same GH map.
+      3. Invite all accounts that are in the same map and not yet in the party.
+      4. Wait until every account has joined the leader's party.
+      5. Enable required follower widgets (HeroAI, Dhuum Helper); remaining
+         steps continue to entry point and UW.
     """
     BT = Routines.BT
 
-    def _send_travel_gh(node: _BT.Node) -> _BT.NodeState:
-        my_email = str(Player.GetAccountEmail() or '')
-        if not my_email:
-            ConsoleLog(BOT_NAME, '[EnterUW] SendTravelToGH: no sender email, skipping.', Py4GW.Console.MessageType.Warning)
+    def _leave_party_and_travel_gh_like_heroai(node: _BT.Node) -> _BT.NodeState:
+        """Mirror HeroAI hotbar: Leave Party then TravelToGuildHall per account."""
+        try:
+            from HeroAI.commands import HeroAICommands
+            from HeroAI.utils import SameMapOrPartyAsAccount
+        except Exception as exc:
+            ConsoleLog(BOT_NAME, f'[EnterUW] LeavePartyAndTravelGH: HeroAI import failed ({exc}).', Py4GW.Console.MessageType.Error)
             return _BT.NodeState.FAILURE
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData(include_isolated=True)
-        targets = [str(getattr(a, 'AccountEmail', '') or '') for a in accounts
-                   if str(getattr(a, 'AccountEmail', '') or '') not in ('', my_email)]
-        ConsoleLog(BOT_NAME, f'[EnterUW] Sending TravelToGuildHall to {len(targets)} account(s): {targets}', Py4GW.Console.MessageType.Info)
-        for email in targets:
-            GLOBAL_CACHE.ShMem.SendMessage(my_email, email, _SCT.TravelToGuildHall, (0, 0, 0, 0))
+
+        from Py4GWCoreLib import Party
+
+        my_email = str(Player.GetAccountEmail() or '').strip()
+        if not my_email:
+            ConsoleLog(BOT_NAME, '[EnterUW] LeavePartyAndTravelGH: no sender email.', Py4GW.Console.MessageType.Warning)
+            return _BT.NodeState.FAILURE
+
+        all_acct = GLOBAL_CACHE.ShMem.GetAllAccountData(include_isolated=True) or []
+        if Map.IsExplorable():
+            party_id = int(Party.GetPartyID() or 0)
+            accounts = [
+                a for a in all_acct
+                if SameMapOrPartyAsAccount(a)
+                and (party_id <= 0 or int(getattr(getattr(a, 'AgentPartyData', None), 'PartyID', 0) or 0) == party_id)
+            ]
+        else:
+            accounts = [a for a in all_acct if SameMapOrPartyAsAccount(a)]
+
+        if not accounts:
+            ConsoleLog(BOT_NAME, '[EnterUW] LeavePartyAndTravelGH: no accounts in scope (same map / party).', Py4GW.Console.MessageType.Warning)
+            return _BT.NodeState.FAILURE
+
+        try:
+            HeroAICommands().LeavePartyAndTravelGH(accounts)
+        except Exception as exc:
+            ConsoleLog(BOT_NAME, f'[EnterUW] LeavePartyAndTravelGH: failed ({exc}).', Py4GW.Console.MessageType.Error)
+            return _BT.NodeState.FAILURE
+
+        emails = [str(getattr(a, 'AccountEmail', '') or '') for a in accounts]
+        ConsoleLog(BOT_NAME, f'[EnterUW] LeavePartyAndTravelGH: dispatched to {len(emails)} account(s): {emails}', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
 
     def _wait_all_in_gh(node: _BT.Node) -> _BT.NodeState:
@@ -989,14 +1046,12 @@ def _enter_underworld_tree() -> _BT:
         ))
 
     return BT.Composite.Sequence(
-        _log('SendTravelToGuildHall'),
+        _log('LeavePartyAndTravelGH'),
         _BT(_BT.ActionNode(
-            name='SendTravelToGuildHall',
-            action_fn=_send_travel_gh,
-            aftercast_ms=500,
+            name='LeavePartyAndTravelGH',
+            action_fn=_leave_party_and_travel_gh_like_heroai,
+            aftercast_ms=750,
         )),
-        _log('TravelGH (leader)'),
-        BT.Map.TravelGH(),
         _log('WaitAllInGuildHall'),
         _BT(_BT.WaitUntilNode(
             name='WaitAllInGuildHall',
@@ -1015,6 +1070,11 @@ def _enter_underworld_tree() -> _BT:
             name='WaitAllAccountsInParty',
             check_fn=_all_in_party,
             timeout_ms=30_000,
+        )),
+        _BT(_BT.ActionNode(
+            name='EnableRequiredWidgets',
+            action_fn=_enable_required_widgets_on_all_accounts,
+            aftercast_ms=500,
         )),
         _log('TravelToEntryPoint'),
         _BT(_BT.SubtreeNode(
@@ -1671,17 +1731,61 @@ for _i, (_svc_name, _) in enumerate(bot._service_steps):
 #
 # Fix: monkey-patch _tick_planner so that, just before the planner tree ticks
 # and its Move nodes read COMBAT_ACTIVE, we replace any True value from the
-# large-range SharedMemory scan with a live Earshot (≈1020 unit) scan.
+# large-range SharedMemory scan with a live radius scan (default ≈ Earshot).
 # HeroAI's own combat logic is untouched; only the planner pause is affected.
+_PAUSE_ON_DANGER_RANGE_DEFAULT: float = 1020.0
+_PAUSE_ON_DANGER_RANGE_PASS_MOUNTAINS: float = 400.0
+
 _orig_tick_planner = bot._tick_planner
 
 
-def _tight_combat_active_planner_tick(node):  # type: ignore[override]
-    from Py4GWCoreLib.Routines import Routines as _R
+def _in_aggro_excluding_blacklist(aggro_area: float = 1020.0) -> bool:
+    """Live radius scan that ignores blacklisted enemies."""
+    from Py4GWCoreLib.AgentArray import AgentArray
+    from Py4GWCoreLib.Agent import Agent
+    from Py4GWCoreLib.Player import Player as _Player
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 
+    bl = EnemyBlacklist()
+    player_id = _Player.GetAgentID()
+    player_pos = _Player.GetXY()
+    if not player_pos:
+        return False
+
+    enemy_array = AgentArray.GetEnemyArray()
+    if not enemy_array:
+        return False
+
+    px, py = player_pos
+    radius_sq = aggro_area * aggro_area
+    for agent_id in enemy_array:
+        if agent_id == player_id:
+            continue
+        if not Agent.IsAlive(agent_id):
+            continue
+        if bl.is_blacklisted(agent_id):
+            continue
+        pos = Agent.GetXY(agent_id)
+        if not pos:
+            continue
+        dx, dy = px - pos[0], py - pos[1]
+        if dx * dx + dy * dy <= radius_sq:
+            return True
+    return False
+
+
+def _planner_pause_on_danger_range(bb: dict) -> float:
+    step = str(bb.get('current_step_name', '') or '')
+    if step == 'Pass the Mountains':
+        return _PAUSE_ON_DANGER_RANGE_PASS_MOUNTAINS
+    return _PAUSE_ON_DANGER_RANGE_DEFAULT
+
+
+def _tight_combat_active_planner_tick(node):  # type: ignore[override]
     bb = node.blackboard
     if bb.get('COMBAT_ACTIVE', False):
-        bb['COMBAT_ACTIVE'] = bool(_R.Checks.Agents.InAggro())  # Earshot by default
+        r = _planner_pause_on_danger_range(bb)
+        bb['COMBAT_ACTIVE'] = _in_aggro_excluding_blacklist(r)
     return _orig_tick_planner(node)
 
 
