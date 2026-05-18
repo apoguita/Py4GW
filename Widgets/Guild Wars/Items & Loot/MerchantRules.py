@@ -1237,7 +1237,7 @@ class _MerchantRulesExactUpgradeSalvageBridge:
             from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
             from Py4GWCoreLib.routines_src.yield_src.helpers import _run_bt_tree
             from Sources.frenkeyLib.ItemHandling.BTNodes import BTNodes
-            from Py4GWCoreLib.enums_src.Item_enums import SalvageMode
+            from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
 
             get_upgrades = getattr(getattr(Item, "Customization", None), "GetUpgrades", None)
             items_cls = getattr(BTNodes, "Items", None)
@@ -17413,9 +17413,9 @@ class MerchantRulesWidget:
 
     def _any_salvage_related_window_open(self) -> bool:
         try:
-            from Py4GWCoreLib.UIManager import AnySalvageWindow
+            from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 
-            return bool(AnySalvageWindow.IsOpen())
+            return bool(UIManagerExtensions.AnySalvageRelatedWindowOpen())
         except Exception:
             return False
 
@@ -17603,9 +17603,9 @@ class MerchantRulesWidget:
 
     def _cancel_active_salvage_choice_dialog(self) -> bool:
         try:
-            from Py4GWCoreLib.UIManager import AnySalvageWindow
+            from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 
-            return bool(AnySalvageWindow.Cancel())
+            return bool(UIManagerExtensions.CancelSalvageOption())
         except Exception:
             return False
 
