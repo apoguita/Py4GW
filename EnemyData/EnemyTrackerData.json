@@ -380,6 +380,63 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x0F98\\\\x84F2\\\\xC816\\\\x298E": {
+      "encoded_names": [
+        "\\\\x0F98\\\\x84F2\\\\xC816\\\\x298E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2937
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0F99\\\\x863D\\\\xD474\\\\x6ACA": {
+      "encoded_names": [
+        "\\\\x0F99\\\\x863D\\\\xD474\\\\x6ACA"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2938
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1230\\\\x9354\\\\x94B4\\\\x654F": {
+      "encoded_names": [
+        "\\\\x1230\\\\x9354\\\\x94B4\\\\x654F"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2280
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x1232\\\\xF535\\\\x05E0": {
       "encoded_names": [
         "\\\\x1232\\\\xF535\\\\x05E0"
@@ -407,9 +464,689 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x12A7\\\\xF511\\\\xCDD1\\\\x22D3": {
+      "encoded_names": [
+        "\\\\x12A7\\\\xF511\\\\xCDD1\\\\x22D3"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2369
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "424": {
+          "id": 424,
+          "name": "Throw Dirt",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "458": {
+          "id": 458,
+          "name": "Barbed Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "459": {
+          "id": 459,
+          "name": "Flame Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "460": {
+          "id": 460,
+          "name": "Healing Spring",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "476": {
+          "id": 476,
+          "name": "Nature's Renewal",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x12A9\\\\xE727\\\\xE80D\\\\x674A": {
+      "encoded_names": [
+        "\\\\x12A9\\\\xE727\\\\xE80D\\\\x674A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2367
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12AC\\\\x9F81\\\\xBFE4\\\\x3216": {
+      "encoded_names": [
+        "\\\\x12AC\\\\x9F81\\\\xBFE4\\\\x3216"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x12AD\\\\xF69B\\\\xBD35\\\\x7A5E": {
+      "encoded_names": [
+        "\\\\x12AD\\\\xF69B\\\\xBD35\\\\x7A5E"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2373
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "137": {
+          "id": 137,
+          "name": "Rigor Mortis",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "142": {
+          "id": 142,
+          "name": "Lingering Curse",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "92": {
+          "id": 92,
+          "name": "Well of Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12AF\\\\x8B85\\\\x9E38\\\\x7FED": {
+      "encoded_names": [
+        "\\\\x12AF\\\\x8B85\\\\x9E38\\\\x7FED"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2376
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12B0\\\\xA053\\\\x8415\\\\x6F58": {
+      "encoded_names": [
+        "\\\\x12B0\\\\xA053\\\\x8415\\\\x6F58"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2377
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12B7\\\\xEE5E\\\\xE8CB\\\\x660E": {
+      "encoded_names": [
+        "\\\\x12B7\\\\xEE5E\\\\xE8CB\\\\x660E"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2422
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "32": {
+          "id": 32,
+          "name": "Illusion of Weakness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "33": {
+          "id": 33,
+          "name": "Illusionary Weaponry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x12B9\\\\x8271\\\\xA9AA\\\\x5E8F": {
+      "encoded_names": [
+        "\\\\x12B9\\\\x8271\\\\xA9AA\\\\x5E8F"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2423
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "32": {
+          "id": 32,
+          "name": "Illusion of Weakness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "33": {
+          "id": 33,
+          "name": "Illusionary Weaponry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x12BA\\\\xD696\\\\x4774": {
+      "encoded_names": [
+        "\\\\x12BA\\\\xD696\\\\x4774"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2375
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "246": {
+          "id": 246,
+          "name": "Divine Intervention",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "262": {
+          "id": 262,
+          "name": "Shield of Judgment",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "271": {
+          "id": 271,
+          "name": "Zealot's Fire",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "307": {
+          "id": 307,
+          "name": "Reversal of Fortune",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x12BB\\\\xA3DC\\\\x0BDD": {
+      "encoded_names": [
+        "\\\\x12BB\\\\xA3DC\\\\x0BDD"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2380
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "35": {
+          "id": 35,
+          "name": "Ignorance",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "49": {
+          "id": 49,
+          "name": "Mind Wrack",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "53": {
+          "id": 53,
+          "name": "Migraine",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "61": {
+          "id": 61,
+          "name": "Leech Signet",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x12BC\\\\x98DC\\\\xFDF0\\\\x1FD0": {
+      "encoded_names": [
+        "\\\\x12BC\\\\x98DC\\\\xFDF0\\\\x1FD0"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2382
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "83": {
+          "id": 83,
+          "name": "Animate Bone Horror",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12BD\\\\xB160\\\\xA954\\\\x4D4C": {
+      "encoded_names": [
+        "\\\\x12BD\\\\xB160\\\\xA954\\\\x4D4C"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2383
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12BE\\\\xB04F\\\\xE727\\\\x218F": {
+      "encoded_names": [
+        "\\\\x12BE\\\\xB04F\\\\xE727\\\\x218F"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2384
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "204": {
+          "id": 204,
+          "name": "Rust",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "212": {
+          "id": 212,
+          "name": "Frozen Burst",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "213": {
+          "id": 213,
+          "name": "Shard Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "215": {
+          "id": 215,
+          "name": "Maelstrom",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "239": {
+          "id": 239,
+          "name": "Ward Against Harm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x12BF\\\\xF224\\\\xEA77\\\\x4E7D": {
+      "encoded_names": [
+        "\\\\x12BF\\\\xF224\\\\xEA77\\\\x4E7D"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2368
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "141": {
+          "id": 141,
+          "name": "Rend Enchantments",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12C0\\\\xCE4F\\\\xC177\\\\x75FE": {
+      "encoded_names": [
+        "\\\\x12C0\\\\xCE4F\\\\xC177\\\\x75FE"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2385
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "169": {
+          "id": 169,
+          "name": "Earth Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "170": {
+          "id": 170,
+          "name": "Earthquake",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "176": {
+          "id": 176,
+          "name": "Ward Against Melee",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x12C2\\\\x968C\\\\xB2A0\\\\x1035": {
+      "encoded_names": [
+        "\\\\x12C2\\\\x968C\\\\xB2A0\\\\x1035"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2389
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "382": {
+          "id": 382,
+          "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "384": {
+          "id": 384,
+          "name": "Gash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "390": {
+          "id": 390,
+          "name": "Savage Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x12C4\\\\xA887\\\\x7302": {
+      "encoded_names": [
+        "\\\\x12C4\\\\xA887\\\\x7302"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2387
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "163": {
+          "id": 163,
+          "name": "Whirlwind",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "205": {
+          "id": 205,
+          "name": "Lightning Surge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "223": {
+          "id": 223,
+          "name": "Chain Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "231": {
+          "id": 231,
+          "name": "Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x12C5\\\\xD142\\\\xFA22\\\\x1E49": {
+      "encoded_names": [
+        "\\\\x12C5\\\\xD142\\\\xFA22\\\\x1E49"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2388
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "329": {
+          "id": 329,
+          "name": "Skull Crack",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6": {
       "encoded_names": [
@@ -1024,6 +1761,88 @@
           "name": "Healing Signet",
           "profession": "Warrior",
           "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "994": {
+          "id": 994,
+          "name": "Renewing Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x4045\\\\xC5F3\\\\xD79D\\\\x731F": {
+      "encoded_names": [
+        "\\\\x4045\\\\xC5F3\\\\xD79D\\\\x731F"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "Ranger",
+      "model_ids": [
+        3005,
+        4093,
+        4094
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1135": {
+          "id": 1135,
+          "name": "Jaizhenju Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1191": {
+          "id": 1191,
+          "name": "Sundering Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "386": {
+          "id": 386,
+          "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "893": {
+          "id": 893,
+          "name": "Seeking Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "907": {
+          "id": 907,
+          "name": "Dragon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "944": {
+          "id": 944,
+          "name": "Signet of Strength",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -1095,6 +1914,18 @@
           "profession": "None",
           "profession_id": 0
         },
+        "780": {
+          "id": 780,
+          "name": "Fox Fangs",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "782": {
+          "id": 782,
+          "name": "Jagged Strike",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
         "814": {
           "id": 814,
           "name": "Shadow Refuge",
@@ -1150,6 +1981,12 @@
           "name": "Banish",
           "profession": "Monk",
           "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
         }
       }
     },
@@ -1171,6 +2008,12 @@
         }
       },
       "observed_skills": {
+        "1211": {
+          "id": 1211,
+          "name": "Viper's Nest",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
         "946": {
           "id": 946,
           "name": "Trapper's Focus",
@@ -1197,6 +2040,12 @@
         }
       },
       "observed_skills": {
+        "1247": {
+          "id": 1247,
+          "name": "Pain",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
         "1258": {
           "id": 1258,
           "name": "Brutal Weapon",
@@ -1244,6 +2093,30 @@
         "1": {
           "id": 1,
           "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1137": {
+          "id": 1137,
+          "name": "Yeti Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "359": {
+          "id": 359,
+          "name": "Heavy Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
           "profession": "Warrior",
           "profession_id": 1
         }
@@ -1337,6 +2210,44 @@
         }
       }
     },
+    "enc:\\\\x40BD\\\\xFEDF\\\\xD41D\\\\x2092": {
+      "encoded_names": [
+        "\\\\x40BD\\\\xFEDF\\\\xD41D\\\\x2092"
+      ],
+      "inferred_primary": "Assassin",
+      "inferred_secondary": "",
+      "model_ids": [
+        4086
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1022": {
+          "id": 1022,
+          "name": "Wild Strike",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "1023": {
+          "id": 1023,
+          "name": "Leaping Mantis Sting",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "1029": {
+          "id": 1029,
+          "name": "Dark Apostasy",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
     "enc:\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A": {
       "encoded_names": [
         "\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A"
@@ -1373,6 +2284,12 @@
           "profession": "Necromancer",
           "profession_id": 4
         },
+        "806": {
+          "id": 806,
+          "name": "Cultist's Fervor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
         "92": {
           "id": 92,
           "name": "Well of Blood",
@@ -1385,7 +2302,7 @@
       "encoded_names": [
         "\\\\x40C7\\\\x87BA\\\\xE33A\\\\x4D94"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Warrior",
       "inferred_secondary": "",
       "model_ids": [
         4088
@@ -1398,7 +2315,32 @@
           "name": "Mount Qinkai"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "334": {
+          "id": 334,
+          "name": "Axe Rake",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "336": {
+          "id": 336,
+          "name": "Executioner's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "337": {
+          "id": 337,
+          "name": "Dismember",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "340": {
+          "id": 340,
+          "name": "Disrupting Chop",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE": {
       "encoded_names": [
@@ -1468,6 +2410,30 @@
         }
       },
       "observed_skills": {
+        "1135": {
+          "id": 1135,
+          "name": "Jaizhenju Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "386": {
+          "id": 386,
+          "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "907": {
+          "id": 907,
+          "name": "Dragon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
         "944": {
           "id": 944,
           "name": "Signet of Strength",
@@ -1494,6 +2460,18 @@
         }
       },
       "observed_skills": {
+        "1191": {
+          "id": 1191,
+          "name": "Sundering Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "408": {
+          "id": 408,
+          "name": "Concussion Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
         "446": {
           "id": 446,
           "name": "Troll Unguent",
@@ -1563,7 +2541,7 @@
         "\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43"
       ],
       "inferred_primary": "Monk",
-      "inferred_secondary": "",
+      "inferred_secondary": "None",
       "model_ids": [
         4096
       ],
@@ -1605,14 +2583,39 @@
           "name": "Signet of Judgment",
           "profession": "Monk",
           "profession_id": 3
+        },
+        "873": {
+          "id": 873,
+          "name": "Resurrect_monster_skill",
+          "profession": "None",
+          "profession_id": 0
         }
       }
+    },
+    "enc:\\\\x4161\\\\xA291\\\\xB856\\\\x0259": {
+      "encoded_names": [
+        "\\\\x4161\\\\xA291\\\\xB856\\\\x0259"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4289
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC": {
       "encoded_names": [
         "\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Ritualist",
       "inferred_secondary": "",
       "model_ids": [
         4264
@@ -1625,13 +2628,20 @@
           "name": "Mount Qinkai"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "872": {
+          "id": 872,
+          "name": "Shadowsong_attack",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
     },
     "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": {
       "encoded_names": [
         "\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Ritualist",
       "inferred_secondary": "",
       "model_ids": [
         4265
@@ -1644,7 +2654,14 @@
           "name": "Mount Qinkai"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "1248": {
+          "id": 1248,
+          "name": "Pain_attack",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
     },
     "enc:\\\\x4165\\\\xAA52\\\\x6E73": {
       "encoded_names": [
@@ -1767,6 +2784,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -1973,6 +2996,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2085,6 +3114,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2097,6 +3132,12 @@
         "1588": {
           "id": 1588,
           "name": "Cautery Signet",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1605": {
+          "id": 1605,
+          "name": "Wild Throw",
           "profession": "Paragon",
           "profession_id": 9
         }
@@ -2117,6 +3158,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2167,6 +3214,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2476,6 +3529,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2520,6 +3579,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2564,6 +3629,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2614,6 +3685,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -2964,6 +4041,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -3052,12 +4135,36 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
         "1392": {
           "id": 1392,
           "name": "Watchful Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1691": {
+          "id": 1691,
+          "name": "Dismiss Condition",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "257": {
+          "id": 257,
+          "name": "Aegis",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "273": {
+          "id": 273,
+          "name": "Spell Breaker",
           "profession": "Monk",
           "profession_id": 3
         }
@@ -3542,6 +4649,56 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8101\\\\x1B62\\\\xB276\\\\xD027\\\\x6A68": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1B62\\\\xB276\\\\xD027\\\\x6A68"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        5225
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1465": {
+          "id": 1465,
+          "name": "Prepared Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "1722": {
+          "id": 1722,
+          "name": "Forked Arrow",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "392": {
+          "id": 392,
+          "name": "Pin Down",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "432": {
+          "id": 432,
+          "name": "Read the Wind",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92": {
       "encoded_names": [
         "\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92"
@@ -3586,6 +4743,94 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x1CD0\\\\xF84D\\\\x6B4F": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1CD0\\\\xF84D\\\\x6B4F"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4675
+      ],
+      "observed_maps": {
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {
+        "1407": {
+          "id": 1407,
+          "name": "Lion's Comfort",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1409": {
+          "id": 1409,
+          "name": "Mokele Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1CE0\\\\xCE40\\\\x941B\\\\x6C94": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1CE0\\\\xCE40\\\\x941B\\\\x6C94"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4687
+      ],
+      "observed_maps": {
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {
+        "1335": {
+          "id": 1335,
+          "name": "Wastrel's Demise",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "979": {
+          "id": 979,
+          "name": "Mistrust",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": {
       "encoded_names": [
         "\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3"
@@ -3623,6 +4868,63 @@
           "profession_id": 5
         }
       }
+    },
+    "enc:\\\\x8101\\\\x1CE5\\\\xA453\\\\x2ADD": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1CE5\\\\xA453\\\\x2ADD"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        4701
+      ],
+      "observed_maps": {
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {
+        "1489": {
+          "id": 1489,
+          "name": "Irresistible Sweep",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1498": {
+          "id": 1498,
+          "name": "Staggering Force",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1760": {
+          "id": 1760,
+          "name": "Ebon Dust Aura",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x45D5\\\\xEC58\\\\x881D\\\\x5589": {
+      "encoded_names": [
+        "\\\\x8101\\\\x45D5\\\\xEC58\\\\x881D\\\\x5589"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4296
+      ],
+      "observed_maps": {
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7": {
       "encoded_names": [
@@ -3670,6 +4972,31 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x4732\\\\x94F8\\\\xC308\\\\x2763": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4732\\\\x94F8\\\\xC308\\\\x2763"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5767
+      ],
+      "observed_maps": {
+        "546": {
+          "base_id": 546,
+          "id": 546,
+          "instance_type": "Explorable",
+          "name": "Jaga Moraine"
         }
       },
       "observed_skills": {}
@@ -3720,6 +5047,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -3930,6 +5263,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -3966,6 +5305,44 @@
         "979": {
           "id": 979,
           "name": "Mistrust",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E06\\\\xC059\\\\xD2A2\\\\x1FA1": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E06\\\\xC059\\\\xD2A2\\\\x1FA1"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4727
+      ],
+      "observed_maps": {
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {
+        "1335": {
+          "id": 1335,
+          "name": "Wastrel's Demise",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
           "profession": "Mesmer",
           "profession_id": 5
         }
@@ -4061,6 +5438,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -4111,6 +5494,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -4123,6 +5512,12 @@
         "1409": {
           "id": 1409,
           "name": "Mokele Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
           "profession": "Warrior",
           "profession_id": 1
         }
@@ -4143,6 +5538,12 @@
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -4199,6 +5600,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -4255,6 +5662,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -4299,6 +5712,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
         }
       },
       "observed_skills": {
@@ -4606,6 +6025,44 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x51F2\\\\x832B\\\\xD181\\\\x5BD0": {
+      "encoded_names": [
+        "\\\\x8101\\\\x51F2\\\\x832B\\\\xD181\\\\x5BD0"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        5569
+      ],
+      "observed_maps": {
+        "419": {
+          "base_id": 419,
+          "id": 419,
+          "instance_type": "Explorable",
+          "name": "The Mirror of Lyss"
+        }
+      },
+      "observed_skills": {
+        "1568": {
+          "id": 1568,
+          "name": "Anthem of Guidance",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1584": {
+          "id": 1584,
+          "name": "Leader's Comfort",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1784": {
+          "id": 1784,
+          "name": "Swift Javelin",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x571C\\\\xC16F\\\\xF995\\\\x3C6F": {
       "encoded_names": [
         "\\\\x8101\\\\x571C\\\\xC16F\\\\xF995\\\\x3C6F"
@@ -4664,6 +6121,418 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x57E2\\\\xD745\\\\xE116\\\\x306B": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E2\\\\xD745\\\\xE116\\\\x306B"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        5217
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1061": {
+          "id": 1061,
+          "name": "Feedback",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "24": {
+          "id": 24,
+          "name": "Power Leak",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "49": {
+          "id": 49,
+          "name": "Mind Wrack",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "57": {
+          "id": 57,
+          "name": "Cry of Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "66": {
+          "id": 66,
+          "name": "Spirit Shackles",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E3\\\\xA8BC\\\\xC6B2\\\\x242A": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E3\\\\xA8BC\\\\xC6B2\\\\x242A"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        5218
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1260": {
+          "id": 1260,
+          "name": "Meekness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "140": {
+          "id": 140,
+          "name": "Malaise",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "143": {
+          "id": 143,
+          "name": "Strip Enchantment",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "883": {
+          "id": 883,
+          "name": "Vocal Minority",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "902": {
+          "id": 902,
+          "name": "Blood of the Aggressor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E4\\\\x8C28\\\\xE4D0\\\\x2D36": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E4\\\\x8C28\\\\xE4D0\\\\x2D36"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        5219
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "162": {
+          "id": 162,
+          "name": "Gale",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1664": {
+          "id": 1664,
+          "name": "Invoke Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "222": {
+          "id": 222,
+          "name": "Lightning Strike",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "224": {
+          "id": 224,
+          "name": "Enervating Charge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "225": {
+          "id": 225,
+          "name": "Air Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "865": {
+          "id": 865,
+          "name": "Lightning Hammer",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E5\\\\xAF06\\\\xAB4C\\\\x55BF": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E5\\\\xAF06\\\\xAB4C\\\\x55BF"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        5220
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1393": {
+          "id": 1393,
+          "name": "Healer's Boon",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1396": {
+          "id": 1396,
+          "name": "Words of Comfort",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "274": {
+          "id": 274,
+          "name": "Healing Seed",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "283": {
+          "id": 283,
+          "name": "Dwayna's Kiss",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "958": {
+          "id": 958,
+          "name": "Healing Whisper",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E6\\\\xEC50\\\\x0131": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E6\\\\xEC50\\\\x0131"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        5221
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1407": {
+          "id": 1407,
+          "name": "Lion's Comfort",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1697": {
+          "id": 1697,
+          "name": "Magehunter's Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "352": {
+          "id": 352,
+          "name": "Crushing Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E7\\\\x8EDB\\\\xD612\\\\x63B6": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E7\\\\x8EDB\\\\xD612\\\\x63B6"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        5222
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "406": {
+          "id": 406,
+          "name": "Debilitating Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "475": {
+          "id": 475,
+          "name": "Quickening Zephyr",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "909": {
+          "id": 909,
+          "name": "Focused Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "997": {
+          "id": 997,
+          "name": "Famine",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E8\\\\xF9DF\\\\x8A02\\\\x0113": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E8\\\\xF9DF\\\\x8A02\\\\x0113"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        5223
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1491": {
+          "id": 1491,
+          "name": "Mystic Twister",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1493": {
+          "id": 1493,
+          "name": "Grenth's Fingers",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1502": {
+          "id": 1502,
+          "name": "Arcane Zeal",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1503": {
+          "id": 1503,
+          "name": "Mystic Vigor",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1526": {
+          "id": 1526,
+          "name": "Imbue Health",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1527": {
+          "id": 1527,
+          "name": "Mystic Healing",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57E9\\\\x97F0\\\\x825A\\\\x1463": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57E9\\\\x97F0\\\\x825A\\\\x1463"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        5224
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1557": {
+          "id": 1557,
+          "name": "Anthem of Flame",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1568": {
+          "id": 1568,
+          "name": "Anthem of Guidance",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1603": {
+          "id": 1603,
+          "name": "Merciless Spear",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1605": {
+          "id": 1605,
+          "name": "Wild Throw",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": {
       "encoded_names": [
         "\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747"
@@ -4679,6 +6548,354 @@
           "id": 386,
           "instance_type": "Explorable",
           "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x743B\\\\x9705\\\\x9068\\\\x1DFD": {
+      "encoded_names": [
+        "\\\\x8101\\\\x743B\\\\x9705\\\\x9068\\\\x1DFD"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6523
+      ],
+      "observed_maps": {
+        "546": {
+          "base_id": 546,
+          "id": 546,
+          "instance_type": "Explorable",
+          "name": "Jaga Moraine"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x74C8\\\\xB7B4\\\\x9EAA\\\\x6368": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74C8\\\\xB7B4\\\\x9EAA\\\\x6368"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        6529
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "208": {
+          "id": 208,
+          "name": "Water Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74CA\\\\xFED0\\\\x6654": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74CA\\\\xFED0\\\\x6654"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "Warrior",
+      "model_ids": [
+        6531
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "356": {
+          "id": 356,
+          "name": "Irresistible Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "530": {
+          "id": 530,
+          "name": "Giant_Stomp",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74CB\\\\xAA1B\\\\x9A39\\\\x343A": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74CB\\\\xAA1B\\\\x9A39\\\\x343A"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6532
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "48": {
+          "id": 48,
+          "name": "Spirit of Failure",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "878": {
+          "id": 878,
+          "name": "Visions of Regret",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74CC\\\\x9849\\\\x3A07": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74CC\\\\x9849\\\\x3A07"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6534
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "118": {
+          "id": 118,
+          "name": "Enfeebling Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "819": {
+          "id": 819,
+          "name": "Vampiric Spirit",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "864": {
+          "id": 864,
+          "name": "Oppressive Gaze",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "902": {
+          "id": 902,
+          "name": "Blood of the Aggressor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "92": {
+          "id": 92,
+          "name": "Well of Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74CD\\\\xA87B\\\\xE2A7\\\\x0440": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74CD\\\\xA87B\\\\xE2A7\\\\x0440"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        6537
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "332": {
+          "id": 332,
+          "name": "Bull's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "850": {
+          "id": 850,
+          "name": "Fierce Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "905": {
+          "id": 905,
+          "name": "Auspicious Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "993": {
+          "id": 993,
+          "name": "Enraged Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74CE\\\\xED2C\\\\xA18B\\\\x3637": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74CE\\\\xED2C\\\\xA18B\\\\x3637"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        6538
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "1488": {
+          "id": 1488,
+          "name": "Victorious Sweep",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1531": {
+          "id": 1531,
+          "name": "Intimidating Aura",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1758": {
+          "id": 1758,
+          "name": "Harrier's Grasp",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1768": {
+          "id": 1768,
+          "name": "Harrier's Haste",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74D3\\\\xAC1F\\\\x812B\\\\x4E47": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74D3\\\\xAC1F\\\\x812B\\\\x4E47"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6541
+      ],
+      "observed_maps": {
+        "546": {
+          "base_id": 546,
+          "id": 546,
+          "instance_type": "Explorable",
+          "name": "Jaga Moraine"
+        }
+      },
+      "observed_skills": {
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "44": {
+          "id": 44,
+          "name": "Phantom Pain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "49": {
+          "id": 49,
+          "name": "Mind Wrack",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "813": {
+          "id": 813,
+          "name": "Lyssa's Aura",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x74D6\\\\xF9FA\\\\xE48E\\\\x6905": {
+      "encoded_names": [
+        "\\\\x8101\\\\x74D6\\\\xF9FA\\\\xE48E\\\\x6905"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        6522
+      ],
+      "observed_maps": {
+        "546": {
+          "base_id": 546,
+          "id": 546,
+          "instance_type": "Explorable",
+          "name": "Jaga Moraine"
+        }
+      },
+      "observed_skills": {
+        "1471": {
+          "id": 1471,
+          "name": "Scavenger's Focus",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7644\\\\xE510\\\\x89BC\\\\x5D04": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7644\\\\xE510\\\\x89BC\\\\x5D04"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5834
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
         }
       },
       "observed_skills": {}
@@ -4736,6 +6953,1425 @@
           "name": "Snare",
           "profession": "Ranger",
           "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x0482\\\\xBE12\\\\xB67F\\\\x1AF3": {
+      "encoded_names": [
+        "\\\\x8102\\\\x0482\\\\xBE12\\\\xB67F\\\\x1AF3"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6754
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x0485\\\\xEE03\\\\xA33D\\\\x0809": {
+      "encoded_names": [
+        "\\\\x8102\\\\x0485\\\\xEE03\\\\xA33D\\\\x0809"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        6750
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "1393": {
+          "id": 1393,
+          "name": "Healer's Boon",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x0EA5\\\\xBE4A\\\\xF84F\\\\x3B52": {
+      "encoded_names": [
+        "\\\\x8102\\\\x0EA5\\\\xBE4A\\\\xF84F\\\\x3B52"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6520
+      ],
+      "observed_maps": {
+        "546": {
+          "base_id": 546,
+          "id": 546,
+          "instance_type": "Explorable",
+          "name": "Jaga Moraine"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x10A7\\\\xCC7B\\\\xA345\\\\x2974": {
+      "encoded_names": [
+        "\\\\x8102\\\\x10A7\\\\xCC7B\\\\xA345\\\\x2974"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6533
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {
+        "1341": {
+          "id": 1341,
+          "name": "Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "38": {
+          "id": 38,
+          "name": "Channeling",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "47": {
+          "id": 47,
+          "name": "Ineptitude",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x207B\\\\x99DB\\\\x6611": {
+      "encoded_names": [
+        "\\\\x8102\\\\x207B\\\\x99DB\\\\x6611"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6535
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x207C\\\\xCAE8\\\\x8738\\\\x7372": {
+      "encoded_names": [
+        "\\\\x8102\\\\x207C\\\\xCAE8\\\\x8738\\\\x7372"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6536
+      ],
+      "observed_maps": {
+        "482": {
+          "base_id": 482,
+          "id": 482,
+          "instance_type": "Explorable",
+          "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BAD\\\\xE127\\\\xB7B2\\\\x53D7": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BAD\\\\xE127\\\\xB7B2\\\\x53D7"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2372
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "1095": {
+          "id": 1095,
+          "name": "Star Burst",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "187": {
+          "id": 187,
+          "name": "Meteor",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BC2\\\\xF49A\\\\x2F66": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC2\\\\xF49A\\\\x2F66"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BC3\\\\x8C90\\\\x93F3\\\\x72E5": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC3\\\\x8C90\\\\x93F3\\\\x72E5"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BC4\\\\xE07F\\\\xB1FB\\\\x618A": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC4\\\\xE07F\\\\xB1FB\\\\x618A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BC5\\\\xAD7F\\\\x2811": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC5\\\\xAD7F\\\\x2811"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BC6\\\\xF138\\\\xCFA4\\\\x0E34": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC6\\\\xF138\\\\xCFA4\\\\x0E34"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BC7\\\\xADBE\\\\x8315\\\\x037A": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC7\\\\xADBE\\\\x8315\\\\x037A"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BC8\\\\xC3DE\\\\xC58B\\\\x62FB": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC8\\\\xC3DE\\\\xC58B\\\\x62FB"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BC9\\\\x9A55\\\\x4BAD": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BC9\\\\x9A55\\\\x4BAD"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BD8\\\\xA0D5\\\\xCF7D\\\\x72A0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BD8\\\\xA0D5\\\\xCF7D\\\\x72A0"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BD9\\\\xA373\\\\xA7FC\\\\x13A8": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BD9\\\\xA373\\\\xA7FC\\\\x13A8"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BDA\\\\xF058\\\\xC5A8\\\\x7549": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BDA\\\\xF058\\\\xC5A8\\\\x7549"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BDB\\\\x9A54\\\\xCCFE\\\\x083C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BDB\\\\x9A54\\\\xCCFE\\\\x083C"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2371
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "186": {
+          "id": 186,
+          "name": "Fireball",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BE6\\\\xB232\\\\xAC0D\\\\x24B6": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BE6\\\\xB232\\\\xAC0D\\\\x24B6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BE7\\\\xF545\\\\x9C4D\\\\x3A9C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BE7\\\\xF545\\\\x9C4D\\\\x3A9C"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BE8\\\\x83D9\\\\xD551\\\\x6521": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BE8\\\\x83D9\\\\xD551\\\\x6521"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BE9\\\\xE87F\\\\xB5EB\\\\x055B": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BE9\\\\xE87F\\\\xB5EB\\\\x055B"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BEA\\\\xE9AB\\\\xB513\\\\x1149": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BEA\\\\xE9AB\\\\xB513\\\\x1149"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BEB\\\\x8DA3\\\\xA15A\\\\x11A0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BEB\\\\x8DA3\\\\xA15A\\\\x11A0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BEC\\\\xE647\\\\xC1FC\\\\x4FDC": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BEC\\\\xE647\\\\xC1FC\\\\x4FDC"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BED\\\\x8CC6\\\\xD20A\\\\x7D6C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BED\\\\x8CC6\\\\xD20A\\\\x7D6C"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "326": {
+          "id": 326,
+          "name": "Protector's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BEE\\\\x82F7\\\\xB941\\\\x7466": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BEE\\\\x82F7\\\\xB941\\\\x7466"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BF8\\\\xA7FD\\\\xBDE3\\\\x0C3C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BF8\\\\xA7FD\\\\xBDE3\\\\x0C3C"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "326": {
+          "id": 326,
+          "name": "Protector's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BF9\\\\xE19C\\\\xCBA8\\\\x1D6C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BF9\\\\xE19C\\\\xCBA8\\\\x1D6C"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "326": {
+          "id": 326,
+          "name": "Protector's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BFA\\\\xAA70\\\\x84C6\\\\x106D": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFA\\\\xAA70\\\\x84C6\\\\x106D"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "326": {
+          "id": 326,
+          "name": "Protector's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5BFB\\\\x9FD9\\\\xD4F9\\\\x29EA": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFB\\\\x9FD9\\\\xD4F9\\\\x29EA"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BFD\\\\xCB60\\\\x9669\\\\x3766": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFD\\\\xCB60\\\\x9669\\\\x3766"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BFE\\\\xB5B0\\\\xB94F\\\\x4C53": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFE\\\\xB5B0\\\\xB94F\\\\x4C53"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5BFF\\\\xE431\\\\xAF97\\\\x3392": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5BFF\\\\xE431\\\\xAF97\\\\x3392"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C00\\\\x86CD\\\\xBAEB\\\\x256E": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C00\\\\x86CD\\\\xBAEB\\\\x256E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C03\\\\xBB48\\\\x9F5A\\\\x473A": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C03\\\\xBB48\\\\x9F5A\\\\x473A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2390
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5C24\\\\xD4AD\\\\xA729\\\\x57DF": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5C24\\\\xD4AD\\\\xA729\\\\x57DF"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392,
+        2393
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5D15\\\\x907F\\\\xE303\\\\x64E5": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D15\\\\x907F\\\\xE303\\\\x64E5"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D16\\\\xC984\\\\xA85C\\\\x4792": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D16\\\\xC984\\\\xA85C\\\\x4792"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D17\\\\x9BD2\\\\x874A\\\\x3DEB": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D17\\\\x9BD2\\\\x874A\\\\x3DEB"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5D19\\\\xA5B9\\\\xC627\\\\x3EA2": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D19\\\\xA5B9\\\\xC627\\\\x3EA2"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5D1C\\\\xC3B1\\\\xAE89\\\\x0358": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1C\\\\xC3B1\\\\xAE89\\\\x0358"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x5D1D\\\\xECC6\\\\x05DA": {
+      "encoded_names": [
+        "\\\\x8102\\\\x5D1D\\\\xECC6\\\\x05DA"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        2392
+      ],
+      "observed_maps": {
+        "72": {
+          "base_id": 72,
+          "id": 72,
+          "instance_type": "Explorable",
+          "name": "The Underworld"
+        }
+      },
+      "observed_skills": {
+        "3074": {
+          "id": 3074,
+          "name": "Bone_Spike",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "3075": {
+          "id": 3075,
+          "name": "Flurry_of_Splinters",
+          "profession": "None",
+          "profession_id": 0
         }
       }
     },

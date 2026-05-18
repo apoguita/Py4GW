@@ -5,19 +5,14 @@ from typing import Callable
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
-from Py4GWCoreLib.native_src.internals.types import Vec2f
-from Py4GWCoreLib.enums_src.Model_enums import ModelID
-from Py4GWCoreLib.Player import Player
-from Sources.ApoSource.ApoBottingLib import wrappers as BT
-from Py4GWCoreLib.enums_src.GameData_enums import Range
 
 
-MODULE_NAME = "Botting Tree Template"
-INI_PATH = "Widgets/Automation/Bots/Templates"
-INI_FILENAME = "BottingTreeTemplate.ini"
+MODULE_NAME = 'Single Account Botting Tree Template'
+INI_PATH = 'Widgets/Automation/Bots/Templates'
+INI_FILENAME = 'SingleAccountBottingTreeTemplate.ini'
 
 initialized = False
-ini_key = ""
+ini_key = ''
 botting_tree: BottingTree | None = None
 
 
@@ -28,29 +23,23 @@ def ensure_botting_tree() -> BottingTree:
         botting_tree = BottingTree.Create(
             MODULE_NAME,
             main_routine=get_execution_steps(),
-            routine_name="Proof of Legend Sequence",
+            routine_name='SingleAccountSequence',
             repeat=True,
             reset=False,
-            configure_fn=lambda tree: tree.Config.ConfigureUpkeepTrees(
-                disable_looting=True,
-                restore_isolation_on_stop=True,
-                enable_outpost_imp_service=True,
-                enable_explorable_imp_service=True,
-                imp_target_bag=1,
-                imp_slot=0,
-                imp_log=False,
-                enable_party_wipe_recovery=True,
-            ),
+            multi_account=False,
+            configure_fn=lambda tree: tree.Config.ConfigureUpkeep(),
         )
 
     return botting_tree
+
+
 def InitializeBot() -> BehaviorTree:
     bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
-            name="Initialize Bot",
+            name='Initialize Bot',
             children=[
-                bot.Config.Aggressive(auto_loot=False),
+                bot.Config.Aggressive(multi_account=False, auto_loot=False),
             ],
         )
     )
@@ -58,7 +47,7 @@ def InitializeBot() -> BehaviorTree:
 
 def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     return [
-        ("Initialize Bot", InitializeBot),
+        ('Initialize Bot', InitializeBot),
     ]
 
 
@@ -80,5 +69,5 @@ def main() -> None:
     tree.UI.draw_window()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -54,6 +54,7 @@ from ...GlobalCache.WhiteboardLocks import clear_loot_lock, post_loot_lock
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...UIManager import UIManager
+from ...enums import CONSUMABLE_MODELID_TO_EFFECT_NAME
 from ...enums_src.Item_enums import Bags
 from ...enums_src.Model_enums import ModelID
 from ...enums_src.UI_enums import ControlAction
@@ -406,9 +407,10 @@ class BTItems:
                 return BehaviorTree.NodeState.FAILURE
 
             resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            resolved_effect_name = effect_name or CONSUMABLE_MODELID_TO_EFFECT_NAME.get(int(resolved_model_id), "")
 
-            if effect_name:
-                effect_id = GLOBAL_CACHE.Skill.GetID(effect_name)
+            if resolved_effect_name:
+                effect_id = GLOBAL_CACHE.Skill.GetID(resolved_effect_name)
                 if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_id):
                     return BehaviorTree.NodeState.SUCCESS
 

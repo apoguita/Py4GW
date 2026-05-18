@@ -447,6 +447,25 @@ class BTMovement:
                 attack_speed_modifier = 1.0
             return max(250, int((attack_speed / attack_speed_modifier) * 1000))
 
+        def _try_nudge_combat_target(node: BehaviorTree.Node) -> None:
+            from ..Agents import Agents as RoutinesAgents
+
+            combat_distance = float(Range.Earshot.value)
+            cached_data = node.blackboard.get("headless_heroai_cached_data")
+            if cached_data is not None and hasattr(cached_data, "GetActiveScanRange"):
+                try:
+                    combat_distance = float(cached_data.GetActiveScanRange())
+                except Exception:
+                    combat_distance = float(Range.Earshot.value)
+
+            target_id = int(RoutinesAgents.GetNearestEnemy(combat_distance) or 0)
+            if target_id <= 0:
+                return
+
+            Player.ChangeTarget(target_id)
+            Player.Interact(target_id, False)
+            node.blackboard["move_pause_target_id"] = target_id
+
         def _try_issue_move(node: BehaviorTree.Node, target_x: float, target_y: float, now: int) -> bool:
             if bool(node.blackboard.get("COMBAT_ACTIVE", False)) and not pause_on_combat:
                 last_move_command_ms = state["last_move_command_ms"]
@@ -616,6 +635,8 @@ class BTMovement:
                 _stop_strafe()
                 if not state["pause_logged"] and log:
                         _log("Move", f"Movement paused due to {pause_reason}.", message_type=Console.MessageType.Info, log=log)
+                if pause_reason == "combat" and not state["pause_logged"]:
+                    _try_nudge_combat_target(node)
                 state["pause_logged"] = True
                 state["was_paused"] = True
                 state["current_pause_reason"] = pause_reason

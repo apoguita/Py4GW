@@ -42,6 +42,7 @@ class SharedCommandType(IntEnum):
     LoadSkillTemplate = auto()
     SkipCutscene = auto()
     SendDialog = auto()
+    SendManualDialog = auto()
     TravelToGuildHall = auto()
     
     SetActiveQuest = auto()

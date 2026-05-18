@@ -362,7 +362,7 @@ def _get_henchmen_for_current_map() -> list[int]:
 
 
 def _add_henchmen_from_blackboard(node: BehaviorTree.Node) -> BehaviorTree:
-    return BT.AddHenchmanList(node.blackboard["current_map_henchmen"])
+    return BT.CreateParty(henchman_ids=node.blackboard["current_map_henchmen"])
 
 
 def PrepareForBattle() -> BehaviorTree:
@@ -1756,6 +1756,7 @@ def ensure_botting_tree() -> BottingTree:
             repeat=False,
             reset=False,
             pause_on_combat=True,
+            multi_account=False,
             configure_fn=lambda tree: tree.Config.ConfigureUpkeepTrees(
                 disable_looting=True,
                 restore_isolation_on_stop=True,

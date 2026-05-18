@@ -12,6 +12,7 @@ SHMEM_MAX_NUMBER_OF_SKILLS = 8
 SHMEM_MAX_NUMBER_OF_ATTRIBUTES = len(Attribute) #5 primary + 3 secondary + 1 from of Profession Mod
 SHMEM_MAX_TITLES = 48
 SHMEM_MAX_QUESTS = 150
+SHMEM_MAX_INVENTORY_BAG_SLOTS = 20
 
 MISSION_BITMAP_ENTRIES = 25 #each entry is a bitmap of a mission flags (32 bits each)
 SKILL_BITMAP_ENTRIES = 108 #each entry is a bitmap of a skill flags (32 bits each)
@@ -28,6 +29,7 @@ SHMEM_PET_UPDATE_THROTTLE_MS = 50
 SHMEM_PLAYER_META_UPDATE_THROTTLE_MS = 121      # rank/faction/experience
 SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS = 763 # titles/questlog/mission
 SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS = 1261   # unlocked skills/available chars
+SHMEM_PLAYER_INVENTORY_UPDATE_THROTTLE_MS = 1500   # backpack, belt pouch, bag1, bag2 snapshot
 
 # AgentData payload tiers
 SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS = 37 #map, skillbar, buffs

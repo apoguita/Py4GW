@@ -2114,7 +2114,25 @@ class HeroAI_BaseUI:
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
                         if PyImGui.button(f"Summon##summon_{account.AgentData.AgentID}"):
-                            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.TravelToMap, (self_account.AgentData.Map.MapID,self_account.AgentData.Map.Region,self_account.AgentData.Map.District,0))
+                            if Map.IsGuildHall():
+                                GLOBAL_CACHE.ShMem.SendMessage(
+                                    account_email,
+                                    account.AccountEmail,
+                                    SharedCommandType.TravelToGuildHall,
+                                    (0, 0, 0, 0),
+                                )
+                            else:
+                                GLOBAL_CACHE.ShMem.SendMessage(
+                                    account_email,
+                                    account.AccountEmail,
+                                    SharedCommandType.TravelToMap,
+                                    (
+                                        self_account.AgentData.Map.MapID,
+                                        self_account.AgentData.Map.Region,
+                                        self_account.AgentData.Map.District,
+                                        0,
+                                    ),
+                                )
                         PyImGui.table_next_column()
                         PyImGui.text(f"{account.AgentData.CharacterName}")
             PyImGui.end_table()

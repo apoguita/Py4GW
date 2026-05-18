@@ -233,25 +233,6 @@ def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_
     return gwinch_value * pixels_per_gwinch
 
 
-def GetEnemyTrackerRangeFilter() -> int:
-    for module in list(sys.modules.values()):
-        module_file = str(getattr(module, "__file__", "") or "").replace("\\", "/")
-        module_name = str(getattr(module, "MODULE_NAME", "") or "").strip()
-        is_enemy_tracker_system_widget = (
-            module_name == "Enemy Tracker"
-            or module_file.endswith("/Widgets/System/Enemy Tracker.py")
-        )
-        if not is_enemy_tracker_system_widget:
-            continue
-        floating_button = getattr(module, "FloatingButton", None)
-        vars_obj = getattr(floating_button, "vars", None)
-        if vars_obj is not None and hasattr(vars_obj, "range_filter"):
-            try:
-                return int(vars_obj.range_filter)
-            except Exception:
-                return 0
-    return 0
-
 def FloatingMoveToggle(x: float, y: float, enabled: bool, show_stop: bool = False, margin: int = 8) -> tuple[bool, bool]:
     """Draw Move toggle and Stop button; returns (move_enabled, stop_requested)."""
     win_x = x + margin + 2

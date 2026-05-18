@@ -1122,21 +1122,32 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
     if not is_explorable:
         player_x, player_y = Player.GetXY()
         target_id = Player.GetTargetID() or Player.GetAgentID()
+        summon_command = SharedCommandType.TravelToGuildHall if Map.IsGuildHall() else SharedCommandType.TravelToMap
 
         def invite_player():            
             if same_map:
                 GLOBAL_CACHE.Party.Players.InvitePlayer(account_data.AgentData.CharacterName)
-                
+                return GLOBAL_CACHE.ShMem.SendMessage(
+                    player_email,
+                    account_email,
+                    SharedCommandType.InviteToParty,
+                    (account_data.AgentData.AgentID, 0, 0, 0),
+                )
+
             return GLOBAL_CACHE.ShMem.SendMessage(
                 player_email,
                 account_email,
-                SharedCommandType.InviteToParty if same_map else SharedCommandType.TravelToMap,
-                (account_data.AgentData.AgentID, 0, 0, 0) if same_map else (
-                    Map.GetMapID(),
-                    Map.GetRegion()[0],
-                    Map.GetDistrict(),
-                    Map.GetLanguage()[0],
-                )
+                summon_command,
+                (
+                    (0, 0, 0, 0)
+                    if Map.IsGuildHall()
+                    else (
+                        Map.GetMapID(),
+                        Map.GetRegion()[0],
+                        Map.GetDistrict(),
+                        Map.GetLanguage()[0],
+                    )
+                ),
             )
         
         def load_template():
@@ -1185,9 +1196,9 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
                 "invite_summon",
                 IconsFontAwesome5.ICON_USER_PLUS,
                 "Invite" if same_map else "Summon",
-                SharedCommandType.InviteToParty if same_map else SharedCommandType.TravelToMap,
+                SharedCommandType.InviteToParty if same_map else summon_command,
                 invite_player,
-                lambda: is_queued(SharedCommandType.InviteToParty) if same_map else is_queued(SharedCommandType.TravelToMap),
+                lambda: is_queued(SharedCommandType.InviteToParty) if same_map else is_queued(summon_command),
             ),
             (
                 "focus_client",
@@ -2659,14 +2670,18 @@ def draw_party_search_overlay(cached_data: CacheData):
                         GLOBAL_CACHE.ShMem.SendMessage(
                             sender_email,
                             account.AccountEmail,
-                            SharedCommandType.TravelToMap,
+                            SharedCommandType.TravelToGuildHall if Map.IsGuildHall() else SharedCommandType.TravelToMap,
                             (
-                                Map.GetMapID(),
-                                Map.GetRegion()[0],
-                                Map.GetDistrict(),
-                                Map.GetLanguage()[0],
-                            )
-                        ) 
+                                (0, 0, 0, 0)
+                                if Map.IsGuildHall()
+                                else (
+                                    Map.GetMapID(),
+                                    Map.GetRegion()[0],
+                                    Map.GetDistrict(),
+                                    Map.GetLanguage()[0],
+                                )
+                            ),
+                        )
                     
                 else:
                     selected_account = account.AccountEmail

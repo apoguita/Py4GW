@@ -70,7 +70,7 @@ class HexEntryState:
 
 @dataclass
 class ConfigState:
-    debug_hex_removal: bool = True
+    debug_hex_removal: bool = False
     debug_hex_removal_locks: bool = False
     hexes: dict[str, HexEntryState] = field(default_factory=dict)
 
@@ -225,7 +225,7 @@ def _parse_file(text: str) -> ConfigState | None:
     state = ConfigState()
     debug_blob = data.get("debug", {}) or {}
     if isinstance(debug_blob, dict):
-        state.debug_hex_removal = bool(debug_blob.get("hex_removal", True))
+        state.debug_hex_removal = bool(debug_blob.get("hex_removal", False))
         state.debug_hex_removal_locks = bool(debug_blob.get("hex_removal_locks", False))
 
     hexes_blob = data.get("hexes", {}) or {}

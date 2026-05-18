@@ -288,7 +288,7 @@ class BTMap:
           Notes: Treats matching map id, region, district, and language as early success.
         """
         target_region = int(region)
-        target_district = int(district) + 1
+        target_district = int(district)
         target_language = int(language)
 
         # 1. EARLY ARRIVAL CHECK
