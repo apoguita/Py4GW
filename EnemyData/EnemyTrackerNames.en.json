@@ -318,7 +318,7 @@
     ],
     "enc:\\\\x4165\\\\xAA52\\\\x6E73": [
       "Agent 120",
-      "Spirit of Destruction"
+      "Spirit of Destruction
     ],
     "enc:\\\\x4167\\\\x8FC3\\\\x08B6": [
       "Spirit of Displacement"
@@ -590,7 +590,7 @@
       "Agent 375",
       "Terrorweb Dryder"
     ],
-    "enc:\\\\x8102\\\\x5BCB\\\\xB7C7\\\\x8D96\\\\x4246": [
+    "enc:\\\\x8102\\\\x5BCB\\\\xB7C7\\\\x8D96\\\\x4246:: [
       "Agent 618",
       "Terrorweb Dryder"
     ],
@@ -600,6 +600,14 @@
     ],
     "enc:\\\\x8102\\\\x5BCD\\\\xD4EF\\\\x93DC\\\\x43B0": [
       "Agent 620",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BD1\\\\xC38A\\\\xFFE9\\\\x6B48": [
+      "Agent 592",
+      "Terrorweb Dryder"
+    ],
+    "enc:\\\\x8102\\\\x5BD3\\\\xC403\\\\x8FF5\\\\x3960": [
+      "Agent 126",
       "Terrorweb Dryder"
     ],
     "enc:\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3": [
@@ -698,6 +706,10 @@
       "Agent 420",
       "Vengeful Aatxe"
     ],
+    "enc:\\\\x8102\\\\x5BFB\\\\x9FD9\\\\xD4F9\\\\x29EA": [
+      "Agent 119",
+      "Vengeful Aatxe"
+    ],
     "enc:\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B": [
       "Agent 664",
       "Vengeful Aatxe"
@@ -763,6 +775,10 @@
     ],
     "enc:\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0": [
       "Agent 681",
+      "Skeleton of Dhuum"
+    ],
+    "enc:\\\\x8102\\\\x5D19\\\\xA5B9\\\\xC627\\\\x3EA2": [
+      "Agent 279",
       "Skeleton of Dhuum"
     ],
     "enc:\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4": [

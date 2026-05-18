@@ -57,6 +57,8 @@ class BotSettings:
 UW_MAP_ID = 72
 # Underworld "Keeper of Souls" (legacy FocusKeeperOfSouls in Underworld.py)
 _KEEPER_OF_SOULS_MODEL_ID = 2373
+# Spectral Mindblade in Restore Planes wait (legacy Wait_for_Spawns in Underworld.py)
+_UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
 DEFAULT_UW_ENTRYPOINT_KEY = 'embark_beach'
 UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
@@ -400,7 +402,9 @@ def _draw_inventory_settings() -> None:
 def _draw_cons_settings() -> None:
     PyImGui.text_wrapped(
         'Configure which consumables to upkeep automatically and how many to restock '
-        'from the Xunlai chest when the bot visits the guild hall between runs.'
+        'from the Xunlai chest when the bot visits the guild hall between runs. '
+        'During a run, checked items are kept up in explorable areas by a single background '
+        'ConsumableUpkeep service (round-robin per item; requires *Use Cons* on the Run tab).'
     )
     PyImGui.spacing()
 
@@ -1239,12 +1243,29 @@ def _restore_planes_tree() -> _BT:
         def _check(node: _BT.Node) -> _BT.NodeState:
             now = int(Utils.GetBaseTimestamp())
 
-            # Check for alive Mindblade enemies
-            found_mindblade = any(
-                'mindblade' in str(Agent.GetNameByID(aid) or '').lower()
-                for aid in AgentArray.GetEnemyArray()
-                if Agent.IsAlive(aid)
-            )
+            # Match legacy Underworld.Wait_for_Spawns: model 2380, not name decoding.
+            # GetNameByID on many enemies can stress native code and has been observed to destabilize the client.
+            found_mindblade = False
+            try:
+                raw = AgentArray.GetEnemyArray()
+                for aid in list(raw or []):
+                    try:
+                        eid = int(aid)
+                    except (TypeError, ValueError):
+                        continue
+                    if not Agent.IsValid(eid):
+                        continue
+                    if not Agent.IsAlive(eid):
+                        continue
+                    try:
+                        if int(Agent.GetModelID(eid)) != _UW_SPECTRAL_MINDBLADE_MODEL_ID:
+                            continue
+                    except Exception:
+                        continue
+                    found_mindblade = True
+                    break
+            except Exception:
+                found_mindblade = False
 
             if found_mindblade:
                 state['clean_since_ms'] = None
@@ -1255,10 +1276,13 @@ def _restore_planes_tree() -> _BT:
                 state['clean_since_ms'] = now
 
             in_combat = bool(node.blackboard.get('COMBAT_ACTIVE', False))
-            if not in_combat:
+            if not in_combat and not node.blackboard.get('PAUSE_MOVEMENT', False):
                 last_move = state['last_move_ms']
                 if last_move is None or now - last_move >= move_throttle_ms:
-                    Player.Move(x, y)
+                    try:
+                        Player.Move(x, y)
+                    except Exception:
+                        pass
                     state['last_move_ms'] = now
 
             elapsed = now - state['clean_since_ms']
@@ -1324,7 +1348,11 @@ def _wait_quest_completed(
         if hold_x is not None and hold_y is not None:
             px, py = Player.GetXY()
             dist = Utils.Distance((px, py), (hold_x, hold_y))
-            if dist > hold_radius and not node.blackboard.get('COMBAT_ACTIVE', False):
+            if (
+                dist > hold_radius
+                and not node.blackboard.get('COMBAT_ACTIVE', False)
+                and not node.blackboard.get('PAUSE_MOVEMENT', False)
+            ):
                 now = int(Utils.GetBaseTimestamp())
                 last = state['last_move_ms']
                 if last is None or now - last >= move_throttle_ms:
@@ -1849,6 +1877,20 @@ def _collect_keeper_of_souls_agent_ids() -> list[int]:
     return out
 
 
+def _skip_background_upkeep(blackboard: dict) -> bool:
+    """True when parallel upkeep should not fight planner movement (loot interrupt, wipe, load)."""
+    if blackboard.get('PAUSE_MOVEMENT', False):
+        return True
+    if blackboard.get('party_wipe_recovery_active', False):
+        return True
+    try:
+        if Map.IsMapLoading() or not Map.IsMapReady():
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _party_call_or_change_target(agent_id: int) -> None:
     """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target."""
     from Py4GWCoreLib.Agent import Agent as _Agent
@@ -1885,6 +1927,9 @@ def _build_keeper_of_souls_target_cycle_service() -> _BT:
     def _tick(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib.Agent import Agent as _Agent
 
+        if _skip_background_upkeep(node.blackboard):
+            return _BT.NodeState.RUNNING
+
         if str(node.blackboard.get('current_step_name', '') or '') != 'Unwanted Guests':
             return _BT.NodeState.RUNNING
         if not node.blackboard.get('uw_keeper_cycle_active'):
@@ -1919,6 +1964,41 @@ def _build_keeper_of_souls_target_cycle_service() -> _BT:
     return _BT(_BT.ActionNode(name='KeeperOfSoulsTargetCycle', action_fn=_tick, aftercast_ms=2000))
 
 
+def _build_consolidated_consumable_upkeep_service() -> _BT:
+    """Single background service that round-robins the per-item ConsumableService trees.
+
+    Many parallel ConsumableService branches (one per con) all ticked alongside HeroAI +
+    planner; each can issue ``UseItem`` and hit effect scans. That competes with movement
+    and ``WaitNode`` timing and showed up as frequent *Planner tree failed*.  Here only
+    **one** consumable subtree runs per frame, in rotation over active items.
+    """
+    _inners: dict[str, _BT] = {}
+
+    def _inner_for(prop: str) -> _BT:
+        if prop not in _inners:
+            _inners[prop] = Routines.BT.Upkeepers.ConsumableService(prop)
+        return _inners[prop]
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not BotSettings.UseCons:
+            return _BT.NodeState.RUNNING
+        if _skip_background_upkeep(node.blackboard):
+            return _BT.NodeState.RUNNING
+        active = [p for p, _, _, _ in _CONS_DEFS if ConsSettings.is_active(p)]
+        if not active:
+            return _BT.NodeState.RUNNING
+
+        rr = int(node.blackboard.setdefault('uw_cons_upkeep_rr', 0) or 0)
+        prop = active[rr % len(active)]
+        node.blackboard['uw_cons_upkeep_rr'] = rr + 1
+
+        inner = _inner_for(prop)
+        inner.blackboard = node.blackboard
+        return inner.tick()
+
+    return _BT(_BT.ActionNode(name='ConsumableUpkeepConsolidated', action_fn=_tick, aftercast_ms=0))
+
+
 bot.SetNamedPlannerSteps([
     ('Enter Underworld',    _enter_underworld_tree),
     ('Clear the Chamber',   _clear_the_chamber_tree),
@@ -1939,17 +2019,19 @@ bot.SetNamedPlannerSteps([
     ('Dhuum',               lambda: _placeholder('Dhuum')),
 ])
 
-# Replace the default wipe recovery (which restarts from the current step)
-# with one that always restarts from 'Enter Underworld'.
+# Party wipe: ``BottingTree.Create`` leaves ``_service_steps`` empty — register UW recovery explicitly
+# (always restart from 'Enter Underworld', not the failed step).
 _wipe_svc = 'PartyWipeRecoveryService'
-for _i, (_svc_name, _) in enumerate(bot._service_steps):
-    if _svc_name == _wipe_svc:
-        bot._service_steps[_i] = (_wipe_svc, _build_uw_wipe_recovery_tree)
-        bot._service_trees[_i] = (_wipe_svc, bot._coerce_runtime_tree(_build_uw_wipe_recovery_tree))
-        bot._rebuild_root_tree()
-        break
+_wipe_i = next((_i for _i, (_n, _) in enumerate(bot._service_steps) if _n == _wipe_svc), None)
+if _wipe_i is None:
+    bot.AddServiceTree(_wipe_svc, _build_uw_wipe_recovery_tree)
+else:
+    bot._service_steps[_wipe_i] = (_wipe_svc, _build_uw_wipe_recovery_tree)
+    bot._service_trees[_wipe_i] = (_wipe_svc, bot._coerce_runtime_tree(_build_uw_wipe_recovery_tree))
+    bot._rebuild_root_tree()
 
 bot.AddServiceTree('KeeperOfSoulsTargetCycle', _build_keeper_of_souls_target_cycle_service)
+bot.AddServiceTree('ConsumableUpkeep', _build_consolidated_consumable_upkeep_service)
 
 # ── COMBAT_ACTIVE tightening ───────────────────────────────────────────────
 # The SharedMemory InAggro field can scan up to Spellcast range (~5000 units)
