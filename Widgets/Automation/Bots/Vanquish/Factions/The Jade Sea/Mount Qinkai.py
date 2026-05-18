@@ -1,10 +1,14 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, AgentArray, ConsoleLog, Player, Timer, IniManager, SharedCommandType
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, AgentArray, ConsoleLog, Player, Timer, IniManager, SharedCommandType, HeroType
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
+from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 import Py4GW
 import PyImGui
 import os
 import random
 import time
+import json
+from dataclasses import dataclass
+from typing import List, Dict, Optional
 BOT_NAME = "VQ Mount Qinkai"
 MODULE_NAME = "Mount Qinkai (Vanquish)"
 MODULE_ICON = "Textures\\Module_Icons\\Vanquish - Mount Qinkai.png"
@@ -32,6 +36,7 @@ _randomize_district = True
 _RANDOM_DISTRICTS = [6, 7, 8, 9]
 _settings_loaded = False
 _SETTINGS_SECTION = "MountQinkaiSettings"
+_MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _RANDOMIZE_DISTRICT_KEY = "randomize_district"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
@@ -58,6 +63,103 @@ _JADEITE_SHARD_MODELS = {int(ModelID.Jadeite_Shard.value)}
 _JADEITE_SHARD_FILTER = str(int(ModelID.Jadeite_Shard.value))
 _MERCHANT_MANAGED_WIDGETS = ("InventoryPlus",)
 _PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)
+_party_mode: int = 1  # 0 = Single Account with Heroes, 1 = Multiboxing
+
+# Hero config
+_BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
+_HERO_CONFIG_PATH = os.path.join(_BOT_SCRIPT_DIR, f"{BOT_NAME} Heroes.json")
+_HERO_ICONS_BASE = os.path.normpath(os.path.join(
+    Py4GW.Console.get_projects_path(), "..", "Property-of-Wick-Divinus-and-Kendor",
+    "PVE Skills Unlocker", "Textures", "Skill_Icons"
+))
+_HERO_SLOTS_COUNT = 7
+
+
+@dataclass
+class _PartyHeroSlot:
+    hero_id: int = 0
+    template: str = ""
+
+
+def _humanize_hero_name(enum_name: str) -> str:
+    if enum_name == "None_":
+        return "<Empty>"
+    words: List[str] = []
+    current = enum_name[0]
+    for char in enum_name[1:]:
+        if (char.isupper() and not current[-1].isupper()) or (char.isdigit() and not current[-1].isdigit()):
+            words.append(current)
+            current = char
+        else:
+            current += char
+    words.append(current)
+    return " ".join(words)
+
+
+_HERO_OPTIONS: List[HeroType] = [HeroType.None_] + sorted(
+    [h for h in HeroType if h != HeroType.None_],
+    key=lambda h: _humanize_hero_name(h.name),
+)
+_HERO_OPTION_LABELS: List[str] = [_humanize_hero_name(h.name) for h in _HERO_OPTIONS]
+_HERO_ID_TO_OPTION_INDEX: Dict[int, int] = {int(h): i for i, h in enumerate(_HERO_OPTIONS)}
+
+_HERO_ICON_FILENAMES: Dict[HeroType, str] = {
+    HeroType.Norgu: "Norgu-icon.jpg",           HeroType.Goren: "Goren-icon.jpg",
+    HeroType.Tahlkora: "Tahlkora-icon.jpg",      HeroType.MasterOfWhispers: "MasterOfWhispers-icon.jpg",
+    HeroType.AcolyteJin: "AcolyteSousuke-icon.jpg", HeroType.Koss: "Koss-icon.jpg",
+    HeroType.Dunkoro: "Dunkoro-icon.jpg",        HeroType.AcolyteSousuke: "AcolyteSousuke-icon.jpg",
+    HeroType.Melonni: "Melonni-icon.jpg",        HeroType.ZhedShadowhoof: "ZhedShadowhoof-icon.jpg",
+    HeroType.GeneralMorgahn: "GeneralMorgahn-icon.jpg", HeroType.MagridTheSly: "MargridTheSly-icon.jpg",
+    HeroType.Zenmai: "Zenmai-icon.jpg",          HeroType.Olias: "Olias-icon.jpg",
+    HeroType.Razah: "Razah-icon.jpg",            HeroType.MOX: "M.O.X.-icon.jpg",
+    HeroType.KeiranThackeray: "KeiranThackeray-icon.jpg", HeroType.Jora: "Jora-icon.jpg",
+    HeroType.PyreFierceshot: "Pyre_Fierceshot-icon.jpg", HeroType.Anton: "Anton-icon.jpg",
+    HeroType.Livia: "Livia-icon.jpg",            HeroType.Hayda: "Hayda-icon.jpg",
+    HeroType.Kahmu: "Kahmu-icon.jpg",            HeroType.Gwen: "Gwen-icon.jpg",
+    HeroType.Xandra: "Xandra-icon.jpg",          HeroType.Vekk: "Vekk-icon.jpg",
+    HeroType.Ogden: "Ogden_Stonehealer-icon.jpg", HeroType.Miku: "Miku-icon.jpg",
+    HeroType.ZeiRi: "Zei_Ri-icon.jpg",
+}
+
+_DEFAULT_HERO_TEMPLATES: Dict[HeroType, str] = {
+    HeroType.Norgu: "OQBDAawDSvAIgcQ5ZkAFgZAEBA",
+    HeroType.Gwen: "OQhkAsC8gFKzJIHM9MdDBcaG4iB",
+    HeroType.Vekk: "OgVDI8gsS5AnATPmOHgCAZAFBA",
+    HeroType.MasterOfWhispers: "OABDUshnSyBVBoBKgbhVVfCWCA",
+    HeroType.Olias: "OAhjQoGYIP3hhWVVaO5EeDTqNA",
+    HeroType.Ogden: "OwUUMsG/E4SNgbE3N3ETfQgZAMEA",
+    HeroType.Razah: "OAWjMMgMJPYTr3jLcCNdmZgeAA",
+}
+
+_hero_slots: List[_PartyHeroSlot] = [_PartyHeroSlot() for _ in range(_HERO_SLOTS_COUNT)]
+_hero_config_dirty: bool = False
+_hero_config_status: str = ""
+_hero_import_source_index: int = 0
+_hero_config_loaded: bool = False
+
+CONSET_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect"),
+    (ModelID.Grail_Of_Might.value, "Grail_of_Might_item_effect"),
+    (ModelID.Armor_Of_Salvation.value, "Armor_of_Salvation_item_effect"),
+]
+
+PCON_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Birthday_Cupcake.value, "Birthday_Cupcake_skill"),
+    (ModelID.Golden_Egg.value, "Golden_Egg_skill"),
+    (ModelID.Candy_Corn.value, "Candy_Corn_skill"),
+    (ModelID.Candy_Apple.value, "Candy_Apple_skill"),
+    (ModelID.Slice_Of_Pumpkin_Pie.value, "Pie_Induced_Ecstasy"),
+    (ModelID.Drake_Kabob.value, "Drake_Skin"),
+    (ModelID.Bowl_Of_Skalefin_Soup.value, "Skale_Vigor"),
+    (ModelID.Pahnai_Salad.value, "Pahnai_Salad_item_effect"),
+    (ModelID.War_Supplies.value, "Well_Supplied"),
+]
+
+CONSET_RESTOCK_MODELS = [m for m, _ in CONSET_ITEMS]
+PCON_RESTOCK_MODELS = [m for m, _ in PCON_ITEMS] + [
+    ModelID.Honeycomb.value,
+    ModelID.Scroll_Of_Resurrection.value,
+]
 
 Vanquish_Path:list[tuple[float, float]] = [
       (-13384.42, -9866.60), #snake yetis  
@@ -128,23 +230,16 @@ def bot_routine(bot: Botting) -> None:
     #end events
     
     bot.States.AddHeader(BOT_NAME)
-    bot.Templates.Multibox_Aggressive()
+    _configure_party_environment(bot)
     bot.Properties.Enable("auto_loot")
     bot.States.AddCustomState(lambda: _enable_looting(bot), "Enable Looting")
     bot.States.AddCustomState(lambda: _leave_party_before_start(bot), "Leave Party Before Start")
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, OUTPOST_TO_TRAVEL), "GH Merchant Setup If Enabled")
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OUTPOST_TO_TRAVEL), "Travel to Mount Qinkai")
-    bot.Multibox.SummonAllAccounts()
-    bot.Wait.ForTime(4000)
-    bot.Multibox.InviteAllAccounts()
+    bot.States.AddCustomState(lambda: _maybe_setup_party(bot), "Setup Party")
     
     bot.Party.SetHardMode(True)
-    if _restock_use_conset:
-        bot.Multibox.RestockConset(CONSET_RESTOCK_TARGET)
-    if _restock_use_pcons:
-        bot.Multibox.RestockAllPcons(PCON_RESTOCK_TARGET)
-    if _restock_use_summoning_stones:
-        bot.Multibox.RestockSummoningStones(SUMMONING_STONES_RESTOCK_TARGET)
+    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
     bot.Move.XYAndExitMap(-5490, 13672, 200) # Mount Qinkai
     bot.Wait.ForTime(4000)
     
@@ -157,40 +252,48 @@ def bot_routine(bot: Botting) -> None:
         "Take Luxon Blessing",
     )
     bot.States.AddHeader("Start Combat") #3
-    if _restock_use_conset:
-        bot.Multibox.UseConset()
-    if _restock_use_pcons:
-        bot.Multibox.UsePcons()
-    if _restock_use_summoning_stones:
-        bot.Multibox.UseSummoningStone()
-    bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
+    bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
+    bot.States.AddManagedCoroutine("Upkeep Consumables", lambda: _upkeep_consumables(bot))
     
     bot.Move.FollowAutoPath(Vanquish_Path, "Kill Route")
     bot.Wait.UntilOutOfCombat()
 
-    bot.Multibox.ResignParty()
-    bot.Wait.UntilOnOutpost()
+    if _party_mode == 1:
+        bot.Multibox.ResignParty()
+        bot.Wait.UntilOnOutpost()
+    else:
+        bot.Map.Travel(target_map_id=OUTPOST_TO_TRAVEL)
     bot.States.AddCustomState(lambda: _donate_luxon_if_threshold_met(bot), "Donate Luxon Faction If Threshold Met")
     bot.States.JumpToStepName("[H]VQ Mount Qinkai_1")
     
+
+def _configure_party_environment(bot: Botting) -> None:
+    if _party_mode == 1:
+        bot.Templates.Multibox_Aggressive()
+    else:
+        bot.Templates.Aggressive()
+    bot.Properties.Enable("auto_inventory_management")
+
     
 def _leave_party_before_start(bot: "Botting"):
-    yield from bot.helpers.Multibox._leave_party_on_all_accounts()
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._leave_party_on_all_accounts()
     GLOBAL_CACHE.Party.LeaveParty()
     yield from bot.Wait._coro_for_time(1000)
 
 
 def _enable_looting(bot: "Botting"):
     bot.Properties.ApplyNow("auto_loot", "active", True)
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        account_email = getattr(account, "AccountEmail", "")
-        if not account_email:
-            continue
-        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
-        if options is None:
-            continue
-        options.Looting = True
-        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
+    if _party_mode == 1:
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            account_email = getattr(account, "AccountEmail", "")
+            if not account_email:
+                continue
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+            if options is None:
+                continue
+            options.Looting = True
+            GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
     bot.ResetHeroAICombatState(
         active=True,
         following=True,
@@ -204,6 +307,8 @@ def _enable_looting(bot: "Botting"):
 
 
 def _dispatch_dialog_to_alts_only(dialog_id: int) -> list[tuple[str, int]]:
+    if _party_mode != 1:
+        return []
     sender_email = Player.GetAccountEmail()
     target = Player.GetTargetID()
     if not sender_email or target == 0:
@@ -388,6 +493,9 @@ def _disable_inventoryplus_pretravel():
     wh = _get_wh()
     for name in _PRETRAVEL_DISABLE_WIDGETS:
         wh.disable_widget(name)
+    if _party_mode != 1:
+        yield from Routines.Yield.wait(1500)
+        return
     my_email = Player.GetAccountEmail()
     for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
         account_email = getattr(acc, "AccountEmail", "")
@@ -408,6 +516,9 @@ def _disable_merchant_widgets():
     wh = _get_wh()
     for name in _MERCHANT_MANAGED_WIDGETS:
         wh.disable_widget(name)
+    if _party_mode != 1:
+        yield
+        return
     my_email = Player.GetAccountEmail()
     for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
         account_email = getattr(acc, "AccountEmail", "")
@@ -429,6 +540,10 @@ def _reenable_merchant_widgets():
     for name in _MERCHANT_MANAGED_WIDGETS:
         wh.enable_widget(name)
 
+    if _party_mode != 1:
+        yield
+        return
+
     my_email = Player.GetAccountEmail()
     refs: list[tuple[str, int]] = []
     for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
@@ -448,6 +563,8 @@ def _reenable_merchant_widgets():
 
 
 def _dispatch_to_alts(command, params, extra_data=("", "", "", "")) -> list[tuple[str, int]]:
+    if _party_mode != 1:
+        return []
     my_email = Player.GetAccountEmail()
     refs: list[tuple[str, int]] = []
     for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
@@ -488,6 +605,8 @@ def _wait_for_alt_dispatch_completion(stage_name: str, message_refs: list[tuple[
 
 
 def _wait_for_alts_on_current_map(stage_name: str, expected_alts: int, target_map_id: int, timeout_ms: int = 30000):
+    if _party_mode != 1:
+        return
     if expected_alts <= 0:
         return
     my_email = Player.GetAccountEmail()
@@ -635,6 +754,331 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
     yield from _reenable_merchant_widgets()
 
 
+def _load_hero_config():
+    global _hero_slots, _hero_config_dirty, _hero_config_status
+    if not os.path.exists(_HERO_CONFIG_PATH):
+        _hero_config_status = ""
+        return
+    try:
+        with open(_HERO_CONFIG_PATH, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        _hero_slots = _parse_hero_config_entries(raw)
+        _hero_config_dirty = False
+        _hero_config_status = "Loaded."
+    except Exception as exc:
+        _hero_config_status = f"Load error: {exc}"
+
+
+def _save_hero_config():
+    global _hero_config_dirty, _hero_config_status
+    payload = [{"hero_id": int(s.hero_id), "template": s.template} for s in _hero_slots]
+    try:
+        os.makedirs(os.path.dirname(_HERO_CONFIG_PATH), exist_ok=True)
+        with open(_HERO_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        _hero_config_dirty = False
+        _hero_config_status = "Saved."
+    except Exception as exc:
+        _hero_config_status = f"Save error: {exc}"
+
+
+def _reset_hero_config():
+    global _hero_slots, _hero_config_dirty, _hero_config_status
+    _hero_slots = [_PartyHeroSlot() for _ in range(_HERO_SLOTS_COUNT)]
+    _hero_config_dirty = True
+    _hero_config_status = "Reset to empty."
+
+
+def _parse_hero_config_entries(raw) -> List[_PartyHeroSlot]:
+    slots: List[_PartyHeroSlot] = []
+    for i in range(_HERO_SLOTS_COUNT):
+        entry = raw[i] if isinstance(raw, list) and i < len(raw) else {}
+        hero_id = int(entry.get("hero_id", 0) or 0)
+        if hero_id not in _HERO_ID_TO_OPTION_INDEX:
+            hero_id = 0
+        slots.append(_PartyHeroSlot(hero_id=hero_id, template=str(entry.get("template", "") or "")))
+    return slots
+
+
+def _list_importable_hero_configs() -> List[str]:
+    try:
+        hero_files = []
+        for entry in os.listdir(_BOT_SCRIPT_DIR):
+            if not entry.endswith(" Heroes.json"):
+                continue
+            full_path = os.path.join(_BOT_SCRIPT_DIR, entry)
+            if os.path.isfile(full_path):
+                hero_files.append(full_path)
+        hero_files.sort(key=lambda path: os.path.basename(path).lower())
+        return hero_files
+    except OSError:
+        return []
+
+
+def _hero_import_label(path: str) -> str:
+    name = os.path.splitext(os.path.basename(path))[0]
+    return name[:-7] if name.endswith(" Heroes") else name
+
+
+def _import_hero_config(path: str):
+    global _hero_slots, _hero_config_dirty, _hero_config_status
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        _hero_slots = _parse_hero_config_entries(raw)
+        _hero_config_dirty = True
+        _save_hero_config()
+        _hero_config_status = f"Imported from {_hero_import_label(path)} and saved."
+    except Exception as exc:
+        _hero_config_status = f"Import error: {exc}"
+
+
+def _get_hero_icon_path(hero_id: int) -> Optional[str]:
+    try:
+        hero_type = HeroType(hero_id)
+    except ValueError:
+        return None
+    filename = _HERO_ICON_FILENAMES.get(hero_type)
+    if not filename:
+        return None
+    path = os.path.join(_HERO_ICONS_BASE, filename)
+    return path if os.path.exists(path) else None
+
+
+def _draw_hero_icon(hero_id: int, size: int = 24):
+    path = _get_hero_icon_path(hero_id)
+    if path:
+        try:
+            cx, cy = PyImGui.get_cursor_screen_pos()
+            ImGui.DrawTextureInDrawList(pos=(float(cx), float(cy)), size=(float(size), float(size)), texture_path=path)
+        except Exception:
+            try:
+                ImGui.DrawTexture(texture_path=path, width=size, height=size)
+            except Exception:
+                pass
+    PyImGui.dummy(int(size), int(size))
+
+
+def _draw_hero_combo(label: str, hero_id: int) -> int:
+    current_index = _HERO_ID_TO_OPTION_INDEX.get(hero_id, 0)
+    preview = _HERO_OPTION_LABELS[current_index]
+    if PyImGui.begin_combo(label, preview, PyImGui.ImGuiComboFlags.NoFlag):
+        for index, hero in enumerate(_HERO_OPTIONS):
+            if hero != HeroType.None_:
+                _draw_hero_icon(int(hero), size=20)
+            else:
+                PyImGui.dummy(20, 20)
+            PyImGui.same_line(0.0, 8.0)
+            if PyImGui.selectable(f"{_HERO_OPTION_LABELS[index]}##{label}_{index}", index == current_index, 0, [0.0, 0.0]):
+                current_index = index
+        PyImGui.end_combo()
+    return int(_HERO_OPTIONS[current_index])
+
+
+def _draw_hero_slot_editor(slot_index: int):
+    global _hero_config_dirty
+    slot = _hero_slots[slot_index]
+    combo_label_width = 70.0
+
+    PyImGui.text(f"Hero {slot_index + 1}")
+    PyImGui.same_line(combo_label_width, 8.0)
+    _draw_hero_icon(slot.hero_id, size=24)
+    PyImGui.same_line(0.0, 8.0)
+    PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
+    new_hero_id = _draw_hero_combo(f"##hero_{slot_index}", slot.hero_id)
+    if new_hero_id != slot.hero_id:
+        slot.hero_id = new_hero_id
+        if slot.hero_id == HeroType.None_.value:
+            slot.template = ""
+        elif not slot.template.strip():
+            try:
+                hero_type = HeroType(slot.hero_id)
+            except ValueError:
+                hero_type = HeroType.None_
+            slot.template = _DEFAULT_HERO_TEMPLATES.get(hero_type, "")
+        _hero_config_dirty = True
+
+    PyImGui.text("Template")
+    PyImGui.same_line(0.0, 8.0)
+    if PyImGui.small_button(f"Clear##slot_{slot_index}"):
+        if slot.hero_id != HeroType.None_.value or slot.template:
+            slot.hero_id = HeroType.None_.value
+            slot.template = ""
+            _hero_config_dirty = True
+    PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
+    new_template = PyImGui.input_text(f"##template_{slot_index}", slot.template)
+    if new_template != slot.template:
+        slot.template = new_template
+        _hero_config_dirty = True
+
+
+def _draw_hero_settings_tab():
+    global _hero_import_source_index
+    PyImGui.text("Configure up to 7 heroes for Single Account mode.")
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.7, 0.7, 0.7, 1.0))
+    PyImGui.text("Heroes are added in order; duplicates and empty slots are skipped.")
+    PyImGui.pop_style_color(1)
+    PyImGui.spacing()
+
+    if _hero_config_dirty:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 0.8, 0.2, 1.0))
+        PyImGui.text("Unsaved changes")
+        PyImGui.pop_style_color(1)
+    elif _hero_config_status:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 0.6, 1.0))
+        PyImGui.text(_hero_config_status)
+        PyImGui.pop_style_color(1)
+
+    if PyImGui.button("Save", 100, 26):
+        _save_hero_config()
+    PyImGui.same_line(0, 8)
+    if PyImGui.button("Reset", 100, 26):
+        _reset_hero_config()
+
+    import_paths = _list_importable_hero_configs()
+    if import_paths:
+        if _hero_import_source_index >= len(import_paths):
+            _hero_import_source_index = 0
+        import_labels = [_hero_import_label(path) for path in import_paths]
+        _hero_import_source_index = PyImGui.combo("Import Team From", _hero_import_source_index, import_labels)
+        if PyImGui.button("Import Team", 120, 26):
+            _import_hero_config(import_paths[_hero_import_source_index])
+    else:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.7, 0.7, 0.7, 1.0))
+        PyImGui.text("Import Team: save another Mount Qinkai hero lineup first.")
+        PyImGui.pop_style_color(1)
+    PyImGui.separator()
+
+    if PyImGui.begin_child("MountQinkaiHeroSlotsChild", (0, -1), True):
+        for i in range(_HERO_SLOTS_COUNT):
+            _draw_hero_slot_editor(i)
+            if i < _HERO_SLOTS_COUNT - 1:
+                PyImGui.separator()
+    PyImGui.end_child()
+
+
+def _setup_heroes(bot: Botting):
+    GLOBAL_CACHE.Party.LeaveParty()
+    for _ in range(8):
+        yield from bot.Wait._coro_for_time(250)
+        if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+            break
+    GLOBAL_CACHE.Party.Heroes.KickAllHeroes()
+    yield from bot.Wait._coro_for_time(500)
+
+    seen: set[int] = set()
+    for slot in _hero_slots:
+        hero_id = int(slot.hero_id)
+        if hero_id <= 0 or hero_id in seen:
+            continue
+        seen.add(hero_id)
+        GLOBAL_CACHE.Party.Heroes.AddHero(hero_id)
+
+    yield from bot.Wait._coro_for_time(1000)
+    template_map = {int(s.hero_id): s.template for s in _hero_slots if s.template}
+    party_hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+    for position in range(1, party_hero_count + 1):
+        hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(position)
+        if hero_agent_id > 0:
+            hero_id = GLOBAL_CACHE.Party.Heroes.GetHeroIDByAgentID(hero_agent_id)
+            template = template_map.get(hero_id, "")
+            if template:
+                GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(position, template)
+            yield from bot.Wait._coro_for_time(500)
+
+
+def _maybe_setup_party(bot: Botting):
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._summon_all_accounts()
+        yield from bot.Wait._coro_for_time(4000)
+        yield from bot.helpers.Multibox._invite_all_accounts()
+        return
+    yield from _setup_heroes(bot)
+
+
+def _restock_models_locally(model_ids: list[int], quantity: int):
+    for model_id in model_ids:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+
+
+def _restock_consumables_if_enabled(bot: Botting):
+    if _party_mode == 1:
+        if _restock_use_conset:
+            yield from bot.helpers.Multibox._restock_conset_message(CONSET_RESTOCK_TARGET)
+        if _restock_use_pcons:
+            yield from bot.helpers.Multibox._restock_all_pcons_message(PCON_RESTOCK_TARGET)
+        if _restock_use_summoning_stones:
+            yield from bot.helpers.Multibox._restock_summoning_stones_message(SUMMONING_STONES_RESTOCK_TARGET)
+        return
+    if _restock_use_conset:
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, CONSET_RESTOCK_TARGET)
+    if _restock_use_pcons:
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, PCON_RESTOCK_TARGET)
+    if _restock_use_summoning_stones:
+        yield from bot.helpers.Restock._restock_summoning_stones_impl(SUMMONING_STONES_RESTOCK_TARGET)
+
+
+def _use_multibox_consumables(bot: Botting):
+    if _restock_use_conset:
+        for model_id, effect_name in CONSET_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message((
+                model_id,
+                GLOBAL_CACHE.Skill.GetID(effect_name),
+                0,
+                0,
+            ))
+    if _restock_use_pcons:
+        for model_id, effect_name in PCON_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message((
+                model_id,
+                GLOBAL_CACHE.Skill.GetID(effect_name),
+                0,
+                0,
+            ))
+        yield from bot.helpers.Multibox._use_consumable_message((
+            ModelID.Honeycomb.value,
+            0,
+            0,
+            0,
+        ))
+    if _restock_use_summoning_stones:
+        yield from bot.helpers.Multibox._use_summoning_stone_message()
+
+
+def _use_consumables_if_enabled(bot: Botting):
+    if _party_mode == 1:
+        yield from _use_multibox_consumables(bot)
+        return
+    if _restock_use_conset:
+        yield from bot.helpers.Items.use_conset()
+    if _restock_use_pcons:
+        yield from bot.helpers.Items.use_pcons()
+    if _restock_use_summoning_stones:
+        yield from bot.helpers.Items.use_summoning_stone()
+
+
+def _upkeep_consumables(bot: Botting):
+    while True:
+        yield from bot.Wait._coro_for_time(15000)
+        if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
+            continue
+        if _party_mode == 1:
+            yield from _use_multibox_consumables(bot)
+            continue
+        if _restock_use_conset:
+            yield from bot.helpers.Items.use_conset()
+        if _restock_use_pcons:
+            yield from bot.helpers.Items.use_pcons()
+            for _ in range(4):
+                honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
+                if not honeycomb_item_id:
+                    break
+                GLOBAL_CACHE.Inventory.UseItem(honeycomb_item_id)
+                yield from bot.Wait._coro_for_time(250)
+        if _restock_use_summoning_stones:
+            yield from bot.helpers.Items.use_summoning_stone()
+
+
 def _get_account_luxon_points(account, own_email: str) -> int:
     account_email = getattr(account, "AccountEmail", "")
     if account_email == own_email:
@@ -648,6 +1092,14 @@ def _get_account_luxon_points(account, own_email: str) -> int:
 def _get_luxon_donation_candidates() -> list[tuple[str, str, int]]:
     own_email = Player.GetAccountEmail()
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if _party_mode != 1:
+        own_name = Player.GetName()
+        for account in accounts:
+            account_email = getattr(account, "AccountEmail", "")
+            character_name = getattr(getattr(account, "AgentData", None), "CharacterName", "") or account_email
+            if account_email == own_email or character_name == own_name:
+                return [(account_email or own_email, character_name or own_name, _get_account_luxon_points(account, own_email))]
+        return [(own_email, own_name, int(Player.GetLuxonData()[0]))] if own_email else []
     if not accounts:
         return [(own_email, Player.GetName(), int(Player.GetLuxonData()[0]))] if own_email else []
 
@@ -679,8 +1131,9 @@ def _donate_luxon_if_threshold_met(bot: Botting):
     ConsoleLog(BOT_NAME, f"[Donation] {len(eligible)} account(s) meet Luxon donation threshold {threshold:,}.")
     yield from _leave_party_before_start(bot)
     yield from _coro_travel_random_district(bot, CAVALON)
-    yield from bot.helpers.Multibox._summon_all_accounts()
-    yield from bot.Wait._coro_for_time(4000)
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._summon_all_accounts()
+        yield from bot.Wait._coro_for_time(4000)
 
     sender_email = Player.GetAccountEmail()
     refs: list[tuple[str, int]] = []
@@ -709,46 +1162,8 @@ def _coro_travel_random_district(bot: Botting, target_map_id: int):
     yield from bot.Map._coro_travel(target_map_id, "")
 
 
-def _upkeep_multibox_consumables(bot :"Botting"):
-    while True:
-        yield from bot.Wait._coro_for_time(15000)
-        if not Routines.Checks.Map.MapValid():
-            continue
-        
-        if Routines.Checks.Map.IsOutpost():
-            continue
-        
-        if _restock_use_conset:
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Essence_Of_Celerity.value, 
-                                                GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Grail_Of_Might.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Armor_Of_Salvation.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0))
-        if _restock_use_pcons:
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Birthday_Cupcake.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Golden_Egg.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Candy_Corn.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Candy_Apple.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Slice_Of_Pumpkin_Pie.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy"), 0, 0))    
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Drake_Kabob.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Drake_Skin"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Bowl_Of_Skalefin_Soup.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Skale_Vigor"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.Pahnai_Salad.value, 
-                                                    GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect"), 0, 0))  
-            yield from bot.helpers.Multibox._use_consumable_message((ModelID.War_Supplies.value, 
-                                                                    GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0))
-            for i in range(1, 5): 
-                GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
-                yield from bot.Wait._coro_for_time(250)
-        if _restock_use_summoning_stones:
-            yield from bot.helpers.Multibox._use_summoning_stone_message()
+def _upkeep_multibox_consumables(bot: "Botting"):
+    yield from _upkeep_consumables(bot)
             
 
 def _reverse_path():
@@ -814,6 +1229,7 @@ def _ensure_bot_ini(bot: Botting) -> str:
 
 
 def _load_settings(bot: Botting) -> None:
+    global _party_mode
     global _randomize_district, _restock_use_conset, _restock_use_pcons, _restock_use_summoning_stones
     global CONSET_RESTOCK_TARGET, PCON_RESTOCK_TARGET, SUMMONING_STONES_RESTOCK_TARGET
     global _restock_kits_enabled, _id_kits_target, _salvage_kits_target
@@ -825,6 +1241,9 @@ def _load_settings(bot: Botting) -> None:
     if not ini_key:
         return
 
+    _party_mode = 1 if IniManager().read_bool(
+        ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1
+    ) else 0
     _randomize_district = IniManager().read_bool(
         ini_key, _SETTINGS_SECTION, _RANDOMIZE_DISTRICT_KEY, _randomize_district
     )
@@ -891,6 +1310,7 @@ def _save_settings(bot: Botting) -> None:
     if not ini_key:
         return
 
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _RANDOMIZE_DISTRICT_KEY, bool(_randomize_district))
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _USE_CONSET_KEY, bool(_restock_use_conset))
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _USE_PCONS_KEY, bool(_restock_use_pcons))
@@ -920,6 +1340,7 @@ def _save_settings(bot: Botting) -> None:
 
 
 def _draw_settings():
+    global _party_mode
     global _restock_use_conset, _restock_use_pcons, _restock_use_summoning_stones
     global CONSET_RESTOCK_TARGET, PCON_RESTOCK_TARGET, SUMMONING_STONES_RESTOCK_TARGET
     global _randomize_district, _restock_kits_enabled, _id_kits_target, _salvage_kits_target
@@ -932,6 +1353,23 @@ def _draw_settings():
     PyImGui.text("Mount Qinkai Settings")
     PyImGui.separator()
     changed = False
+
+    PyImGui.text("Party Mode:")
+    new_mode = PyImGui.radio_button("Single Account with Heroes", _party_mode, 0)
+    PyImGui.same_line(0, 16)
+    new_mode = PyImGui.radio_button("Multiboxing", new_mode, 1)
+    if new_mode != _party_mode:
+        _party_mode = new_mode
+        changed = True
+    if _party_mode == 0:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 0.6, 1.0))
+        PyImGui.text("Single account uses the team configured in the Heroes tab.")
+        PyImGui.pop_style_color(1)
+    else:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 1.0, 1.0))
+        PyImGui.text("Multibox mode summons, invites, and controls alt accounts.")
+        PyImGui.pop_style_color(1)
+    PyImGui.separator()
 
     new_randomize = PyImGui.checkbox("Randomize EU District", _randomize_district)
     if new_randomize != _randomize_district:
@@ -948,19 +1386,19 @@ def _draw_settings():
         changed = True
 
     PyImGui.separator()
-    PyImGui.text("Multibox Consumables")
+    PyImGui.text("Consumables")
 
-    new_use_conset = PyImGui.checkbox("Restock & use Conset (Multibox)", _restock_use_conset)
+    new_use_conset = PyImGui.checkbox("Restock & use Conset", _restock_use_conset)
     if new_use_conset != _restock_use_conset:
         _restock_use_conset = new_use_conset
         changed = True
 
-    new_use_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_use_pcons)
+    new_use_pcons = PyImGui.checkbox("Restock & use Pcons", _restock_use_pcons)
     if new_use_pcons != _restock_use_pcons:
         _restock_use_pcons = new_use_pcons
         changed = True
 
-    new_use_summoning = PyImGui.checkbox("Restock & use Summoning Stones (Multibox)", _restock_use_summoning_stones)
+    new_use_summoning = PyImGui.checkbox("Restock & use Summoning Stones", _restock_use_summoning_stones)
     if new_use_summoning != _restock_use_summoning_stones:
         _restock_use_summoning_stones = new_use_summoning
         changed = True
@@ -1032,8 +1470,8 @@ def _draw_settings():
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
-    if accounts:
-        return accounts
+    if _party_mode == 1:
+        return accounts if accounts else []
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:
@@ -1103,15 +1541,27 @@ def _draw_statistics_tab() -> None:
     PyImGui.end_child()
 
 
+def _draw_heroes_tab() -> None:
+    if PyImGui.begin_child("MountQinkaiHeroesTabChild", _EXPANDED_TAB_CHILD_SIZE, False):
+        _draw_hero_settings_tab()
+    PyImGui.end_child()
+
 
 bot.SetMainRoutine(bot_routine)
 bot.UI.override_draw_config(_draw_settings)
 
 def main():
+    global _hero_config_loaded
     _ensure_settings_loaded(bot)
+    if not _hero_config_loaded:
+        _load_hero_config()
+        _hero_config_loaded = True
     if not _should_suspend_for_loading():
         bot.Update()
-    bot.UI.draw_window(icon_path=TEXTURE, extra_tabs=[("Statistics", _draw_statistics_tab)])
+    bot.UI.draw_window(icon_path=TEXTURE, extra_tabs=[
+        ("Statistics", _draw_statistics_tab),
+        ("Heroes", _draw_heroes_tab),
+    ])
 
 if __name__ == "__main__":
     main()
