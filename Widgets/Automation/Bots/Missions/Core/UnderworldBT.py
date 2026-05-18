@@ -1208,6 +1208,7 @@ def _deamon_assassin_tree() -> _BT:
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(
+        BT.Player.Wait(duration_ms=10_000),
         BT.Agents.MoveTargetInteractAndDialog(
             x=-8337, y=-5342,
             dialog_id=0x806801,
@@ -1417,7 +1418,7 @@ def _four_horsemen_tree() -> _BT:
             x=11337, y=-17962,
             dialog_id=0x806A01,
         ),
-        BT.Player.Wait(duration_ms=32_000),
+        BT.Player.Wait(duration_ms=40_000),
         BT.Agents.MoveTargetInteractAndDialog(
             x=11337, y=-17962,
             dialog_id=0x8D,
@@ -1611,6 +1612,7 @@ def _wrathfull_spirits_tree() -> _BT:
 def _unwanted_guests_tree() -> _BT:
     BT = Routines.BT
     _fx, _fy = -2816.0, 10036.0
+    _keeper_target_max_range = 2000.0
 
     def _uw_keeper_cycle_clear(node: _BT.Node) -> _BT.NodeState:
         node.blackboard['uw_keeper_cycle_active'] = False
@@ -1618,6 +1620,31 @@ def _unwanted_guests_tree() -> _BT:
 
     def _uw_keeper_cycle_enable(node: _BT.Node) -> _BT.NodeState:
         node.blackboard['uw_keeper_cycle_active'] = True
+        node.blackboard['uw_keeper_cycle_max_range'] = _keeper_target_max_range
+
+        # Mark nearest Keeper only within the configured max range.
+        from Py4GWCoreLib.Agent import Agent as _Agent
+        player_pos = Player.GetXY()
+        if not player_pos:
+            return _BT.NodeState.SUCCESS
+
+        px, py = float(player_pos[0]), float(player_pos[1])
+        max_range_sq = float(_keeper_target_max_range) * float(_keeper_target_max_range)
+        keepers = _collect_keeper_of_souls_agent_ids()
+        in_range = [
+            eid for eid in keepers
+            if ((px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2) <= max_range_sq
+        ]
+        if not in_range:
+            return _BT.NodeState.SUCCESS
+
+        nxt = min(
+            in_range,
+            key=lambda eid: (
+                (px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2
+            ),
+        )
+        _party_call_or_change_target(int(nxt))
         return _BT.NodeState.SUCCESS
 
     def _set_follower_flags_at_hold(node: _BT.Node) -> _BT.NodeState:
@@ -1646,11 +1673,105 @@ def _unwanted_guests_tree() -> _BT:
         _BT(_BT.ActionNode(name='EnableUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_enable)),
         BT.Movement.Move(x=_fx, y=_fy),
         BT.Movement.Move(x=-5850, y=12818),
+        _clear_follower_flags(),
         BT.Agents.MoveTargetInteractAndDialog(
             x=-5850, y=12818,
             dialog_id=0x91,
         ),
+        BT.Movement.Move(x=-13858, y=2415),
+        BT.Movement.Move(x=-13739, y=1320),
+        BT.Movement.Move(x=-11888, y=929),
+        BT.Movement.Move(x=-9298, y=2067),
+        BT.Movement.Move(x=-7608, y=6704),
+        BT.Movement.Move(x=-5221, y=8946),
+        BT.Movement.Move(x=-6283, y=10271),
+        BT.Movement.Move(x=-3735, y=13311),
+        BT.Movement.Move(x=-202, y=13337),
+        BT.Movement.Move(x=1199, y=10543),
+        BT.Movement.Move(x=1344, y=10008),
+        BT.Movement.Move(x=2864, y=10169),
+        BT.Movement.Move(x=494, y=9625),
+        BT.Movement.Move(x=-109, y=8929),
+        BT.Movement.Move(x=290, y=7281),
+        BT.Movement.Move(x=-1799, y=5914),
+        BT.Movement.Move(x=-3158, y=3426),
+        BT.Movement.Move(x=-3676, y=946),
+        BT.Movement.Move(x=-2546, y=-438),
+        BT.Movement.Move(x=-1068, y=-753),
+        BT.Movement.Move(x=316, y=131),
+        BT.Movement.Move(x=95, y=1787),
+        BT.Movement.Move(x=-355, y=2135),
+        BT.Movement.Move(x=87, y=3672),
+        BT.Movement.Move(x=1539, y=4708),
+        _BT(_BT.ActionNode(name='DisableUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_clear)),
         name='UnwantedGuests',
+    )
+
+
+def _restore_wastes_tree() -> _BT:
+    BT = Routines.BT
+    _kr = 2000.0
+    return BT.Composite.Sequence(
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        _force_local_skills_on(),
+        BT.Movement.Move(x=8138, y=16929),
+        BT.Movement.Move(x=6210, y=19120),
+        BT.Movement.MoveAndKill(Vec2f(6320, 21167), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(4282, 15902), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(2617, 16810), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(2702, 21583), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(511, 21473), clear_area_radius=_kr),
+        BT.Movement.MoveAndKill(Vec2f(537, 18407), clear_area_radius=_kr),
+        name='RestoreWastes',
+    )
+
+
+def _servants_of_grenth_tree() -> _BT:
+    BT = Routines.BT
+    _points: list[tuple[float, float]] = [
+        (2559, 20301),
+        (3032, 20148),
+        (2813, 20590),
+        (2516, 19665),
+        (3231, 19472),
+        (3691, 19979),
+        (2039, 20175),
+    ]
+
+    def _set_spread_flags(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib import Agent as _Agent
+
+        facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        pairs = GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False)
+        for account, options in pairs:
+            party_pos = int(account.AgentPartyData.PartyPosition)
+            # PartyPosition 0 is local leader; followers are 1..7.
+            if party_pos <= 0:
+                continue
+            idx = party_pos - 1
+            if idx < 0 or idx >= len(_points):
+                continue
+            px, py = _points[idx]
+            options.IsFlagged = True
+            options.FlagPos.x = float(px)
+            options.FlagPos.y = float(py)
+            options.FlagFacingAngle = facing_angle
+        return _BT.NodeState.SUCCESS
+
+    return BT.Composite.Sequence(
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        _force_local_skills_on(),
+        BT.Movement.Move(x=2700, y=19952),
+        _BT(_BT.ActionNode(name='SetServantsOfGrenthFlags', action_fn=_set_spread_flags)),
+        BT.Movement.Move(x=554, y=18384),
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=554, y=18384,
+            dialog_id=0x806601,
+        ),
+        BT.Movement.Move(x=2700, y=19952),
+        _wait_quest_completed(),
+        _clear_follower_flags(),
+        name='ServantsOfGrenth',
     )
 
 
@@ -1938,6 +2059,17 @@ def _build_keeper_of_souls_target_cycle_service() -> _BT:
             return _BT.NodeState.RUNNING
 
         keepers = _collect_keeper_of_souls_agent_ids()
+        max_range = float(node.blackboard.get('uw_keeper_cycle_max_range') or 0.0)
+        if max_range > 0.0:
+            player_pos = Player.GetXY()
+            if not player_pos:
+                return _BT.NodeState.SUCCESS
+            px, py = float(player_pos[0]), float(player_pos[1])
+            max_range_sq = max_range * max_range
+            keepers = [
+                eid for eid in keepers
+                if ((px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2) <= max_range_sq
+            ]
         if not keepers:
             return _BT.NodeState.SUCCESS
 
@@ -2014,8 +2146,8 @@ bot.SetNamedPlannerSteps([
     ('Restore Vale',        _restore_vale_tree),
     ('Wrathfull Spirits',   _wrathfull_spirits_tree),
     ('Unwanted Guests',     _unwanted_guests_tree),
-    ('Restore Wastes',      lambda: _placeholder('Restore Wastes')),
-    ('Servants of Grenth',  lambda: _placeholder('Servants of Grenth')),
+    ('Restore Wastes',      _restore_wastes_tree),
+    ('Servants of Grenth',  _servants_of_grenth_tree),
     ('Dhuum',               lambda: _placeholder('Dhuum')),
 ])
 
