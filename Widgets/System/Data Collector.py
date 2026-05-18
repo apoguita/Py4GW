@@ -1,24 +1,77 @@
+import os
+from dataclasses import dataclass
 from typing import Optional
 
 import Py4GW
+import PyImGui
 
-from Py4GWCoreLib import Map, Merchant, Player
-from Py4GWCoreLib.Item import Bag
+from Py4GWCoreLib import Map, Merchant, Player, Routines
+from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
+from Py4GWCoreLib.ImGui_src.types import Alignment
+from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.enums_src.GameData_enums import Attribute, Profession
-from Py4GWCoreLib.enums_src.Item_enums import ItemType
+from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, STORAGE_BAGS, Bags, ItemType
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
+from Py4GWCoreLib.item_data.ItemData import ITEM_DATA, ItemData
+from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
 from Py4GWCoreLib.native_src.internals import string_table
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
-from Sources.frenkeyLib.Core.encoded_names import ItemName
-from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
-from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
-class ItemCollector:
+MODULE_NAME = 'Data Collector'
+MODULE_ICON = os.path.join(Py4GW.Console.get_projects_path(), 'Textures', 'Module_Icons', 'Data Collector.png')
+widget_handler = get_widget_handler()
+
+@dataclass
+class DataCollectorConfig:
+    ini_path: str = 'Widgets/System/'
+    main_ini_filename: str = 'DataCollector.ini'
+    floating_ini_filename: str = 'DataCollectorFloating.ini'
+    settings_section: str = 'Settings'
+    enabled_var_name: str = 'collector_enabled'
+    enabled_key_name: str = 'collector_enabled'
+
+    main_ini_key: str = ''
+    floating_ini_key: str = ''
+    ini_init: bool = False
+    icon_path: str = MODULE_ICON
+
+    def _ensure_ini(self) -> bool:
+        if self.ini_init:
+            return True
+
+        ini = IniManager()
+        self.main_ini_key = ini.ensure_global_key(
+            self.ini_path,
+            self.main_ini_filename,
+        )
+        self.floating_ini_key = ini.ensure_global_key(
+            self.ini_path,
+            self.floating_ini_filename,
+        )
+        if not self.main_ini_key or not self.floating_ini_key:
+            return False
+
+        ini.add_bool(
+            self.main_ini_key,
+            self.enabled_var_name,
+            self.settings_section,
+            self.enabled_key_name,
+            True,
+        )
+        ini.load_once(self.main_ini_key)
+        ini.load_once(self.floating_ini_key)
+
+        self.ini_init = True
+        
+        return True
+
+class ItemDataCollector:
     def __init__(self, inventory_interval_ms: int = 5_000, save_interval_ms: int = 1_000):
         self.checked_item_ids: set[int] = set()
         self.checked_model_keys: set[tuple[ItemType, int]] = set()
-        self.current_context_key = ""
+        self.current_context_key = ''
         self.storage_checked_for_context = False
         self.force_inventory_scan = True
 
@@ -60,6 +113,9 @@ class ItemCollector:
             ITEM_DATA.save_data_if_queued()
             self.save_throttle.Reset()
 
+    def request_inventory_scan(self):
+        self.force_inventory_scan = True
+
     def _is_ready(self) -> bool:
         return Map.IsMapReady() and Player.IsPlayerLoaded()
 
@@ -75,16 +131,17 @@ class ItemCollector:
         self.checked_model_keys.clear()
 
     def _get_context_key(self) -> str:
-        account_email = str(Player.GetAccountEmail() or "").strip()
-        player_name = str(Player.GetName() or "").strip()
+        account_email = str(Player.GetAccountEmail() or '').strip()
+        player_name = str(Player.GetName() or '').strip()
         map_id = int(Map.GetMapID() or 0)
-        return f"{account_email}|{player_name}|{map_id}"
+        return f'{account_email}|{player_name}|{map_id}'
 
-    def _scan_bags(self, bags: list[Bag]):
+    def _scan_bags(self, bags: list[Bags]):
         import PyInventory
-        snapshot : dict[Bag, dict[int, Optional[ItemSnapshot]]] = {}
-        
-        for bag in bags:            
+
+        snapshot: dict[Bags, dict[int, Optional[ItemSnapshot]]] = {}
+
+        for bag in bags:
             inventory_bag = PyInventory.Bag(bag.value, bag.name)
             bag_snapshot: dict[int, Optional[ItemSnapshot]] = {}
 
@@ -94,11 +151,11 @@ class ItemCollector:
                 bag_snapshot[slot] = None
 
             for item in inventory_bag.GetItems():
-                slot = item.slot  # real slot of the item
+                slot = item.slot
                 bag_snapshot[slot] = ItemSnapshot.from_item_id(item.item_id, item) if item else None
 
             snapshot[bag] = bag_snapshot
-            
+
         items = [item for bag in snapshot.values() for item in bag.values() if item is not None]
 
         for item in items:
@@ -110,7 +167,7 @@ class ItemCollector:
         offered_items = offered_items + Merchant.Trading.Trader.GetOfferedItems2()
         offered_items = offered_items + Merchant.Trading.Crafter.GetOfferedItems()
         offered_items = offered_items + Merchant.Trading.Collector.GetOfferedItems()
-        
+
         for item_id in offered_items:
             item = ItemSnapshot.from_item_id(item_id) if item_id else None
             if item is None:
@@ -209,7 +266,7 @@ class ItemCollector:
             except Exception:
                 pass
 
-        return ""
+        return ''
 
     def _coerce_bytes(self, value) -> bytes:
         try:
@@ -224,9 +281,143 @@ class ItemCollector:
 
         return bytes()
 
+class DataCollector:
+    def __init__(self):
+        self.config = DataCollectorConfig()
+        self.run_throttle = ThrottledTimer(250)
+        self.item_data_collector = ItemDataCollector()
+        
+        self.collector_enabled = True
+        self._settings_loaded = False
+        self._runtime_entered = False
 
-ITEM_COLLECTOR = ItemCollector()
+    def _ensure_state(self) -> bool:
+        if not self.config._ensure_ini():
+            return False
+
+        if not self._settings_loaded:
+            self._load_settings()
+            self._settings_loaded = True
+
+        if not self.collector_enabled:
+            widget_handler.disable_widget(MODULE_NAME)            
+
+        return True
+    
+    def _load_settings(self):
+        self.collector_enabled = bool(
+            IniManager().getBool(
+                self.config.main_ini_key,
+                self.config.enabled_var_name,
+                default=True,
+                section=self.config.settings_section,
+            )
+        )
+        
+    def _save_settings(self):
+        ini = IniManager()
+        ini.set(
+            self.config.main_ini_key,
+            self.config.enabled_var_name,
+            bool(self.collector_enabled),
+            section=self.config.settings_section,
+        )
+        ini.save_vars(self.config.main_ini_key)
+
+    def set_collector_enabled(self, enabled: bool):
+        enabled = bool(enabled)
+        if enabled:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                'Data collector is enabled. Thank you for contributing by collecting data!',
+                Py4GW.Console.MessageType.Success,
+            )
+        else:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                'Data collector is disabled. Enable the collector again to start contributing by collecting data.',
+                Py4GW.Console.MessageType.Warning,
+            )
+            
+        self.collector_enabled = enabled
+        self._save_settings()
+        
+            
+    def run(self):
+        if not self._ensure_state():
+            return
+
+        if not self.run_throttle.IsExpired():
+            return
+
+        self.run_throttle.Reset()
+
+        if not Map.IsMapReady() or not Player.IsPlayerLoaded():
+            return
+
+        if self.collector_enabled:
+            self.item_data_collector.run()
+            
+    def flush(self):
+        self.item_data_collector.flush_pending_save()
+
+DATA_COLLECTOR = DataCollector()
+    
+def on_enable():
+    if not widget_handler.discovered:
+        return
+    
+    DATA_COLLECTOR.set_collector_enabled(True)
+
+def on_disable():    
+    if not widget_handler.discovered:
+        return
+    
+    DATA_COLLECTOR.set_collector_enabled(False)
+
+def tooltip():
+    PyImGui.set_next_window_size((600, 0))
+    PyImGui.begin_tooltip()
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font('Regular', 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+    PyImGui.text('Collects and enriches item metadata while you play.')
+    PyImGui.text('It inspects inventory, storage, and merchant offerings')
+    PyImGui.text('to fill in missing model ids, encoded names, English names,')
+    PyImGui.text('and relevant attribute or profession data.')
+    PyImGui.spacing()
+    PyImGui.text_colored('Features:', title_color.to_tuple_normalized())
+    PyImGui.bullet_text('Floating icon with a small persisted control window.')
+    PyImGui.bullet_text('INI-backed toggle to pause or resume collection.')
+    PyImGui.bullet_text('On-demand inventory rescan and queued-save flush.')
+    PyImGui.spacing()
+    PyImGui.text_colored('Credits:', title_color.to_tuple_normalized())
+    PyImGui.bullet_text('Developed by frenkey')
+    PyImGui.end_tooltip()
+
+def main():
+    try:
+        if not DATA_COLLECTOR._ensure_state():
+            return
+                
+        if not Routines.Checks.Map.MapValid():
+            return
+        
+        DATA_COLLECTOR.run()
+            
+    except Exception as exc:
+        Py4GW.Console.Log(MODULE_NAME, f'Error: {exc}', Py4GW.Console.MessageType.Error)
+        raise
 
 
-def collect_item_data():
-    ITEM_COLLECTOR.run()
+__all__ = ['main']
+
+
+if __name__ == '__main__':
+    main()

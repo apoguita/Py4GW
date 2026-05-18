@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Callable
 from typing import Optional
 from typing import TYPE_CHECKING
 
@@ -21,12 +21,14 @@ class _BottingTreeConfig:
         name: str,
         hero_ai: bool,
         isolation: bool,
+        multi_account: Optional[bool] = None,
         looting: Optional[bool] = None,
         pause_on_combat: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         state = {'requested': False}
         request_keys = (
+            'multi_account_request',
             'headless_heroai_enabled_request',
             'headless_heroai_reset_runtime_request',
             'looting_enabled_request',
@@ -41,6 +43,8 @@ class _BottingTreeConfig:
                 state['requested'] = False
                 return BehaviorTree.NodeState.SUCCESS
 
+            if multi_account is not None:
+                node.blackboard['multi_account_request'] = bool(multi_account)
             node.blackboard['headless_heroai_enabled_request'] = bool(hero_ai)
             node.blackboard['headless_heroai_reset_runtime_request'] = bool(reset_hero_ai)
             if looting is not None:
@@ -63,16 +67,19 @@ class _BottingTreeConfig:
     def PacifistTree(
         self,
         *,
-        account_isolation: bool = True,
+        account_isolation: Optional[bool] = None,
+        multi_account: Optional[bool] = None,
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
         auto_loot: Optional[bool] = None,
         name: str = 'ConfigurePacifistEnv',
     ) -> BehaviorTree:
+        resolved_isolation = bool(account_isolation) if account_isolation is not None else not bool(multi_account)
         return self._request_template_state(
             name=name,
             hero_ai=False,
-            isolation=account_isolation,
+            isolation=resolved_isolation,
+            multi_account=multi_account,
             reset_hero_ai=reset_hero_ai,
             pause_on_combat=pause_on_danger,
             looting=auto_loot,
@@ -86,27 +93,31 @@ class _BottingTreeConfig:
         reset_hero_ai: bool = True,
         name: str = 'ConfigurePacifistForceHeroAIEnv',
     ) -> BehaviorTree:
-        return self.PacifistTree(
-            pause_on_danger=pause_on_danger,
-            auto_loot=auto_loot,
-            account_isolation=False,
-            reset_hero_ai=reset_hero_ai,
+        return self._request_template_state(
             name=name,
+            hero_ai=True,
+            isolation=False,
+            looting=auto_loot,
+            pause_on_combat=pause_on_danger,
+            reset_hero_ai=reset_hero_ai,
         )
 
     def AggressiveTree(
         self,
         *,
         pause_on_danger: Optional[bool] = None,
-        account_isolation: bool = True,
+        account_isolation: Optional[bool] = None,
+        multi_account: Optional[bool] = None,
         auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveEnv',
     ) -> BehaviorTree:
+        resolved_isolation = bool(account_isolation) if account_isolation is not None else not bool(multi_account)
         return self._request_template_state(
             name=name,
             hero_ai=True,
-            isolation=account_isolation,
+            isolation=resolved_isolation,
+            multi_account=multi_account,
             looting=auto_loot,
             pause_on_combat=pause_on_danger,
             reset_hero_ai=reset_hero_ai,
@@ -120,12 +131,13 @@ class _BottingTreeConfig:
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveForceHeroAIEnv',
     ) -> BehaviorTree:
-        return self.AggressiveTree(
-            pause_on_danger=pause_on_danger,
-            account_isolation=False,
-            auto_loot=auto_loot,
-            reset_hero_ai=reset_hero_ai,
+        return self._request_template_state(
             name=name,
+            hero_ai=True,
+            isolation=False,
+            looting=auto_loot,
+            pause_on_combat=pause_on_danger,
+            reset_hero_ai=reset_hero_ai,
         )
 
     def MultiboxAggressiveTree(
@@ -136,24 +148,28 @@ class _BottingTreeConfig:
         pause_on_danger: Optional[bool] = None,
         name: str = 'ConfigureMultiboxAggressiveEnv',
     ) -> BehaviorTree:
-        return self.AggressiveTree(
-            pause_on_danger=pause_on_danger,
-            account_isolation=False,
-            auto_loot=auto_loot,
-            reset_hero_ai=reset_hero_ai,
+        return self._request_template_state(
             name=name,
+            hero_ai=True,
+            isolation=False,
+            multi_account=True,
+            looting=auto_loot,
+            pause_on_combat=pause_on_danger,
+            reset_hero_ai=reset_hero_ai,
         )
 
     def Pacifist(
         self,
         *,
-        account_isolation: bool = True,
+        account_isolation: Optional[bool] = None,
+        multi_account: Optional[bool] = None,
         reset_hero_ai: bool = True,
         pause_on_danger: bool = False,
         auto_loot: Optional[bool] = None,
     ) -> BehaviorTree:
         return self.PacifistTree(
             account_isolation=account_isolation,
+            multi_account=multi_account,
             reset_hero_ai=reset_hero_ai,
             pause_on_danger=pause_on_danger,
             auto_loot=auto_loot,
@@ -176,13 +192,15 @@ class _BottingTreeConfig:
         self,
         *,
         pause_on_danger: bool = True,
-        account_isolation: bool = True,
+        account_isolation: Optional[bool] = None,
+        multi_account: Optional[bool] = None,
         auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveTree(
             pause_on_danger=pause_on_danger,
             account_isolation=account_isolation,
+            multi_account=multi_account,
             auto_loot=auto_loot,
             reset_hero_ai=reset_hero_ai,
         )
@@ -217,12 +235,21 @@ class _BottingTreeConfig:
     ConfigureAggressiveEnv = Aggressive
 
     @staticmethod
-    def _consumable_upkeep_steps(spec: str | Mapping[str, Any]) -> list[tuple[str, object]]:
+    def _consumable_upkeep_steps(spec: str | int | Mapping[str, Any]) -> list[tuple[str, object]]:
         if isinstance(spec, str):
             return [
                 (
                     f'ConsumableService:{spec}',
                     lambda spec=spec: RoutinesBT.Upkeepers.ConsumableService(spec),
+                )
+            ]
+
+        if not isinstance(spec, Mapping):
+            model_id = int(spec)
+            return [
+                (
+                    f'ConsumableService:{model_id}',
+                    lambda model_id=model_id: RoutinesBT.Upkeepers.ConsumableService(model_id),
                 )
             ]
 
@@ -261,7 +288,7 @@ class _BottingTreeConfig:
 
         return [(name, _build_tree)]
 
-    def ConfigureUpkeepTrees(
+    def ConfigureUpkeep(
         self,
         *,
         disable_looting: bool = True,
@@ -271,7 +298,7 @@ class _BottingTreeConfig:
         imp_target_bag: int = 1,
         imp_slot: int = 0,
         imp_log: bool = False,
-        consumable_upkeeps: Sequence[str | Mapping[str, Any]] | None = None,
+        consumable_upkeeps: Sequence[str | int | Mapping[str, Any]] | None = None,
         enable_party_wipe_recovery: bool = True,
         party_wipe_default_step_name: str | None = None,
         party_wipe_return_interval_ms: float = 1000.0,
@@ -329,7 +356,7 @@ class _BottingTreeConfig:
 
         return self.parent
 
-    def ConfigureUpkeepTreesTree(
+    def ConfigureUpkeepNode(
         self,
         *,
         disable_looting: bool = True,
@@ -339,16 +366,16 @@ class _BottingTreeConfig:
         imp_target_bag: int = 1,
         imp_slot: int = 0,
         imp_log: bool = False,
-        consumable_upkeeps: Sequence[str | Mapping[str, Any]] | None = None,
+        consumable_upkeeps: Sequence[str | int | Mapping[str, Any]] | None = None,
         enable_party_wipe_recovery: bool = True,
         party_wipe_default_step_name: str | None = None,
         party_wipe_return_interval_ms: float = 1000.0,
         heroai_state_logging: bool = True,
         heroai_state_log_interval_ms: int = 5000,
-        name: str = 'ConfigureUpkeepTrees',
+        name: str = 'ConfigureUpkeep',
     ) -> BehaviorTree:
         def _configure(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-            self.ConfigureUpkeepTrees(
+            self.ConfigureUpkeep(
                 disable_looting=disable_looting,
                 restore_isolation_on_stop=restore_isolation_on_stop,
                 enable_outpost_imp_service=enable_outpost_imp_service,

@@ -10,12 +10,12 @@ from typing import Any
 
 from Py4GWCoreLib import Botting, BottingTree
 
-TEMPLATE_MAP: dict[str, str] = {
-    "aggressive": "Aggressive",
-    "pacifist": "Pacifist",
-    "multibox_aggressive": "Multibox_Aggressive",
-    "multibox_aggressive_no_inventory": "Multibox_Aggressive_No_Inventory",
-    "preserve": "",
+TEMPLATE_MAP: dict[str, tuple[str, dict[str, object]]] = {
+    "aggressive": ("Aggressive", {}),
+    "pacifist": ("Pacifist", {}),
+    "multibox_aggressive": ("Aggressive", {"multi_account": True}),
+    "multibox_aggressive_no_inventory": ("Aggressive", {"multi_account": True, "auto_loot": False}),
+    "preserve": ("", {}),
 }
 
 
@@ -62,13 +62,14 @@ def sanitize_bot_name(name: str) -> str:
 def apply_template(bot: Botting, template_name: str) -> None:
     if str(template_name or "").strip().lower() == "preserve":
         return
-    method_name = TEMPLATE_MAP.get(str(template_name or "").strip())
-    if method_name is None:
+    template = TEMPLATE_MAP.get(str(template_name or "").strip())
+    if template is None:
         raise ValueError(
             f"Unknown template {template_name!r}. "
             f"Choose from: {list(TEMPLATE_MAP.keys())}"
         )
-    getattr(bot.Templates, method_name)()
+    method_name, kwargs = template
+    getattr(bot.Config, method_name)(**kwargs)
 
 
 def is_hero_ai_runtime_active(bot: Botting) -> bool:

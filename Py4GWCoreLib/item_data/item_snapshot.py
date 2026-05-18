@@ -1,17 +1,15 @@
 
 from typing import Optional, cast
 
-import Py4GW
 import PyInventory
 from PyItem import DyeInfo, ItemModifier, PyItem
 
-from Py4GWCoreLib.Item import Bag, Item
+from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.enums_src.GameData_enums import Attribute, Profession, DyeColor
-from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
+from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, STORAGE_BAGS, Bags, ItemType, Rarity
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
-from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
-from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
+from Py4GWCoreLib.item_data.ItemData import ITEM_DATA, ItemData
 from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
 from Py4GWCoreLib.item_mods_src.properties import AttributeRequirement, DamageProperty, TargetItemTypeProperty
@@ -26,13 +24,13 @@ class _UnsetType:
 _UNSET = _UnsetType()
 
 
-def get_item_bag(item_id: int, item_instance: Optional[PyItem] = None) -> Bag:
+def get_item_bag(item_id: int, item_instance: Optional[PyItem] = None) -> Bags:
     item = item_instance if item_instance and item_instance.item_id == item_id else Item.item_instance(item_id) if item_id > 0 else None
 
     if not item or not item.IsItemValid(item_id):
-        return Bag.NoBag
+        return Bags.NoBag
 
-    bags_to_check : list[Bag] = []
+    bags_to_check : list[Bags] = []
     if item.is_inventory_item:
         bags_to_check.extend(INVENTORY_BAGS)
         
@@ -44,7 +42,7 @@ def get_item_bag(item_id: int, item_instance: Optional[PyItem] = None) -> Bag:
         if inventory_bag.FindItemById(item_id):
             return bag
 
-    return Bag.NoBag
+    return Bags.NoBag
 
 
 class _LazyParsedItemData:
@@ -131,7 +129,7 @@ class ItemSnapshot:
         "_data",
     )
 
-    def __init__(self, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bag] = None):
+    def __init__(self, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bags] = None):
         item = item_instance if item_instance and item_id == item_instance.item_id else Item.item_instance(item_id) if item_id > 0 else None
 
         self.id: int = item_id
@@ -142,7 +140,7 @@ class ItemSnapshot:
         self._complete_name_enc: Optional[bytes] | _UnsetType = _UNSET
         self._names: GWStringEncoded | _UnsetType = _UNSET
 
-        self.__bag: Optional[Bag] = bag if item and (item.is_inventory_item or item.is_storage_item) else Bag.NoBag
+        self.__bag: Optional[Bags] = bag if item and (item.is_inventory_item or item.is_storage_item) else Bags.NoBag
 
         self.model_id: int = item.model_id if item else -1
         self.model_file_id: int = item.model_file_id if item else -1
@@ -194,7 +192,7 @@ class ItemSnapshot:
         return cls(item.item_id, item) if item and is_valid else None
 
     @classmethod
-    def create(cls, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bag] = None) -> Optional['ItemSnapshot']:
+    def create(cls, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bags] = None) -> Optional['ItemSnapshot']:
         item = item_instance if item_instance is not None else Item.item_instance(item_id) if item_id > 0 else None
         is_valid = item.IsItemValid(item_id) if item else False
 
@@ -239,7 +237,7 @@ class ItemSnapshot:
         return cast(Optional[bytes], self._name_enc)
 
     @property
-    def singular_name(self) -> Optional[bytes]:
+    def singular_name_enc(self) -> Optional[bytes]:
         if self._singular_name is _UNSET:
             self._singular_name = self._load_name_bytes(PyItem.GetSingleItemName)
 
@@ -268,9 +266,17 @@ class ItemSnapshot:
         return string_table.decode(self.name_enc) if self.name_enc else ""
 
     @property
-    def bag(self) -> Bag:
+    def singular_name(self) -> str:
+        return string_table.decode(self.singular_name_enc) if self.singular_name_enc else ""
+    
+    @property
+    def complete_name(self) -> str:
+        return string_table.decode(self.complete_name_enc) if self.complete_name_enc else ""
+
+    @property
+    def bag(self) -> Bags:
         if self.__bag is None:
-            self.__bag = get_item_bag(self.id) if self.is_inventory_item or self.is_storage_item else Bag.NoBag
+            self.__bag = get_item_bag(self.id) if self.is_inventory_item or self.is_storage_item else Bags.NoBag
 
         return self.__bag
 
@@ -307,7 +313,7 @@ class ItemSnapshot:
         return self._get_parsed_item_data().inscription
 
     @property
-    def inherent(self) -> Optional[list[Upgrade]]:
+    def inherents(self) -> Optional[list[Upgrade]]:
         return self._get_parsed_item_data().inherent
 
     @property
@@ -353,7 +359,7 @@ class ItemSnapshot:
         self._is_stackable = _UNSET
 
         if not self.is_valid or not item:
-            self.__bag = Bag.NoBag
+            self.__bag = Bags.NoBag
             return
 
         self.model_id = item.model_id
@@ -384,11 +390,11 @@ class ItemSnapshot:
         self.is_rare_material = item.is_rare_material
         self.is_material_salvageable = item.is_material_salvageable
         self.color = DyeColor.from_dye_info(self.dye_info)
-        self.__bag = None if item.is_inventory_item or item.is_storage_item else Bag.NoBag
+        self.__bag = None if item.is_inventory_item or item.is_storage_item else Bags.NoBag
 
     @staticmethod
     @frame_cache(category="ItemSnapshot", source_lib="get_bag_snapshot")
-    def get_bag_snapshot(bag: Bag) -> dict[int, Optional['ItemSnapshot']]:
+    def get_bag_snapshot(bag: Bags) -> dict[int, Optional['ItemSnapshot']]:
         inventory_bag = PyInventory.Bag(bag.value, bag.name)
         bag_snapshot: dict[int, Optional[ItemSnapshot]] = {}
 
@@ -405,16 +411,29 @@ class ItemSnapshot:
     
     @staticmethod
     @frame_cache(category="ItemSnapshot", source_lib="get_inventory_snapshot")
-    def get_inventory_snapshot(start_bag: Bag, end_bag: Bag) -> dict[Bag, dict[int, Optional['ItemSnapshot']]]:
-        bags = [Bag(bag_id) for bag_id in range(start_bag.value, end_bag.value + 1)]
+    def get_inventory_snapshot(start_bag: Bags, end_bag: Bags) -> dict[Bags, dict[int, Optional['ItemSnapshot']]]:
+        bags = [Bags(bag_id) for bag_id in range(start_bag.value, end_bag.value + 1)]
         return ItemSnapshot.get_bags_snapshot(bags)
     
     @staticmethod
     @frame_cache(category="ItemSnapshot", source_lib="get_bags_snapshot")
-    def get_bags_snapshot(bags: list[Bag]) -> dict[Bag, dict[int, Optional['ItemSnapshot']]]:
+    def get_bags_snapshot(bags: list[Bags]) -> dict[Bags, dict[int, Optional['ItemSnapshot']]]:
         snapshot = {}
 
         for bag in bags:
             snapshot[bag] = ItemSnapshot.get_bag_snapshot(bag)
 
         return snapshot
+    
+    @staticmethod
+    @frame_cache(category="ItemSnapshot", source_lib="get_items")
+    def get_items(bags: list[Bags]) -> list['ItemSnapshot']:
+        snapshot = ItemSnapshot.get_bags_snapshot(bags)
+        items: list[ItemSnapshot] = []
+
+        for bag in snapshot.values():
+            for item in bag.values():
+                if item is not None and item.is_valid:
+                    items.append(item)
+
+        return items
