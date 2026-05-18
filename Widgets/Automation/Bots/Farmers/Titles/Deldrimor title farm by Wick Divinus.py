@@ -1058,9 +1058,6 @@ def _draw_hero_settings_tab():
     if PyImGui.button("Save", 100, 26):
         _save_hero_config()
     PyImGui.same_line(0, 8)
-    if PyImGui.button("Reload", 100, 26):
-        _load_hero_config()
-    PyImGui.same_line(0, 8)
     if PyImGui.button("Reset", 100, 26):
         _reset_hero_config()
     import_paths = _list_importable_hero_configs()
