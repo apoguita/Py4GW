@@ -1403,6 +1403,263 @@ def _test_manual_vendor_auto_buy_uses_current_offers(module) -> None:
     _expect(not widget.preview_ready, "Successful manual vendor buys should mark Preview dirty.")
 
 
+def _test_gold_top_up_skips_when_total_gold_is_insufficient(module) -> None:
+    widget = _make_widget(module)
+    gold = {"character": 100, "storage": 200}
+    withdrawals: list[int] = []
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: gold["character"],
+            GetGoldInStorage=lambda: gold["storage"],
+            WithdrawGold=lambda amount: withdrawals.append(int(amount)),
+        )
+
+        result = _drain_generator_return(widget._ensure_gold_for_purchase(500, purpose="regression buy"))
+
+        _expect(not result.ready, "Gold top-up should fail when character plus Xunlai gold cannot cover the purchase.")
+        _expect(result.reason == "not enough total gold", "Gold top-up should report total gold insufficiency.")
+        _expect(withdrawals == [], "Gold top-up should not withdraw when total gold is insufficient.")
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+
+def _test_merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall(module) -> None:
+    widget = _make_widget(module)
+    gold = {"character": 100, "storage": 1000}
+    withdrawals: list[int] = []
+    buys: list[tuple[int, int]] = []
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_trading = getattr(module.GLOBAL_CACHE, "Trading", None)
+    try:
+        def _withdraw_gold(amount: int) -> None:
+            safe_amount = int(amount)
+            withdrawals.append(safe_amount)
+            _expect(safe_amount <= gold["storage"], "Merchant stock buy should not overdraw Xunlai gold.")
+            gold["storage"] -= safe_amount
+            gold["character"] += safe_amount
+
+        def _buy_item(item_id: int, cost: int) -> None:
+            buys.append((int(item_id), int(cost)))
+            _expect(gold["character"] >= int(cost), "Merchant stock buy should top up gold before buying.")
+            gold["character"] -= int(cost)
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: gold["character"],
+            GetGoldInStorage=lambda: gold["storage"],
+            WithdrawGold=_withdraw_gold,
+        )
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+            GetModelID=lambda item_id: 555 if int(item_id) == 501 else 0,
+            Properties=types.SimpleNamespace(GetValue=lambda item_id: 250 if int(item_id) == 501 else 0),
+        )
+        module.GLOBAL_CACHE.Trading = types.SimpleNamespace(
+            Merchant=types.SimpleNamespace(
+                GetOfferedItems=lambda: [501],
+                BuyItem=_buy_item,
+            )
+        )
+
+        outcome = _drain_generator_return(widget._buy_merchant_model(555, 1, offered_items=[501]))
+
+        _expect(outcome.completed == 1, "Merchant stock buy should complete after withdrawing needed Xunlai gold.")
+        _expect(
+            outcome.gold_blocked == 0,
+            "Merchant stock buy should not remain gold-blocked after a successful top-up.",
+        )
+        _expect(withdrawals == [400], "Merchant stock buy should withdraw only the exact carried-gold shortfall.")
+        _expect(buys == [(501, 500)], "Merchant stock buy should buy the offered item at the calculated buy price.")
+        _expect(gold == {"character": 0, "storage": 600}, "Merchant stock buy should leave expected gold balances.")
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Trading = original_trading
+
+
+def _test_material_buy_opens_xunlai_revalidates_and_withdraws_gold(module) -> None:
+    widget = _make_widget(module)
+    material_model_id = int(module.ModelID.Wood_Plank.value)
+    trader_item_id = 701
+    gold = {"character": 100, "storage": 1000}
+    material_count = {"value": 0}
+    storage_open = {"value": False}
+    open_calls: list[str] = []
+    quotes: list[int] = []
+    withdrawals: list[int] = []
+    buys: list[tuple[int, int]] = []
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_trading = getattr(module.GLOBAL_CACHE, "Trading", None)
+    original_merchant_yield = getattr(module.Routines.Yield, "Merchant", None)
+    try:
+        def _open_xunlai_window() -> None:
+            open_calls.append("open")
+            storage_open["value"] = True
+
+        def _withdraw_gold(amount: int) -> None:
+            safe_amount = int(amount)
+            withdrawals.append(safe_amount)
+            _expect(safe_amount <= gold["storage"], "Material buy should not overdraw Xunlai gold.")
+            gold["storage"] -= safe_amount
+            gold["character"] += safe_amount
+
+        def _request_quote(item_id: int) -> None:
+            quotes.append(int(item_id))
+
+        def _wait_for_quote(request_quote, item_id: int, **_kwargs):
+            request_quote(item_id)
+            if False:
+                yield None
+            return 500
+
+        def _buy_item(item_id: int, cost: int) -> None:
+            buys.append((int(item_id), int(cost)))
+            _expect(gold["character"] >= int(cost), "Material buy should top up gold before buying.")
+            gold["character"] -= int(cost)
+            material_count["value"] += module.MATERIAL_BATCH_SIZE
+
+        def _wait_for_transaction(**_kwargs):
+            if False:
+                yield None
+            return True
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: storage_open["value"],
+            OpenXunlaiWindow=_open_xunlai_window,
+            GetGoldOnCharacter=lambda: gold["character"],
+            GetGoldInStorage=lambda: gold["storage"],
+            WithdrawGold=_withdraw_gold,
+            GetModelCount=lambda model_id: material_count["value"] if int(model_id) == material_model_id else 0,
+        )
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+            GetModelID=lambda item_id: material_model_id if int(item_id) == trader_item_id else 0,
+            Properties=types.SimpleNamespace(
+                GetQuantity=lambda item_id: module.MATERIAL_BATCH_SIZE if int(item_id) == trader_item_id else 0,
+            ),
+        )
+        module.GLOBAL_CACHE.Trading = types.SimpleNamespace(
+            Trader=types.SimpleNamespace(
+                GetOfferedItems=lambda: [trader_item_id],
+                RequestQuote=_request_quote,
+                BuyItem=_buy_item,
+            )
+        )
+        module.Routines.Yield.Merchant = types.SimpleNamespace(
+            _wait_for_quote=_wait_for_quote,
+            _wait_for_transaction=_wait_for_transaction,
+        )
+
+        outcome = _drain_generator_return(
+            widget._buy_planned_materials(
+                (0.0, 0.0),
+                [
+                    module.PlannedMaterialBuy(
+                        merchant_type=module.MERCHANT_TYPE_MATERIALS,
+                        model_id=material_model_id,
+                        quantity=module.MATERIAL_BATCH_SIZE,
+                        label="Wood Plank",
+                        batch_size=module.MATERIAL_BATCH_SIZE,
+                    )
+                ],
+                trader_items=[trader_item_id],
+            )
+        )
+
+        _expect(
+            outcome.completed == module.MATERIAL_BATCH_SIZE,
+            "Material buy should count the verified inventory gain after opening Xunlai and topping up gold.",
+        )
+        _expect(outcome.gold_blocked == 0, "Material buy should not remain gold-blocked after a successful top-up.")
+        _expect(open_calls == ["open"], "Material buy should open Xunlai once when carried gold is short.")
+        _expect(quotes == [trader_item_id, trader_item_id], "Material buy should requote after Xunlai opens.")
+        _expect(withdrawals == [400], "Material buy should withdraw only the exact carried-gold shortfall.")
+        _expect(buys == [(trader_item_id, 500)], "Material buy should send the validated buy request.")
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Trading = original_trading
+        module.Routines.Yield.Merchant = original_merchant_yield
+
+
+def _test_material_buy_does_not_count_false_transaction_without_inventory_gain(module) -> None:
+    widget = _make_widget(module)
+    material_model_id = int(module.ModelID.Leather_Square.value)
+    trader_item_id = 702
+    buys: list[tuple[int, int]] = []
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_trading = getattr(module.GLOBAL_CACHE, "Trading", None)
+    original_merchant_yield = getattr(module.Routines.Yield, "Merchant", None)
+    try:
+        def _wait_for_quote(request_quote, item_id: int, **_kwargs):
+            request_quote(item_id)
+            if False:
+                yield None
+            return 270
+
+        def _buy_item(item_id: int, cost: int) -> None:
+            buys.append((int(item_id), int(cost)))
+
+        def _wait_for_transaction(**_kwargs):
+            if False:
+                yield None
+            return True
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            WithdrawGold=lambda _amount: None,
+            GetModelCount=lambda model_id: 0 if int(model_id) == material_model_id else 0,
+        )
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+            GetModelID=lambda item_id: material_model_id if int(item_id) == trader_item_id else 0,
+            Properties=types.SimpleNamespace(
+                GetQuantity=lambda item_id: 2 if int(item_id) == trader_item_id else 0,
+            ),
+        )
+        module.GLOBAL_CACHE.Trading = types.SimpleNamespace(
+            Trader=types.SimpleNamespace(
+                GetOfferedItems=lambda: [trader_item_id],
+                RequestQuote=lambda _item_id: None,
+                BuyItem=_buy_item,
+            )
+        )
+        module.Routines.Yield.Merchant = types.SimpleNamespace(
+            _wait_for_quote=_wait_for_quote,
+            _wait_for_transaction=_wait_for_transaction,
+        )
+
+        outcome = _drain_generator_return(
+            widget._buy_planned_materials(
+                (0.0, 0.0),
+                [
+                    module.PlannedMaterialBuy(
+                        merchant_type=module.MERCHANT_TYPE_RARE_MATERIALS,
+                        model_id=material_model_id,
+                        quantity=2,
+                        label="Leather Square",
+                        batch_size=1,
+                    )
+                ],
+                phase_label="Rare material buys",
+                trader_items=[trader_item_id],
+            )
+        )
+
+        _expect(buys == [(trader_item_id, 270)], "False-success regression should send one buy request.")
+        _expect(outcome.completed == 0, "Material buy should not count completion without carried inventory gain.")
+        _expect(outcome.timeout_failures == 1, "Material buy should report a verification timeout when no gain appears.")
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Trading = original_trading
+        module.Routines.Yield.Merchant = original_merchant_yield
+
+
 def _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root: Path) -> None:
     widget = _make_widget(module)
     config_path = temp_root / "exact_rune_sell_profile.json"
@@ -7760,6 +8017,33 @@ def _test_execute_storage_transfers_probes_material_storage_when_quantity_report
         restore()
 
 
+def _test_execute_storage_transfers_reported_full_unverified_probe_falls_back(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(
+        module,
+        widget,
+        storage_quantity=module.MATERIAL_STORAGE_MAX_STACK_SIZE,
+        verify_material_move=False,
+    )
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget)
+
+        _expect(
+            outcome.completed == 25 and outcome.timeout_failures == 0,
+            "A reported-full Material Storage probe that moves nothing should fall back to regular storage panes.",
+        )
+        _expect(
+            calls["material_moves"] == [(330, module.MATERIAL_STORAGE_BAG_ID, 0, 25)],
+            "Reported-full Material Storage should still be probed before regular fallback.",
+        )
+        _expect(
+            calls["regular_deposits"] == [(330, 25)],
+            "Regular storage fallback should receive the unchanged source stack after a no-op full-storage probe.",
+        )
+    finally:
+        restore()
+
+
 def _test_execute_storage_transfers_partially_fills_material_storage_then_falls_back(module) -> None:
     widget = _make_widget(module)
     _quantities, calls, restore = _install_material_storage_execution_stubs(
@@ -9641,6 +9925,22 @@ def main() -> int:
             ("manual_vendor_matching_sell_uses_current_merchant_only", lambda: _test_manual_vendor_matching_sell_uses_current_merchant_only(module)),
             ("manual_vendor_any_merchant_material_fallback", lambda: _test_manual_vendor_any_merchant_material_fallback(module)),
             ("manual_vendor_auto_buy_uses_current_offers", lambda: _test_manual_vendor_auto_buy_uses_current_offers(module)),
+            (
+                "gold_top_up_skips_when_total_gold_is_insufficient",
+                lambda: _test_gold_top_up_skips_when_total_gold_is_insufficient(module),
+            ),
+            (
+                "merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall",
+                lambda: _test_merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall(module),
+            ),
+            (
+                "material_buy_opens_xunlai_revalidates_and_withdraws_gold",
+                lambda: _test_material_buy_opens_xunlai_revalidates_and_withdraws_gold(module),
+            ),
+            (
+                "material_buy_does_not_count_false_transaction_without_inventory_gain",
+                lambda: _test_material_buy_does_not_count_false_transaction_without_inventory_gain(module),
+            ),
             ("exact_rune_sell_rule_profile_roundtrip", lambda: _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root)),
             ("exact_rune_sell_rule_plans_matching_standalone_runes", lambda: _test_exact_rune_sell_rule_plans_matching_standalone_runes(module)),
             ("exact_rune_sell_rule_reserves_names_from_broad_armor_rule", lambda: _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module)),
@@ -9871,6 +10171,10 @@ def main() -> int:
             (
                 "execute_storage_transfers_probes_material_storage_when_quantity_reports_full",
                 lambda: _test_execute_storage_transfers_probes_material_storage_when_quantity_reports_full(module),
+            ),
+            (
+                "execute_storage_transfers_reported_full_unverified_probe_falls_back",
+                lambda: _test_execute_storage_transfers_reported_full_unverified_probe_falls_back(module),
             ),
             (
                 "execute_storage_transfers_partially_fills_material_storage_then_falls_back",

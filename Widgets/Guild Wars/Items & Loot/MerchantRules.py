@@ -401,6 +401,9 @@ MATERIAL_BATCH_SIZE = 10
 MATERIAL_STORAGE_BAG_ID = 6
 MATERIAL_STORAGE_BAG_NAME = "MaterialStorage"
 MATERIAL_STORAGE_MAX_STACK_SIZE = 250
+MAX_CHARACTER_GOLD = 100_000
+GOLD_TOP_UP_TIMEOUT_MS = 2000
+GOLD_TOP_UP_STEP_MS = 50
 MAX_WEAPON_REQUIREMENT = 13
 MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT = 0x279
 MODIFIER_IDENTIFIER_DAMAGE = 0x27A
@@ -2152,6 +2155,16 @@ class ExecutionPhaseOutcome:
     load_failures: int = 0
     gold_blocked: int = 0
     depleted: int = 0
+
+
+@dataclass
+class GoldTopUpResult:
+    ready: bool
+    carried_gold: int = 0
+    storage_gold: int = 0
+    withdrawn: int = 0
+    opened_storage: bool = False
+    reason: str = ""
 
 
 def _default_rarity_flags() -> dict[str, bool]:
@@ -13004,9 +13017,12 @@ class MerchantRulesWidget:
                             batch_size=batch_size,
                         )
                     )
-                    reason = "Character gold only."
+                    reason = "Checks carried gold before each purchase and can top up from Xunlai when available."
                     if batch_size > 1:
-                        reason = f"{needed // batch_size} full trader batch(es) of {batch_size}. Character gold only."
+                        reason = (
+                            f"{needed // batch_size} full trader batch(es) of {batch_size}. "
+                            "Checks carried gold before each purchase and can top up from Xunlai when available."
+                        )
                     plan.entries.append(
                         ExecutionPlanEntry("buy", merchant_type, material_label, needed, PLAN_STATE_WILL_EXECUTE, reason)
                     )
@@ -14337,6 +14353,168 @@ class MerchantRulesWidget:
         self._debug_log(f"Failed to open Xunlai for {purpose} after {timeout_ms} ms.")
         return False
 
+    def _get_inventory_api_method(self, method_name: str):
+        inventory_api = getattr(GLOBAL_CACHE, "Inventory", None)
+        if inventory_api is None:
+            return None
+        method = getattr(inventory_api, str(method_name), None)
+        return method if callable(method) else None
+
+    def _read_gold_amount(self, method_name: str) -> int | None:
+        method = self._get_inventory_api_method(method_name)
+        if method is None:
+            return None
+        try:
+            return max(0, int(method() or 0))
+        except Exception as exc:
+            self._debug_log(f"Gold API {method_name} failed: {exc}")
+            return None
+
+    def _wait_for_character_gold_at_least(
+        self,
+        target_gold: int,
+        *,
+        timeout_ms: int = GOLD_TOP_UP_TIMEOUT_MS,
+        step_ms: int = GOLD_TOP_UP_STEP_MS,
+    ):
+        safe_target = max(0, int(target_gold))
+        waited_ms = 0
+        current_gold = self._read_gold_amount("GetGoldOnCharacter")
+        while waited_ms <= max(0, int(timeout_ms)):
+            if current_gold is not None and int(current_gold) >= safe_target:
+                return max(0, int(current_gold))
+            if waited_ms >= max(0, int(timeout_ms)):
+                break
+            waited_ms += max(1, int(step_ms))
+            yield from Routines.Yield.wait(max(1, int(step_ms)))
+            current_gold = self._read_gold_amount("GetGoldOnCharacter")
+        return max(0, int(current_gold or 0))
+
+    def _ensure_gold_for_purchase(
+        self,
+        required_gold: int,
+        *,
+        purpose: str = "merchant purchase",
+    ):
+        safe_required_gold = max(0, int(required_gold))
+        character_gold = self._read_gold_amount("GetGoldOnCharacter")
+        if character_gold is None:
+            return GoldTopUpResult(False, reason="carried gold API unavailable")
+        if safe_required_gold <= 0 or character_gold >= safe_required_gold:
+            return GoldTopUpResult(True, carried_gold=character_gold)
+
+        storage_gold = self._read_gold_amount("GetGoldInStorage")
+        withdraw_gold = self._get_inventory_api_method("WithdrawGold")
+        if storage_gold is None or withdraw_gold is None:
+            return GoldTopUpResult(
+                False,
+                carried_gold=character_gold,
+                reason="Xunlai gold API unavailable",
+            )
+
+        if character_gold + storage_gold < safe_required_gold:
+            return GoldTopUpResult(
+                False,
+                carried_gold=character_gold,
+                storage_gold=storage_gold,
+                reason="not enough total gold",
+            )
+
+        opened_storage = False
+        if not self._is_storage_open():
+            if not self._can_use_local_storage_actions():
+                return GoldTopUpResult(
+                    False,
+                    carried_gold=character_gold,
+                    storage_gold=storage_gold,
+                    reason="Xunlai not available here",
+                )
+            opened_storage = bool((yield from self._ensure_storage_open(purpose=f"{purpose} gold top-up")))
+            if not opened_storage:
+                return GoldTopUpResult(
+                    False,
+                    carried_gold=character_gold,
+                    storage_gold=storage_gold,
+                    reason="could not open Xunlai",
+                )
+            yield from Routines.Yield.wait(100)
+            character_gold = self._read_gold_amount("GetGoldOnCharacter")
+            storage_gold = self._read_gold_amount("GetGoldInStorage")
+            if character_gold is None or storage_gold is None:
+                return GoldTopUpResult(
+                    False,
+                    opened_storage=opened_storage,
+                    reason="gold API unavailable after opening Xunlai",
+                )
+            if character_gold >= safe_required_gold:
+                return GoldTopUpResult(
+                    True,
+                    carried_gold=character_gold,
+                    storage_gold=storage_gold,
+                    opened_storage=opened_storage,
+                )
+            if character_gold + storage_gold < safe_required_gold:
+                return GoldTopUpResult(
+                    False,
+                    carried_gold=character_gold,
+                    storage_gold=storage_gold,
+                    opened_storage=opened_storage,
+                    reason="not enough total gold",
+                )
+            return GoldTopUpResult(
+                False,
+                carried_gold=character_gold,
+                storage_gold=storage_gold,
+                opened_storage=opened_storage,
+                reason="Xunlai opened; revalidate purchase before withdrawal",
+            )
+
+        missing_gold = max(0, safe_required_gold - character_gold)
+        character_gold_room = max(0, MAX_CHARACTER_GOLD - character_gold)
+        withdraw_amount = min(missing_gold, max(0, int(storage_gold)), character_gold_room)
+        if withdraw_amount <= 0:
+            return GoldTopUpResult(
+                False,
+                carried_gold=character_gold,
+                storage_gold=storage_gold,
+                opened_storage=opened_storage,
+                reason="character gold cap prevents withdrawal",
+            )
+
+        self._debug_log(
+            f"Withdrawing {withdraw_amount} gold for {purpose}: "
+            f"carried={character_gold} storage={storage_gold} required={safe_required_gold}."
+        )
+        try:
+            withdraw_gold(int(withdraw_amount))
+        except Exception as exc:
+            return GoldTopUpResult(
+                False,
+                carried_gold=character_gold,
+                storage_gold=storage_gold,
+                opened_storage=opened_storage,
+                reason=f"withdraw failed: {exc}",
+            )
+
+        queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=1000, step_ms=50)
+        wait_timeout_ms = GOLD_TOP_UP_TIMEOUT_MS if queue_cleared else 1000
+        character_gold = yield from self._wait_for_character_gold_at_least(
+            safe_required_gold,
+            timeout_ms=wait_timeout_ms,
+            step_ms=GOLD_TOP_UP_STEP_MS,
+        )
+        storage_gold_after = self._read_gold_amount("GetGoldInStorage")
+        ready = character_gold >= safe_required_gold
+        reason = "" if ready else "withdrawal did not reach required carried gold"
+        return GoldTopUpResult(
+            ready,
+            carried_gold=character_gold,
+            storage_gold=max(0, int(storage_gold_after or 0)),
+            withdrawn=withdraw_amount,
+            opened_storage=opened_storage,
+            reason=reason,
+        )
+
     def _get_inventory_stack_quantities(self, item_ids: list[int]) -> dict[int, int]:
         tracked_ids = {int(item_id) for item_id in item_ids if int(item_id) > 0}
         if not tracked_ids:
@@ -14616,11 +14794,17 @@ class MerchantRulesWidget:
         result.moved_quantity = moved_quantity
         result.remaining_quantity = max(0, safe_requested_quantity - moved_quantity)
         if moved_quantity <= 0:
-            result.abort_regular_fallback = True
-            self._debug_log(
-                f"Material storage deposit unverified: item_id={safe_item_id} model={model_id} "
-                f"requested={material_move_quantity}; regular storage fallback skipped for this pass."
-            )
+            if reported_full and queue_cleared:
+                self._debug_log(
+                    f"Material storage reported-full probe moved nothing: item_id={safe_item_id} model={model_id} "
+                    f"requested={material_move_quantity}; falling back to regular storage panes."
+                )
+            else:
+                result.abort_regular_fallback = True
+                self._debug_log(
+                    f"Material storage deposit unverified: item_id={safe_item_id} model={model_id} "
+                    f"requested={material_move_quantity}; regular storage fallback skipped for this pass."
+                )
         else:
             self._debug_log(
                 f"Material storage deposit: item_id={safe_item_id} model={model_id} "
@@ -14966,22 +15150,48 @@ class MerchantRulesWidget:
                         blocked_reason = "skill points"
                         break
 
-                    character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
-                    if character_gold < int(recipe.gold_cost):
-                        withdraw_amount = min(
-                            max(0, int(GLOBAL_CACHE.Inventory.GetGoldInStorage())),
-                            int(recipe.gold_cost) - character_gold,
+                    gold_result = yield from self._ensure_gold_for_purchase(
+                        int(recipe.gold_cost),
+                        purpose=f"{craft.vendor_name} craft {craft.label}",
+                    )
+                    if gold_result.opened_storage:
+                        opened_items = yield from self._open_consumable_crafter(
+                            first_craft.coords,
+                            first_craft.vendor_name,
                         )
-                        if withdraw_amount > 0:
-                            GLOBAL_CACHE.Inventory.WithdrawGold(withdraw_amount)
-                            yield from Routines.Yield.wait(250)
-                            character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
-                    if character_gold < int(recipe.gold_cost):
+                        if not opened_items:
+                            outcome.load_failures += 1
+                            blocked_reason = "crafter inventory"
+                            break
+                        offered_by_model = {}
+                        for offered_item_id in opened_items:
+                            try:
+                                offered_model_id = int(GLOBAL_CACHE.Item.GetModelID(offered_item_id))
+                                offered_by_model[offered_model_id] = int(offered_item_id)
+                            except Exception:
+                                continue
+                        offered_item_id = int(offered_by_model.get(int(recipe.model_id), 0))
+                        if offered_item_id <= 0:
+                            outcome.unavailable += max(1, requested_craft_quantity - completed_for_craft)
+                            blocked_reason = "crafter offer"
+                            break
+                        gold_result = yield from self._ensure_gold_for_purchase(
+                            int(recipe.gold_cost),
+                            purpose=f"{craft.vendor_name} craft {craft.label}",
+                        )
+                    if not gold_result.ready:
                         outcome.gold_blocked += 1
                         blocked_reason = "gold"
+                        self._debug_log(
+                            f"Consumable craft blocked by gold: label={craft.label} cost={int(recipe.gold_cost)} "
+                            f"carried={gold_result.carried_gold} storage={gold_result.storage_gold} "
+                            f"reason={gold_result.reason}"
+                        )
                         break
 
-                    ingredient_item_ids, ingredient_quantities, blockers = self._collect_crafting_ingredients_from_inventory(recipe)
+                    ingredient_item_ids, ingredient_quantities, blockers = (
+                        self._collect_crafting_ingredients_from_inventory(recipe)
+                    )
                     if blockers:
                         outcome.depleted += 1
                         blocked_reason = "materials"
@@ -15025,35 +15235,135 @@ class MerchantRulesWidget:
         )
         return outcome
 
-    def _buy_merchant_model(self, model_id: int, quantity: int, *, offered_items: list[int] | None = None):
-        if quantity <= 0:
-            return False
-        offered_items = (
-            list(offered_items)
-            if offered_items is not None
-            else list(GLOBAL_CACHE.Trading.Merchant.GetOfferedItems())
+    def _find_offered_model_item_id(self, offered_items: list[int], model_id: int) -> int:
+        safe_model_id = max(0, int(model_id))
+        if safe_model_id <= 0:
+            return 0
+        for offered_item_id in list(offered_items or []):
+            try:
+                if int(GLOBAL_CACHE.Item.GetModelID(int(offered_item_id))) == safe_model_id:
+                    return int(offered_item_id)
+            except Exception:
+                continue
+        return 0
+
+    def _get_merchant_offered_items(self, fallback_items: list[int] | None = None) -> list[int]:
+        try:
+            live_items = list(GLOBAL_CACHE.Trading.Merchant.GetOfferedItems())
+            if live_items:
+                return live_items
+        except Exception as exc:
+            self._debug_log(f"Merchant offer refresh failed: {exc}")
+        return list(fallback_items or [])
+
+    def _get_trader_offered_items(self, fallback_items: list[int] | None = None) -> list[int]:
+        try:
+            live_items = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+            if live_items:
+                return live_items
+        except Exception as exc:
+            self._debug_log(f"Trader offer refresh failed: {exc}")
+        return list(fallback_items or [])
+
+    def _refresh_trader_items_after_gold_top_up(
+        self,
+        coords: tuple[float, float],
+        *,
+        using_existing_trader_items: bool,
+        phase_label: str,
+    ):
+        if using_existing_trader_items:
+            refreshed_items = self._get_trader_offered_items()
+            if refreshed_items:
+                return refreshed_items
+            ConsoleLog(
+                MODULE_NAME,
+                f"{phase_label} stopped after Xunlai gold top-up because the trader window changed.",
+                Console.MessageType.Warning,
+            )
+            return []
+        x, y = coords
+        refreshed_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+            x,
+            y,
+            inventory_timeout_ms=2500,
+            inventory_step_ms=10,
         )
-        matched_item_id = 0
-        for offered_item_id in offered_items:
-            if int(GLOBAL_CACHE.Item.GetModelID(offered_item_id)) == int(model_id):
-                matched_item_id = int(offered_item_id)
-                break
+        return list(refreshed_items or [])
+
+    def _buy_merchant_model(self, model_id: int, quantity: int, *, offered_items: list[int] | None = None):
+        safe_quantity = max(0, int(quantity))
+        outcome = ExecutionPhaseOutcome(
+            label="Merchant stock",
+            measure_label="items",
+            attempted=safe_quantity,
+        )
+        if safe_quantity <= 0:
+            return outcome
+
+        current_offers = self._get_merchant_offered_items(offered_items)
+        matched_item_id = self._find_offered_model_item_id(current_offers, model_id)
         if matched_item_id <= 0:
             self._debug_log(f"Merchant stock buy skipped: model={model_id} quantity={quantity} was not offered.")
-            return False
+            outcome.unavailable += safe_quantity
+            return outcome
 
-        buy_price = int(GLOBAL_CACHE.Item.Properties.GetValue(matched_item_id)) * 2
-        self._debug_log(
-            f"Merchant stock buy: model={model_id} matched_item_id={matched_item_id} "
-            f"quantity={quantity} buy_price={buy_price}"
-        )
-        for _ in range(max(0, int(quantity))):
+        self._debug_log(f"Merchant stock buy: model={model_id} quantity={safe_quantity}")
+        for _ in range(safe_quantity):
+            current_offers = self._get_merchant_offered_items(current_offers)
+            matched_item_id = self._find_offered_model_item_id(current_offers, model_id)
+            if matched_item_id <= 0:
+                outcome.unavailable += safe_quantity - outcome.completed
+                self._debug_log(f"Merchant stock buy stopped: model={model_id} is no longer offered.")
+                break
+
+            buy_price = int(GLOBAL_CACHE.Item.Properties.GetValue(matched_item_id)) * 2
+            if buy_price <= 0:
+                outcome.quote_failures += 1
+                break
+
+            gold_result = yield from self._ensure_gold_for_purchase(
+                buy_price,
+                purpose=f"merchant stock {model_id}",
+            )
+            if gold_result.opened_storage:
+                current_offers = self._get_merchant_offered_items()
+                matched_item_id = self._find_offered_model_item_id(current_offers, model_id)
+                if matched_item_id <= 0:
+                    outcome.load_failures += 1
+                    self._debug_log(
+                        f"Merchant stock buy stopped after Xunlai top-up: model={model_id} merchant offers changed."
+                    )
+                    break
+                buy_price = int(GLOBAL_CACHE.Item.Properties.GetValue(matched_item_id)) * 2
+                gold_result = yield from self._ensure_gold_for_purchase(
+                    buy_price,
+                    purpose=f"merchant stock {model_id}",
+                )
+                if not gold_result.ready:
+                    outcome.gold_blocked += 1
+                    break
+            if not gold_result.ready:
+                outcome.gold_blocked += 1
+                self._debug_log(
+                    f"Merchant stock buy blocked by gold: model={model_id} price={buy_price} "
+                    f"carried={gold_result.carried_gold} storage={gold_result.storage_gold} reason={gold_result.reason}"
+                )
+                break
+
             GLOBAL_CACHE.Trading.Merchant.BuyItem(matched_item_id, buy_price)
+            queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=1500, step_ms=50)
+            if not queue_cleared:
+                outcome.timeout_failures += 1
+                break
+            outcome.completed += 1
+            yield from Routines.Yield.wait(40)
 
-        while not ActionQueueManager().IsEmpty("MERCHANT"):
-            yield from Routines.Yield.wait(50)
-        self._debug_log(f"Merchant stock buy completed: model={model_id} quantity={quantity}")
-        return True
+        self._debug_log(
+            f"Merchant stock buy completed: model={model_id} completed={outcome.completed}/{safe_quantity} "
+            f"unavailable={outcome.unavailable} gold_blocked={outcome.gold_blocked}"
+        )
+        return outcome
 
     def _buy_planned_materials(
         self,
@@ -15065,19 +15375,61 @@ class MerchantRulesWidget:
     ) -> ExecutionPhaseOutcome:
         outcome = ExecutionPhaseOutcome(
             label=phase_label,
-            measure_label="trades",
-            attempted=sum(
-                max(0, int(planned_buy.quantity)) // max(1, int(planned_buy.batch_size))
-                for planned_buy in material_buys
-            ),
+            measure_label="items",
+            attempted=sum(max(0, int(planned_buy.quantity)) for planned_buy in material_buys),
         )
         if not material_buys:
             return outcome
+
+        def _read_carried_material_count(model_id: int) -> int | None:
+            inventory_api = getattr(GLOBAL_CACHE, "Inventory", None)
+            get_model_count = getattr(inventory_api, "GetModelCount", None) if inventory_api is not None else None
+            if not callable(get_model_count):
+                self._debug_log(f"{phase_label} cannot verify material buys because GetModelCount is unavailable.")
+                return None
+            try:
+                return max(0, int(get_model_count(int(model_id)) or 0))
+            except Exception as exc:
+                self._debug_log(f"{phase_label} carried count read failed for model={model_id}: {exc}")
+                return None
+
+        def _read_trader_offer_quantity(item_id: int, model_id: int) -> int | None:
+            try:
+                quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item_id)) or 0))
+            except Exception as exc:
+                self._debug_log(f"{phase_label} offer quantity read failed for model={model_id} item_id={item_id}: {exc}")
+                return None
+            if quantity <= 0:
+                self._debug_log(f"{phase_label} offer quantity was unavailable for model={model_id} item_id={item_id}.")
+                return None
+            return quantity
+
+        def _wait_for_carried_material_count_increase(
+            model_id: int,
+            previous_count: int,
+            *,
+            timeout_ms: int = 1000,
+            step_ms: int = 50,
+        ):
+            waited_ms = 0
+            current_count = _read_carried_material_count(model_id)
+            while waited_ms <= max(0, int(timeout_ms)):
+                if current_count is None:
+                    return None
+                if current_count > previous_count:
+                    return current_count
+                if waited_ms >= max(0, int(timeout_ms)):
+                    break
+                waited_ms += max(1, int(step_ms))
+                yield from Routines.Yield.wait(max(1, int(step_ms)))
+                current_count = _read_carried_material_count(model_id)
+            return current_count
 
         self._debug_log(
             f"{phase_label}: coords={self._format_debug_coords(coords)} planned_targets={len(material_buys)} "
             f"planned_units={sum(max(0, int(buy.quantity)) for buy in material_buys)}"
         )
+        using_existing_trader_items = trader_items is not None
         if trader_items is None:
             x, y = coords
             trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
@@ -15101,7 +15453,7 @@ class MerchantRulesWidget:
                     trader_item_id = int(candidate)
                     break
             if trader_item_id <= 0:
-                outcome.unavailable += 1
+                outcome.unavailable += max(0, int(planned_buy.quantity))
                 ConsoleLog(
                     MODULE_NAME,
                     f"Crafting material target {planned_buy.model_id} was not offered by the trader.",
@@ -15109,9 +15461,22 @@ class MerchantRulesWidget:
                 )
                 continue
 
-            transactions = max(0, int(planned_buy.quantity) // max(1, int(planned_buy.batch_size)))
-            for _ in range(transactions):
-                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+            requested_units = max(0, int(planned_buy.quantity))
+            completed_for_target = 0
+            while completed_for_target < requested_units:
+                remaining_units = max(0, requested_units - completed_for_target)
+                offered_quantity = _read_trader_offer_quantity(trader_item_id, planned_buy.model_id)
+                if offered_quantity is None:
+                    outcome.load_failures += 1
+                    break
+                if offered_quantity > remaining_units:
+                    outcome.unavailable += remaining_units
+                    self._debug_log(
+                        f"{phase_label} stopped before overbuy: model={planned_buy.model_id} "
+                        f"remaining={remaining_units} offer_quantity={offered_quantity}."
+                    )
+                    break
+
                 quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
                     GLOBAL_CACHE.Trading.Trader.RequestQuote,
                     trader_item_id,
@@ -15121,10 +15486,64 @@ class MerchantRulesWidget:
                 if quoted_value <= 0:
                     outcome.quote_failures += 1
                     break
-                if character_gold < quoted_value:
+                gold_result = yield from self._ensure_gold_for_purchase(
+                    quoted_value,
+                    purpose=f"{phase_label} {planned_buy.model_id}",
+                )
+                if gold_result.opened_storage:
+                    trader_items = yield from self._refresh_trader_items_after_gold_top_up(
+                        coords,
+                        using_existing_trader_items=using_existing_trader_items,
+                        phase_label=phase_label,
+                    )
+                    if not trader_items:
+                        outcome.load_failures += 1
+                        break
+                    trader_item_id = self._find_offered_model_item_id(trader_items, planned_buy.model_id)
+                    if trader_item_id <= 0:
+                        outcome.unavailable += remaining_units
+                        break
+                    offered_quantity = _read_trader_offer_quantity(trader_item_id, planned_buy.model_id)
+                    if offered_quantity is None:
+                        outcome.load_failures += 1
+                        break
+                    if offered_quantity > remaining_units:
+                        outcome.unavailable += remaining_units
+                        self._debug_log(
+                            f"{phase_label} stopped before overbuy after Xunlai top-up: "
+                            f"model={planned_buy.model_id} remaining={remaining_units} "
+                            f"offer_quantity={offered_quantity}."
+                        )
+                        break
+                    quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
+                        GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                        trader_item_id,
+                        timeout_ms=750,
+                        step_ms=10,
+                    )
+                    if quoted_value <= 0:
+                        outcome.quote_failures += 1
+                        break
+                    gold_result = yield from self._ensure_gold_for_purchase(
+                        quoted_value,
+                        purpose=f"{phase_label} {planned_buy.model_id}",
+                    )
+                    if not gold_result.ready:
+                        outcome.gold_blocked += 1
+                        break
+                if not gold_result.ready:
                     outcome.gold_blocked += 1
+                    self._debug_log(
+                        f"{phase_label} blocked by gold: model={planned_buy.model_id} quote={quoted_value} "
+                        f"carried={gold_result.carried_gold} storage={gold_result.storage_gold} "
+                        f"reason={gold_result.reason}"
+                    )
                     break
 
+                before_count = _read_carried_material_count(planned_buy.model_id)
+                if before_count is None:
+                    outcome.load_failures += 1
+                    break
                 GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
                 completed = yield from Routines.Yield.Merchant._wait_for_transaction(  # pylint: disable=protected-access
                     timeout_ms=750,
@@ -15133,7 +15552,26 @@ class MerchantRulesWidget:
                 if not completed:
                     outcome.timeout_failures += 1
                     break
-                outcome.completed += 1
+                after_count = yield from _wait_for_carried_material_count_increase(
+                    planned_buy.model_id,
+                    before_count,
+                )
+                verified_gain = 0 if after_count is None else max(0, int(after_count) - int(before_count))
+                if verified_gain <= 0:
+                    outcome.timeout_failures += 1
+                    self._debug_log(
+                        f"{phase_label} buy verification failed: model={planned_buy.model_id} "
+                        f"before={before_count} after={after_count} expected_offer={offered_quantity}."
+                    )
+                    break
+                counted_gain = min(verified_gain, remaining_units)
+                completed_for_target += counted_gain
+                outcome.completed += counted_gain
+                if verified_gain != offered_quantity:
+                    self._debug_log(
+                        f"{phase_label} buy verified unusual gain: model={planned_buy.model_id} "
+                        f"gain={verified_gain} offer_quantity={offered_quantity}."
+                    )
                 yield from Routines.Yield.wait(40)
 
         self._debug_log(
@@ -15458,6 +15896,7 @@ class MerchantRulesWidget:
             f"{phase_label}: coords={self._format_debug_coords(coords)} "
             f"planned_targets={len(rune_buys)} planned_items={outcome.attempted}"
         )
+        using_existing_trader_items = trader_items is not None
         if trader_items is None:
             x, y = coords
             trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
@@ -15495,7 +15934,6 @@ class MerchantRulesWidget:
                 continue
 
             for _ in range(max(0, int(planned_buy.quantity))):
-                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
                 quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
                     GLOBAL_CACHE.Trading.Trader.RequestQuote,
                     trader_item_id,
@@ -15505,8 +15943,51 @@ class MerchantRulesWidget:
                 if quoted_value <= 0:
                     outcome.quote_failures += 1
                     break
-                if character_gold < quoted_value:
+                gold_result = yield from self._ensure_gold_for_purchase(
+                    quoted_value,
+                    purpose=f"{phase_label} {planned_buy.label}",
+                )
+                if gold_result.opened_storage:
+                    trader_items = yield from self._refresh_trader_items_after_gold_top_up(
+                        coords,
+                        using_existing_trader_items=using_existing_trader_items,
+                        phase_label=phase_label,
+                    )
+                    if not trader_items:
+                        outcome.load_failures += 1
+                        break
+                    trader_item_id = 0
+                    for candidate in trader_items:
+                        candidate_identifiers = self._get_standalone_rune_identifiers_for_item_id(int(candidate))
+                        if safe_identifier in candidate_identifiers:
+                            trader_item_id = int(candidate)
+                            break
+                    if trader_item_id <= 0:
+                        outcome.unavailable += 1
+                        break
+                    quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
+                        GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                        trader_item_id,
+                        timeout_ms=750,
+                        step_ms=10,
+                    )
+                    if quoted_value <= 0:
+                        outcome.quote_failures += 1
+                        break
+                    gold_result = yield from self._ensure_gold_for_purchase(
+                        quoted_value,
+                        purpose=f"{phase_label} {planned_buy.label}",
+                    )
+                    if not gold_result.ready:
+                        outcome.gold_blocked += 1
+                        break
+                if not gold_result.ready:
                     outcome.gold_blocked += 1
+                    self._debug_log(
+                        f"{phase_label} blocked by gold: identifier={safe_identifier} quote={quoted_value} "
+                        f"carried={gold_result.carried_gold} storage={gold_result.storage_gold} "
+                        f"reason={gold_result.reason}"
+                    )
                     break
 
                 GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
@@ -15548,6 +16029,7 @@ class MerchantRulesWidget:
             f"{phase_label}: coords={self._format_debug_coords(coords)} "
             f"planned_targets={len(scroll_buys)} planned_items={outcome.attempted}"
         )
+        using_existing_trader_items = trader_items is not None
         if trader_items is None:
             x, y = coords
             trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
@@ -15585,7 +16067,6 @@ class MerchantRulesWidget:
                 continue
 
             for _ in range(max(0, int(planned_buy.quantity))):
-                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
                 quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
                     GLOBAL_CACHE.Trading.Trader.RequestQuote,
                     trader_item_id,
@@ -15595,8 +16076,46 @@ class MerchantRulesWidget:
                 if quoted_value <= 0:
                     outcome.quote_failures += 1
                     break
-                if character_gold < quoted_value:
+                gold_result = yield from self._ensure_gold_for_purchase(
+                    quoted_value,
+                    purpose=f"{phase_label} {planned_buy.model_id}",
+                )
+                if gold_result.opened_storage:
+                    trader_items = yield from self._refresh_trader_items_after_gold_top_up(
+                        coords,
+                        using_existing_trader_items=using_existing_trader_items,
+                        phase_label=phase_label,
+                    )
+                    if not trader_items:
+                        outcome.load_failures += 1
+                        break
+                    trader_item_id = self._find_offered_model_item_id(trader_items, safe_model_id)
+                    if trader_item_id <= 0:
+                        outcome.unavailable += 1
+                        break
+                    quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
+                        GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                        trader_item_id,
+                        timeout_ms=750,
+                        step_ms=10,
+                    )
+                    if quoted_value <= 0:
+                        outcome.quote_failures += 1
+                        break
+                    gold_result = yield from self._ensure_gold_for_purchase(
+                        quoted_value,
+                        purpose=f"{phase_label} {planned_buy.model_id}",
+                    )
+                    if not gold_result.ready:
+                        outcome.gold_blocked += 1
+                        break
+                if not gold_result.ready:
                     outcome.gold_blocked += 1
+                    self._debug_log(
+                        f"{phase_label} blocked by gold: model={safe_model_id} quote={quoted_value} "
+                        f"carried={gold_result.carried_gold} storage={gold_result.storage_gold} "
+                        f"reason={gold_result.reason}"
+                    )
                     break
 
                 GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
@@ -15770,6 +16289,35 @@ class MerchantRulesWidget:
         total.load_failures += max(0, int(part.load_failures))
         total.gold_blocked += max(0, int(part.gold_blocked))
         total.depleted += max(0, int(part.depleted))
+
+    def _merge_merchant_buy_result(
+        self,
+        total: ExecutionPhaseOutcome,
+        result: object,
+        requested_quantity: int,
+    ) -> None:
+        safe_requested_quantity = max(0, int(requested_quantity))
+        if isinstance(result, ExecutionPhaseOutcome):
+            total.completed += max(0, int(result.completed))
+            total.unavailable += max(0, int(result.unavailable))
+            total.quote_failures += max(0, int(result.quote_failures))
+            total.timeout_failures += max(0, int(result.timeout_failures))
+            total.load_failures += max(0, int(result.load_failures))
+            total.gold_blocked += max(0, int(result.gold_blocked))
+            total.depleted += max(0, int(result.depleted))
+            return
+        if isinstance(result, bool):
+            if result:
+                total.completed += safe_requested_quantity
+            else:
+                total.unavailable += safe_requested_quantity
+            return
+        try:
+            completed_quantity = max(0, min(safe_requested_quantity, int(result or 0)))
+        except Exception:
+            completed_quantity = 0
+        total.completed += completed_quantity
+        total.unavailable += max(0, safe_requested_quantity - completed_quantity)
 
     def _sum_item_quantities(self, items: list[InventoryItemInfo]) -> int:
         return sum(max(1, int(item.quantity)) for item in items if int(item.item_id) > 0)
@@ -16968,15 +17516,16 @@ class MerchantRulesWidget:
                     if plan.merchant_stock_buys and not context.merchant_item_ids:
                         self._debug_log("Manual vendor auto-buy found no merchant offers loaded for merchant-stock buys.")
                     for merchant_buy in plan.merchant_stock_buys:
-                        bought = yield from self._buy_merchant_model(
+                        buy_result = yield from self._buy_merchant_model(
                             int(merchant_buy.model_id),
                             int(merchant_buy.quantity),
                             offered_items=context.merchant_item_ids,
                         )
-                        if bought:
-                            merchant_buy_outcome.completed += int(merchant_buy.quantity)
-                        else:
-                            merchant_buy_outcome.unavailable += int(merchant_buy.quantity)
+                        self._merge_merchant_buy_result(
+                            merchant_buy_outcome,
+                            buy_result,
+                            int(merchant_buy.quantity),
+                        )
                     summary = self._format_execution_phase_summary(merchant_buy_outcome)
                     if summary:
                         phase_summaries.append(summary)
@@ -17623,8 +18172,8 @@ class MerchantRulesWidget:
 
             merchant_buy_outcome = ExecutionPhaseOutcome(
                 label="Merchant stock",
-                measure_label="targets queued",
-                attempted=len(plan.merchant_stock_buys),
+                measure_label="items",
+                attempted=sum(max(0, int(buy.quantity)) for buy in plan.merchant_stock_buys),
             )
             merchant_buy_started_at = time.perf_counter()
             if merchant_coords and plan.merchant_stock_buys:
@@ -17635,16 +18184,26 @@ class MerchantRulesWidget:
                 merchant_items = yield from self._open_merchant(merchant_coords)
                 if merchant_items:
                     for merchant_buy in plan.merchant_stock_buys:
-                        bought = yield from self._buy_merchant_model(merchant_buy.model_id, merchant_buy.quantity)
-                        if not bought:
-                            merchant_buy_outcome.unavailable += 1
+                        buy_result = yield from self._buy_merchant_model(
+                            merchant_buy.model_id,
+                            merchant_buy.quantity,
+                            offered_items=merchant_items,
+                        )
+                        self._merge_merchant_buy_result(
+                            merchant_buy_outcome,
+                            buy_result,
+                            int(merchant_buy.quantity),
+                        )
+                        if (
+                            isinstance(buy_result, ExecutionPhaseOutcome)
+                            and buy_result.completed <= 0
+                            and buy_result.unavailable > 0
+                        ):
                             ConsoleLog(
                                 MODULE_NAME,
                                 f"Merchant stock target {merchant_buy.model_id} was not offered by the merchant.",
                                 Console.MessageType.Warning,
                             )
-                        else:
-                            merchant_buy_outcome.completed += 1
                 else:
                     merchant_buy_outcome.load_failures += 1
                     ConsoleLog(MODULE_NAME, "Merchant inventory did not load for merchant-buy actions.", Console.MessageType.Warning)
