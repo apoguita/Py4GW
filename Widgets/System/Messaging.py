@@ -91,28 +91,6 @@ def _c_wchar_array_to_str(arr: ctypes.Array) -> str:
         return "".join(ch for ch in arr if ch != '\0').rstrip()
 
 
-# Reply cache lives on GLOBAL_CACHE (singleton). A plain module-level dict
-# would split when Py4GW reloads this widget under a synthetic module name.
-def _inventory_cache() -> dict:
-    cache = getattr(GLOBAL_CACHE, "_inventory_count_cache", None)
-    if cache is None:
-        cache = {}
-        GLOBAL_CACHE._inventory_count_cache = cache
-    return cache
-
-
-def get_inventory_count(sender_email: str, model_id_min: int, model_id_max: int) -> int:
-    return _inventory_cache().get(
-        (sender_email, int(model_id_min), int(model_id_max)), -1
-    )
-
-
-def reset_inventory_count(sender_email: str, model_id_min: int, model_id_max: int) -> None:
-    _inventory_cache().pop(
-        (sender_email, int(model_id_min), int(model_id_max)), None
-    )
-
-
 def _get_merchant_rules_widget():
     widget_handler = get_widget_handler()
     for widget_name in ("MerchantRules", MERCHANT_RULES_WIDGET_NAME):
@@ -2413,53 +2391,40 @@ def WithdrawGold(index: int, message: SharedMessageStruct):
 
 # region InventoryQuery
 def InventoryQuery(index: int, message: SharedMessageStruct):
-    """Cross-account inventory count. extra0 modes:
-       report_inventory_count: count Params[0..1] range, reply to sender.
-       inventory_count_reply:  cache Params[2] under (sender, min, max).
+    """Generic inventory count query.
+
+    Sub-commands (extra0):
+        report_inventory_count
+            Counts all items whose model ID falls in the inclusive range
+            [Params[0], Params[1]] and writes the total to an INI file.
+            extra1 = ini_path
+            extra2 = ini_section
+            extra3 = ini_key
+
+    Note: only contiguous model-ID ranges are currently supported via Params.
+    Non-contiguous ID sets would require a comma-separated encoding in ExtraData,
+    which is limited to 64 characters per slot (~12 IDs). Extend this handler
+    if a real non-contiguous use case arises.
     """
+    
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-    extra0, _extra1, _extra2, _extra3 = _extra_data(message)
+    extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
 
     try:
         if mode == "report_inventory_count":
-            try:
-                range_start = int(message.Params[0])
-                range_end   = int(message.Params[1])
-            except (TypeError, ValueError):
-                range_start = range_end = 0
-            if range_start > 0 and range_end >= range_start:
-                try:
-                    count = sum(
-                        int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
-                        for mid in range(range_start, range_end + 1)
-                    )
-                except Exception as exc:
-                    ConsoleLog(MODULE_NAME, f"[InventoryQuery] GetModelCount failed for range {range_start}..{range_end}: {exc}", Console.MessageType.Error)
-                    count = -1
-                sender = str(message.SenderEmail or "").strip()
-                my_email_local = str(message.ReceiverEmail or "").strip()
-                # ExtraData[1] = own email -- escapes SendMessage dedup on same-count replies.
-                if sender:
-                    GLOBAL_CACHE.ShMem.SendMessage(
-                        my_email_local,
-                        sender,
-                        SharedCommandType.InventoryQuery,
-                        (float(range_start), float(range_end), float(count), 0.0),
-                        ("inventory_count_reply", my_email_local, "", ""),
-                    )
-
-        elif mode == "inventory_count_reply":
-            try:
-                range_start = int(message.Params[0])
-                range_end   = int(message.Params[1])
-                count       = int(message.Params[2])
-            except (TypeError, ValueError):
-                range_start = range_end = 0
-                count = -1
-            if range_start > 0 and range_end >= range_start:
-                key = (str(message.SenderEmail or ""), range_start, range_end)
-                _inventory_cache()[key] = count
+            range_start = int(message.Params[0])
+            range_end   = int(message.Params[1])
+            ini_path    = str(extra1 or "").strip()
+            ini_section = str(extra2 or "").strip()
+            ini_key     = str(extra3 or "").strip()
+            if ini_path and ini_section and ini_key and range_start > 0 and range_end >= range_start:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
+                count = sum(int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
+                            for mid in range(range_start, range_end + 1))
+                IniHandler(ini_path).write_key(ini_section, ini_key, str(count))
     finally:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     yield
