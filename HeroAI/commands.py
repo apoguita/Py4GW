@@ -221,18 +221,26 @@ class HeroAICommands:
                 send_invite()
                 
                 
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email,
-                account.AccountEmail,
-                SharedCommandType.InviteToParty if same_map else SharedCommandType.TravelToMap,
-                (sender_id, 0, 0, 0) if same_map else (
-                    Map.GetMapID(),
-                    Map.GetRegion()[0],
-                    Map.GetDistrict(),
-                    Map.GetLanguage()[0],
+            if same_map:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account.AccountEmail,
+                    SharedCommandType.InviteToParty,
+                    (sender_id, 0, 0, 0),
                 )
-            ) 
-            
+            else:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account.AccountEmail,
+                    SharedCommandType.TravelToGuildHall if Map.IsGuildHall() else SharedCommandType.TravelToMap,
+                    (0, 0, 0, 0) if Map.IsGuildHall() else (
+                        Map.GetMapID(),
+                        Map.GetRegion()[0],
+                        Map.GetDistrict(),
+                        Map.GetLanguage()[0],
+                    ),
+                )
+             
     def __travel_alts_to_leader_map_command(self, accounts: list[AccountStruct]):
         sender_email = Player.GetAccountEmail()
         map_id = Map.GetMapID()
@@ -257,8 +265,8 @@ class HeroAICommands:
             GLOBAL_CACHE.ShMem.SendMessage(
                 sender_email,
                 account.AccountEmail,
-                SharedCommandType.TravelToMap,
-                (map_id, region, district, language),
+                SharedCommandType.TravelToGuildHall if Map.IsGuildHall() else SharedCommandType.TravelToMap,
+                (0, 0, 0, 0) if Map.IsGuildHall() else (map_id, region, district, language),
             )
 
     def __resign_command(self, accounts: list[AccountStruct]):

@@ -169,6 +169,15 @@ class HeroAIHeadlessTree:
             return False
         return self._looting_node.last_state == BehaviorTree.NodeState.RUNNING
 
+    def GetBuildContract(self):
+        return self.heroai_build.GetBuildContract()
+
+    def GetBuildContractName(self) -> str:
+        contract_build = self.GetBuildContract()
+        if contract_build is None:
+            return ""
+        return str(getattr(contract_build, "build_name", "") or contract_build.__class__.__name__)
+
     def initialize(self) -> bool:
         if not Routines.Checks.Map.MapValid():
             self.heroai_build.ClearBuildContract()

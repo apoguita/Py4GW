@@ -1,5 +1,6 @@
 from ..GlobalCache import GLOBAL_CACHE
 from ..Player import Player
+from ..enums_src.Multiboxing_enums import SharedCommandType
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..py4gwcorelib_src.WidgetManager import get_widget_handler
 from ..py4gwcorelib_src.WidgetManager import WidgetCatalog
@@ -34,6 +35,38 @@ class BottingTreeHeroAIMixin:
         widget = self._get_heroai_widget()
         return bool(widget and widget.enabled)
 
+    def _sync_multibox_heroai_widget(self, enabled: bool) -> bool:
+        if not self.IsMultiAccountMode():
+            self._last_multibox_heroai_widget_state = None
+            return False
+
+        desired_state = bool(enabled)
+        if getattr(self, '_last_multibox_heroai_widget_state', None) is desired_state:
+            return False
+
+        sender_email = str(Player.GetAccountEmail() or '')
+        if not sender_email:
+            return False
+
+        widget_name = self._get_heroai_widget_toggle_name()
+        command = SharedCommandType.EnableWidget if desired_state else SharedCommandType.DisableWidget
+        sent_any = False
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            receiver_email = str(getattr(account, 'AccountEmail', '') or '')
+            if not receiver_email or receiver_email == sender_email:
+                continue
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                receiver_email,
+                command,
+                (0.0, 0.0, 0.0, 0.0),
+                (widget_name, '', '', ''),
+            )
+            sent_any = True
+
+        self._last_multibox_heroai_widget_state = desired_state
+        return sent_any
+
     def _disable_heroai_widget_for_headless(self) -> bool:
         try:
             widget_handler = get_widget_handler()
@@ -63,6 +96,7 @@ class BottingTreeHeroAIMixin:
         self.headless_heroai_enabled = enabled
         self._last_heroai_state = None
         self.ApplyAccountIsolation()
+        self._sync_multibox_heroai_widget(bool(enabled and self.started and not self.paused))
         if reset_runtime:
             self.headless_heroai.reset()
             bb = self.blackboard

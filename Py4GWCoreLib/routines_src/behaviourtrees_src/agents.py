@@ -983,6 +983,7 @@ class BTAgents:
             y: float,
             radius: float = float(Range.Earshot.value),
             allowed_alive_enemies: int = 0,
+            interact_interval_ms: int = 750,
             log: bool = False,
         ) -> BehaviorTree:
             """
@@ -992,8 +993,8 @@ class BTAgents:
               Expose: true
               Audience: advanced
               Display: Wait For Clear Enemies In Area
-              Purpose: Wait until the alive-enemy count in an area is at or below an allowed threshold without issuing target or interact commands.
-              UserDescription: Use this when some other system is handling combat and you only want to block until the area is clear enough.
+              Purpose: Wait until the alive-enemy count in an area is at or below an allowed threshold, nudging the nearest enemy when needed.
+              UserDescription: Use this when you want to block until the area is clear enough while still provoking nearby enemies to commit.
               Notes: Returns RUNNING while the alive-enemy count exceeds the threshold and SUCCESS once it is at or below it.
             """
             from typing import Any
@@ -1003,6 +1004,8 @@ class BTAgents:
 
             state = {
                 "paused_for_looting": False,
+                "last_interact_ms": 0,
+                "last_target_id": 0,
             }
 
             def _get_enemies_in_area() -> list[int]:
@@ -1032,6 +1035,7 @@ class BTAgents:
                 return ""
 
             def _wait_for_clear_enemies(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+                now = Utils.GetBaseTimestamp()
                 enemies = _get_enemies_in_area()
                 node.blackboard["wait_clear_area_enemy_count"] = len(enemies)
                 node.blackboard["wait_clear_area_center"] = (x, y)
@@ -1055,12 +1059,23 @@ class BTAgents:
                             log=log,
                             message_type=Console.MessageType.Success,
                         )
+                    state["last_target_id"] = 0
+                    state["last_interact_ms"] = 0
                     return BehaviorTree.NodeState.SUCCESS
+
+                target_id = enemies[0]
+                node.blackboard["wait_clear_area_target_id"] = target_id
+
+                if state["last_target_id"] != target_id or now - state["last_interact_ms"] >= interact_interval_ms:
+                    Player.ChangeTarget(target_id)
+                    Player.Interact(target_id, False)
+                    state["last_target_id"] = target_id
+                    state["last_interact_ms"] = now
 
                 if log:
                     _log(
                         "WaitForClearEnemiesInArea",
-                        f"Waiting for area near ({x}, {y}) to clear: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
+                        f"Waiting for area near ({x}, {y}) to clear: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}, target_id={target_id}.",
                         log=log,
                     )
                 return BehaviorTree.NodeState.RUNNING

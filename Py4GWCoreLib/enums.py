@@ -107,6 +107,24 @@ from .enums_src.Event_enums import (
     get_event_type_name,
 )
 
+CONSUMABLE_MODELID_TO_EFFECT_NAME = {
+    int(ModelID.Armor_Of_Salvation.value): "Armor_of_Salvation_item_effect",
+    int(ModelID.Essence_Of_Celerity.value): "Essence_of_Celerity_item_effect",
+    int(ModelID.Grail_Of_Might.value): "Grail_of_Might_item_effect",
+    int(ModelID.Birthday_Cupcake.value): "Birthday_Cupcake_skill",
+    int(ModelID.Blue_Rock_Candy.value): "Blue_Rock_Candy_Rush",
+    int(ModelID.Bowl_Of_Skalefin_Soup.value): "Skale_Vigor",
+    int(ModelID.Candy_Apple.value): "Candy_Apple_skill",
+    int(ModelID.Candy_Corn.value): "Candy_Corn_skill",
+    int(ModelID.Drake_Kabob.value): "Drake_Skin",
+    int(ModelID.Golden_Egg.value): "Golden_Egg_skill",
+    int(ModelID.Green_Rock_Candy.value): "Green_Rock_Candy_Rush",
+    int(ModelID.Pahnai_Salad.value): "Pahnai_Salad_item_effect",
+    int(ModelID.Red_Rock_Candy.value): "Red_Rock_Candy_Rush",
+    int(ModelID.Slice_Of_Pumpkin_Pie.value): "Pie_Induced_Ecstasy",
+    int(ModelID.War_Supplies.value): "Well_Supplied",
+}
+
 __all__ = [
     # GameData_enums
     "Ailment",
@@ -253,6 +271,7 @@ __all__ = [
     "get_event_descriptor",
     "get_event_type_label",
     "get_event_type_name",
+    "CONSUMABLE_MODELID_TO_EFFECT_NAME",
 ]
 
 

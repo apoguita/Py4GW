@@ -1,18 +1,13 @@
 import builtins
-import json
 import math
 import os
 import sys
-import tkinter as tk
 from dataclasses import dataclass, field
-from tkinter import filedialog
-from typing import ClassVar
-
 import PyImGui
 
 from HeroAI.call_target import CallTarget
 from HeroAI.ui_base import HeroAI_BaseUI
-from Py4GWCoreLib import GLOBAL_CACHE, Py4GW, Range, Map
+from Py4GWCoreLib import GLOBAL_CACHE, Py4GW, Range, Map, ThrottledTimer
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.ImGui import ImGui
@@ -20,7 +15,6 @@ from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.Party import Party
 from Py4GWCoreLib.Player import Player
-from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 
@@ -30,28 +24,12 @@ class EnemyTrackerConfig:
     INI_PATH: str = "Widgets/Automation/Helpers/EnemyTracker"
     MAIN_INI_FILENAME: str = "EnemyTracker.ini"
     FLOATING_INI_FILENAME: str = "EnemyTrackerFloating.ini"
-    DATA_DIRNAME: str = "EnemyData"
-    DATA_FILENAME: str = "EnemyTrackerData.json"
-    NAME_DATA_PREFIX: str = "EnemyTrackerNames"
 
     MAIN_INI_KEY: str = ""
     FLOATING_INI_KEY: str = ""
     INI_INIT: bool = False
     ICON_PATH: str = os.path.join(Py4GW.Console.get_projects_path(), "crossed swords.png")
     DEFAULT_NAME_LANGUAGE: str = "en"
-    NAME_LANGUAGE_CODES: ClassVar[dict[int, str]] = {
-        0: "en",
-        1: "ko",
-        2: "fr",
-        3: "de",
-        4: "it",
-        5: "es",
-        6: "zh-Hant",
-        8: "ja",
-        9: "pl",
-        10: "ru",
-        17: "bork",
-    }
 
 
 ENEMY_TRACKER_SHARED_VARS_ATTR = "_py4gw_enemy_tracker_shared_vars"
@@ -86,14 +64,8 @@ class EnemyLiveState:
 class EnemyTrackerVars:
     enemy_array: list[int] = field(default_factory=list)
     live_rows: list[EnemyLiveState] = field(default_factory=list)
-    last_cast_skill_by_agent: dict[int, int] = field(default_factory=dict)
-    observed_agent_map_keys: set[str] = field(default_factory=set)
-    current_map_id: int = 0
     records: dict[str, dict] = field(default_factory=dict)
     name_records: dict[str, dict[str, list[str]]] = field(default_factory=dict)
-    data_dirty: bool = False
-    names_dirty: bool = False
-    last_save_ms: int = 0
     range_filter: int = 2500
     range_preset_index: int = 0
     sort_index: int = 0
@@ -303,29 +275,37 @@ class EnemyTracker:
             draw_callback=self.draw_window,
         )
         self.vars = EnemyTrackerVars()
-        shared_vars = _get_shared_vars()
-        if shared_vars is not None:
-            # Enemy Party keeps its own widget/runtime state and only reads shared enemy data.
-            self.vars.enemy_array = shared_vars.enemy_array
-            self.vars.live_rows = shared_vars.live_rows
-            self.vars.last_cast_skill_by_agent = shared_vars.last_cast_skill_by_agent
-            self.vars.observed_agent_map_keys = shared_vars.observed_agent_map_keys
-            self.vars.current_map_id = shared_vars.current_map_id
-            self.vars.records = shared_vars.records
-            self.vars.name_records = shared_vars.name_records
+        self._sync_shared_data()
         self._sync_range_preset_from_filter()
         self.enemy_bar = EnemyBarWidget(width=220.0, height=18.0)
-        self.data_root = os.path.join(Py4GW.Console.get_projects_path(), EnemyTrackerConfig.DATA_DIRNAME)
-        self.data_path = os.path.join(self.data_root, EnemyTrackerConfig.DATA_FILENAME)
-        self.data_dir = os.path.dirname(self.data_path)
-        if not self.vars.records and not self.vars.name_records:
-            self._load_data()
+        self._live_poll_timer = ThrottledTimer(150)
 
-    def _legacy_data_root(self) -> str:
-        return Py4GW.Console.get_projects_path()
+    def _sync_shared_data(self) -> None:
+        shared_vars = _get_shared_vars()
+        if shared_vars is None:
+            self.vars.records = {}
+            self.vars.name_records = {}
+            return
+        self.vars.records = shared_vars.records
+        self.vars.name_records = shared_vars.name_records
 
-    def _legacy_data_path(self) -> str:
-        return os.path.join(self._legacy_data_root(), EnemyTrackerConfig.DATA_FILENAME)
+    def _clear_live_state(self) -> None:
+        self.vars.enemy_array = []
+        self.vars.live_rows = []
+        self.vars.called_target_id = 0
+        self.vars.hovered_agent_id = 0
+
+    def _refresh_live_state(self, force: bool = False) -> None:
+        self._sync_shared_data()
+        if not Map.IsMapReady() or not Player.IsPlayerLoaded() or not Map.IsExplorable():
+            self._clear_live_state()
+            return
+
+        if not force and not self._live_poll_timer.IsExpired():
+            return
+
+        self._live_poll_timer.Reset()
+        self._poll()
 
     def _sync_range_preset_from_filter(self) -> None:
         self.vars.range_preset_index = 0
@@ -334,95 +314,12 @@ class EnemyTracker:
                 self.vars.range_preset_index = index
                 return
 
-    def _load_data(self) -> None:
-        try:
-            load_path = self.data_path if os.path.exists(self.data_path) else self._legacy_data_path()
-            if os.path.exists(load_path):
-                with open(load_path, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                self.vars.records = self._normalize_records(dict(data.get("enemies", {})))
-                if int(data.get("schema_version", 1) or 1) < 2:
-                    self.vars.data_dirty = True
-            self._load_name_data()
-        except Exception as exc:
-            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load data: {exc}", Py4GW.Console.MessageType.Warning)
-
-    def _name_data_path(self, language: str) -> str:
-        language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip()
-        return os.path.join(self.data_dir, f"{EnemyTrackerConfig.NAME_DATA_PREFIX}.{language_key}.json")
-
-    def _load_name_data(self) -> None:
-        prefix = f"{EnemyTrackerConfig.NAME_DATA_PREFIX}."
-        suffix = ".json"
-        for candidate_dir in (self.data_dir, self._legacy_data_root()):
-            if not os.path.isdir(candidate_dir):
-                continue
-            for filename in os.listdir(candidate_dir):
-                if not filename.startswith(prefix) or not filename.endswith(suffix):
-                    continue
-                language = filename[len(prefix):-len(suffix)].strip().lower()
-                if not language or language in self.vars.name_records:
-                    continue
-                path = os.path.join(candidate_dir, filename)
-                try:
-                    with open(path, "r", encoding="utf-8") as handle:
-                        data = json.load(handle)
-                    self.vars.name_records[language] = self._normalize_name_records(dict(data.get("names", {})))
-                except Exception as exc:
-                    Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load {filename}: {exc}", Py4GW.Console.MessageType.Warning)
-
-    def _save_data_if_needed(self, force: bool = False) -> None:
-        if not self.vars.data_dirty and not self.vars.names_dirty and not force:
-            return
-        now = int(Py4GW.Game.get_tick_count64())
-        if not force and now - self.vars.last_save_ms < 2000:
-            return
-        try:
-            os.makedirs(self.data_dir, exist_ok=True)
-            if self.vars.data_dirty or force:
-                payload = {
-                    "schema": "py4gw_enemy_tracker",
-                    "schema_version": 2,
-                    "enemies": self.vars.records,
-                }
-                with open(self.data_path, "w", encoding="utf-8") as handle:
-                    json.dump(payload, handle, indent=2, sort_keys=True)
-            if self.vars.names_dirty or force:
-                self._save_name_data()
-            self.vars.data_dirty = False
-            self.vars.names_dirty = False
-            self.vars.last_save_ms = now
-        except Exception as exc:
-            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to save data: {exc}", Py4GW.Console.MessageType.Warning)
-
-    def _save_name_data(self) -> None:
-        os.makedirs(self.data_dir, exist_ok=True)
-        for language, names in self.vars.name_records.items():
-            payload = {
-                "schema": "py4gw_enemy_tracker_names",
-                "schema_version": 1,
-                "language": language,
-                "names": names,
-            }
-            with open(self._name_data_path(language), "w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2, sort_keys=True)
-
     def _enemy_key(self, agent_id: int, name: str, enc_name: str, model_id: int) -> str:
         if enc_name:
             return f"enc:{enc_name}"
         if model_id:
             return f"model:{model_id}"
         return f"name:{name}"
-
-    def _current_name_language(self) -> str:
-        try:
-            language_id = int(UIManager.GetTextLanguage())
-        except Exception:
-            language_id = 0
-        return EnemyTrackerConfig.NAME_LANGUAGE_CODES.get(
-            language_id,
-            EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE,
-        )
 
     def _clean_name_values(self, names: object) -> list[str]:
         if isinstance(names, str):
@@ -438,157 +335,6 @@ class EnemyTracker:
             if name and name not in clean_names:
                 clean_names.append(name)
         return clean_names
-
-    def _normalize_names_by_language(self, record: dict) -> dict[str, list[str]]:
-        language_names: dict[str, list[str]] = {}
-        raw_language_names = record.get("names_by_language", {})
-        if isinstance(raw_language_names, dict):
-            for language, names in raw_language_names.items():
-                language_key = str(language or "").strip().lower()
-                if not language_key:
-                    continue
-                clean_names = self._clean_name_values(names)
-                if clean_names:
-                    language_names[language_key] = clean_names
-
-        legacy_names = self._clean_name_values(record.get("names", []))
-        if legacy_names:
-            english_names = language_names.setdefault(EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE, [])
-            for name in legacy_names:
-                if name not in english_names:
-                    english_names.append(name)
-
-        record.pop("names", None)
-        record.pop("names_by_language", None)
-        return language_names
-
-    def _add_name_record(self, key: str, language: str, name: str) -> bool:
-        clean_name = str(name or "").strip()
-        if not clean_name:
-            return False
-        language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
-        names = self.vars.name_records.setdefault(language_key, {}).setdefault(key, [])
-        if clean_name in names:
-            return False
-        names.append(clean_name)
-        return True
-
-    def _normalize_name_records(self, raw_names: dict[str, object]) -> dict[str, list[str]]:
-        normalized: dict[str, list[str]] = {}
-        for key, names in raw_names.items():
-            clean_names = self._clean_name_values(names)
-            if clean_names:
-                normalized[str(key)] = clean_names
-        return normalized
-
-    def _normalize_record(self, key: str, record: dict) -> dict:
-        for language, names in self._normalize_names_by_language(record).items():
-            for name in names:
-                if self._add_name_record(key, language, name):
-                    self.vars.names_dirty = True
-        record.setdefault("observed_maps", {})
-        record.setdefault("observed_skills", {})
-        record.pop("profession_counts", None)
-        record.setdefault("encoded_names", [])
-        record.setdefault("model_ids", [])
-        record.setdefault("inferred_primary", "")
-        record.setdefault("inferred_secondary", "")
-        return record
-
-    def _merge_record(self, key: str, incoming: dict) -> None:
-        incoming_record = self._normalize_record(str(key), dict(incoming))
-        existing = self.vars.records.get(str(key))
-        if existing is None:
-            self.vars.records[str(key)] = incoming_record
-            self.vars.data_dirty = True
-            return
-
-        changed = False
-        for field_name in ("encoded_names", "model_ids"):
-            existing_values = list(existing.get(field_name, []))
-            for value in incoming_record.get(field_name, []):
-                if value not in existing_values:
-                    existing_values.append(value)
-                    changed = True
-            existing[field_name] = existing_values
-
-        for map_key, map_entry in incoming_record.get("observed_maps", {}).items():
-            if map_key not in existing.setdefault("observed_maps", {}):
-                existing["observed_maps"][map_key] = map_entry
-                changed = True
-
-        for skill_key, skill_entry in incoming_record.get("observed_skills", {}).items():
-            if skill_key not in existing.setdefault("observed_skills", {}):
-                existing["observed_skills"][skill_key] = skill_entry
-                changed = True
-
-        previous_primary = str(existing.get("inferred_primary", "") or "")
-        previous_secondary = str(existing.get("inferred_secondary", "") or "")
-        primary, secondary = self._infer_professions(existing)
-        changed = changed or primary != previous_primary or secondary != previous_secondary
-
-        if changed:
-            self.vars.data_dirty = True
-
-    def _export_payload(self) -> dict:
-        return {
-            "schema": "py4gw_enemy_tracker_bundle",
-            "schema_version": 1,
-            "enemies": self.vars.records,
-            "names_by_language": self.vars.name_records,
-        }
-
-    def export_bundle_to(self, path: str) -> bool:
-        try:
-            if not path:
-                return False
-            payload = self._export_payload()
-            with open(path, "w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2, sort_keys=True)
-            return True
-        except Exception as exc:
-            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Export failed: {exc}", Py4GW.Console.MessageType.Warning)
-            return False
-
-    def import_bundle_from(self, path: str) -> bool:
-        try:
-            if not path or not os.path.exists(path):
-                return False
-            with open(path, "r", encoding="utf-8") as handle:
-                payload = json.load(handle)
-
-            imported_any = False
-            incoming_records = dict(payload.get("enemies", {}))
-            for key, record in incoming_records.items():
-                if isinstance(record, dict):
-                    self._merge_record(str(key), record)
-                    imported_any = True
-
-            incoming_names = payload.get("names_by_language", {})
-            if isinstance(incoming_names, dict):
-                for language, names_by_key in incoming_names.items():
-                    language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
-                    if not isinstance(names_by_key, dict):
-                        continue
-                    for key, names in names_by_key.items():
-                        for name in self._clean_name_values(names):
-                            if self._add_name_record(str(key), language_key, name):
-                                self.vars.names_dirty = True
-                                imported_any = True
-
-            if imported_any:
-                self._save_data_if_needed(force=True)
-            return imported_any
-        except Exception as exc:
-            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Import failed: {exc}", Py4GW.Console.MessageType.Warning)
-            return False
-
-    def _normalize_records(self, records: dict[str, dict]) -> dict[str, dict]:
-        normalized: dict[str, dict] = {}
-        for key, record in records.items():
-            if isinstance(record, dict):
-                normalized[str(key)] = self._normalize_record(str(key), record)
-        return normalized
 
     def _record_names(self, key: str, language: str = EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE) -> list[str]:
         language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
@@ -615,90 +361,6 @@ class EnemyTracker:
             prof_id, prof_name = 0, ""
         return skill_name or f"Skill {skill_id}", int(prof_id or 0), str(prof_name or "")
 
-    def _ensure_record(self, key: str, name: str, enc_name: str, model_id: int) -> dict:
-        record = self.vars.records.get(key)
-        if record is None:
-            record = {
-                "encoded_names": [],
-                "model_ids": [],
-                "observed_maps": {},
-                "observed_skills": {},
-                "inferred_primary": "",
-                "inferred_secondary": "",
-            }
-            self.vars.records[key] = record
-            self.vars.data_dirty = True
-
-        self._normalize_record(key, record)
-        language = self._current_name_language()
-        if self._add_name_record(key, language, name):
-            self.vars.names_dirty = True
-        if enc_name and enc_name not in record["encoded_names"]:
-            record["encoded_names"].append(enc_name)
-            self.vars.data_dirty = True
-        if model_id and model_id not in record["model_ids"]:
-            record["model_ids"].append(model_id)
-            self.vars.data_dirty = True
-        return record
-
-    def _current_map_observation(self) -> dict | None:
-        try:
-            map_id = int(Map.GetMapID() or 0)
-        except Exception:
-            map_id = 0
-        if map_id <= 0:
-            return None
-
-        try:
-            map_name = Map.GetMapName(map_id)
-        except Exception:
-            map_name = ""
-        try:
-            base_map_id = int(Map.GetBaseMapID(map_id) or map_id)
-        except Exception:
-            base_map_id = map_id
-        try:
-            instance_type = Map.GetInstanceTypeName()
-        except Exception:
-            instance_type = ""
-
-        return {
-            "id": map_id,
-            "name": map_name,
-            "base_id": base_map_id,
-            "instance_type": instance_type,
-        }
-
-    def _observe_map(self, record_key: str, record: dict, map_info: dict | None) -> None:
-        if not map_info:
-            return
-
-        map_id = int(map_info.get("id", 0) or 0)
-        if map_id <= 0:
-            return
-
-        if self.vars.current_map_id != map_id:
-            self.vars.current_map_id = map_id
-            self.vars.observed_agent_map_keys.clear()
-
-        seen_key = f"{record_key}|{map_id}"
-        if seen_key in self.vars.observed_agent_map_keys:
-            return
-        self.vars.observed_agent_map_keys.add(seen_key)
-
-        maps = record.setdefault("observed_maps", {})
-        map_key = str(map_id)
-        if map_key in maps:
-            return
-
-        maps[map_key] = {
-            "id": map_id,
-            "name": str(map_info.get("name", "") or ""),
-            "base_id": int(map_info.get("base_id", map_id) or map_id),
-            "instance_type": str(map_info.get("instance_type", "") or ""),
-        }
-        self.vars.data_dirty = True
-
     def _infer_professions(self, record: dict) -> tuple[str, str]:
         counts: dict[str, int] = {}
         for skill in record.get("observed_skills", {}).values():
@@ -711,35 +373,7 @@ class EnemyTracker:
         )
         primary = ranked[0][0] if len(ranked) >= 1 else ""
         secondary = ranked[1][0] if len(ranked) >= 2 else ""
-        if record.get("inferred_primary") != primary or record.get("inferred_secondary") != secondary:
-            record["inferred_primary"] = primary
-            record["inferred_secondary"] = secondary
-            self.vars.data_dirty = True
         return primary, secondary
-
-    def _observe_cast(self, agent_id: int, record: dict, skill_id: int) -> None:
-        if skill_id <= 0:
-            self.vars.last_cast_skill_by_agent[agent_id] = 0
-            return
-
-        if self.vars.last_cast_skill_by_agent.get(agent_id) == skill_id:
-            return
-        self.vars.last_cast_skill_by_agent[agent_id] = skill_id
-
-        skill_name, prof_id, prof_name = self._skill_info(skill_id)
-        skills = record.setdefault("observed_skills", {})
-        skill_key = str(skill_id)
-        if skill_key in skills:
-            return
-
-        skills[skill_key] = {
-            "id": int(skill_id),
-            "name": skill_name,
-            "profession_id": int(prof_id),
-            "profession": prof_name,
-        }
-        self._infer_professions(record)
-        self.vars.data_dirty = True
 
     def _statuses(self, agent_id: int) -> list[str]:
         statuses: list[str] = []
@@ -768,7 +402,6 @@ class EnemyTracker:
     def _poll(self) -> None:
         player_xy = Player.GetXY()
         rows: list[EnemyLiveState] = []
-        map_info = self._current_map_observation()
         try:
             self.vars.called_target_id = int(Party.GetPartyTarget() or 0)
         except Exception:
@@ -787,17 +420,12 @@ class EnemyTracker:
             enc_name = Agent.GetEncNameStrByID(agent_id)
             model_id = int(Agent.GetModelID(agent_id) or 0)
             key = self._enemy_key(agent_id, name, enc_name, model_id)
-            record = self._ensure_record(key, name, enc_name, model_id)
-            self._observe_map(key, record, map_info)
-
-            living = Agent.GetLivingAgentByID(agent_id)
-            native_skill_id = int(getattr(living, "skill", 0) or 0)
-            self._observe_cast(agent_id, record, native_skill_id)
-
+            record = self.vars.records.get(key, {})
             casting_skill_id = int(Agent.GetCastingSkillID(agent_id) if Agent.IsCasting(agent_id) else 0)
-            if casting_skill_id and casting_skill_id != native_skill_id:
-                self._observe_cast(agent_id, record, casting_skill_id)
-            primary, secondary = self._infer_professions(record)
+            primary = str(record.get("inferred_primary", "") or "")
+            secondary = str(record.get("inferred_secondary", "") or "")
+            if not primary and not secondary and record:
+                primary, secondary = self._infer_professions(record)
 
             rows.append(
                 EnemyLiveState(
@@ -818,7 +446,6 @@ class EnemyTracker:
             )
 
         self.vars.live_rows = self._sort_rows(rows)
-        self._save_data_if_needed()
 
     def _normalize_degrees(self, angle: float) -> float:
         return (float(angle) + 180.0) % 360.0 - 180.0
@@ -940,6 +567,7 @@ class EnemyTracker:
         return ["All"] + sorted(name for name in names if name != "All")
 
     def _filtered_rows(self) -> list[EnemyLiveState]:
+        self._refresh_live_state()
         filters = self._profession_filters()
         self.vars.profession_filter_index = max(0, min(self.vars.profession_filter_index, len(filters) - 1))
         prof_filter = filters[self.vars.profession_filter_index]
@@ -983,11 +611,32 @@ class EnemyTracker:
     def _yellow_color(self, alpha: int = 255) -> int:
         return Utils.RGBToColor(255, 220, 40, alpha)
 
+    def _resolve_called_target_id(self) -> int:
+        try:
+            called_target_id = int(Party.GetPartyTarget() or 0)
+        except Exception:
+            called_target_id = 0
+
+        self.vars.called_target_id = called_target_id if called_target_id > 0 and Agent.IsValid(called_target_id) else 0
+        return self.vars.called_target_id
+
+    def _draw_target_outline(
+        self,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        color: int,
+    ) -> None:
+        PyImGui.draw_list_add_rect(x1 - 2.0, y1 - 2.0, x2 + 2.0, y2 + 2.0, color, 0.0, 0, 2.0)
+
     def _draw_row(self, row: EnemyLiveState) -> None:
         skill_text = ""
         if row.casting_skill_id:
             skill_name, _, _ = self._skill_info(row.casting_skill_id)
             skill_text = skill_name
+        called_target_id = self._resolve_called_target_id()
+        is_called_target = row.agent_id == called_target_id
 
         _enemy_bar_debug(f"draw_row start agent_id={row.agent_id} name={row.name} distance={int(row.distance)}")
 
@@ -1033,24 +682,16 @@ class EnemyTracker:
                 f"row hovered agent_id={row.agent_id} name={row.name} "
                 f"call_hovered={call_hovered} bar_hovered={bar_state.hovered} row_hovered={row_hovered}"
             )
-        if hovered and self.vars.draw_hover_row_outline:
-            PyImGui.draw_list_add_rect(row_x1 - 2.0, row_y1 - 2.0, row_x2 + 2.0, row_y2 + 2.0, self._magenta_color(), 0.0, 0, 2.0)
-        if row.agent_id == self.vars.called_target_id:
-            PyImGui.draw_list_add_rect(row_x1 - 1.0, row_y1 - 1.0, row_x2 + 1.0, row_y2 + 1.0, self._yellow_color(), 0.0, 0, 2.0)
+        if hovered and self.vars.draw_hover_row_outline and not is_called_target:
+            self._draw_target_outline(row_x1, row_y1, row_x2, row_y2, self._magenta_color())
+        if is_called_target:
+            self._draw_target_outline(row_x1, row_y1, row_x2, row_y2, self._yellow_color())
         if hovered:
             PyImGui.begin_tooltip()
-            PyImGui.text(f"HP: {int(row.health * 100)}%")
-            if row.agent_id == self.vars.called_target_id:
+            self._draw_enemy_hover_card(row)
+            if is_called_target:
+                PyImGui.separator()
                 PyImGui.text("Called target")
-            PyImGui.text(f"Distance: {int(row.distance)}")
-            PyImGui.text(f"Agent: {row.agent_id}")
-            PyImGui.text(f"Model: {row.model_id}")
-            if skill_text:
-                PyImGui.text(f"Casting: {skill_text}")
-            if row.statuses:
-                PyImGui.text(f"Status: {', '.join(row.statuses)}")
-            if row.enc_name:
-                PyImGui.text(f"Enc: {row.enc_name}")
             PyImGui.end_tooltip()
 
     def _draw_controls(self) -> None:
@@ -1236,6 +877,60 @@ class EnemyTracker:
             if (index + 1) % cards_per_row != 0 and index + 1 < len(skills):
                 PyImGui.same_line(0, 8)
 
+    def _draw_observed_skillbar_mini(self, skills: list[dict], icon_size: float = 28.0) -> None:
+        shown_skills = skills[:8]
+        if not shown_skills:
+            PyImGui.text("No observed skills yet.")
+            return
+
+        for index, skill in enumerate(shown_skills):
+            skill_id = int(skill.get("id", 0) or 0)
+            texture_path = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id) if skill_id > 0 else ""
+            if texture_path:
+                ImGui.DrawTexture(texture_path, icon_size, icon_size)
+            else:
+                ImGui.dummy(icon_size, icon_size)
+
+            if PyImGui.is_item_hovered() and skill_id > 0 and PyImGui.begin_tooltip():
+                HeroAI_BaseUI._draw_skill_info_card(skill_id, compact=True, tooltip=True)
+                self._draw_skill_observation_meta(skill)
+                PyImGui.end_tooltip()
+
+            if index + 1 < len(shown_skills):
+                PyImGui.same_line(0, 4)
+
+        if len(skills) > len(shown_skills):
+            PyImGui.same_line(0, 8)
+            PyImGui.text(f"+{len(skills) - len(shown_skills)}")
+
+    def _draw_enemy_hover_card(self, row: EnemyLiveState) -> None:
+        record = self.vars.records.get(row.key)
+        if not record:
+            PyImGui.text(row.name)
+            PyImGui.text(f"Profession: {self._profession_prefix(row)}")
+            return
+
+        names = self._record_names(row.key)
+        primary = str(record.get("inferred_primary", "") or row.inferred_primary or "?")
+        secondary = str(record.get("inferred_secondary", "") or row.inferred_secondary or "")
+        profession_text = f"{primary}/{secondary}" if secondary else primary
+        observed_maps = self._observed_maps_for_record(record)
+        observed_skills = self._observed_skills_for_record(record)
+
+        PyImGui.text(names[0] if names else row.name)
+        PyImGui.text(f"Profession: {profession_text}")
+        PyImGui.separator()
+        PyImGui.text("Skillbar")
+        self._draw_observed_skillbar_mini(observed_skills)
+        PyImGui.separator()
+        PyImGui.text(f"Maps Observed: {len(observed_maps)}")
+        for map_entry in observed_maps[:6]:
+            map_name = str(map_entry.get("name", "") or "Unknown Map")
+            map_id = int(map_entry.get("id", 0) or 0)
+            PyImGui.bullet_text(f"{map_name} id:({map_id})")
+        if len(observed_maps) > 6:
+            PyImGui.bullet_text(f"... {len(observed_maps) - len(observed_maps[:6])} more")
+
     def _draw_atlas_skills(self, record: dict) -> None:
         skills = self._observed_skills_for_record(record)
         PyImGui.text(f"Observed skills: {len(skills)}")
@@ -1282,42 +977,7 @@ class EnemyTracker:
             PyImGui.end_table()
 
     def draw_scanner_config(self) -> None:
-        PyImGui.text(f"Data folder: {self.data_root}")
-        PyImGui.text(f"Known enemies: {len(self.vars.records)}")
-        PyImGui.text(f"Languages: {len(self.vars.name_records)}")
-        PyImGui.separator()
-
-        if PyImGui.button("Import / Merge JSON"):
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes("-topmost", True)
-            try:
-                path = filedialog.askopenfilename(
-                    title="Import Enemy Tracker Data",
-                    initialdir=self.data_root,
-                    filetypes=[("JSON Files", "*.json"), ("All files", "*.*")],
-                )
-            finally:
-                root.destroy()
-            if path:
-                self.import_bundle_from(path)
-
-        PyImGui.same_line(0, 8)
-        if PyImGui.button("Export JSON"):
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes("-topmost", True)
-            try:
-                path = filedialog.asksaveasfilename(
-                    title="Export Enemy Tracker Data",
-                    initialdir=self.data_root,
-                    defaultextension=".json",
-                    filetypes=[("JSON Files", "*.json"), ("All files", "*.*")],
-                )
-            finally:
-                root.destroy()
-            if path:
-                self.export_bundle_to(path)
+        return
 
     def draw_window(self) -> None:
         expanded, open_ = ImGui.BeginWithClose(
@@ -1329,6 +989,7 @@ class EnemyTracker:
         self.floating_button.sync_begin_with_close(open_)
 
         if expanded:
+            self._refresh_live_state()
             rows = self._filtered_rows()
             self.vars.hovered_agent_id = 0
 
@@ -1358,15 +1019,16 @@ class EnemyTracker:
         if not Player.IsPlayerLoaded():
             return
 
+        called_target_id = self._resolve_called_target_id()
         draw_hover = (
             self.vars.draw_hover_world_circle
             and self.vars.hovered_agent_id > 0
             and Agent.IsValid(self.vars.hovered_agent_id)
+            and self.vars.hovered_agent_id != called_target_id
         )
         draw_called = (
             self.vars.draw_called_world_circle
-            and self.vars.called_target_id > 0
-            and Agent.IsValid(self.vars.called_target_id)
+            and called_target_id > 0
         )
         if not draw_hover and not draw_called:
             return
@@ -1378,7 +1040,7 @@ class EnemyTracker:
                 x, y, z = Agent.GetXYZ(self.vars.hovered_agent_id)
                 overlay.DrawPoly3D(x, y, z, float(Range.Touch.value), self._magenta_color(), 32, 4.0)
             if draw_called:
-                x, y, z = Agent.GetXYZ(self.vars.called_target_id)
+                x, y, z = Agent.GetXYZ(called_target_id)
                 overlay.DrawPoly3D(x, y, z, float(Range.Touch.value), self._yellow_color(), 32, 4.0)
         finally:
             overlay.EndDraw()
@@ -1470,7 +1132,10 @@ class EnemyTracker:
                         x2, y2 = frustum_points[index + 1]
                         PyImGui.draw_list_add_line(x1, y1, x2, y2, outline, 3.0)
                         PyImGui.draw_list_add_line(x1, y1, x2, y2, color, 2.0)
-                if self.vars.draw_hover_mission_map:
+                called_target_id = self._resolve_called_target_id()
+                if called_target_id > 0:
+                    self._draw_agent_mission_map_marker(called_target_id, self._yellow_color())
+                elif self.vars.draw_hover_mission_map:
                     self._draw_agent_mission_map_marker(self.vars.hovered_agent_id, self._magenta_color())
             PyImGui.end()
         finally:
@@ -1483,12 +1148,6 @@ FloatingButton: EnemyTracker | None = None
 def _get_shared_vars() -> EnemyTrackerVars | None:
     state = getattr(builtins, ENEMY_TRACKER_SHARED_VARS_ATTR, None)
     return state if state is not None else None
-
-
-def _set_shared_vars(state: EnemyTrackerVars) -> EnemyTrackerVars:
-    setattr(builtins, ENEMY_TRACKER_SHARED_VARS_ATTR, state)
-    return state
-
 
 def _ensure_ini() -> bool:
     if EnemyTrackerConfig.INI_INIT:
@@ -1525,16 +1184,14 @@ def scanner_main():
         if not _ensure_ini():
             return
         state = _ensure_state()
-        state._poll()
+        state._refresh_live_state(force=True)
     except Exception as exc:
         Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Scanner error: {exc}", Py4GW.Console.MessageType.Error)
         raise
 
 
 def configure():
-    if not _ensure_ini():
-        return
-    _ensure_state().draw_scanner_config()
+    return
 
 
 def ui_main():
@@ -1547,6 +1204,7 @@ def ui_main():
             ENEMY_BAR_DEBUG_STARTUP_LOGGED = True
             _enemy_bar_debug("Enemy Party ui_main started")
         state = _ensure_state()
+        state._refresh_live_state()
         state.floating_button.draw(EnemyTrackerConfig.FLOATING_INI_KEY)
         state.draw_world_agent_markers()
         state.draw_mission_map_range_ring()

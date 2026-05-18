@@ -7,6 +7,7 @@ from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Rout
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from Py4GWCoreLib.GlobalCache.HexRemovalPriority import get_hexed_ally_for_removal
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled, TargetDeadPartyMember, IsResurrectablePartyMember
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
@@ -520,7 +521,7 @@ class CombatClass:
         if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
             return False
         _, target_allegiance = Agent.GetAllegiance(target_id)
-        return target_allegiance == "Enemy"
+        return target_allegiance == "Enemy" and not self._is_blacklisted_enemy_target(target_id)
 
     def MaybeCallCombatTarget(
         self,
@@ -641,12 +642,17 @@ class CombatClass:
         if self.is_targeting_enabled and party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
-                if Agent.IsLiving(party_target):
+                if Agent.IsLiving(party_target) and not self._is_blacklisted_enemy_target(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
                         self.SafeChangeTarget(party_target)
                         return party_target
         return 0
+
+    def _is_blacklisted_enemy_target(self, agent_id: int) -> bool:
+        if not agent_id:
+            return False
+        return EnemyBlacklist().is_blacklisted(agent_id)
 
     def get_combat_distance(self) -> float:
         if self.cached_data is not None:
@@ -674,6 +680,7 @@ class CombatClass:
             and Agent.IsValid(party_target)
             and Agent.IsLiving(party_target)
             and not Agent.IsDead(party_target)
+            and not self._is_blacklisted_enemy_target(party_target)
         ):
             preferred_enemy_target = party_target
 
@@ -1547,9 +1554,16 @@ class CombatClass:
             self.in_casting_routine = False
             return False, 0
 
+        v_target_allegiance, _ = Agent.GetAllegiance(v_target)
+        if (
+            v_target_allegiance == Allegiance.Enemy.value
+            and self._is_blacklisted_enemy_target(v_target)
+        ):
+            self.in_casting_routine = False
+            return False, 0
+
         # Hex spells must never be cast on spirits.
         if skill_type == SkillType.Hex.value:
-            v_target_allegiance, _ = Agent.GetAllegiance(v_target)
             if Agent.IsSpirit(v_target) or (
                 v_target_allegiance == Allegiance.Enemy.value
                 and Agent.IsSpawned(v_target)
@@ -1647,6 +1661,7 @@ class CombatClass:
             and Agent.IsValid(target_id)
             and not Agent.IsDead(target_id)
             and target_allegiance == "Enemy"
+            and not self._is_blacklisted_enemy_target(target_id)
         )
 
         if has_valid_enemy_target and Agent.IsAttacking(player_id):

@@ -1,18 +1,49 @@
+from typing import Any
+from typing import Protocol
+
 import Py4GW
 
 from ..GlobalCache import GLOBAL_CACHE
 from ..Routines import Routines
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
+from .account_config import BottingTreeAccountConfig
 from .enums import HeroAIStatus, PlannerStatus
 
 
+class _BottingTreeTicksHost(Protocol):
+    account_config: BottingTreeAccountConfig
+    started: bool
+    paused: bool
+    pause_on_combat: bool
+    headless_heroai: Any
+    planner_tree: BehaviorTree | None
+    _last_heroai_state: str | None
+    _last_planner_gate_state: str | None
+
+    def SetMultiAccount(self, multi_account: bool, *, apply_runtime: bool = True) -> bool: ...
+    def SetIsolationEnabled(self, enabled: bool) -> bool: ...
+    def SetHeadlessHeroAIEnabled(self, enabled: bool, *, reset_runtime: bool = True) -> None: ...
+    def IsHeadlessHeroAIEnabled(self) -> bool: ...
+    def _disable_heroai_widget_for_headless(self) -> None: ...
+    def SetLootingEnabled(self, enabled: bool) -> None: ...
+    def IsLootingEnabled(self) -> bool: ...
+    def EnsureHeroAIOptionsEnabled(self) -> None: ...
+    def _should_log_heroai_state(self, state: str) -> bool: ...
+    def RestoreAccountIsolation(self) -> bool: ...
+
+
 class BottingTreeTicksMixin:
-    def _tick_heroai(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+    def _tick_heroai(self: _BottingTreeTicksHost, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         bb = node.blackboard
+        requested_multi_account = bb.pop('multi_account_request', None)
+        if isinstance(requested_multi_account, bool):
+            self.SetMultiAccount(requested_multi_account)
+        bb.update(self.account_config.as_blackboard_state())
+
         requested_isolation = bb.pop('account_isolation_enabled_request', None)
         if isinstance(requested_isolation, bool):
             self.SetIsolationEnabled(requested_isolation)
-        bb['account_isolation_enabled'] = self.IsIsolationEnabled()
+        bb.update(self.account_config.as_blackboard_state())
 
         requested_enabled = bb.pop('headless_heroai_enabled_request', None)
         requested_reset_runtime = bool(bb.pop('headless_heroai_reset_runtime_request', True))
@@ -37,6 +68,7 @@ class BottingTreeTicksMixin:
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
             bb['HEROAI_SUCCESS'] = False
+            bb['HEROAI_BUILD_CONTRACT'] = ''
             return BehaviorTree.NodeState.RUNNING
 
         if not self.IsHeadlessHeroAIEnabled():
@@ -48,20 +80,20 @@ class BottingTreeTicksMixin:
             bb['PAUSE_MOVEMENT'] = False
             bb['HEROAI_STATUS'] = HeroAIStatus.DISABLED.value
             bb['HEROAI_SUCCESS'] = False
+            bb['HEROAI_BUILD_CONTRACT'] = ''
             self.headless_heroai.reset()
             return BehaviorTree.NodeState.RUNNING
 
         self.EnsureHeroAIOptionsEnabled()
 
         if Routines.Checks.Map.IsLoading() or not Routines.Checks.Map.IsExplorable():
-            if self._should_log_heroai_state('waiting_map'):
-                Py4GW.Console.Log('BottingTree', 'HeroAI waiting for combat-ready map.', Py4GW.Console.MessageType.Info)
             self._last_heroai_state = 'waiting_map'
             bb['COMBAT_ACTIVE'] = False
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
             bb['HEROAI_STATUS'] = HeroAIStatus.WAITING_MAP.value
             bb['HEROAI_SUCCESS'] = False
+            bb['HEROAI_BUILD_CONTRACT'] = ''
             self.headless_heroai.reset()
             return BehaviorTree.NodeState.RUNNING
 
@@ -74,25 +106,35 @@ class BottingTreeTicksMixin:
             bb['PAUSE_MOVEMENT'] = False
             bb['HEROAI_STATUS'] = HeroAIStatus.PLAYER_DEAD.value
             bb['HEROAI_SUCCESS'] = False
+            bb['HEROAI_BUILD_CONTRACT'] = self.headless_heroai.GetBuildContractName()
             return BehaviorTree.NodeState.RUNNING
 
         if Routines.Checks.Player.IsKnockedDown():
             if self._should_log_heroai_state('knocked_down'):
                 Py4GW.Console.Log('BottingTree', 'HeroAI paused because player is knocked down.', Py4GW.Console.MessageType.Warning)
             self._last_heroai_state = 'knocked_down'
-            bb['COMBAT_ACTIVE'] = bool(self.headless_heroai.cached_data.data.in_aggro)
+            bb['COMBAT_ACTIVE'] = bool(
+                getattr(self.headless_heroai.cached_data.data, 'local_in_aggro', self.headless_heroai.cached_data.data.in_aggro)
+            )
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
             bb['HEROAI_STATUS'] = HeroAIStatus.PLAYER_KNOCKED_DOWN.value
             bb['HEROAI_SUCCESS'] = False
+            bb['HEROAI_BUILD_CONTRACT'] = self.headless_heroai.GetBuildContractName()
             return BehaviorTree.NodeState.RUNNING
 
         self.headless_heroai.tick()
+        bb['headless_heroai_cached_data'] = self.headless_heroai.cached_data
         bb['USER_INTERRUPT_ACTIVE'] = self.headless_heroai.IsUserInterrupting()
         bb['LOOTING_ACTIVE'] = self.headless_heroai.IsLootingActive()
         bb['PAUSE_MOVEMENT'] = bool(bb['LOOTING_ACTIVE'] or bb['USER_INTERRUPT_ACTIVE'])
+        bb['HEROAI_BUILD_CONTRACT'] = self.headless_heroai.GetBuildContractName()
 
-        if self.headless_heroai.cached_data.data.in_aggro:
+        combat_active = bool(
+            getattr(self.headless_heroai.cached_data.data, 'local_in_aggro', self.headless_heroai.cached_data.data.in_aggro)
+        )
+
+        if combat_active:
             if self._last_heroai_state != 'combat':
                 self._last_heroai_state = 'combat'
             bb['COMBAT_ACTIVE'] = True
@@ -106,7 +148,7 @@ class BottingTreeTicksMixin:
         bb['HEROAI_SUCCESS'] = bool(self.headless_heroai.heroai_build.DidTickSucceed())
         return BehaviorTree.NodeState.RUNNING
 
-    def _tick_planner(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+    def _tick_planner(self: _BottingTreeTicksHost, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         bb = node.blackboard
 
         if not self.started or self.paused:
@@ -161,7 +203,12 @@ class BottingTreeTicksMixin:
             self.RestoreAccountIsolation()
         return BehaviorTree.NodeState.RUNNING
 
-    def _tick_service_tree(self, node: BehaviorTree.Node, service_tree: BehaviorTree, service_name: str) -> BehaviorTree.NodeState:
+    def _tick_service_tree(
+        self: _BottingTreeTicksHost,
+        node: BehaviorTree.Node,
+        service_tree: BehaviorTree,
+        service_name: str,
+    ) -> BehaviorTree.NodeState:
         if not self.started or self.paused:
             return BehaviorTree.NodeState.RUNNING
 

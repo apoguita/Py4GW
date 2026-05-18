@@ -51,6 +51,8 @@ from ...Map import Map
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...Item import Bag
+from ...enums import CONSUMABLE_MODELID_TO_EFFECT_NAME
+from ...enums import SharedCommandType
 from ...enums_src.Model_enums import ModelID
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..Checks import Checks
@@ -570,12 +572,9 @@ class BTUpkeepers:
     @staticmethod
     def _min_party_morale() -> int:
         try:
-            entries = GLOBAL_CACHE.Party.GetPartyMorale() or []
-            if not entries:
-                return int(Player.GetMorale() or 0)
-            return min(int(morale) for _, morale in entries)
+            return int(GLOBAL_CACHE.ShMem.GetSharedPartyMinMorale() or 0)
         except Exception:
-            return int(Player.GetMorale() or 0)
+            return 0
 
     @staticmethod
     def _has_any_effect(effect_ids: list[int]) -> bool:
@@ -986,17 +985,18 @@ class BTUpkeepers:
                 aftercast_ms = int(preset.get("aftercast_ms", aftercast_ms) or aftercast_ms)
 
         resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+        resolved_effect_name = effect_name or CONSUMABLE_MODELID_TO_EFFECT_NAME.get(int(resolved_model_id), "")
         configured_effect_ids = tuple(int(value) for value in (effect_ids or []) if int(value or 0) > 0)
         service_key = (
-            f"upkeep_service:consumable:{resolved_model_id}:{effect_name}:{effect_id}:{configured_effect_ids}:"
+            f"upkeep_service:consumable:{resolved_model_id}:{resolved_effect_name}:{effect_id}:{configured_effect_ids}:"
             f"{use_where}:{target_morale}:{target_alcohol_level}:{blocked_effect_id}:{fallback_duration_ms}"
         )
 
         def _effect_upkeep_ids() -> list[int]:
             ids = [int(effect_id)] if int(effect_id or 0) > 0 else []
             ids.extend(configured_effect_ids)
-            if effect_name:
-                skill_id = int(GLOBAL_CACHE.Skill.GetID(effect_name) or 0)
+            if resolved_effect_name:
+                skill_id = int(GLOBAL_CACHE.Skill.GetID(resolved_effect_name) or 0)
                 if skill_id > 0:
                     ids.append(skill_id)
             return ids
@@ -1023,12 +1023,11 @@ class BTUpkeepers:
             if target_morale is None:
                 return False
 
-            player_morale = int(Player.GetMorale() or 0)
             if not party_wide_morale:
-                return player_morale >= int(target_morale)
+                return int(Player.GetMorale() or 0) >= int(target_morale)
 
             party_morale = BTUpkeepers._min_party_morale()
-            return player_morale >= int(target_morale) and party_morale >= int(target_morale)
+            return party_morale >= int(target_morale)
 
         def _alcohol_blocks_use() -> bool:
             if target_alcohol_level is None:
@@ -1059,6 +1058,49 @@ class BTUpkeepers:
             state = node.blackboard.setdefault(service_key, {})
             state["last_used_ms"] = int(Utils.GetBaseTimestamp())
 
+        def _broadcast_consumable_message(node: BehaviorTree.Node) -> bool:
+            if not resolved_effect_name:
+                return False
+
+            sender_email = str(Player.GetAccountEmail() or "")
+            if not sender_email:
+                return False
+
+            skill_id = int(GLOBAL_CACHE.Skill.GetID(resolved_effect_name) or 0)
+            params = (int(resolved_model_id), skill_id, 0, 0)
+
+            headless_cached_data = node.blackboard.get("headless_heroai_cached_data")
+            if headless_cached_data is not None:
+                targets = list(getattr(getattr(headless_cached_data, "party", None), "accounts", {}).values())
+            else:
+                targets = list(GLOBAL_CACHE.ShMem.GetAllAccountData() or [])
+
+            if not targets:
+                return False
+
+            filter_effect_ids = tuple(effect_id for effect_id in _effect_upkeep_ids() if int(effect_id) > 0)
+            sent_any = False
+            for account in targets:
+                account_email = str(getattr(account, "AccountEmail", "") or "")
+                if not account_email:
+                    continue
+                agent_id = int(getattr(getattr(account, "AgentData", None), "AgentID", 0) or 0)
+                account_effect_ids: set[int] = set()
+                if agent_id > 0:
+                    try:
+                        from HeroAI.utils import GetEffectAndBuffIds
+
+                        account_effect_ids = {int(value) for value in GetEffectAndBuffIds(agent_id, cached_data=headless_cached_data) if int(value) > 0}
+                    except Exception:
+                        buffs = getattr(getattr(getattr(account, "AgentData", None), "Buffs", None), "Buffs", [])
+                        account_effect_ids = {int(getattr(buff, "SkillId", 0) or 0) for buff in buffs if int(getattr(buff, "SkillId", 0) or 0) > 0}
+
+                if filter_effect_ids and any(effect_id in account_effect_ids for effect_id in filter_effect_ids):
+                    continue
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account_email, SharedCommandType.PCon, params)
+                sent_any = True
+            return sent_any
+
         def _use_consumable_item(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id) or 0)
             if item_id <= 0:
@@ -1069,6 +1111,12 @@ class BTUpkeepers:
 
         def _tick_consumable_service(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             if _base_runtime_blocks_use():
+                return BehaviorTree.NodeState.RUNNING
+
+            if _use_attempt_throttle_blocks_use(node):
+                return BehaviorTree.NodeState.RUNNING
+
+            if _broadcast_consumable_message(node):
                 return BehaviorTree.NodeState.RUNNING
 
             # Effect upkeep: consets, pcons, and speed sweets with real effect ids.
@@ -1089,9 +1137,6 @@ class BTUpkeepers:
 
             # Consumables without reliable effect visibility: local cooldown after a successful use attempt.
             if _fallback_duration_blocks_use(node):
-                return BehaviorTree.NodeState.RUNNING
-
-            if _use_attempt_throttle_blocks_use(node):
                 return BehaviorTree.NodeState.RUNNING
 
             result = BTUpkeepers._tick_service_subtree(

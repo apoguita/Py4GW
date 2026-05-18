@@ -1,4 +1,5 @@
 #region A
+ASPENWOOD_GATE_LUXON = 389
 #region B
 BOREAL_STATION = 675
 #region C
@@ -14,6 +15,7 @@ KAINENG_CENTER = 194
 KINYA_PROVINCE = 236
 #region L
 #region M
+MOUNT_QINKAI = 200
 #region N
 #region O
 #region P

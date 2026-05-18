@@ -125,7 +125,7 @@ def AddHenchmen() -> BehaviorTree:
         return Sequence(
             "Add Henchmen",
             [
-                BT.AddHenchmanList(henchmen_list),
+                BT.CreateParty(henchman_ids=henchmen_list),
                 BT.Wait(1000),
             ],
         )

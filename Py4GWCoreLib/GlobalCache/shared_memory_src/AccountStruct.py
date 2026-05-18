@@ -9,6 +9,7 @@ from .Globals import (
     SHMEM_PLAYER_META_UPDATE_THROTTLE_MS,
     SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS,
     SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS,
+    SHMEM_PLAYER_INVENTORY_UPDATE_THROTTLE_MS,
     SHMEM_HERO_EXTRA_UPDATE_THROTTLE_MS,
     SHMEM_PET_EXTRA_UPDATE_THROTTLE_MS,
 )
@@ -24,11 +25,13 @@ from .AvailableCharacterStruct import AvailableCharacterStruct
 from .KeyStruct import KeyStruct
 from .AgentPartyStruct import AgentPartyStruct
 from .AgentDataStruct import AgentDataStruct
+from .InventoryBagsStruct import InventoryBagsStruct
 
 
 _player_meta_timers: dict[int, ThrottledTimer] = {}
 _player_progress_timers: dict[int, ThrottledTimer] = {}
 _player_static_timers: dict[int, ThrottledTimer] = {}
+_player_inventory_timers: dict[int, ThrottledTimer] = {}
 _player_meta_stage: dict[int, int] = {}
 _player_progress_stage: dict[int, int] = {}
 _player_static_stage: dict[int, int] = {}
@@ -68,6 +71,7 @@ class AccountStruct(Structure):
         ("AccountName", c_wchar*SHMEM_MAX_CHAR_LEN),
         
         ("AgentData", AgentDataStruct),
+        ("InventoryBags", InventoryBagsStruct),
         ("AgentPartyData", AgentPartyStruct),
         ("RankData", RankStruct),
         ("FactionData", FactionStruct),
@@ -99,6 +103,7 @@ class AccountStruct(Structure):
     AccountName: str
     
     AgentData: AgentDataStruct
+    InventoryBags: InventoryBagsStruct
     AgentPartyData: AgentPartyStruct
     
     RankData: RankStruct
@@ -131,6 +136,7 @@ class AccountStruct(Structure):
         self.AccountName = ""
         
         self.AgentData.reset()
+        self.InventoryBags.reset()
         self.AgentPartyData.reset()
         
         self.RankData.reset()
@@ -157,9 +163,11 @@ class AccountStruct(Structure):
         
     def from_context(self, account_email:str , slot_index: int) -> None:
         from ... import Range, Routines
+        from ...GlobalCache import GLOBAL_CACHE
         from ...Map import Map
         from ...Player import Player
         from ...Party import Party
+        from ...enums_src.Item_enums import Bags
         """Load data from the specified slot index in shared memory."""
         if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
             raise ValueError(f"Invalid slot index: {slot_index}")
@@ -180,6 +188,7 @@ class AccountStruct(Structure):
         self.InAggroTick64 = previous_in_aggro_tick64
         self.AgentData.OwnerAgentID = 0
         self.AgentData.HeroID = 0
+        self.InventoryBags.reset()
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -192,6 +201,33 @@ class AccountStruct(Structure):
 
         agent_id = Player.GetAgentID()
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
+
+        def _update_inventory_bags() -> None:
+            bag_structs = [
+                (self.InventoryBags.Backpack, int(Bags.Backpack.value)),
+                (self.InventoryBags.BeltPouch, int(Bags.BeltPouch.value)),
+                (self.InventoryBags.Bag1, int(Bags.Bag1.value)),
+                (self.InventoryBags.Bag2, int(Bags.Bag2.value)),
+            ]
+            for bag_struct, bag_id in bag_structs:
+                bag_struct.reset()
+                bag_struct.BagID = bag_id
+                bag = GLOBAL_CACHE.ItemArray.GetBag(bag_id)
+                if bag is None:
+                    continue
+                try:
+                    bag_struct.Size = int(bag.GetSize() or 0)
+                    for item in bag.GetItems():
+                        slot_value = int(getattr(item, "slot", -1) or -1)
+                        if slot_value < 0 or slot_value >= len(bag_struct.Slots):
+                            continue
+                        slot_struct = bag_struct.Slots[slot_value]
+                        slot_struct.BagID = bag_id
+                        slot_struct.Slot = slot_value
+                        slot_struct.ModelID = int(getattr(item, "model_id", 0) or 0)
+                        slot_struct.Quantity = int(getattr(item, "quantity", 0) or 0)
+                except Exception:
+                    bag_struct.Size = 0
         
         def _same_map_or_party_as_account(account: "AccountStruct") -> bool:
             own_map_id = Map.GetMapID()
@@ -318,7 +354,12 @@ class AccountStruct(Structure):
                     self.MissionData.from_context()
                 _player_static_stage[slot_index] = (static_stage + 1) % 3
             static_timer.Reset()
-        
+
+        inventory_timer = _get_slot_timer(_player_inventory_timers, slot_index, SHMEM_PLAYER_INVENTORY_UPDATE_THROTTLE_MS)
+        if force_full or inventory_timer.IsExpired():
+            _update_inventory_bags()
+            inventory_timer.Reset()
+
         self.LastUpdated = Py4GW.Game.get_tick_count64()
         
     def from_hero_context(self, hero_data: HeroPartyMember, slot_index: int) -> None:
@@ -341,6 +382,7 @@ class AccountStruct(Structure):
         self.IsNPC = False
         self.InAggro = False
         self.InAggroTick64 = 0
+        self.InventoryBags.reset()
 
         # Set HeroID and LastUpdated before early returns so:
         # - GetHeroSlotByHeroData can find this slot by HeroID
@@ -360,6 +402,7 @@ class AccountStruct(Structure):
 
         agent_id = hero_data.agent_id
         hero_morale = 0
+        previous_hero_morale = int(self.AgentData.Morale or 0)
         try:
             for morale_agent_id, morale_value in Party.GetPartyMorale() or []:
                 if int(morale_agent_id or 0) == int(agent_id):
@@ -369,7 +412,10 @@ class AccountStruct(Structure):
             hero_morale = 0
 
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
-        self.AgentData.Morale = hero_morale
+        if hero_morale > 0:
+            self.AgentData.Morale = hero_morale
+        else:
+            self.AgentData.Morale = previous_hero_morale if previous_hero_morale > 0 else 0
         self.AgentData.TargetID = 0
         self.AgentData.LoginNumber = 0
         self.AgentData.AgentID = agent_id
@@ -467,6 +513,7 @@ class AccountStruct(Structure):
         self.IsNPC = False
         self.InAggro = False
         self.InAggroTick64 = 0
+        self.InventoryBags.reset()
         
         agent_id = pet_data.agent_id
         self.AgentData.from_context(agent_id, throttle_key=slot_index)

@@ -101,8 +101,10 @@ def PrepareForBattle(hero_list: list[int] | None = None, henchman_list: list[int
                 ),
                 EquipSkillBar(),
                 BT.LeaveParty(),
-                BT.AddHeroList(hero_list or []),
-                BT.AddHenchmanList(henchman_list or []),
+                BT.CreateParty(
+                    hero_ids=hero_list or [],
+                    henchman_ids=henchman_list or [],
+                ),
             ],
         )
     )
