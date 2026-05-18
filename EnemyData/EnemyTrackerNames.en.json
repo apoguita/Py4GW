@@ -1,813 +1,91 @@
 {
   "language": "en",
   "names": {
-    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001": [
-      "Pet - Elder Hyena"
-    ],
-    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001": [
-      "Pet - Elder Crocodile"
-    ],
-    "enc:\\\\x0BD7\\\\x82CB\\\\x0528": [
-      "Suit of 100 Armor",
-      "Agent 32"
-    ],
-    "enc:\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292": [
-      "Suit of 60 Armor",
-      "Agent 30",
-      "Agent 33"
-    ],
-    "enc:\\\\x0BD9\\\\xE564\\\\x5BF4": [
-      "Suit of 80 Armor",
-      "Agent 31"
-    ],
-    "enc:\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30": [
-      "Practice Target",
-      "Agent 189"
-    ],
-    "enc:\\\\x0BDC\\\\xF8B5\\\\xCE9B\\\\x6BFE": [
-      "Agent 123",
-      "Student of Blind"
-    ],
-    "enc:\\\\x0BDF\\\\xFB0B\\\\xF320\\\\x3739": [
-      "Student of Dazed"
-    ],
-    "enc:\\\\x0BE0\\\\x8D50\\\\xD487\\\\x7295": [
-      "Student of Disease"
-    ],
-    "enc:\\\\x0BE2\\\\x9F4A\\\\xCAE8\\\\x0687": [
-      "Student of Weakness"
-    ],
-    "enc:\\\\x0D39\\\\xCF3B\\\\xED6E\\\\x4EF1": [
-      "Guard of the Isles"
-    ],
-    "enc:\\\\x0D7F\\\\xB5A9\\\\x3373": [
-      "Adjacent"
-    ],
-    "enc:\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39": [
-      "In the Area"
-    ],
-    "enc:\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670": [
-      "Adjacent to Foe",
-      "Agent 191"
-    ],
-    "enc:\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A": [
-      "Nearby"
-    ],
-    "enc:\\\\x0D84\\\\xD392\\\\xA3B2\\\\x5FA9": [
-      "Longbow Target"
-    ],
-    "enc:\\\\x0D85\\\\xA4DF\\\\xAC95\\\\x3211": [
-      "Recurve Target"
-    ],
-    "enc:\\\\x0D86\\\\xEAEA\\\\xAF17\\\\x3173": [
-      "Short Bow Target"
-    ],
-    "enc:\\\\x0F95\\\\xF318\\\\x6CFE": [
-      "Spirit of Favorable Winds",
-      "Agent 84"
-    ],
     "enc:\\\\x0F99\\\\x863D\\\\xD474\\\\x6ACA": [
-      "Agent 350",
-      "Spirit of Nature's Renewal",
-      "Agent 69"
-    ],
-    "enc:\\\\x1230\\\\x9354\\\\x94B4\\\\x654F": [
-      "Agent 516",
-      "Bone Horror",
-      "Agent 531"
-    ],
-    "enc:\\\\x1232\\\\xF535\\\\x05E0": [
-      "Agent 160",
-      "Agent 191",
-      "Bone Minion"
+      "Spirit of Nature's Renewal"
     ],
     "enc:\\\\x12A7\\\\xF511\\\\xCDD1\\\\x22D3": [
-      "Agent 48",
-      "Obsidian Behemoth",
-      "Agent 33"
-    ],
-    "enc:\\\\x12A8\\\\xE724\\\\xC399\\\\x1FB5": [
-      "Agent 577",
-      "Obsidian Guardian"
+      "Obsidian Behemoth"
     ],
     "enc:\\\\x12A9\\\\xE727\\\\xE80D\\\\x674A": [
-      "Agent 218",
-      "Agent 395",
-      "Chained Soul",
-      "Agent 438",
-      "Agent 439"
+      "Chained Soul"
     ],
     "enc:\\\\x12AC\\\\x9F81\\\\xBFE4\\\\x3216": [
-      "Agent 239",
-      "Terrorweb Dryder",
-      "Agent 337"
+      "Terrorweb Dryder"
     ],
     "enc:\\\\x12AD\\\\xF69B\\\\xBD35\\\\x7A5E": [
-      "Agent 509",
-      "Keeper of Souls",
-      "Agent 223"
+      "Keeper of Souls"
     ],
     "enc:\\\\x12AF\\\\x8B85\\\\x9E38\\\\x7FED": [
-      "Agent 445",
-      "Wailing Lord",
-      "Agent 350"
+      "Wailing Lord"
     ],
     "enc:\\\\x12B0\\\\xA053\\\\x8415\\\\x6F58": [
-      "Agent 193",
-      "Banished Dream Rider",
-      "Agent 382"
-    ],
-    "enc:\\\\x12B7\\\\xEE5E\\\\xE8CB\\\\x660E": [
-      "Agent 149",
-      "Agent 397",
-      "Agent 460",
-      "Tortured Spirit"
-    ],
-    "enc:\\\\x12B9\\\\x8271\\\\xA9AA\\\\x5E8F": [
-      "Agent 65",
-      "Agent 101",
-      "Agent 332",
-      "Agent 519",
-      "Agent 535",
-      "Agent 554",
-      "Tortured Spirit"
+      "Banished Dream Rider"
     ],
     "enc:\\\\x12BA\\\\xD696\\\\x4774": [
-      "Agent 40",
-      "Smite Crawler",
-      "Agent 62"
+      "Smite Crawler"
     ],
     "enc:\\\\x12BB\\\\xA3DC\\\\x0BDD": [
-      "Agent 71",
-      "Mindblade Spectre",
-      "Agent 503"
+      "Agent 529",
+      "Mindblade Spectre"
     ],
     "enc:\\\\x12BC\\\\x98DC\\\\xFDF0\\\\x1FD0": [
-      "Agent 436",
-      "Dead Collector",
-      "Agent 450"
+      "Dead Collector"
     ],
     "enc:\\\\x12BD\\\\xB160\\\\xA954\\\\x4D4C": [
-      "Agent 438",
-      "Dead Thresher",
-      "Agent 399"
+      "Dead Thresher"
     ],
     "enc:\\\\x12BE\\\\xB04F\\\\xE727\\\\x218F": [
-      "Agent 56",
-      "Coldfire Night",
-      "Agent 228"
+      "Coldfire Night"
     ],
     "enc:\\\\x12BF\\\\xF224\\\\xEA77\\\\x4E7D": [
-      "Agent 232",
-      "Dying Nightmare",
-      "Agent 326"
+      "Agent 330",
+      "Dying Nightmare"
     ],
     "enc:\\\\x12C0\\\\xCE4F\\\\xC177\\\\x75FE": [
-      "Agent 310",
-      "Stalking Night",
-      "Agent 57"
+      "Stalking Night"
     ],
     "enc:\\\\x12C2\\\\x968C\\\\xB2A0\\\\x1035": [
-      "Agent 36",
-      "Agent 37",
-      "Agent 38",
-      "Agent 39",
-      "Agent 40",
-      "Agent 41",
-      "Agent 42",
-      "Agent 43",
-      "Agent 44",
-      "Agent 45",
-      "Agent 46",
-      "Agent 47",
-      "Bladed Aatxe",
-      "Agent 35"
+      "Bladed Aatxe"
     ],
     "enc:\\\\x12C4\\\\xA887\\\\x7302": [
-      "Agent 245",
-      "Charged Blackness",
-      "Agent 246"
+      "Charged Blackness"
     ],
     "enc:\\\\x12C5\\\\xD142\\\\xFA22\\\\x1E49": [
-      "Agent 326",
-      "Grasping Darkness",
-      "Agent 327"
-    ],
-    "enc:\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6": [
-      "Shadow Mesmer"
-    ],
-    "enc:\\\\x14CF\\\\xEC6F\\\\xE73F\\\\x49BD": [
-      "Shadow Elemental"
-    ],
-    "enc:\\\\x14D0\\\\x8168\\\\xA1A6\\\\x40C1": [
-      "Shadow Monk"
-    ],
-    "enc:\\\\x14D1\\\\xBDB0\\\\x7A68": [
-      "Shadow Warrior"
-    ],
-    "enc:\\\\x14D2\\\\x970D\\\\xD742\\\\x7F11": [
-      "Shadow Ranger"
-    ],
-    "enc:\\\\x14D5\\\\xD7A9\\\\xCF5D\\\\x1A7C": [
-      "Shadow Beast"
-    ],
-    "enc:\\\\x14D6\\\\xC88A\\\\xEAA4\\\\x3C28": [
-      "Abyssal"
-    ],
-    "enc:\\\\x14DB\\\\x873D\\\\xC69B\\\\x0875": [
-      "Skeletal Ether Breaker"
-    ],
-    "enc:\\\\x14DC\\\\xBC13\\\\x9392\\\\x5197": [
-      "Skeletal Icehand"
-    ],
-    "enc:\\\\x14DD\\\\x9664\\\\xE898\\\\x575D": [
-      "Skeletal Bond"
-    ],
-    "enc:\\\\x14DE\\\\x83D6\\\\x2C89": [
-      "Skeletal Berserker"
-    ],
-    "enc:\\\\x14DF\\\\x9EA7\\\\xD567\\\\x3343": [
-      "Skeletal Impaler",
-      "Agent 212"
+      "Agent 328",
+      "Agent 329",
+      "Grasping Darkness"
     ],
     "enc:\\\\x17C1\\\\xF036\\\\x8EDD\\\\x575E": [
-      "Agent 52",
-      "Slayer",
-      "Agent 230"
+      "Slayer"
     ],
     "enc:\\\\x17D1\\\\xCF43\\\\xE7C9\\\\x07E0": [
-      "Agent 198",
       "Madruk Dhuum"
     ],
     "enc:\\\\x17D2\\\\xFF3C\\\\xA981\\\\x3B99": [
-      "Agent 101",
       "Thul Za Dhuum"
     ],
     "enc:\\\\x17D3\\\\x9397\\\\xB500\\\\x0B62": [
-      "Agent 183",
       "Ghozer Dhuum"
     ],
     "enc:\\\\x17D4\\\\xD085\\\\xF7B5\\\\x7D6A": [
-      "Agent 559",
+      "Agent 510",
       "Kazhad Dhuum"
     ],
-    "enc:\\\\x17DF\\\\xAC9D\\\\xE33B\\\\x63DE": [
-      "Agent 485",
-      "Terrorweb Queen"
-    ],
-    "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": [
-      "Agent 261",
-      "Shadow Lord Vogris",
-      "Agent 262",
-      "Agent 286"
-    ],
-    "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": [
-      "Kayali the Brave"
-    ],
-    "enc:\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59": [
-      "Rot Wallow"
-    ],
-    "enc:\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85": [
-      "Oni"
-    ],
-    "enc:\\\\x40B5\\\\xF50F\\\\xFAA1\\\\x040A": [
-      "Hukhrah Earthslove"
-    ],
-    "enc:\\\\x40B7\\\\xF090\\\\x95A8\\\\x3126": [
-      "Chehbaba Roottripper"
-    ],
-    "enc:\\\\x40B8\\\\xB9AD\\\\xC16E\\\\x073E": [
-      "Tomton Spiriteater"
-    ],
-    "enc:\\\\x40B9\\\\xBE3B\\\\xF3C3\\\\x5C86": [
-      "Yeti"
-    ],
-    "enc:\\\\x40BA\\\\xF11E\\\\xAE9E\\\\x7218": [
-      "Yeti"
-    ],
-    "enc:\\\\x40BB\\\\x9CFE\\\\xB332\\\\x28A3": [
-      "Yeti"
-    ],
-    "enc:\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A": [
-      "Outcast Deathhand"
-    ],
-    "enc:\\\\x40C7\\\\x87BA\\\\xE33A\\\\x4D94": [
-      "Outcast Warrior"
-    ],
-    "enc:\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE": [
-      "Outcast Ritualist"
-    ],
-    "enc:\\\\x40D5\\\\xF293\\\\xA099\\\\x6268": [
-      "Naga Warrior"
-    ],
-    "enc:\\\\x40D6\\\\xBEA6\\\\x9D1A\\\\x4544": [
-      "Naga Archer"
-    ],
-    "enc:\\\\x40D7\\\\xCE5A\\\\xD087\\\\x4A21": [
-      "Naga Ritualist"
-    ],
-    "enc:\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43": [
-      "Island Guardian"
-    ],
-    "enc:\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC": [
-      "Spirit of Shadowsong"
-    ],
-    "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": [
-      "Agent 85",
-      "Spirit of Pain"
-    ],
-    "enc:\\\\x4165\\\\xAA52\\\\x6E73": [
-      "Agent 120",
-      "Spirit of Destruction
-    ],
-    "enc:\\\\x4167\\\\x8FC3\\\\x08B6": [
-      "Spirit of Displacement"
-    ],
-    "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": [
-      "Kournan Seer"
-    ],
-    "enc:\\\\x7B65\\\\x8C79\\\\xA766\\\\x3402": [
-      "Kournan Oppressor"
-    ],
-    "enc:\\\\x7B66\\\\xFB29\\\\x8327\\\\x4869": [
-      "Kournan Scribe"
-    ],
-    "enc:\\\\x7B68\\\\x8BBE\\\\xBBF3\\\\x416A": [
-      "Kournan Priest"
-    ],
-    "enc:\\\\x7B69\\\\xD0CB\\\\x8475\\\\x20A2": [
-      "Kournan Guard"
-    ],
-    "enc:\\\\x7B6A\\\\xEBA0\\\\x5E45": [
-      "Kournan Bowman"
-    ],
-    "enc:\\\\x7B75\\\\xC299\\\\xEC48\\\\x5558": [
-      "Kournan Zealot"
-    ],
-    "enc:\\\\x7D54\\\\xF46D\\\\xEC6C\\\\x721C": [
-      "Kournan Phalanx"
-    ],
-    "enc:\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534": [
-      "Ruby Djinn"
-    ],
-    "enc:\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7": [
-      "Sapphire Djinn"
-    ],
-    "enc:\\\\x8101\\\\x05DA\\\\xCA83\\\\x978C\\\\x488A": [
-      "Blue Tongue Heket"
-    ],
-    "enc:\\\\x8101\\\\x0625\\\\xA3E5\\\\x8DB8\\\\x4F8E": [
-      "Blood Cowl Heket"
-    ],
-    "enc:\\\\x8101\\\\x0678\\\\x8EA8\\\\xAD51\\\\x78BA": [
-      "Diamond Djinn"
-    ],
-    "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": [
-      "Tormented Land"
-    ],
-    "enc:\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906": [
-      "Earthen Abomination"
-    ],
-    "enc:\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72": [
-      "Master of Damage"
-    ],
-    "enc:\\\\x8101\\\\x0849\\\\xEF33\\\\x95FE\\\\x4CE1": [
-      "Stoneaxe Heket"
-    ],
-    "enc:\\\\x8101\\\\x0886\\\\xE7D1\\\\xC5F4\\\\x193F": [
-      "Beast Sworn Heket"
-    ],
-    "enc:\\\\x8101\\\\x08B6\\\\xC33A\\\\xCD9A\\\\x7727": [
-      "Mirage Iboga"
-    ],
-    "enc:\\\\x8101\\\\x08B7\\\\xC7C2\\\\xBC18\\\\x01F8": [
-      "Storm Jacaranda"
-    ],
-    "enc:\\\\x8101\\\\x08B8\\\\xF25C\\\\x98B1\\\\x0D32": [
-      "Enchanted Brambles"
-    ],
-    "enc:\\\\x8101\\\\x08B9\\\\xEA3C\\\\xCF2C\\\\x55E0": [
-      "Whistling Thornbrush"
-    ],
-    "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": [
-      "Skree Griffin"
-    ],
-    "enc:\\\\x8101\\\\x09C3\\\\xCD6C\\\\x8FE6\\\\x7BD7": [
-      "Skree Raider"
-    ],
-    "enc:\\\\x8101\\\\x09C4\\\\xA88E\\\\xE8DD\\\\x2A21": [
-      "Skree Tracker"
-    ],
-    "enc:\\\\x8101\\\\x09C5\\\\xEFF1\\\\x247F": [
-      "Skree Singer"
-    ],
-    "enc:\\\\x8101\\\\x09C7\\\\xA4FE\\\\xB958\\\\x2879": [
-      "Margonite Seer"
-    ],
-    "enc:\\\\x8101\\\\x09C8\\\\x9A97\\\\x9F98\\\\x0468": [
-      "Margonite Warlock"
-    ],
-    "enc:\\\\x8101\\\\x09C9\\\\xFDC3\\\\xD720\\\\x7612": [
-      "Margonite Sorcerer"
-    ],
-    "enc:\\\\x8101\\\\x09CA\\\\xB515\\\\xC93D\\\\x1FD3": [
-      "Margonite Ascendant"
-    ],
-    "enc:\\\\x8101\\\\x09CB\\\\x9756\\\\xE318\\\\x3604": [
-      "Margonite Cleric"
-    ],
-    "enc:\\\\x8101\\\\x09CC\\\\xC423\\\\x8448\\\\x347B": [
-      "Margonite Executioner"
-    ],
-    "enc:\\\\x8101\\\\x09CD\\\\xBB25\\\\x8A1E\\\\x5E2F": [
-      "Margonite Bowmaster"
-    ],
-    "enc:\\\\x8101\\\\x09CE\\\\x8C33\\\\x4349": [
-      "Margonite Reaper"
-    ],
-    "enc:\\\\x8101\\\\x0E2D\\\\xC0F3\\\\xEC40\\\\x2F3D": [
-      "Korr, Living Flame"
-    ],
-    "enc:\\\\x8101\\\\x1186\\\\xB16E\\\\xB9F1\\\\x3BAD": [
-      "Ntouka Bird"
-    ],
-    "enc:\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1": [
-      "Rampaging Ntouka"
-    ],
-    "enc:\\\\x8101\\\\x1554\\\\xA7EB\\\\x3D37": [
-      "Immolated Djinn"
-    ],
-    "enc:\\\\x8101\\\\x1555\\\\xB996\\\\xBF2B\\\\x3F18": [
-      "Water Djinn"
-    ],
-    "enc:\\\\x8101\\\\x1556\\\\xB306\\\\xE2DB\\\\x64CB": [
-      "Maelstrom Djinn"
-    ],
-    "enc:\\\\x8101\\\\x1952\\\\xE06F\\\\xB81B\\\\x5E5E": [
-      "Blue Tongue Heket"
-    ],
-    "enc:\\\\x8101\\\\x1953\\\\xFAFB\\\\xC8A5\\\\x5B16": [
-      "Blood Cowl Heket"
-    ],
-    "enc:\\\\x8101\\\\x19E2\\\\xCFFF\\\\xBF56\\\\x3D43": [
-      "Stoneaxe Heket"
-    ],
-    "enc:\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563": [
-      "Beast Sworn Heket"
-    ],
-    "enc:\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92": [
-      "Kormab, Burning Heart"
-    ],
-    "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": [
-      "Makdeh the Aggravating"
-    ],
-    "enc:\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7": [
-      "Steelfang Drake"
-    ],
-    "enc:\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88": [
-      "Spirit of Infuriating Heat"
-    ],
-    "enc:\\\\x8101\\\\x4735\\\\xAEF1\\\\x9C2E\\\\x28EF": [
-      "Agent 311",
-      "Jagged Horror"
-    ],
-    "enc:\\\\x8101\\\\x4C88\\\\xB01C\\\\xF31C\\\\x3879": [
-      "Kournan Guard"
-    ],
-    "enc:\\\\x8101\\\\x4CA1\\\\xC6FE\\\\x8123\\\\x663C": [
-      "Crested Ntouka Bird"
-    ],
-    "enc:\\\\x8101\\\\x4D78\\\\xA585\\\\xA6F7\\\\x555D": [
-      "Chiossen, Soothing Breeze"
-    ],
-    "enc:\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2": [
-      "Sergeant Behnwa"
-    ],
-    "enc:\\\\x8101\\\\x4E03\\\\x9EA3\\\\x0DD9": [
-      "Josinq the Whisperer"
-    ],
-    "enc:\\\\x8101\\\\x4E04\\\\xFC41\\\\xA546\\\\x637B": [
-      "Bansheh, Gatherer of Branches"
-    ],
-    "enc:\\\\x8101\\\\x4E05\\\\x9907\\\\xE210\\\\x3B37": [
-      "Roaring Ether"
-    ],
-    "enc:\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9": [
-      "Stone Shard Crag"
-    ],
-    "enc:\\\\x8101\\\\x4E0D\\\\xCA0F\\\\xF04C\\\\x3AE0": [
-      "Cracked Mesa"
-    ],
-    "enc:\\\\x8101\\\\x5134\\\\x877B\\\\x8D12\\\\x7167": [
-      "Behemoth Gravebane"
-    ],
-    "enc:\\\\x8101\\\\x5136\\\\xEADE\\\\x1A59": [
-      "Cobalt Mokele"
-    ],
-    "enc:\\\\x8101\\\\x5137\\\\x9E87\\\\xCE88\\\\x5E97": [
-      "Rock Beetle"
-    ],
-    "enc:\\\\x8101\\\\x5138\\\\xA38C\\\\xE7CD\\\\x7A40": [
-      "Rain Beetle"
-    ],
-    "enc:\\\\x8101\\\\x513A\\\\xBDA7\\\\x8CA7\\\\x6E92": [
-      "Scytheclaw Behemoth"
-    ],
-    "enc:\\\\x8101\\\\x513B\\\\xEC38\\\\xECCC\\\\x2A9F": [
-      "Cobalt Shrieker"
-    ],
-    "enc:\\\\x8101\\\\x5150\\\\xA134\\\\xC3B2\\\\x5A26": [
-      "Hajok Earthguardian"
-    ],
-    "enc:\\\\x8101\\\\x5156\\\\xEEE6\\\\xECDE\\\\x2EBC": [
-      "Yamesh Mindclouder"
-    ],
-    "enc:\\\\x8101\\\\x5158\\\\xA7ED\\\\x9813\\\\x15A2": [
-      "Jarimiya the Unmerciful"
-    ],
-    "enc:\\\\x8101\\\\x5159\\\\xCBE8\\\\xC09A\\\\x673B": [
-      "Chumab the Prideful"
-    ],
-    "enc:\\\\x8101\\\\x515B\\\\xBA7C\\\\xACA8\\\\x1A33": [
-      "Bohdalz the Furious"
-    ],
-    "enc:\\\\x8101\\\\x51F0\\\\xA80A\\\\xECC2\\\\x2B31": [
-      "Tain the Corrupter"
-    ],
-    "enc:\\\\x8101\\\\x51F1\\\\x9B68\\\\xB507\\\\x0423": [
-      "Lushivahr the Invoker"
-    ],
-    "enc:\\\\x8101\\\\x571C\\\\xC16F\\\\xF995\\\\x3C6F": [
-      "Lieutenant Vanahk"
-    ],
-    "enc:\\\\x8101\\\\x571D\\\\xBFC6\\\\xE2B5\\\\x6324": [
-      "Corporal Suli"
-    ],
-    "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": [
-      "Elder Crocodile"
-    ],
-    "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": [
-      "Mandragor Smoke Devil"
-    ],
     "enc:\\\\x8102\\\\x5BAD\\\\xE127\\\\xB7B2\\\\x53D7": [
-      "Agent 98",
-      "Terrorweb Dryder",
-      "Agent 526"
-    ],
-    "enc:\\\\x8102\\\\x5BC2\\\\xF49A\\\\x2F66": [
-      "Agent 151",
       "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC3\\\\x8C90\\\\x93F3\\\\x72E5": [
-      "Agent 499",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC4\\\\xE07F\\\\xB1FB\\\\x618A": [
-      "Agent 611",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC5\\\\xAD7F\\\\x2811": [
-      "Agent 370",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC6\\\\xF138\\\\xCFA4\\\\x0E34": [
-      "Agent 371",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC7\\\\xADBE\\\\x8315\\\\x037A": [
-      "Agent 372",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC8\\\\xC3DE\\\\xC58B\\\\x62FB": [
-      "Agent 373",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BC9\\\\x9A55\\\\x4BAD": [
-      "Agent 374",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BCA\\\\xA204\\\\x9AD4\\\\x2269": [
-      "Agent 375",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BCB\\\\xB7C7\\\\x8D96\\\\x4246:: [
-      "Agent 618",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BCC\\\\xCCCF\\\\x95DB\\\\x0333": [
-      "Agent 619",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BCD\\\\xD4EF\\\\x93DC\\\\x43B0": [
-      "Agent 620",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BD1\\\\xC38A\\\\xFFE9\\\\x6B48": [
-      "Agent 592",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BD3\\\\xC403\\\\x8FF5\\\\x3960": [
-      "Agent 126",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BD7\\\\x8DAA\\\\x999B\\\\x5FF3": [
-      "Agent 645",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BD8\\\\xA0D5\\\\xCF7D\\\\x72A0": [
-      "Agent 646",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BD9\\\\xA373\\\\xA7FC\\\\x13A8": [
-      "Agent 647",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BDA\\\\xF058\\\\xC5A8\\\\x7549": [
-      "Agent 406",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BDB\\\\x9A54\\\\xCCFE\\\\x083C": [
-      "Agent 407",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BDC\\\\xCEE3\\\\xEFB1\\\\x0881": [
-      "Agent 408",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BDD\\\\xBB67\\\\xFD9F\\\\x1D0A": [
-      "Agent 651",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BDE\\\\xCB13\\\\xB90C\\\\x77B3": [
-      "Agent 652",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BDF\\\\x8C62\\\\xE0F5\\\\x490D": [
-      "Agent 653",
-      "Terrorweb Dryder"
-    ],
-    "enc:\\\\x8102\\\\x5BE6\\\\xB232\\\\xAC0D\\\\x24B6": [
-      "Agent 385",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BE7\\\\xF545\\\\x9C4D\\\\x3A9C": [
-      "Agent 386",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BE8\\\\x83D9\\\\xD551\\\\x6521": [
-      "Agent 387",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BE9\\\\xE87F\\\\xB5EB\\\\x055B": [
-      "Agent 388",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BEA\\\\xE9AB\\\\xB513\\\\x1149": [
-      "Agent 389",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BEB\\\\x8DA3\\\\xA15A\\\\x11A0": [
-      "Agent 390",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BEC\\\\xE647\\\\xC1FC\\\\x4FDC": [
-      "Agent 391",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BED\\\\x8CC6\\\\xD20A\\\\x7D6C": [
-      "Agent 392",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BEE\\\\x82F7\\\\xB941\\\\x7466": [
-      "Agent 393",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BEF\\\\xACD0\\\\xC41C\\\\x10AA": [
-      "Agent 636",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BF0\\\\xEBDD\\\\xE2DE\\\\x5690": [
-      "Agent 637",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BF1\\\\xC3D3\\\\xF3E7\\\\x66BF": [
-      "Agent 638",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BF8\\\\xA7FD\\\\xBDE3\\\\x0C3C": [
-      "Agent 418",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BF9\\\\xE19C\\\\xCBA8\\\\x1D6C": [
-      "Agent 419",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BFA\\\\xAA70\\\\x84C6\\\\x106D": [
-      "Agent 420",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BFB\\\\x9FD9\\\\xD4F9\\\\x29EA": [
-      "Agent 119",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BFC\\\\x87F6\\\\xBD6F\\\\x028B": [
-      "Agent 664",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BFD\\\\xCB60\\\\x9669\\\\x3766": [
-      "Agent 665",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BFE\\\\xB5B0\\\\xB94F\\\\x4C53": [
-      "Agent 424",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5BFF\\\\xE431\\\\xAF97\\\\x3392": [
-      "Agent 425",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C00\\\\x86CD\\\\xBAEB\\\\x256E": [
-      "Agent 426",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C01\\\\xBF37\\\\x878F\\\\x3BD8": [
-      "Agent 669",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C02\\\\xD1B6\\\\xF84E\\\\x6875": [
-      "Agent 670",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C03\\\\xBB48\\\\x9F5A\\\\x473A": [
-      "Agent 671",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C07\\\\x9FF9\\\\xEA8E\\\\x21FC": [
-      "Agent 675",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C08\\\\xBE57\\\\xB5ED\\\\x5820": [
-      "Agent 676",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C09\\\\xD1EA\\\\xC652\\\\x203D": [
-      "Agent 677",
-      "Vengeful Aatxe"
-    ],
-    "enc:\\\\x8102\\\\x5C20\\\\xE972\\\\xC523\\\\x3C91": [
-      "Agent 195",
-      "Skeleton of Dhuum"
     ],
     "enc:\\\\x8102\\\\x5C24\\\\xD4AD\\\\xA729\\\\x57DF": [
-      "Agent 48",
-      "Agent 49",
-      "Agent 50",
-      "Skeleton of Dhuum",
-      "Agent 47"
-    ],
-    "enc:\\\\x8102\\\\x5D15\\\\x907F\\\\xE303\\\\x64E5": [
-      "Agent 678",
       "Skeleton of Dhuum"
     ],
-    "enc:\\\\x8102\\\\x5D16\\\\xC984\\\\xA85C\\\\x4792": [
-      "Agent 679",
-      "Skeleton of Dhuum"
+    "enc:\\\\x8102\\\\x5D29\\\\xC567\\\\xCDF4\\\\x1733": [
+      "Dhuum"
     ],
-    "enc:\\\\x8102\\\\x5D18\\\\xA760\\\\xE0FD\\\\x7BF0": [
-      "Agent 681",
-      "Skeleton of Dhuum"
+    "enc:\\\\x8102\\\\x5D46\\\\x9491\\\\xB49F\\\\x567F": [
+      "Champion of Dhuum"
     ],
-    "enc:\\\\x8102\\\\x5D19\\\\xA5B9\\\\xC627\\\\x3EA2": [
-      "Agent 279",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8102\\\\x5D1A\\\\xA2AC\\\\xB0DD\\\\x3AC4": [
-      "Agent 683",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8102\\\\x5D1B\\\\xF43B\\\\xFC03\\\\x21E1": [
-      "Agent 442",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8102\\\\x5D1C\\\\xC3B1\\\\xAE89\\\\x0358": [
-      "Agent 443",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8102\\\\x5D1D\\\\xECC6\\\\x05DA": [
-      "Agent 444",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8102\\\\x5D1F\\\\x9CA2\\\\xFA30\\\\x62A4": [
-      "Agent 688",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8102\\\\x5D20\\\\xC1F2\\\\xA0EC\\\\x76E7": [
-      "Agent 689",
-      "Skeleton of Dhuum"
-    ],
-    "enc:\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5": [
-      "Agent 156",
-      "Student of Cracked Armor"
+    "enc:\\\\x8102\\\\x5D47\\\\x994E\\\\x8F41\\\\x77C6": [
+      "Minion of Dhuum"
     ]
   },
   "schema": "py4gw_enemy_tracker_names",
