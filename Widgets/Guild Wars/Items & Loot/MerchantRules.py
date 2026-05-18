@@ -48,7 +48,7 @@ QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
 QUICK_ACTIONS_MENU_ICON_GAP = 4.0
 QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 
-PROFILE_VERSION = 30
+PROFILE_VERSION = 31
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -160,6 +160,19 @@ CONSUMABLE_CRAFTER_COUNT_MODES: tuple[str, ...] = (
 CONSUMABLE_CRAFTER_COUNT_MODE_LABELS: dict[str, str] = {
     CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT: "Craft requested amount",
     CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK: "Maintain total stock",
+}
+AFTER_PURCHASE_KEEP = "keep"
+AFTER_PURCHASE_RESET_QUANTITY = "reset_quantity"
+AFTER_PURCHASE_REMOVE_ENTRY = "remove_entry"
+AFTER_PURCHASE_ACTIONS: tuple[str, ...] = (
+    AFTER_PURCHASE_KEEP,
+    AFTER_PURCHASE_RESET_QUANTITY,
+    AFTER_PURCHASE_REMOVE_ENTRY,
+)
+AFTER_PURCHASE_ACTION_LABELS: dict[str, str] = {
+    AFTER_PURCHASE_KEEP: "Keep entry",
+    AFTER_PURCHASE_RESET_QUANTITY: "Reset quantity to 0",
+    AFTER_PURCHASE_REMOVE_ENTRY: "Remove entry",
 }
 LEGACY_BUY_KIND_ID_KITS = "restock_id_kits"
 LEGACY_BUY_KIND_SALVAGE_KITS = "restock_salvage_kits"
@@ -924,6 +937,13 @@ HELPER_TOOLTIP_TEXTS: dict[str, dict[str, str]] = {
         "long": "Set 0 for no extra cap, or use a number to slow spending across repeated runs.",
         "why": "A cap helps avoid spending too much gold or material stock at once.",
     },
+    "buy_after_purchase": {
+        "short": "Chooses what happens to this target after a fully confirmed purchase.",
+        "long": (
+            "Keep entry preserves the current stock-maintenance behavior. Reset quantity to 0 or Remove entry "
+            "only run after Merchant Rules verifies the intended purchased item or crafted output appeared."
+        ),
+    },
     "buy_crafter_count_mode": {
         "short": "Controls whether crafter targets mean craft amount or maintained stock.",
         "long": (
@@ -1308,6 +1328,7 @@ class MaterialTarget:
     model_id: int = 0
     target_count: int = 0
     max_per_run: int = 0
+    after_purchase: str = AFTER_PURCHASE_KEEP
 
 
 @dataclass
@@ -1315,6 +1336,7 @@ class MerchantStockTarget:
     model_id: int = 0
     target_count: int = 0
     max_per_run: int = 0
+    after_purchase: str = AFTER_PURCHASE_KEEP
 
 
 @dataclass
@@ -1322,6 +1344,7 @@ class RuneTraderTarget:
     identifier: str = ""
     target_count: int = 0
     max_per_run: int = 0
+    after_purchase: str = AFTER_PURCHASE_KEEP
 
 
 @dataclass
@@ -1931,10 +1954,23 @@ class _MerchantRulesExactUpgradeSalvageBridge:
 
 
 @dataclass
+class PurchaseTargetCleanup:
+    rule_kind: str = ""
+    rule_index: int = -1
+    target_key: str = ""
+    target_count: int = 0
+    max_per_run: int = 0
+    after_purchase: str = AFTER_PURCHASE_KEEP
+    completes_target: bool = False
+    xunlai_involved: bool = False
+
+
+@dataclass
 class PlannedMerchantBuy:
     model_id: int
     quantity: int
     label: str
+    cleanup: PurchaseTargetCleanup = field(default_factory=PurchaseTargetCleanup)
 
 
 @dataclass
@@ -1944,6 +1980,7 @@ class PlannedMaterialBuy:
     quantity: int
     label: str
     batch_size: int = 1
+    cleanup: PurchaseTargetCleanup = field(default_factory=PurchaseTargetCleanup)
 
 
 @dataclass
@@ -1977,6 +2014,7 @@ class PlannedTraderBuy:
     identifier: str
     quantity: int
     label: str
+    cleanup: PurchaseTargetCleanup = field(default_factory=PurchaseTargetCleanup)
 
 
 @dataclass
@@ -1984,6 +2022,7 @@ class PlannedScrollTraderBuy:
     model_id: int
     quantity: int
     label: str
+    cleanup: PurchaseTargetCleanup = field(default_factory=PurchaseTargetCleanup)
 
 
 @dataclass
@@ -1994,6 +2033,7 @@ class PlannedConsumableCraft:
     vendor_key: str
     vendor_name: str
     coords: tuple[float, float]
+    cleanup: PurchaseTargetCleanup = field(default_factory=PurchaseTargetCleanup)
 
 
 @dataclass
@@ -3163,10 +3203,12 @@ def _normalize_material_targets(raw_targets: object) -> list[MaterialTarget]:
             model_id = entry.model_id
             target_count = entry.target_count
             max_per_run = entry.max_per_run
+            after_purchase = entry.after_purchase
         elif isinstance(entry, dict):
             model_id = entry.get("model_id", 0)
             target_count = entry.get("target_count", 0)
             max_per_run = entry.get("max_per_run", 0)
+            after_purchase = entry.get("after_purchase", AFTER_PURCHASE_KEEP)
         else:
             continue
 
@@ -3180,6 +3222,7 @@ def _normalize_material_targets(raw_targets: object) -> list[MaterialTarget]:
                 model_id=safe_model_id,
                 target_count=max(0, _safe_int(target_count, 0)),
                 max_per_run=max(0, _safe_int(max_per_run, 0)),
+                after_purchase=_normalize_after_purchase_action(after_purchase),
             )
         )
 
@@ -3197,10 +3240,12 @@ def _normalize_merchant_stock_targets(raw_targets: object) -> list[MerchantStock
             model_id = entry.model_id
             target_count = entry.target_count
             max_per_run = entry.max_per_run
+            after_purchase = entry.after_purchase
         elif isinstance(entry, dict):
             model_id = entry.get("model_id", 0)
             target_count = entry.get("target_count", 0)
             max_per_run = entry.get("max_per_run", 0)
+            after_purchase = entry.get("after_purchase", AFTER_PURCHASE_KEEP)
         else:
             continue
 
@@ -3214,6 +3259,7 @@ def _normalize_merchant_stock_targets(raw_targets: object) -> list[MerchantStock
                 model_id=safe_model_id,
                 target_count=max(0, _safe_int(target_count, 0)),
                 max_per_run=max(0, _safe_int(max_per_run, 0)),
+                after_purchase=_normalize_after_purchase_action(after_purchase),
             )
         )
 
@@ -3225,6 +3271,13 @@ def _normalize_consumable_crafter_count_mode(mode: object) -> str:
     if safe_mode in CONSUMABLE_CRAFTER_COUNT_MODES:
         return safe_mode
     return CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
+
+
+def _normalize_after_purchase_action(action: object) -> str:
+    safe_action = str(action or "").strip()
+    if safe_action in AFTER_PURCHASE_ACTIONS:
+        return safe_action
+    return AFTER_PURCHASE_KEEP
 
 
 def _normalize_rune_identifier(identifier: object) -> str:
@@ -3242,10 +3295,12 @@ def _normalize_rune_trader_targets(raw_targets: object) -> list[RuneTraderTarget
             identifier = entry.identifier
             target_count = entry.target_count
             max_per_run = entry.max_per_run
+            after_purchase = entry.after_purchase
         elif isinstance(entry, dict):
             identifier = entry.get("identifier", "")
             target_count = entry.get("target_count", 0)
             max_per_run = entry.get("max_per_run", 0)
+            after_purchase = entry.get("after_purchase", AFTER_PURCHASE_KEEP)
         else:
             continue
 
@@ -3259,6 +3314,7 @@ def _normalize_rune_trader_targets(raw_targets: object) -> list[RuneTraderTarget
                 identifier=safe_identifier,
                 target_count=max(0, _safe_int(target_count, 0)),
                 max_per_run=max(0, _safe_int(max_per_run, 0)),
+                after_purchase=_normalize_after_purchase_action(after_purchase),
             )
         )
 
@@ -9677,6 +9733,31 @@ class MerchantRulesWidget:
             return ()
         return tuple(_normalize_rune_identifier(identifier) for identifier in item_info.rune_identifiers if _normalize_rune_identifier(identifier))
 
+    def _get_inventory_standalone_rune_identifier_count(self, identifier: str) -> int:
+        safe_identifier = _normalize_rune_identifier(identifier)
+        if not safe_identifier:
+            return 0
+        return max(0, int(self._get_standalone_rune_identifier_counts(self._collect_inventory_items()).get(safe_identifier, 0)))
+
+    def _wait_for_inventory_standalone_rune_identifier_count_at_least(
+        self,
+        identifier: str,
+        expected_count: int,
+        *,
+        timeout_ms: int = 1500,
+        step_ms: int = 50,
+    ):
+        safe_identifier = _normalize_rune_identifier(identifier)
+        safe_expected_count = max(0, int(expected_count))
+        waited_ms = 0
+        while waited_ms <= max(0, int(timeout_ms)):
+            current_count = self._get_inventory_standalone_rune_identifier_count(safe_identifier)
+            if current_count >= safe_expected_count:
+                return current_count
+            waited_ms += max(1, int(step_ms))
+            yield from Routines.Yield.wait(step_ms)
+        return self._get_inventory_standalone_rune_identifier_count(safe_identifier)
+
     def _get_storage_transfer_items_for_stock_key(
         self,
         storage_items: list[InventoryItemInfo],
@@ -11302,6 +11383,113 @@ class MerchantRulesWidget:
             capped_needed = min(capped_needed, cap)
         return capped_needed
 
+    def _make_purchase_target_cleanup(
+        self,
+        *,
+        rule_kind: str,
+        rule_index: int,
+        target_key: object,
+        target_count: int,
+        max_per_run: int,
+        after_purchase: object,
+        completes_target: bool,
+        xunlai_involved: bool = False,
+    ) -> PurchaseTargetCleanup:
+        return PurchaseTargetCleanup(
+            rule_kind=str(rule_kind or ""),
+            rule_index=int(rule_index),
+            target_key=str(target_key or "").strip(),
+            target_count=max(0, int(target_count)),
+            max_per_run=max(0, int(max_per_run)),
+            after_purchase=_normalize_after_purchase_action(after_purchase),
+            completes_target=bool(completes_target),
+            xunlai_involved=bool(xunlai_involved),
+        )
+
+    def _apply_after_purchase_cleanup(self, cleanup: PurchaseTargetCleanup, *, label: str = "") -> bool:
+        action = _normalize_after_purchase_action(getattr(cleanup, "after_purchase", AFTER_PURCHASE_KEEP))
+        if action == AFTER_PURCHASE_KEEP:
+            return False
+        if not bool(getattr(cleanup, "completes_target", False)):
+            return False
+        if bool(getattr(cleanup, "xunlai_involved", False)):
+            self._debug_log(
+                f"After purchase cleanup skipped for {label or cleanup.target_key}: target involved Xunlai withdrawal."
+            )
+            return False
+
+        rule_index = int(getattr(cleanup, "rule_index", -1))
+        if rule_index < 0 or rule_index >= len(self.buy_rules):
+            return False
+
+        rule = _normalize_buy_rule(self.buy_rules[rule_index])
+        if rule is None or str(rule.kind) != str(getattr(cleanup, "rule_kind", "")):
+            return False
+
+        expected_target_count = max(0, int(getattr(cleanup, "target_count", 0)))
+        expected_max_per_run = max(0, int(getattr(cleanup, "max_per_run", 0)))
+
+        def _matches_target(target: object) -> bool:
+            return (
+                max(0, int(getattr(target, "target_count", 0))) == expected_target_count
+                and max(0, int(getattr(target, "max_per_run", 0))) == expected_max_per_run
+                and _normalize_after_purchase_action(getattr(target, "after_purchase", AFTER_PURCHASE_KEEP)) == action
+            )
+
+        changed = False
+        if rule.kind == BUY_KIND_MATERIAL_TARGET:
+            target_model_id = max(0, _safe_int(cleanup.target_key, 0))
+            next_targets: list[MaterialTarget] = []
+            for target in _normalize_material_targets(rule.material_targets):
+                if target.model_id == target_model_id and _matches_target(target):
+                    changed = True
+                    if action == AFTER_PURCHASE_RESET_QUANTITY:
+                        next_targets.append(replace(target, target_count=0))
+                    continue
+                next_targets.append(target)
+            if changed:
+                self._set_buy_rule_material_targets(rule, next_targets)
+        elif rule.kind == BUY_KIND_RUNE_TRADER_TARGET:
+            target_identifier = _normalize_rune_identifier(cleanup.target_key)
+            next_targets: list[RuneTraderTarget] = []
+            for target in _normalize_rune_trader_targets(rule.rune_targets):
+                if target.identifier == target_identifier and _matches_target(target):
+                    changed = True
+                    if action == AFTER_PURCHASE_RESET_QUANTITY:
+                        next_targets.append(replace(target, target_count=0))
+                    continue
+                next_targets.append(target)
+            if changed:
+                self._set_buy_rule_rune_targets(rule, next_targets)
+        else:
+            target_model_id = max(0, _safe_int(cleanup.target_key, 0))
+            next_targets: list[MerchantStockTarget] = []
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets):
+                if target.model_id == target_model_id and _matches_target(target):
+                    changed = True
+                    if action == AFTER_PURCHASE_RESET_QUANTITY:
+                        next_targets.append(replace(target, target_count=0))
+                    continue
+                next_targets.append(target)
+            if changed:
+                if rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                    self._set_buy_rule_scroll_trader_targets(rule, next_targets)
+                elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                    self._set_buy_rule_consumable_crafter_targets(rule, next_targets)
+                else:
+                    self._set_buy_rule_merchant_stock_targets(rule, next_targets)
+
+        if not changed:
+            return False
+
+        self.preview_ready = False
+        self._clear_preview_projection_state()
+        self._clear_preview_inventory_diff()
+        action_label = AFTER_PURCHASE_ACTION_LABELS.get(action, action)
+        self._debug_log(f"After purchase cleanup applied: {action_label} for {label or cleanup.target_key}.")
+        self._save_profile()
+        return True
+
     def _get_title_rank_info(self, title_id: int) -> tuple[int, str, int]:
         safe_title_id = max(0, int(title_id))
         title = Player.GetTitle(safe_title_id)
@@ -12888,7 +13076,7 @@ class MerchantRulesWidget:
                         - (max(0, int(ingredient_quantity)) * safe_quantity),
                     )
 
-        for buy_rule in self.buy_rules:
+        for buy_rule_index, buy_rule in enumerate(self.buy_rules):
             normalized_buy_rule = _normalize_buy_rule(buy_rule)
             if normalized_buy_rule is None:
                 continue
@@ -13015,6 +13203,15 @@ class MerchantRulesWidget:
                             quantity=needed,
                             label=material_label,
                             batch_size=batch_size,
+                            cleanup=self._make_purchase_target_cleanup(
+                                rule_kind=buy_rule.kind,
+                                rule_index=buy_rule_index,
+                                target_key=material_model_id,
+                                target_count=material_target.target_count,
+                                max_per_run=material_target.max_per_run,
+                                after_purchase=material_target.after_purchase,
+                                completes_target=current_count + needed >= int(material_target.target_count),
+                            ),
                         )
                     )
                     reason = "Checks carried gold before each purchase and can top up from Xunlai when available."
@@ -13115,6 +13312,15 @@ class MerchantRulesWidget:
                                 model_id=merchant_stock_model_id,
                                 quantity=needed,
                                 label=model_label,
+                                cleanup=self._make_purchase_target_cleanup(
+                                    rule_kind=buy_rule.kind,
+                                    rule_index=buy_rule_index,
+                                    target_key=merchant_stock_model_id,
+                                    target_count=merchant_stock_target.target_count,
+                                    max_per_run=merchant_stock_target.max_per_run,
+                                    after_purchase=merchant_stock_target.after_purchase,
+                                    completes_target=current_count + needed >= int(merchant_stock_target.target_count),
+                                ),
                             )
                         )
                         entry_reason = (
@@ -13126,6 +13332,15 @@ class MerchantRulesWidget:
                                 model_id=merchant_stock_model_id,
                                 quantity=needed,
                                 label=model_label,
+                                cleanup=self._make_purchase_target_cleanup(
+                                    rule_kind=buy_rule.kind,
+                                    rule_index=buy_rule_index,
+                                    target_key=merchant_stock_model_id,
+                                    target_count=merchant_stock_target.target_count,
+                                    max_per_run=merchant_stock_target.max_per_run,
+                                    after_purchase=merchant_stock_target.after_purchase,
+                                    completes_target=current_count + needed >= int(merchant_stock_target.target_count),
+                                ),
                             )
                         )
                         entry_reason = "Will attempt this buy only if the currently opened merchant offers the item."
@@ -13245,6 +13460,16 @@ class MerchantRulesWidget:
                                 vendor_key=recipe.vendor_key,
                                 vendor_name=recipe.vendor_name,
                                 coords=recipe.coords,
+                                cleanup=self._make_purchase_target_cleanup(
+                                    rule_kind=buy_rule.kind,
+                                    rule_index=buy_rule_index,
+                                    target_key=crafter_model_id,
+                                    target_count=crafter_target.target_count,
+                                    max_per_run=crafter_target.max_per_run,
+                                    after_purchase=crafter_target.after_purchase,
+                                    completes_target=False,
+                                    xunlai_involved=True,
+                                ),
                             )
                         )
                         plan.entries.append(
@@ -13281,6 +13506,11 @@ class MerchantRulesWidget:
                         )
                         continue
 
+                    craft_uses_xunlai_items = any(
+                        max(0, int(ingredient_quantity)) * craft_quantity
+                        > max(0, int(sim_model_counts.get(int(ingredient_model_id), 0)))
+                        for ingredient_model_id, ingredient_quantity in recipe.ingredients
+                    )
                     _consume_reserved_consumable_resources(recipe, craft_quantity)
                     for ingredient_model_id, ingredient_quantity in recipe.ingredients:
                         sim_model_counts[int(ingredient_model_id)] = max(
@@ -13296,6 +13526,20 @@ class MerchantRulesWidget:
                             vendor_key=recipe.vendor_key,
                             vendor_name=recipe.vendor_name,
                             coords=recipe.coords,
+                            cleanup=self._make_purchase_target_cleanup(
+                                rule_kind=buy_rule.kind,
+                                rule_index=buy_rule_index,
+                                target_key=crafter_model_id,
+                                target_count=crafter_target.target_count,
+                                max_per_run=crafter_target.max_per_run,
+                                after_purchase=crafter_target.after_purchase,
+                                completes_target=(
+                                    craft_quantity >= int(crafter_target.target_count)
+                                    if craft_requested_amount
+                                    else current_count + craft_quantity >= int(crafter_target.target_count)
+                                ),
+                                xunlai_involved=craft_uses_xunlai_items,
+                            ),
                         )
                     )
                     reason = f"{recipe.vendor_name}; rank {current_rank} ({tier_name})."
@@ -13413,6 +13657,15 @@ class MerchantRulesWidget:
                             model_id=scroll_model_id,
                             quantity=needed,
                             label=scroll_label,
+                            cleanup=self._make_purchase_target_cleanup(
+                                rule_kind=buy_rule.kind,
+                                rule_index=buy_rule_index,
+                                target_key=scroll_model_id,
+                                target_count=scroll_target.target_count,
+                                max_per_run=scroll_target.max_per_run,
+                                after_purchase=scroll_target.after_purchase,
+                                completes_target=current_count + needed >= int(scroll_target.target_count),
+                            ),
                         )
                     )
                     plan.entries.append(
@@ -13516,6 +13769,8 @@ class MerchantRulesWidget:
                         )
                         continue
 
+                    rune_xunlai_involved = False
+                    planned_rune_withdraw_quantity = 0
                     withdraw_quantity = min(
                         needed,
                         max(0, int(stock_counts.storage_count)),
@@ -13530,6 +13785,8 @@ class MerchantRulesWidget:
                         )
                         planned_withdraw_quantity = sum(max(0, int(transfer.quantity)) for transfer in transfers)
                         if planned_withdraw_quantity > 0:
+                            rune_xunlai_involved = True
+                            planned_rune_withdraw_quantity += planned_withdraw_quantity
                             plan.storage_transfers.extend(transfers)
                             plan.entries.append(
                                 ExecutionPlanEntry(
@@ -13577,6 +13834,19 @@ class MerchantRulesWidget:
                             identifier=identifier,
                             quantity=needed,
                             label=label,
+                            cleanup=self._make_purchase_target_cleanup(
+                                rule_kind=buy_rule.kind,
+                                rule_index=buy_rule_index,
+                                target_key=identifier,
+                                target_count=rune_target.target_count,
+                                max_per_run=rune_target.max_per_run,
+                                after_purchase=rune_target.after_purchase,
+                                completes_target=(
+                                    stock_counts.inventory_count + planned_rune_withdraw_quantity + needed
+                                    >= int(rune_target.target_count)
+                                ),
+                                xunlai_involved=rune_xunlai_involved,
+                            ),
                         )
                     )
                     self._adjust_stock_count_for_key(
@@ -14962,12 +15232,20 @@ class MerchantRulesWidget:
         safe_expected_count = max(0, int(expected_count))
         waited_ms = 0
         while waited_ms <= max(0, int(timeout_ms)):
-            current_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+            try:
+                current_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+            except Exception as exc:
+                self._debug_log(f"Inventory model count read failed for model={safe_model_id}: {exc}")
+                return 0
             if current_count >= safe_expected_count:
                 return current_count
             waited_ms += max(1, int(step_ms))
             yield from Routines.Yield.wait(step_ms)
-        return max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+        try:
+            return max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+        except Exception as exc:
+            self._debug_log(f"Inventory model count read failed for model={safe_model_id}: {exc}")
+            return 0
 
     def _withdraw_model_to_inventory_for_crafting(self, model_id: int, needed_quantity: int):
         safe_model_id = max(0, int(model_id))
@@ -15133,6 +15411,7 @@ class MerchantRulesWidget:
                 recipe = self._get_consumable_crafter_recipe_for_model(craft.model_id)
                 requested_craft_quantity = max(0, int(craft.quantity))
                 completed_for_craft = 0
+                verified_for_craft = 0
                 blocked_reason = ""
                 if recipe is None:
                     outcome.unavailable += max(1, requested_craft_quantity)
@@ -15209,15 +15488,24 @@ class MerchantRulesWidget:
                         timeout_ms=1500,
                         step_ms=50,
                     )
-                    yield from Routines.Yield.wait(300)
-                    after_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(recipe.model_id))))
+                    after_count = yield from self._wait_for_inventory_model_count_at_least(
+                        int(recipe.model_id),
+                        before_count + 1,
+                        timeout_ms=1500,
+                        step_ms=50,
+                    )
                     if completed or after_count > before_count:
                         outcome.completed += 1
                         completed_for_craft += 1
+                        if after_count > before_count:
+                            verified_for_craft += 1
                     else:
                         outcome.timeout_failures += 1
                         blocked_reason = "transaction confirmation"
                         break
+
+                if completed_for_craft >= requested_craft_quantity and verified_for_craft >= requested_craft_quantity:
+                    self._apply_after_purchase_cleanup(craft.cleanup, label=craft.label)
 
                 if 0 <= completed_for_craft < requested_craft_quantity:
                     remaining = max(0, requested_craft_quantity - completed_for_craft)
@@ -15291,7 +15579,14 @@ class MerchantRulesWidget:
         )
         return list(refreshed_items or [])
 
-    def _buy_merchant_model(self, model_id: int, quantity: int, *, offered_items: list[int] | None = None):
+    def _buy_merchant_model(
+        self,
+        model_id: int,
+        quantity: int,
+        *,
+        offered_items: list[int] | None = None,
+        cleanup: PurchaseTargetCleanup | None = None,
+    ):
         safe_quantity = max(0, int(quantity))
         outcome = ExecutionPhaseOutcome(
             label="Merchant stock",
@@ -15351,13 +15646,34 @@ class MerchantRulesWidget:
                 )
                 break
 
+            try:
+                before_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(model_id))))
+            except Exception as exc:
+                outcome.load_failures += 1
+                self._debug_log(f"Merchant stock buy could not read inventory count for model={model_id}: {exc}")
+                break
             GLOBAL_CACHE.Trading.Merchant.BuyItem(matched_item_id, buy_price)
             queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=1500, step_ms=50)
             if not queue_cleared:
                 outcome.timeout_failures += 1
                 break
+            after_count = yield from self._wait_for_inventory_model_count_at_least(
+                int(model_id),
+                before_count + 1,
+                timeout_ms=1500,
+                step_ms=50,
+            )
+            if after_count <= before_count:
+                outcome.timeout_failures += 1
+                self._debug_log(
+                    f"Merchant stock buy verification failed: model={model_id} before={before_count} after={after_count}."
+                )
+                break
             outcome.completed += 1
             yield from Routines.Yield.wait(40)
+
+        if outcome.completed >= safe_quantity and cleanup is not None:
+            self._apply_after_purchase_cleanup(cleanup, label=self._format_model_label(model_id))
 
         self._debug_log(
             f"Merchant stock buy completed: model={model_id} completed={outcome.completed}/{safe_quantity} "
@@ -15573,6 +15889,9 @@ class MerchantRulesWidget:
                         f"gain={verified_gain} offer_quantity={offered_quantity}."
                     )
                 yield from Routines.Yield.wait(40)
+
+            if completed_for_target >= requested_units:
+                self._apply_after_purchase_cleanup(planned_buy.cleanup, label=planned_buy.label)
 
         self._debug_log(
             f"{phase_label}: completed={outcome.completed}/{outcome.attempted} quote_failures={outcome.quote_failures} "
@@ -15933,6 +16252,7 @@ class MerchantRulesWidget:
                 )
                 continue
 
+            completed_for_target = 0
             for _ in range(max(0, int(planned_buy.quantity))):
                 quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
                     GLOBAL_CACHE.Trading.Trader.RequestQuote,
@@ -15990,6 +16310,7 @@ class MerchantRulesWidget:
                     )
                     break
 
+                before_count = self._get_inventory_standalone_rune_identifier_count(safe_identifier)
                 GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
                 completed = yield from Routines.Yield.Merchant._wait_for_transaction(  # pylint: disable=protected-access
                     timeout_ms=750,
@@ -15998,8 +16319,25 @@ class MerchantRulesWidget:
                 if not completed:
                     outcome.timeout_failures += 1
                     break
+                after_count = yield from self._wait_for_inventory_standalone_rune_identifier_count_at_least(
+                    safe_identifier,
+                    before_count + 1,
+                    timeout_ms=1500,
+                    step_ms=50,
+                )
+                if after_count <= before_count:
+                    outcome.timeout_failures += 1
+                    self._debug_log(
+                        f"{phase_label} buy verification failed: identifier={safe_identifier} "
+                        f"before={before_count} after={after_count}."
+                    )
+                    break
                 outcome.completed += 1
+                completed_for_target += 1
                 yield from Routines.Yield.wait(40)
+
+            if completed_for_target >= max(0, int(planned_buy.quantity)):
+                self._apply_after_purchase_cleanup(planned_buy.cleanup, label=planned_buy.label)
 
         self._debug_log(
             f"{phase_label}: completed={outcome.completed}/{outcome.attempted} "
@@ -16066,6 +16404,7 @@ class MerchantRulesWidget:
                 )
                 continue
 
+            completed_for_target = 0
             for _ in range(max(0, int(planned_buy.quantity))):
                 quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
                     GLOBAL_CACHE.Trading.Trader.RequestQuote,
@@ -16118,6 +16457,12 @@ class MerchantRulesWidget:
                     )
                     break
 
+                try:
+                    before_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+                except Exception as exc:
+                    outcome.load_failures += 1
+                    self._debug_log(f"{phase_label} could not read inventory count for model={safe_model_id}: {exc}")
+                    break
                 GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
                 completed = yield from Routines.Yield.Merchant._wait_for_transaction(  # pylint: disable=protected-access
                     timeout_ms=750,
@@ -16126,8 +16471,25 @@ class MerchantRulesWidget:
                 if not completed:
                     outcome.timeout_failures += 1
                     break
+                after_count = yield from self._wait_for_inventory_model_count_at_least(
+                    safe_model_id,
+                    before_count + 1,
+                    timeout_ms=1500,
+                    step_ms=50,
+                )
+                if after_count <= before_count:
+                    outcome.timeout_failures += 1
+                    self._debug_log(
+                        f"{phase_label} buy verification failed: model={safe_model_id} "
+                        f"before={before_count} after={after_count}."
+                    )
+                    break
                 outcome.completed += 1
+                completed_for_target += 1
                 yield from Routines.Yield.wait(40)
+
+            if completed_for_target >= max(0, int(planned_buy.quantity)):
+                self._apply_after_purchase_cleanup(planned_buy.cleanup, label=planned_buy.label)
 
         self._debug_log(
             f"{phase_label}: completed={outcome.completed}/{outcome.attempted} "
@@ -17520,6 +17882,7 @@ class MerchantRulesWidget:
                             int(merchant_buy.model_id),
                             int(merchant_buy.quantity),
                             offered_items=context.merchant_item_ids,
+                            cleanup=merchant_buy.cleanup,
                         )
                         self._merge_merchant_buy_result(
                             merchant_buy_outcome,
@@ -18188,6 +18551,7 @@ class MerchantRulesWidget:
                             merchant_buy.model_id,
                             merchant_buy.quantity,
                             offered_items=merchant_items,
+                            cleanup=merchant_buy.cleanup,
                         )
                         self._merge_merchant_buy_result(
                             merchant_buy_outcome,
@@ -23447,6 +23811,18 @@ class MerchantRulesWidget:
                 type_counts,
             )
 
+    def _draw_after_purchase_action_combo(self, label: str, current_action: object, *, width: int = 150) -> str:
+        values = list(AFTER_PURCHASE_ACTIONS)
+        labels = [AFTER_PURCHASE_ACTION_LABELS.get(value, value) for value in values]
+        current = _normalize_after_purchase_action(current_action)
+        current_index = values.index(current) if current in values else 0
+        PyImGui.push_item_width(width)
+        next_index = PyImGui.combo(label, current_index, labels)
+        self._draw_helper_tooltip("buy_after_purchase")
+        PyImGui.pop_item_width()
+        next_index = max(0, min(int(next_index), len(values) - 1))
+        return values[next_index]
+
     def _draw_buy_rule_merchant_stock_editor(self, index: int, rule: BuyRule) -> bool:
         changed = False
         self._draw_secondary_text(f"Merchant: {MERCHANT_TYPE_LABELS[_get_buy_rule_merchant_type(rule)]}", wrapped=False)
@@ -23471,6 +23847,7 @@ class MerchantRulesWidget:
                 model_id=merchant_stock_target.model_id,
                 target_count=merchant_stock_target.target_count,
                 max_per_run=merchant_stock_target.max_per_run,
+                after_purchase=merchant_stock_target.after_purchase,
             )
             for merchant_stock_target in merchant_stock_targets
         ]
@@ -23478,10 +23855,11 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_merchant_stock_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_merchant_stock_selected_table_{index}", 4, self._get_dense_list_table_flags()):
+            if PyImGui.begin_table(f"buy_merchant_stock_selected_table_{index}", 5, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("After purchase", PyImGui.TableColumnFlags.WidthFixed, 160.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                 PyImGui.table_next_row()
@@ -23492,6 +23870,8 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(2)
                 PyImGui.text("Max/Run")
                 PyImGui.table_set_column_index(3)
+                PyImGui.text("After purchase")
+                PyImGui.table_set_column_index(4)
                 PyImGui.text("Remove")
 
                 for target_row in display_targets:
@@ -23523,6 +23903,12 @@ class MerchantRulesWidget:
                     target_row.max_per_run = max(0, int(new_max_per_run))
 
                     PyImGui.table_set_column_index(3)
+                    target_row.after_purchase = self._draw_after_purchase_action_combo(
+                        f"##buy_stock_after_purchase_{index}_{target_row.model_id}",
+                        target_row.after_purchase,
+                    )
+
+                    PyImGui.table_set_column_index(4)
                     if PyImGui.small_button(f"X##buy_stock_remove_{index}_{target_row.model_id}"):
                         removed_model_id = target_row.model_id
                         break
@@ -23567,6 +23953,7 @@ class MerchantRulesWidget:
                 model_id=target.model_id,
                 target_count=target.target_count,
                 max_per_run=target.max_per_run,
+                after_purchase=target.after_purchase,
             )
             for target in scroll_targets
         ]
@@ -23574,10 +23961,11 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_scroll_trader_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_scroll_trader_selected_table_{index}", 4, self._get_dense_list_table_flags()):
+            if PyImGui.begin_table(f"buy_scroll_trader_selected_table_{index}", 5, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Scroll", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("After purchase", PyImGui.TableColumnFlags.WidthFixed, 160.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                 PyImGui.table_next_row()
@@ -23588,6 +23976,8 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(2)
                 PyImGui.text("Max/Run")
                 PyImGui.table_set_column_index(3)
+                PyImGui.text("After purchase")
+                PyImGui.table_set_column_index(4)
                 PyImGui.text("Remove")
 
                 for target_row in display_targets:
@@ -23619,6 +24009,12 @@ class MerchantRulesWidget:
                     target_row.max_per_run = max(0, int(new_max_per_run))
 
                     PyImGui.table_set_column_index(3)
+                    target_row.after_purchase = self._draw_after_purchase_action_combo(
+                        f"##buy_scroll_after_purchase_{index}_{target_row.model_id}",
+                        target_row.after_purchase,
+                    )
+
+                    PyImGui.table_set_column_index(4)
                     if PyImGui.small_button(f"X##buy_scroll_remove_{index}_{target_row.model_id}"):
                         removed_model_id = target_row.model_id
                         break
@@ -23694,6 +24090,7 @@ class MerchantRulesWidget:
                 model_id=target.model_id,
                 target_count=target.target_count,
                 max_per_run=target.max_per_run,
+                after_purchase=target.after_purchase,
             )
             for target in crafter_targets
         ]
@@ -23702,11 +24099,12 @@ class MerchantRulesWidget:
         move_to_index: int | None = None
         child_height = min(240, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_consumable_crafter_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 6, self._get_dense_list_table_flags()):
+            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 7, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Consumable", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Crafter", PyImGui.TableColumnFlags.WidthFixed, 130.0)
                 PyImGui.table_setup_column("Amount", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("After purchase", PyImGui.TableColumnFlags.WidthFixed, 160.0)
                 PyImGui.table_setup_column("Priority", PyImGui.TableColumnFlags.WidthFixed, 90.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
@@ -23720,8 +24118,10 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(3)
                 PyImGui.text("Max/Run")
                 PyImGui.table_set_column_index(4)
-                PyImGui.text("Priority")
+                PyImGui.text("After purchase")
                 PyImGui.table_set_column_index(5)
+                PyImGui.text("Priority")
+                PyImGui.table_set_column_index(6)
                 PyImGui.text("Remove")
 
                 for row_index, target_row in enumerate(updated_targets):
@@ -23755,6 +24155,12 @@ class MerchantRulesWidget:
                     PyImGui.pop_item_width()
 
                     PyImGui.table_set_column_index(4)
+                    target_row.after_purchase = self._draw_after_purchase_action_combo(
+                        f"##buy_crafter_after_purchase_{index}_{target_row.model_id}",
+                        target_row.after_purchase,
+                    )
+
+                    PyImGui.table_set_column_index(5)
                     if row_index > 0 and PyImGui.small_button(f"Up##buy_crafter_up_{index}_{target_row.model_id}"):
                         move_from_index = row_index
                         move_to_index = row_index - 1
@@ -23766,7 +24172,7 @@ class MerchantRulesWidget:
                         move_to_index = row_index + 1
                         break
 
-                    PyImGui.table_set_column_index(5)
+                    PyImGui.table_set_column_index(6)
                     if PyImGui.small_button(f"X##buy_crafter_remove_{index}_{target_row.model_id}"):
                         removed_model_id = target_row.model_id
                         break
@@ -23808,6 +24214,7 @@ class MerchantRulesWidget:
                 model_id=material_target.model_id,
                 target_count=material_target.target_count,
                 max_per_run=material_target.max_per_run,
+                after_purchase=material_target.after_purchase,
             )
             for material_target in material_targets
         ]
@@ -23815,11 +24222,12 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_material_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_material_targets_table_{index}", 5, self._get_dense_list_table_flags()):
+            if PyImGui.begin_table(f"buy_material_targets_table_{index}", 6, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Material", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Trader", PyImGui.TableColumnFlags.WidthFixed, 115.0)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("After purchase", PyImGui.TableColumnFlags.WidthFixed, 160.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                 PyImGui.table_next_row()
@@ -23832,6 +24240,8 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(3)
                 PyImGui.text("Max/Run")
                 PyImGui.table_set_column_index(4)
+                PyImGui.text("After purchase")
+                PyImGui.table_set_column_index(5)
                 PyImGui.text("Remove")
 
                 for target_row in display_targets:
@@ -23866,6 +24276,12 @@ class MerchantRulesWidget:
                     target_row.max_per_run = max(0, int(new_max_per_run))
 
                     PyImGui.table_set_column_index(4)
+                    target_row.after_purchase = self._draw_after_purchase_action_combo(
+                        f"##buy_material_after_purchase_{index}_{target_row.model_id}",
+                        target_row.after_purchase,
+                    )
+
+                    PyImGui.table_set_column_index(5)
                     if PyImGui.small_button(f"X##buy_material_remove_{index}_{target_row.model_id}"):
                         removed_model_id = target_row.model_id
                         break
@@ -23900,6 +24316,7 @@ class MerchantRulesWidget:
                     identifier=target.identifier,
                     target_count=target.target_count,
                     max_per_run=target.max_per_run,
+                    after_purchase=target.after_purchase,
                 )
                 for target in rune_targets
             ]
@@ -23907,11 +24324,12 @@ class MerchantRulesWidget:
             removed_identifier = ""
             child_height = min(240, 58 + (32 * len(updated_targets)))
             if PyImGui.begin_child(f"buy_rune_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"buy_rune_targets_table_{index}", 5, self._get_dense_list_table_flags()):
+                if PyImGui.begin_table(f"buy_rune_targets_table_{index}", 6, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 120.0)
                     PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 120.0)
+                    PyImGui.table_setup_column("After purchase", PyImGui.TableColumnFlags.WidthFixed, 160.0)
                     PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                     PyImGui.table_next_row()
@@ -23924,6 +24342,8 @@ class MerchantRulesWidget:
                     PyImGui.table_set_column_index(3)
                     PyImGui.text("Max/Run")
                     PyImGui.table_set_column_index(4)
+                    PyImGui.text("After purchase")
+                    PyImGui.table_set_column_index(5)
                     PyImGui.text("Remove")
 
                     for target_row in display_targets:
@@ -23964,6 +24384,12 @@ class MerchantRulesWidget:
                         target_row.max_per_run = max(0, int(new_max_per_run))
 
                         PyImGui.table_set_column_index(4)
+                        target_row.after_purchase = self._draw_after_purchase_action_combo(
+                            f"##buy_rune_after_purchase_{index}_{target_row.identifier}",
+                            target_row.after_purchase,
+                        )
+
+                        PyImGui.table_set_column_index(5)
                         if PyImGui.small_button(f"X##buy_rune_remove_{index}_{target_row.identifier}"):
                             removed_identifier = target_row.identifier
                             break

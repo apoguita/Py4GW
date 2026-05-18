@@ -1386,7 +1386,7 @@ def _test_manual_vendor_auto_buy_uses_current_offers(module) -> None:
     )
     captured_buys: list[tuple[int, int, list[int]]] = []
 
-    def _capture_buy(model_id, quantity, *, offered_items=None):
+    def _capture_buy(model_id, quantity, *, offered_items=None, cleanup=None):
         captured_buys.append((int(model_id), int(quantity), list(offered_items or [])))
         if False:
             yield None
@@ -1428,6 +1428,7 @@ def _test_gold_top_up_skips_when_total_gold_is_insufficient(module) -> None:
 def _test_merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall(module) -> None:
     widget = _make_widget(module)
     gold = {"character": 100, "storage": 1000}
+    model_counts = {555: 0}
     withdrawals: list[int] = []
     buys: list[tuple[int, int]] = []
     original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
@@ -1445,12 +1446,14 @@ def _test_merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall(module) -> No
             buys.append((int(item_id), int(cost)))
             _expect(gold["character"] >= int(cost), "Merchant stock buy should top up gold before buying.")
             gold["character"] -= int(cost)
+            model_counts[555] = model_counts.get(555, 0) + 1
 
         module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
             IsStorageOpen=lambda: True,
             GetGoldOnCharacter=lambda: gold["character"],
             GetGoldInStorage=lambda: gold["storage"],
             WithdrawGold=_withdraw_gold,
+            GetModelCount=lambda model_id: model_counts.get(int(model_id), 0),
         )
         module.GLOBAL_CACHE.Item = types.SimpleNamespace(
             GetModelID=lambda item_id: 555 if int(item_id) == 501 else 0,
@@ -1473,6 +1476,138 @@ def _test_merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall(module) -> No
         _expect(withdrawals == [400], "Merchant stock buy should withdraw only the exact carried-gold shortfall.")
         _expect(buys == [(501, 500)], "Merchant stock buy should buy the offered item at the calculated buy price.")
         _expect(gold == {"character": 0, "storage": 600}, "Merchant stock buy should leave expected gold balances.")
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Trading = original_trading
+
+
+def _test_merchant_stock_after_purchase_resets_completed_target(module) -> None:
+    widget = _make_widget(module)
+    model_counts = {555: 0}
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_trading = getattr(module.GLOBAL_CACHE, "Trading", None)
+    try:
+        widget.buy_rules = [
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_MERCHANT_STOCK,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(
+                        model_id=555,
+                        target_count=1,
+                        max_per_run=0,
+                        after_purchase=module.AFTER_PURCHASE_RESET_QUANTITY,
+                    )
+                ],
+            )
+        ]
+        widget._save_profile = lambda: True
+        cleanup = module.PurchaseTargetCleanup(
+            rule_kind=module.BUY_KIND_MERCHANT_STOCK,
+            rule_index=0,
+            target_key="555",
+            target_count=1,
+            max_per_run=0,
+            after_purchase=module.AFTER_PURCHASE_RESET_QUANTITY,
+            completes_target=True,
+        )
+
+        def _buy_item(_item_id: int, _cost: int) -> None:
+            model_counts[555] = model_counts.get(555, 0) + 1
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            WithdrawGold=lambda _amount: None,
+            GetModelCount=lambda model_id: model_counts.get(int(model_id), 0),
+        )
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+            GetModelID=lambda item_id: 555 if int(item_id) == 501 else 0,
+            Properties=types.SimpleNamespace(GetValue=lambda item_id: 250 if int(item_id) == 501 else 0),
+        )
+        module.GLOBAL_CACHE.Trading = types.SimpleNamespace(
+            Merchant=types.SimpleNamespace(
+                GetOfferedItems=lambda: [501],
+                BuyItem=_buy_item,
+            )
+        )
+
+        outcome = _drain_generator_return(widget._buy_merchant_model(555, 1, offered_items=[501], cleanup=cleanup))
+
+        _expect(outcome.completed == 1, "Verified merchant stock buy should complete.")
+        _expect(
+            widget.buy_rules[0].merchant_stock_targets[0].target_count == 0,
+            "Reset after purchase should only zero the completed target count.",
+        )
+        _expect(
+            widget.buy_rules[0].merchant_stock_targets[0].after_purchase == module.AFTER_PURCHASE_RESET_QUANTITY,
+            "Reset after purchase should preserve the selected cleanup mode.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Trading = original_trading
+
+
+def _test_merchant_stock_after_purchase_skips_without_inventory_gain(module) -> None:
+    widget = _make_widget(module)
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_trading = getattr(module.GLOBAL_CACHE, "Trading", None)
+    try:
+        widget.buy_rules = [
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_MERCHANT_STOCK,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(
+                        model_id=555,
+                        target_count=1,
+                        max_per_run=0,
+                        after_purchase=module.AFTER_PURCHASE_REMOVE_ENTRY,
+                    )
+                ],
+            )
+        ]
+        widget._save_profile = lambda: True
+        cleanup = module.PurchaseTargetCleanup(
+            rule_kind=module.BUY_KIND_MERCHANT_STOCK,
+            rule_index=0,
+            target_key="555",
+            target_count=1,
+            max_per_run=0,
+            after_purchase=module.AFTER_PURCHASE_REMOVE_ENTRY,
+            completes_target=True,
+        )
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            WithdrawGold=lambda _amount: None,
+            GetModelCount=lambda _model_id: 0,
+        )
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+            GetModelID=lambda item_id: 555 if int(item_id) == 501 else 0,
+            Properties=types.SimpleNamespace(GetValue=lambda item_id: 250 if int(item_id) == 501 else 0),
+        )
+        module.GLOBAL_CACHE.Trading = types.SimpleNamespace(
+            Merchant=types.SimpleNamespace(
+                GetOfferedItems=lambda: [501],
+                BuyItem=lambda _item_id, _cost: None,
+            )
+        )
+
+        outcome = _drain_generator_return(widget._buy_merchant_model(555, 1, offered_items=[501], cleanup=cleanup))
+
+        _expect(outcome.completed == 0, "Merchant stock buy should not complete without verified inventory gain.")
+        _expect(
+            len(widget.buy_rules[0].merchant_stock_targets) == 1,
+            "Remove after purchase should leave the entry unchanged when inventory gain is missing.",
+        )
     finally:
         module.GLOBAL_CACHE.Inventory = original_inventory
         module.GLOBAL_CACHE.Item = original_item
@@ -9932,6 +10067,14 @@ def main() -> int:
             (
                 "merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall",
                 lambda: _test_merchant_stock_buy_withdraws_xunlai_gold_exact_shortfall(module),
+            ),
+            (
+                "merchant_stock_after_purchase_resets_completed_target",
+                lambda: _test_merchant_stock_after_purchase_resets_completed_target(module),
+            ),
+            (
+                "merchant_stock_after_purchase_skips_without_inventory_gain",
+                lambda: _test_merchant_stock_after_purchase_skips_without_inventory_gain(module),
             ),
             (
                 "material_buy_opens_xunlai_revalidates_and_withdraws_gold",
