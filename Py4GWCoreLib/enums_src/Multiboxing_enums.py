@@ -68,6 +68,7 @@ class SharedCommandType(IntEnum):
     Pycons = auto()
     BroadcastChatCommand = auto() 
     ConsoleMessage = auto()
+    SetHeadlessLooting = auto()
     #endregion
 
     

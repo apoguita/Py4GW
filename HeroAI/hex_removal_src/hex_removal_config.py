@@ -225,7 +225,7 @@ def _parse_file(text: str) -> ConfigState | None:
     state = ConfigState()
     debug_blob = data.get("debug", {}) or {}
     if isinstance(debug_blob, dict):
-        state.debug_hex_removal = bool(debug_blob.get("hex_removal", False))
+        state.debug_hex_removal = False
         state.debug_hex_removal_locks = bool(debug_blob.get("hex_removal_locks", False))
 
     hexes_blob = data.get("hexes", {}) or {}
@@ -361,7 +361,7 @@ def _normalize_loaded(parsed: ConfigState) -> tuple[ConfigState, bool]:
     """Apply migration only. Parsed entries are taken at face value."""
     dirty = False
     state = ConfigState(
-        debug_hex_removal=parsed.debug_hex_removal,
+        debug_hex_removal=False,
         debug_hex_removal_locks=parsed.debug_hex_removal_locks,
     )
 
@@ -442,7 +442,7 @@ def _save_active(state: ConfigState) -> bool:
 def _apply_debug_flags_to_runtime(state: ConfigState) -> None:
     try:
         from Py4GWCoreLib.GlobalCache import HexRemovalPriority as hp
-        hp.HEX_REMOVAL_DEBUG = bool(state.debug_hex_removal)
+        hp.HEX_REMOVAL_DEBUG = False
     except Exception:
         pass
     try:
@@ -539,7 +539,7 @@ def get_debug_flags() -> tuple[bool, bool]:
 
 def set_debug_flags(hex_removal: bool, hex_removal_locks: bool) -> None:
     state = _get_state()
-    state.debug_hex_removal = bool(hex_removal)
+    state.debug_hex_removal = False
     state.debug_hex_removal_locks = bool(hex_removal_locks)
     _save_active(state)
     _apply_debug_flags_to_runtime(state)

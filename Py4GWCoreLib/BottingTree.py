@@ -141,7 +141,6 @@ class BottingTree(
         self.paused = False
         if self.IsHeadlessHeroAIEnabled():
             self._disable_heroai_widget_for_headless()
-            self.RestoreHeroAIOptions()
             self._sync_multibox_heroai_widget(True)
 
         Py4GW.Console.Log('BottingTree', 'Botting tree started.', Py4GW.Console.MessageType.Info)
@@ -176,7 +175,6 @@ class BottingTree(
         self._last_heroai_state = None
         if self.IsHeadlessHeroAIEnabled() and self.started and not self.paused:
             self._disable_heroai_widget_for_headless()
-            self.RestoreHeroAIOptions()
             self._sync_multibox_heroai_widget(True)
         self.ClearPendingMessages()
 

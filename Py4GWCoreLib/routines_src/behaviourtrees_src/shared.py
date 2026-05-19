@@ -86,6 +86,14 @@ def _local_party_player_agent_ids() -> set[int]:
 
 
 def _account_is_in_local_party(account) -> bool:
+    try:
+        if not Party.IsPartyLoaded():
+            return False
+        if int(Party.GetPlayerCount() or 0) <= 1:
+            return False
+    except Exception:
+        return False
+
     agent_id = _account_agent_id(account)
     if agent_id <= 0:
         return False
@@ -337,6 +345,106 @@ class BTShared:
                         timeout_ms=timeout_ms,
                         poll_interval_ms=poll_interval_ms,
                         log=log,
+                    ),
+                ],
+            )
+        )
+
+    @staticmethod
+    def ResignAllAccounts(
+        refs_blackboard_key: str = "shared_refs",
+        timeout_ms: int = 15000,
+        poll_interval_ms: int = 100,
+        log: bool = False,
+        aftercast_ms: int = 100,
+    ) -> BehaviorTree:
+        def _prepare(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            sender_email = str(Player.GetAccountEmail() or "")
+            recipients: list[str] = []
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+                receiver_email = str(getattr(account, "AccountEmail", "") or "")
+                if not receiver_email or receiver_email == sender_email:
+                    continue
+                recipients.append(receiver_email)
+            node.blackboard[f"{refs_blackboard_key}_recipient_emails"] = recipients
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="ResignAllAccounts",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name="PrepareResignAllAccounts",
+                        action_fn=_prepare,
+                    ),
+                    BehaviorTree(
+                        BehaviorTree.SubtreeNode(
+                            name="DispatchResignAllAccounts",
+                            subtree_fn=lambda node: BTShared.SendAndWait(
+                                command=SharedCommandType.Resign,
+                                recipients=list(node.blackboard.get(f"{refs_blackboard_key}_recipient_emails", [])),
+                                refs_blackboard_key=refs_blackboard_key,
+                                timeout_ms=timeout_ms,
+                                poll_interval_ms=poll_interval_ms,
+                                log=log,
+                                aftercast_ms=aftercast_ms,
+                            ),
+                        )
+                    ),
+                ],
+            )
+        )
+
+    @staticmethod
+    def DonateFaction(
+        faction: str = "luxon",
+        threshold: int = 10000,
+        refs_blackboard_key: str = "shared_refs",
+        timeout_ms: int = 90000,
+        poll_interval_ms: int = 100,
+        log: bool = False,
+        aftercast_ms: int = 100,
+    ) -> BehaviorTree:
+        faction_name = str(faction or "luxon").strip().lower()
+        if faction_name not in {"luxon", "kurzick"}:
+            raise ValueError("faction must be 'luxon' or 'kurzick'.")
+
+        def _prepare(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            own_email = str(Player.GetAccountEmail() or "")
+            recipients: list[str] = []
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+                receiver_email = str(getattr(account, "AccountEmail", "") or "")
+                if not receiver_email:
+                    continue
+                recipients.append(receiver_email)
+            if own_email and own_email not in recipients:
+                recipients.append(own_email)
+            node.blackboard[f"{refs_blackboard_key}_recipient_emails"] = recipients
+            node.blackboard[f"{refs_blackboard_key}_include_self"] = bool(own_email)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name=f"Donate{faction_name.title()}Faction",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name=f"Prepare{faction_name.title()}FactionDonation",
+                        action_fn=_prepare,
+                    ),
+                    BehaviorTree(
+                        BehaviorTree.SubtreeNode(
+                            name=f"Dispatch{faction_name.title()}FactionDonation",
+                            subtree_fn=lambda node: BTShared.SendAndWait(
+                                command=SharedCommandType.DonateToGuild,
+                                recipients=list(node.blackboard.get(f"{refs_blackboard_key}_recipient_emails", [])),
+                                include_self=bool(node.blackboard.get(f"{refs_blackboard_key}_include_self", False)),
+                                refs_blackboard_key=refs_blackboard_key,
+                                timeout_ms=timeout_ms,
+                                poll_interval_ms=poll_interval_ms,
+                                log=log,
+                                aftercast_ms=aftercast_ms,
+                            ),
+                        )
                     ),
                 ],
             )

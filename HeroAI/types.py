@@ -143,6 +143,7 @@ class Skilltarget (IntEnum):
     NonWeaponSpelledAlly = 39
     ResurrectionAlly = 40
     HexedAlly = 41
+    EnemyNotNearby = 42
 
 
 

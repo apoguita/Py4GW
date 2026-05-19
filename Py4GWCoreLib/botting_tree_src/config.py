@@ -1,6 +1,4 @@
-from collections.abc import Mapping
-from collections.abc import Sequence
-from typing import Any, Callable
+from typing import Callable
 from typing import Optional
 from typing import TYPE_CHECKING
 
@@ -71,7 +69,7 @@ class _BottingTreeConfig:
         multi_account: Optional[bool] = None,
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         name: str = 'ConfigurePacifistEnv',
     ) -> BehaviorTree:
         resolved_isolation = bool(account_isolation) if account_isolation is not None else not bool(multi_account)
@@ -89,7 +87,7 @@ class _BottingTreeConfig:
         self,
         *,
         pause_on_danger: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         reset_hero_ai: bool = True,
         name: str = 'ConfigurePacifistForceHeroAIEnv',
     ) -> BehaviorTree:
@@ -127,7 +125,7 @@ class _BottingTreeConfig:
         self,
         *,
         pause_on_danger: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveForceHeroAIEnv',
     ) -> BehaviorTree:
@@ -143,7 +141,7 @@ class _BottingTreeConfig:
     def MultiboxAggressiveTree(
         self,
         *,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
         name: str = 'ConfigureMultiboxAggressiveEnv',
@@ -165,7 +163,7 @@ class _BottingTreeConfig:
         multi_account: Optional[bool] = None,
         reset_hero_ai: bool = True,
         pause_on_danger: bool = False,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
     ) -> BehaviorTree:
         return self.PacifistTree(
             account_isolation=account_isolation,
@@ -180,7 +178,7 @@ class _BottingTreeConfig:
         *,
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
     ) -> BehaviorTree:
         return self.PacifistForceHeroAITree(
             reset_hero_ai=reset_hero_ai,
@@ -194,7 +192,7 @@ class _BottingTreeConfig:
         pause_on_danger: bool = True,
         account_isolation: Optional[bool] = None,
         multi_account: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveTree(
@@ -209,7 +207,7 @@ class _BottingTreeConfig:
         self,
         *,
         pause_on_danger: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveForceHeroAITree(
@@ -222,7 +220,7 @@ class _BottingTreeConfig:
         self,
         *,
         pause_on_danger: Optional[bool] = None,
-        auto_loot: Optional[bool] = None,
+        auto_loot: bool = True,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.MultiboxAggressiveTree(
@@ -235,70 +233,26 @@ class _BottingTreeConfig:
     ConfigureAggressiveEnv = Aggressive
 
     @staticmethod
-    def _consumable_upkeep_steps(spec: str | int | Mapping[str, Any]) -> list[tuple[str, object]]:
-        if isinstance(spec, str):
-            return [
-                (
-                    f'ConsumableService:{spec}',
-                    lambda spec=spec: RoutinesBT.Upkeepers.ConsumableService(spec),
-                )
-            ]
-
-        if not isinstance(spec, Mapping):
-            model_id = int(spec)
-            return [
-                (
-                    f'ConsumableService:{model_id}',
-                    lambda model_id=model_id: RoutinesBT.Upkeepers.ConsumableService(model_id),
-                )
-            ]
-
-        raw_model_id = spec.get('key', spec.get('model_id', spec.get('modelID_or_encStr')))
-        if raw_model_id is None:
-            raise ValueError('Consumable upkeep spec requires model_id.')
-        model_id = raw_model_id if isinstance(raw_model_id, str) else int(raw_model_id)
-
-        effect_name = str(spec.get('effect_name', '') or '')
-        name = str(spec.get('name', '') or f'ConsumableService:{model_id}')
-        target_morale = spec.get('target_morale')
-        target_alcohol_level = spec.get('target_alcohol_level')
-        raw_effect_ids = spec.get('effect_ids', [])
-        effect_ids = (
-            [int(value) for value in raw_effect_ids]
-            if isinstance(raw_effect_ids, Sequence) and not isinstance(raw_effect_ids, (str, bytes))
-            else []
-        )
-
-        def _build_tree() -> BehaviorTree:
-            return RoutinesBT.Upkeepers.ConsumableService(
-                model_id,
-                effect_name,
-                effect_id=int(spec.get('effect_id', 0) or 0),
-                effect_ids=effect_ids,
-                require_effect_id=bool(spec.get('require_effect_id', False)),
-                use_where=str(spec.get('use_where', 'explorable') or 'explorable'),
-                target_morale=int(target_morale) if target_morale is not None else None,
-                party_wide_morale=bool(spec.get('party_wide_morale', False)),
-                target_alcohol_level=int(target_alcohol_level) if target_alcohol_level is not None else None,
-                blocked_effect_id=int(spec.get('blocked_effect_id', 0) or 0),
-                fallback_duration_ms=int(spec.get('fallback_duration_ms', 0) or 0),
-                check_interval_ms=int(spec.get('check_interval_ms', 1000) or 1000),
-                aftercast_ms=int(spec.get('aftercast_ms', 500) or 500),
+    def _consumable_upkeep_steps(model_id: int) -> list[tuple[str, object]]:
+        model_id = int(model_id)
+        return [
+            (
+                f'ConsumableService:{model_id}',
+                lambda model_id=model_id: RoutinesBT.Upkeepers.ConsumableService(model_id),
             )
-
-        return [(name, _build_tree)]
+        ]
 
     def ConfigureUpkeep(
         self,
         *,
-        disable_looting: bool = True,
+        disable_looting: bool = False,
         restore_isolation_on_stop: bool = True,
-        enable_outpost_imp_service: bool = True,
-        enable_explorable_imp_service: bool = True,
+        enable_outpost_imp_service: bool = False,
+        enable_explorable_imp_service: bool = False,
         imp_target_bag: int = 1,
         imp_slot: int = 0,
         imp_log: bool = False,
-        consumable_upkeeps: Sequence[str | int | Mapping[str, Any]] | None = None,
+        consumable_upkeeps: list[int] | tuple[int, ...] | None = None,
         enable_party_wipe_recovery: bool = True,
         party_wipe_default_step_name: str | None = None,
         party_wipe_return_interval_ms: float = 1000.0,
@@ -366,7 +320,7 @@ class _BottingTreeConfig:
         imp_target_bag: int = 1,
         imp_slot: int = 0,
         imp_log: bool = False,
-        consumable_upkeeps: Sequence[str | int | Mapping[str, Any]] | None = None,
+        consumable_upkeeps: list[int] | tuple[int, ...] | None = None,
         enable_party_wipe_recovery: bool = True,
         party_wipe_default_step_name: str | None = None,
         party_wipe_return_interval_ms: float = 1000.0,

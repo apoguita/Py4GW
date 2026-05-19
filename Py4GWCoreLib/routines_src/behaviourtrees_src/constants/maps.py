@@ -3,6 +3,7 @@ ASPENWOOD_GATE_LUXON = 389
 #region B
 BOREAL_STATION = 675
 #region C
+CAVALON = 193
 #region D
 #region E
 #region F

@@ -972,7 +972,15 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.EnemyKnockedDown.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
-        
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Siege") or 1441
+        skill.SkillType = SkillType.Attack.value
+        skill.TargetAllegiance = Skilltarget.EnemyNotNearby.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
+
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         skill.SkillType = SkillType.Attack.value

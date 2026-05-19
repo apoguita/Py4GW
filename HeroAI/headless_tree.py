@@ -42,12 +42,32 @@ class HeroAIHeadlessTree:
         index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
         return bool(index != -1 and message and message.Command == SharedCommandType.PickUpLoot)
 
+    def _consume_headless_looting_control_messages(self) -> None:
+        account_email = str(Player.GetAccountEmail() or '').strip()
+        if not account_email:
+            return
+
+        latest_enabled: bool | None = None
+        for message_index, message in GLOBAL_CACHE.ShMem.GetAllMessages():
+            if message is None:
+                continue
+            if not getattr(message, 'Active', False):
+                continue
+            if str(getattr(message, 'ReceiverEmail', '') or '').strip() != account_email:
+                continue
+            if int(getattr(message, 'Command', SharedCommandType.NoCommand)) != int(SharedCommandType.SetHeadlessLooting):
+                continue
+            latest_enabled = bool(int(getattr(message, 'Params', (1, 0, 0, 0))[0] or 0))
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, message_index)
+
+        if latest_enabled is not None:
+            self._headless_looting_enabled = latest_enabled
+
     def _is_looting_routine_active(self) -> bool:
-        options = self.cached_data.account_options
-        if not options or not options.Looting:
+        if not self._headless_looting_enabled:
             return False
 
-        if self.cached_data.data.in_aggro:
+        if self.cached_data.IsHeadlessCombatPauseActive():
             return False
 
         if not self._has_active_pick_up_loot_message():
@@ -59,8 +79,7 @@ class HeroAIHeadlessTree:
         return True
 
     def _handle_looting(self) -> BehaviorTree.NodeState:
-        options = self.cached_data.account_options
-        if not options or not options.Looting:
+        if not self._headless_looting_enabled:
             self.cached_data.in_looting_routine = False
             return BehaviorTree.NodeState.FAILURE
 
@@ -68,7 +87,7 @@ class HeroAIHeadlessTree:
             self.cached_data.in_looting_routine = False
             return BehaviorTree.NodeState.FAILURE
 
-        if self.cached_data.data.in_aggro:
+        if self.cached_data.IsHeadlessCombatPauseActive():
             self.cached_data.in_looting_routine = False
             return BehaviorTree.NodeState.FAILURE
 
@@ -123,7 +142,7 @@ class HeroAIHeadlessTree:
         if not options or not options.Combat:
             return False
 
-        if self.cached_data.data.in_aggro:
+        if self.cached_data.IsHeadlessCombatPauseActive():
             return False
 
         if is_follow_recovery_active(self.cached_data, self._follow_state):
@@ -142,7 +161,7 @@ class HeroAIHeadlessTree:
         if not options or not options.Combat:
             return False
 
-        if not self.cached_data.data.in_aggro:
+        if not self.cached_data.IsHeadlessCombatPauseActive():
             return False
 
         self.heroai_build.set_cached_data(self.cached_data)
@@ -168,6 +187,12 @@ class HeroAIHeadlessTree:
         if self._looting_node is None:
             return False
         return self._looting_node.last_state == BehaviorTree.NodeState.RUNNING
+
+    def SetLootingEnabled(self, enabled: bool) -> None:
+        self._headless_looting_enabled = bool(enabled)
+
+    def IsLootingEnabled(self) -> bool:
+        return bool(self._headless_looting_enabled)
 
     def GetBuildContract(self):
         return self.heroai_build.GetBuildContract()
@@ -210,6 +235,7 @@ class HeroAIHeadlessTree:
         return True
 
     def update(self) -> None:
+        self._consume_headless_looting_control_messages()
         self.cached_data.Update()
 
     def tick(self):

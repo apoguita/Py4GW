@@ -255,19 +255,20 @@ class Yield:
             def _min_party_morale():
                 try:
                     entries = GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []
-                    if not entries:
-                        return Player.GetMorale()
-                    return min(int(m) for _, m in entries)
+                    valid_morale = [int(morale) for _, morale in entries if int(morale or 0) > 0]
+                    if not valid_morale:
+                        return None
+                    return min(valid_morale)
                 except Exception:
-                    return Player.GetMorale()
+                    return None
 
             player_morale = Player.GetMorale()
             min_party = _min_party_morale()
 
-            while player_morale < target_morale or min_party < target_morale:
+            while player_morale < target_morale or (min_party is not None and min_party < target_morale):
                 item_id = 0
                 need_player_morale = player_morale < target_morale
-                need_party_morale = min_party < target_morale
+                need_party_morale = min_party is not None and min_party < target_morale
 
                 # First clear personal DP / morale deficits using self-only
                 # morale items, with clovers first.

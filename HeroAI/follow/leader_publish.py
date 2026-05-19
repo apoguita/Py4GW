@@ -456,6 +456,8 @@ class FollowFormationPublisher:
         from HeroAI.settings import Settings
 
         mode = Settings().get_combat_range_mode()
+        if int(getattr(leader_account.AgentPartyData, "PartyPosition", -1)) == 0:
+            return bool(getattr(leader_account, "InAggro", False))
         if mode == Settings.COMBAT_RANGE_MODE_LEGACY:
             return bool(getattr(leader_account, "InAggro", False))
 

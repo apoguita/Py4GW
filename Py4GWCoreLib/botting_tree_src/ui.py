@@ -397,6 +397,54 @@ class _BottingTreeUI:
         color = (0, 255, 0, 255) if value else (255, 80, 80, 255)
         PyImGui.text_colored(f'{label}: {value}', color)
 
+    def _build_headless_heroai_option_snapshot(self):
+        from ..GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
+
+        snapshot = HeroAIOptionStruct()
+        snapshot.reset()
+
+        options_source = 'defaults'
+        cached_data = getattr(self.parent.headless_heroai, 'cached_data', None)
+        source_options = getattr(cached_data, 'account_options', None)
+        if source_options is not None:
+            options_source = 'headless cache'
+        else:
+            account_email = str(Player.GetAccountEmail() or '').strip()
+            if account_email:
+                shared_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+                if shared_options is not None:
+                    source_options = shared_options
+                    options_source = 'shared memory'
+
+        if source_options is not None:
+            snapshot.Following = bool(source_options.Following)
+            snapshot.Avoidance = bool(source_options.Avoidance)
+            snapshot.Targeting = bool(source_options.Targeting)
+            snapshot.Combat = bool(source_options.Combat)
+            for i in range(len(snapshot.Skills)):
+                snapshot.Skills[i] = bool(source_options.Skills[i])
+
+        snapshot.Looting = bool(self.parent.headless_heroai.IsLootingEnabled())
+        return snapshot, options_source
+
+    def _draw_headless_heroai_panel(self) -> None:
+        if not PyImGui.collapsing_header('Headless HeroAI'):
+            return
+
+        from HeroAI.ui_base import HeroAI_BaseUI
+
+        option_snapshot, options_source = self._build_headless_heroai_option_snapshot()
+
+        if PyImGui.begin_child('BottingTreeHeadlessHeroAIPanel', (0, 0), True, PyImGui.WindowFlags.NoFlag):
+            PyImGui.text(f'Options source: {options_source}')
+            PyImGui.text(f"Looting source: {'headless runtime'}")
+            PyImGui.text_wrapped('This preview reflects the headless HeroAI runtime. It does not write to the user-facing HeroAI looting toggle.')
+            PyImGui.separator()
+            PyImGui.begin_disabled(True)
+            HeroAI_BaseUI.DrawPanelButtons('botting_tree_headless_preview', option_snapshot, set_global=False)
+            PyImGui.end_disabled()
+        PyImGui.end_child()
+
     def _current_step_name(self) -> str:
         current_step_name = str(self.parent.GetBlackboardValue('current_step_name', '') or '')
         if current_step_name:
@@ -404,12 +452,35 @@ class _BottingTreeUI:
         planner_status = str(self.parent.GetBlackboardValue('PLANNER_STATUS', '') or '')
         return planner_status or 'Idle'
 
+    def _main_status_snapshot(self) -> dict[str, bool]:
+        combat_active = False
+        looting_active = False
+        try:
+            if self.parent.IsHeadlessHeroAIEnabled():
+                combat_active = bool(self.parent.headless_heroai.cached_data.IsHeadlessCombatPauseActive())
+                looting_active = bool(self.parent.headless_heroai.IsLootingActive())
+        except Exception:
+            combat_active = False
+            looting_active = False
+
+        return {
+            'started': self.parent.IsStarted(),
+            'paused': self.parent.IsPaused(),
+            'headless_heroai_enabled': self.parent.IsHeadlessHeroAIEnabled(),
+            'looting_enabled': self.parent.IsLootingEnabled(),
+            'account_isolation_enabled': self.parent.IsIsolationEnabled(),
+            'pause_on_combat_enabled': bool(self.parent.pause_on_combat),
+            'combat_active': combat_active,
+            'looting_active': looting_active,
+        }
+
     def _draw_main_child(
         self,
         main_child_dimensions: tuple[int, int] = (350, 300),
         icon_path: str = '',
         iconwidth: int = 96,
     ) -> None:
+        status = self._main_status_snapshot()
         if PyImGui.begin_table('botting_tree_header_table', 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
             PyImGui.table_setup_column('Icon', PyImGui.TableColumnFlags.WidthFixed, iconwidth)
             PyImGui.table_setup_column('Status', PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
@@ -445,14 +516,14 @@ class _BottingTreeUI:
                     self.parent.Start()
 
         PyImGui.separator()
-        self._colored_bool('Started', self.parent.IsStarted())
-        self._colored_bool('Paused', self.parent.IsPaused())
-        self._colored_bool('Headless HeroAI', self.parent.IsHeadlessHeroAIEnabled())
-        self._colored_bool('Looting', self.parent.IsLootingEnabled())
-        self._colored_bool('Account Isolation', self.parent.IsIsolationEnabled())
-        self._colored_bool('Pause On Combat', bool(self.parent.GetBlackboardValue('pause_on_combat', self.parent.pause_on_combat)))
-        self._colored_bool('Combat Active', bool(self.parent.GetBlackboardValue('COMBAT_ACTIVE', False)))
-        self._colored_bool('Looting Active', bool(self.parent.GetBlackboardValue('LOOTING_ACTIVE', False)))
+        self._colored_bool('Started', status['started'])
+        self._colored_bool('Paused', status['paused'])
+        self._colored_bool('Headless HeroAI Enabled', status['headless_heroai_enabled'])
+        self._colored_bool('Looting Enabled', status['looting_enabled'])
+        self._colored_bool('Account Isolation Enabled', status['account_isolation_enabled'])
+        self._colored_bool('Pause On Combat Enabled', status['pause_on_combat_enabled'])
+        self._colored_bool('Combat Routine Active', status['combat_active'])
+        self._colored_bool('Loot Routine Active', status['looting_active'])
 
     def _draw_navigation_child(self, child_size: tuple[int, int] = (350, 275)) -> None:
         step_names = self.parent.GetNamedPlannerStepNames()
@@ -507,6 +578,8 @@ class _BottingTreeUI:
             PyImGui.text(f"HeroAI Status: {self.parent.GetBlackboardValue('HEROAI_STATUS', '')}")
             PyImGui.text(f"Planner Status: {self.parent.GetBlackboardValue('PLANNER_STATUS', '')}")
             PyImGui.text(f'Last UI Log: {self.parent.GetDebugConsoleLastMessage()}')
+
+        self._draw_headless_heroai_panel()
 
         if PyImGui.collapsing_header('Blackboard'):
             for key in sorted(self.parent.blackboard.keys()):

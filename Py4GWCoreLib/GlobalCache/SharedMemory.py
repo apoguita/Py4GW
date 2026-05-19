@@ -215,6 +215,13 @@ class Py4GWSharedMemoryManager:
         if resolved_party_id <= 0:
             return []
 
+        local_map_signature = (
+            int(Map.GetMapID() or 0),
+            int(Map.GetRegion()[0] or 0),
+            int(Map.GetDistrict() or 0),
+            int(Map.GetLanguage()[0] or 0),
+        )
+
         entries: list[tuple[int, int]] = []
         seen_keys: set[tuple[str, int, int]] = set()
         for account in self.GetAllActiveSlotsData():
@@ -225,6 +232,14 @@ class Py4GWSharedMemoryManager:
             if not (account.IsAccount or account.IsHero):
                 continue
             if int(getattr(account.AgentPartyData, "PartyID", 0) or 0) != resolved_party_id:
+                continue
+            account_map_signature = (
+                int(getattr(getattr(account.AgentData, "Map", None), "MapID", 0) or 0),
+                int(getattr(getattr(account.AgentData, "Map", None), "Region", 0) or 0),
+                int(getattr(getattr(account.AgentData, "Map", None), "District", 0) or 0),
+                int(getattr(getattr(account.AgentData, "Map", None), "Language", 0) or 0),
+            )
+            if account_map_signature != local_map_signature:
                 continue
 
             agent_id = int(getattr(account.AgentData, "AgentID", 0) or 0)
@@ -252,12 +267,13 @@ class Py4GWSharedMemoryManager:
         return entries
 
     @frame_cache(category="SharedMemory", source_lib="GetSharedPartyMinMorale")
-    def GetSharedPartyMinMorale(self, party_id: int | None = None) -> int:
-        """Return the minimum shared-memory morale for current-party players and heroes only."""
+    def GetSharedPartyMinMorale(self, party_id: int | None = None) -> int | None:
+        """Return the minimum positive shared-memory morale for current-party players and heroes only."""
         entries = self.GetSharedPartyMorale(party_id=party_id)
-        if not entries:
-            return 0
-        return min(int(morale) for _, morale in entries)
+        valid_morale = [int(morale) for _, morale in entries if int(morale or 0) > 0]
+        if not valid_morale:
+            return None
+        return min(valid_morale)
     
     @frame_cache(category="SharedMemory", source_lib="GetAllActivePlayers")
     def GetAllAccountData(self, sort_results: bool = True, include_isolated: bool = False) -> list[AccountStruct]:
