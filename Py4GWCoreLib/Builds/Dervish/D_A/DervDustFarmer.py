@@ -33,6 +33,7 @@ class DervDustFarmer(BuildMgr):
             required_primary=Profession.Dervish,
             required_secondary=Profession.Assassin,
             template_code='Ogekkiq5qymU333m2Vz1E0d53F7F',
+            is_combat_automator_compatible=False,
             required_skills=[
                 GLOBAL_CACHE.Skill.GetID("Grenths_Aura"),
                 GLOBAL_CACHE.Skill.GetID("Vow_of_Strength"),
