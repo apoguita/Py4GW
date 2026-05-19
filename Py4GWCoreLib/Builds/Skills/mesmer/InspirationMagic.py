@@ -92,6 +92,26 @@ class InspirationMagic:
             aftercast_delay=250,
         ))
 
+    @coordinates_whiteboard_skill_target(Skill.GetID("Power_Spike"))
+    def Power_Spike(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Range, Routines
+
+        power_spike_id: int = Skill.GetID("Power_Spike")
+
+        if not self.build.IsSkillEquipped(power_spike_id):
+            return False
+
+        target_agent_id: int = Routines.Targeting.GetEnemyCastingSpellOrChant(Range.Spellcast.value)
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=power_spike_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     @coordinates_whiteboard_skill_target(Skill.GetID("Power_Drain"))
     def Power_Drain(
         self,
