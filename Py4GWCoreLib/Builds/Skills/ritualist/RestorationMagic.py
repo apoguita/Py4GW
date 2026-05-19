@@ -38,6 +38,17 @@ class RestorationMagic:
         if not self.build.IsSkillEquipped(life_id):
             return False
 
+        # Life heals allies for N HP per second the spirit was alive when it
+        # dies. Recasting kills the previous spirit (firing its heal-on-death
+        # with the elapsed timer) and resets the duration counter. To maximise
+        # the total heal, only summon when no Life spirit is up - let the
+        # existing one run its full 20s timer (or until killed) before
+        # refreshing. CanCastSkillID enforces the same gate downstream via
+        # SPIRIT_BUFF_MAP, but checking explicitly here keeps intent visible
+        # and short-circuits before entering the cast generator.
+        if self.build.SpiritBuffExists(life_id):
+            return False
+
         if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
             return False
 
@@ -161,6 +172,34 @@ class RestorationMagic:
         ))
     #endregion
 
+    #region P
+    def Protective_Was_Kaolai(self) -> BuildCoroutine:
+        """Cast Protective Was Kaolai on self (item-spell). Picks up Kaolai's
+        ashes - grants +10 armor while held; the party heal triggers on drop.
+        Pair with Drop_Held_Bundle in the rotation (drop check FIRST) so the
+        heal actually releases when the party needs it."""
+        protective_was_kaolai_id: int = Skill.GetID("Protective_Was_Kaolai")
+
+        if not self.build.IsSkillEquipped(protective_was_kaolai_id):
+            return False
+
+        # Already holding any bundle (PwK ashes, or another item spell) -
+        # recasting would either fail or replace the current bundle and waste
+        # the un-released heal. Let Drop_Held_Bundle release first.
+        if Agent.IsHoldingItem(Player.GetAgentID()):
+            return False
+
+        if not Routines.Checks.Skills.CanCast():
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=protective_was_kaolai_id,
+            target_agent_id=Player.GetAgentID(),
+            aftercast_delay=250,
+            log=False,
+        ))
+    #endregion
+
     #region X
     def Xinraes_Weapon(self) -> BuildCoroutine:
         from HeroAI.targeting import TargetAllyWeaponSpell
@@ -280,11 +319,14 @@ class RestorationMagic:
 
         ally_ids = AgentArray.GetAllyArray()
         ally_ids = AgentArray.Filter.ByDistance(ally_ids, Player.GetXY(), within_range)
-        ally_ids = AgentArray.Filter.ByCondition(ally_ids, lambda aid: Agent.IsAlive(aid))
+        # Shared-memory aware liveness/health: in multibox, remote heroes' health
+        # on this client can be stale; Routines.Checks.Agents.* falls back to
+        # the broadcast AgentData from same-party shared-memory accounts.
+        ally_ids = AgentArray.Filter.ByCondition(ally_ids, lambda aid: Routines.Checks.Agents.IsAlive(aid))
 
         count = 0
         for aid in ally_ids:
-            if Agent.GetHealth(aid) < less_health_than_percent:
+            if Routines.Checks.Agents.GetHealth(aid) < less_health_than_percent:
                 count += 1
                 if count >= min_allies_count:
                     return True

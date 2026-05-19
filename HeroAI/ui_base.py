@@ -1462,6 +1462,16 @@ class HeroAI_BaseUI:
             im.add_str(ini_key, "follow_move_threshold_default_mode", "FollowRuntime", "follow_move_threshold_default_mode", "Area")
             im.add_str(ini_key, "follow_move_threshold_combat_mode", "FollowRuntime", "follow_move_threshold_combat_mode", "Adjacent")
             im.add_str(ini_key, "follow_move_threshold_flagged_mode", "FollowRuntime", "follow_move_threshold_flagged_mode", "Zero")
+            im.add_bool(ini_key, "show_followers_unstuck_overlay", "FollowRuntime", "show_followers_unstuck_overlay", False)
+            im.add_bool(ini_key, "show_stuck_avoidance_debug", "FollowRuntime", "show_stuck_avoidance_debug", False)
+            im.add_float(ini_key, "waypoint_smoothing", "FollowRuntime", "waypoint_smoothing", 77.0)
+            im.add_float(ini_key, "stuck_touch_radius", "FollowRuntime", "stuck_touch_radius", 120.0)
+            im.add_float(ini_key, "stuck_enemy_detection_range", "FollowRuntime", "stuck_enemy_detection_range", 250.0)
+            im.add_int(ini_key, "stuck_sample_count", "FollowRuntime", "stuck_sample_count", 1)
+            im.add_float(ini_key, "min_distance_activate_unstuck", "FollowRuntime", "min_distance_activate_unstuck", 500.0)
+            im.add_float(ini_key, "no_progress_move_units", "FollowRuntime", "no_progress_move_units", 15.0)
+            im.add_float(ini_key, "no_progress_close_units", "FollowRuntime", "no_progress_close_units", 10.0)
+            im.add_float(ini_key, "obstacle_cleared_delta", "FollowRuntime", "obstacle_cleared_delta", 500.0)
             HeroAI_BaseUI.follow_window_ini_vars_registered = True
             HeroAI_BaseUI.follow_window_ini_vars_registered_key = ini_key
         im.load_once(ini_key)
@@ -1475,6 +1485,8 @@ class HeroAI_BaseUI:
         im = IniManager()
         hero_globals.show_broadcast_follow_positions = bool(im.getBool(ini_key, "show_broadcast_follow_positions", True, section="FollowRuntime"))
         hero_globals.show_broadcast_follow_threshold_rings = bool(im.getBool(ini_key, "show_broadcast_follow_threshold_rings", True, section="FollowRuntime"))
+        hero_globals.show_followers_unstuck_overlay = bool(im.getBool(ini_key, "show_followers_unstuck_overlay", False, section="FollowRuntime"))
+        hero_globals.show_stuck_avoidance_debug = bool(im.getBool(ini_key, "show_stuck_avoidance_debug", False, section="FollowRuntime"))
         hero_globals.show_flagging_window = bool(im.getBool(ini_key, "show_flagging_window", False, section="FollowRuntime"))
         HeroAI_BaseUI.follow_move_threshold_default = max(0.0, float(im.getFloat(ini_key, "follow_move_threshold_default", float(Range.Area.value), section="FollowRuntime")))
         HeroAI_BaseUI.follow_move_threshold_combat = max(0.0, float(im.getFloat(ini_key, "follow_move_threshold_combat", float(Range.Adjacent.value), section="FollowRuntime")))
@@ -1482,6 +1494,52 @@ class HeroAI_BaseUI:
         HeroAI_BaseUI.follow_move_threshold_default_mode = str(im.getStr(ini_key, "follow_move_threshold_default_mode", "Area", section="FollowRuntime"))
         HeroAI_BaseUI.follow_move_threshold_combat_mode = str(im.getStr(ini_key, "follow_move_threshold_combat_mode", "Adjacent", section="FollowRuntime"))
         HeroAI_BaseUI.follow_move_threshold_flagged_mode = str(im.getStr(ini_key, "follow_move_threshold_flagged_mode", "Zero", section="FollowRuntime"))
+        # Stuck-avoidance live-tunable knobs: BT.Move tolerance, circle radius,
+        # and the body-block enemy-scan radius. All three sync cross-client via
+        # the same INI throttle in HeroAI/follow/stuck_avoidance.py.
+        from HeroAI.follow.smart_unstuck import SMART_UNSTUCK_CFG
+        SMART_UNSTUCK_CFG.waypoint_smoothing = max(1.0, float(im.getFloat(
+            ini_key, "waypoint_smoothing", float(SMART_UNSTUCK_CFG.waypoint_smoothing), section="FollowRuntime"
+        )))
+        SMART_UNSTUCK_CFG.touch_radius = max(50.0, min(400.0, float(im.getFloat(
+            ini_key, "stuck_touch_radius", float(SMART_UNSTUCK_CFG.touch_radius), section="FollowRuntime"
+        ))))
+        SMART_UNSTUCK_CFG.enemy_detection_range = max(50.0, min(400.0, float(im.getFloat(
+            ini_key,
+            "stuck_enemy_detection_range",
+            float(SMART_UNSTUCK_CFG.enemy_detection_range),
+            section="FollowRuntime",
+        ))))
+        SMART_UNSTUCK_CFG.stuck_sample_count = max(1, min(10, int(im.getInt(
+            ini_key,
+            "stuck_sample_count",
+            int(SMART_UNSTUCK_CFG.stuck_sample_count),
+            section="FollowRuntime",
+        ))))
+        SMART_UNSTUCK_CFG.min_distance_activate_unstuck = max(50.0, min(600.0, float(im.getFloat(
+            ini_key,
+            "min_distance_activate_unstuck",
+            float(SMART_UNSTUCK_CFG.min_distance_activate_unstuck),
+            section="FollowRuntime",
+        ))))
+        SMART_UNSTUCK_CFG.no_progress_move_units = max(1.0, min(100.0, float(im.getFloat(
+            ini_key,
+            "no_progress_move_units",
+            float(SMART_UNSTUCK_CFG.no_progress_move_units),
+            section="FollowRuntime",
+        ))))
+        SMART_UNSTUCK_CFG.no_progress_close_units = max(1.0, min(100.0, float(im.getFloat(
+            ini_key,
+            "no_progress_close_units",
+            float(SMART_UNSTUCK_CFG.no_progress_close_units),
+            section="FollowRuntime",
+        ))))
+        SMART_UNSTUCK_CFG.obstacle_cleared_delta = max(50.0, min(800.0, float(im.getFloat(
+            ini_key,
+            "obstacle_cleared_delta",
+            float(SMART_UNSTUCK_CFG.obstacle_cleared_delta),
+            section="FollowRuntime",
+        ))))
 
     @staticmethod
     def _write_follow_runtime_value(im: IniManager, ini_key: str, name: str, value) -> None:
@@ -1504,6 +1562,8 @@ class HeroAI_BaseUI:
         HeroAI_BaseUI._ensure_follow_window_ini_vars(ini_key)
         im.set(ini_key, "show_broadcast_follow_positions", bool(hero_globals.show_broadcast_follow_positions), section="FollowRuntime")
         im.set(ini_key, "show_broadcast_follow_threshold_rings", bool(hero_globals.show_broadcast_follow_threshold_rings), section="FollowRuntime")
+        im.set(ini_key, "show_followers_unstuck_overlay", bool(hero_globals.show_followers_unstuck_overlay), section="FollowRuntime")
+        im.set(ini_key, "show_stuck_avoidance_debug", bool(hero_globals.show_stuck_avoidance_debug), section="FollowRuntime")
         im.set(ini_key, "show_flagging_window", bool(hero_globals.show_flagging_window), section="FollowRuntime")
         im.set(ini_key, "follow_move_threshold_default", float(HeroAI_BaseUI.follow_move_threshold_default), section="FollowRuntime")
         im.set(ini_key, "follow_move_threshold_combat", float(HeroAI_BaseUI.follow_move_threshold_combat), section="FollowRuntime")
@@ -1514,6 +1574,8 @@ class HeroAI_BaseUI:
         im.save_vars(ini_key)
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "show_broadcast_follow_positions", bool(hero_globals.show_broadcast_follow_positions))
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "show_broadcast_follow_threshold_rings", bool(hero_globals.show_broadcast_follow_threshold_rings))
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "show_followers_unstuck_overlay", bool(hero_globals.show_followers_unstuck_overlay))
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "show_stuck_avoidance_debug", bool(hero_globals.show_stuck_avoidance_debug))
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "show_flagging_window", bool(hero_globals.show_flagging_window))
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "follow_move_threshold_default", float(HeroAI_BaseUI.follow_move_threshold_default))
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "follow_move_threshold_combat", float(HeroAI_BaseUI.follow_move_threshold_combat))
@@ -1521,6 +1583,23 @@ class HeroAI_BaseUI:
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "follow_move_threshold_default_mode", str(HeroAI_BaseUI.follow_move_threshold_default_mode))
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "follow_move_threshold_combat_mode", str(HeroAI_BaseUI.follow_move_threshold_combat_mode))
         HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "follow_move_threshold_flagged_mode", str(HeroAI_BaseUI.follow_move_threshold_flagged_mode))
+        from HeroAI.follow.smart_unstuck import SMART_UNSTUCK_CFG
+        im.set(ini_key, "waypoint_smoothing", float(SMART_UNSTUCK_CFG.waypoint_smoothing), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "waypoint_smoothing", float(SMART_UNSTUCK_CFG.waypoint_smoothing))
+        im.set(ini_key, "stuck_touch_radius", float(SMART_UNSTUCK_CFG.touch_radius), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "stuck_touch_radius", float(SMART_UNSTUCK_CFG.touch_radius))
+        im.set(ini_key, "stuck_enemy_detection_range", float(SMART_UNSTUCK_CFG.enemy_detection_range), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "stuck_enemy_detection_range", float(SMART_UNSTUCK_CFG.enemy_detection_range))
+        im.set(ini_key, "stuck_sample_count", int(SMART_UNSTUCK_CFG.stuck_sample_count), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "stuck_sample_count", int(SMART_UNSTUCK_CFG.stuck_sample_count))
+        im.set(ini_key, "min_distance_activate_unstuck", float(SMART_UNSTUCK_CFG.min_distance_activate_unstuck), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "min_distance_activate_unstuck", float(SMART_UNSTUCK_CFG.min_distance_activate_unstuck))
+        im.set(ini_key, "no_progress_move_units", float(SMART_UNSTUCK_CFG.no_progress_move_units), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "no_progress_move_units", float(SMART_UNSTUCK_CFG.no_progress_move_units))
+        im.set(ini_key, "no_progress_close_units", float(SMART_UNSTUCK_CFG.no_progress_close_units), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "no_progress_close_units", float(SMART_UNSTUCK_CFG.no_progress_close_units))
+        im.set(ini_key, "obstacle_cleared_delta", float(SMART_UNSTUCK_CFG.obstacle_cleared_delta), section="FollowRuntime")
+        HeroAI_BaseUI._write_follow_runtime_value(im, ini_key, "obstacle_cleared_delta", float(SMART_UNSTUCK_CFG.obstacle_cleared_delta))
 
     @staticmethod
     def _load_follow_formations_quick_data():
@@ -1659,6 +1738,104 @@ class HeroAI_BaseUI:
                 options.FollowMoveThresholdCombat = float(HeroAI_BaseUI.follow_move_threshold_combat)
 
     @staticmethod
+    def DrawSmartUnstuck3DOverlay(cached_data: CacheData):
+        # Runs on every client (called from DrawFollowFormationsQuickWindow).
+        # Gated by the user-toggleable "Draw Followers Unstuck (3D)" checkbox —
+        # detection logic still runs when the overlay is off; only rendering
+        # is suppressed.
+        if not hero_globals.show_followers_unstuck_overlay:
+            return
+        snapshot = hero_globals.smart_unstuck_debug_snapshot
+        if snapshot is None:
+            return
+        try:
+            Overlay().BeginDraw()
+            # `circles`: N centers (one per enemy in slalom mode, one for the
+            # legacy front-of-follower mode). Falls back to the older
+            # circle_center field if a stale snapshot lacks the list.
+            circles = snapshot.get("circles")
+            if not circles:
+                legacy_center = snapshot.get("circle_center")
+                circles = (legacy_center,) if legacy_center is not None else ()
+            union_boundaries = snapshot.get("union_boundaries") or ()
+            radius = float(snapshot.get("radius", Range.Touch.value))
+            waypoints = snapshot.get("waypoints") or ()
+            current_idx = int(snapshot.get("current_idx", 0))
+            mode = str(snapshot.get("mode", "idle"))
+            touch_radius = float(snapshot.get("touch_radius", 25.0))
+
+            if mode == "detouring":
+                if union_boundaries:
+                    # Slalom mode: draw the welded union outline per cluster as
+                    # a closed line strip. Each polyline has ~360 vertices; we
+                    # stride to ~60 segments per cluster for a smooth outline
+                    # without flooding DrawLine3D calls.
+                    line_color = Utils.RGBToColor(255, 0, 255, 220)
+                    stride = 6
+                    for boundary in union_boundaries:
+                        n = len(boundary)
+                        if n < 2:
+                            continue
+                        for i in range(0, n, stride):
+                            j = (i + stride) % n
+                            p1 = boundary[i]
+                            p2 = boundary[j]
+                            z1 = Overlay().FindZ(float(p1[0]), float(p1[1]), 0)
+                            z2 = Overlay().FindZ(float(p2[0]), float(p2[1]), 0)
+                            Overlay().DrawLine3D(
+                                float(p1[0]), float(p1[1]), z1,
+                                float(p2[0]), float(p2[1]), z2,
+                                line_color,
+                                2.5,
+                            )
+                else:
+                    # Single-circle mode: classic front-of-follower ring.
+                    for circle in circles:
+                        if circle is None:
+                            continue
+                        cx, cy = float(circle[0]), float(circle[1])
+                        cz = Overlay().FindZ(cx, cy, 0)
+                        Overlay().DrawPoly3D(
+                            cx, cy, cz,
+                            radius=radius,
+                            color=Utils.RGBToColor(255, 0, 255, 140),
+                            numsegments=32,
+                            thickness=2.5,
+                        )
+
+            for wi, wp in enumerate(waypoints):
+                wx, wy = float(wp[0]), float(wp[1])
+                wz = Overlay().FindZ(wx, wy, 0)
+                is_current = (wi == current_idx)
+                is_done = (wi < current_idx)
+                # current = yellow > done = gray > upcoming = green.
+                if is_current:
+                    color = Utils.RGBToColor(255, 255, 0, 240)
+                elif is_done:
+                    color = Utils.RGBToColor(120, 120, 120, 160)
+                else:
+                    color = Utils.RGBToColor(0, 255, 0, 220)
+                Overlay().DrawPoly3D(
+                    wx, wy, wz,
+                    radius=22.0,
+                    color=color,
+                    numsegments=12,
+                    thickness=2.5,
+                )
+                # Faint outer reference ring at the overlay touch threshold.
+                Overlay().DrawPoly3D(
+                    wx, wy, wz,
+                    radius=touch_radius,
+                    color=Utils.RGBToColor(180, 180, 180, 80),
+                    numsegments=16,
+                    thickness=1.0,
+                )
+
+            Overlay().EndDraw()
+        except Exception:
+            pass
+
+    @staticmethod
     def DrawFlaggingWindow(cached_data: CacheData):
         party_size = GLOBAL_CACHE.Party.GetPartySize()
         if party_size == 1:
@@ -1729,6 +1906,10 @@ class HeroAI_BaseUI:
 
     @staticmethod
     def DrawFollowFormationsQuickWindow(cached_data: CacheData):
+        # Draw the stuck-avoidance 3D overlay first so it renders on every client
+        # (the window itself is leader-side; the overlay must work on the follower).
+        HeroAI_BaseUI.DrawSmartUnstuck3DOverlay(cached_data)
+
         if not HeroAI_BaseUI.show_follow_formations_quick_window:
             return
 
@@ -1778,10 +1959,21 @@ class HeroAI_BaseUI:
                 hero_globals.show_broadcast_follow_positions = new_show_broadcast_follow_positions
                 dirty_runtime_cfg = True
 
+            new_show_followers_unstuck_overlay = PyImGui.checkbox("Draw Followers Unstuck (3D)", hero_globals.show_followers_unstuck_overlay)
+            if new_show_followers_unstuck_overlay != hero_globals.show_followers_unstuck_overlay:
+                hero_globals.show_followers_unstuck_overlay = new_show_followers_unstuck_overlay
+                dirty_runtime_cfg = True
+
             new_show_broadcast_follow_threshold_rings = PyImGui.checkbox("Draw Followers Threshold Rings (3D)", hero_globals.show_broadcast_follow_threshold_rings)
             if new_show_broadcast_follow_threshold_rings != hero_globals.show_broadcast_follow_threshold_rings:
                 hero_globals.show_broadcast_follow_threshold_rings = new_show_broadcast_follow_threshold_rings
                 dirty_runtime_cfg = True
+
+            new_show_stuck_avoidance_debug = PyImGui.checkbox("Stuck Avoidance Verbose Logs", hero_globals.show_stuck_avoidance_debug)
+            if new_show_stuck_avoidance_debug != hero_globals.show_stuck_avoidance_debug:
+                hero_globals.show_stuck_avoidance_debug = new_show_stuck_avoidance_debug
+                dirty_runtime_cfg = True
+
             presets = HeroAI_BaseUI._follow_threshold_presets()
             preset_names = [name for name, _ in presets]
 
@@ -1826,6 +2018,81 @@ class HeroAI_BaseUI:
                 if HeroAI_BaseUI.follow_move_threshold_flagged_mode != "Manual":
                     HeroAI_BaseUI.follow_move_threshold_flagged_mode = "Manual"
                 dirty_runtime_cfg = True
+
+            PyImGui.separator()
+            PyImGui.text("Follower Resolves (unstuck)")
+            # Stuck-avoidance live-tunable knobs. All sync cross-client via
+            # FollowRuntime.ini on the leader-write, follower-poll throttle in
+            # smart_unstuck.reload_smart_unstuck_config_from_ini.
+            #   Geometry knobs:
+            #     - Waypoint Smoothing: BT.Move "advance on approach" threshold.
+            #     - Stuck Circle Radius: imaginary obstacle circle radius. The
+            #       waypoint arc auto-scales — circle and arc stay in sync.
+            #     - Enemy Detection Range: scan radius for the body-block
+            #       fallback. When ≥1 enemy is in this range and the follower
+            #       is stuck, the detour pivots to circles centered on the
+            #       enemies instead of a single front-of-follower circle.
+            #   Detection-sensitivity knobs (per ~500ms sample):
+            #     - Stuck Sample Count: consecutive no-progress samples to
+            #       trigger (1 = fire on the first comparison after baseline).
+            #     - Min Distance Activate Unstuck: short-circuit detection when the
+            #       follower is already this close to follow_xy.
+            #     - No-Progress Move Units: sample counts as no-progress when
+            #       the avatar moved less than this in the sample window.
+            #     - No-Progress Close Units: sample counts as no-progress when
+            #       the gap to follow_xy shrank by less than this.
+            from HeroAI.follow.smart_unstuck import (
+                SMART_UNSTUCK_CFG,
+                reload_smart_unstuck_config_from_ini,
+            )
+            new_waypoint_smoothing = max(1.0, float(PyImGui.input_float(
+                "Waypoint Smoothing", float(SMART_UNSTUCK_CFG.waypoint_smoothing)
+            )))
+            new_touch_radius = max(50.0, min(400.0, float(PyImGui.input_float(
+                "Stuck Circle Radius", float(SMART_UNSTUCK_CFG.touch_radius)
+            ))))
+            new_enemy_range = max(50.0, min(400.0, float(PyImGui.input_float(
+                "Enemy Detection Range", float(SMART_UNSTUCK_CFG.enemy_detection_range)
+            ))))
+            new_sample_count = max(1, min(10, int(PyImGui.input_int(
+                "Stuck Sample Count", int(SMART_UNSTUCK_CFG.stuck_sample_count)
+            ))))
+            new_min_distance = max(50.0, min(600.0, float(PyImGui.input_float(
+                "Min Distance Activate Unstuck", float(SMART_UNSTUCK_CFG.min_distance_activate_unstuck)
+            ))))
+            new_move_units = max(1.0, min(100.0, float(PyImGui.input_float(
+                "No-Progress Move Units", float(SMART_UNSTUCK_CFG.no_progress_move_units)
+            ))))
+            new_close_units = max(1.0, min(100.0, float(PyImGui.input_float(
+                "No-Progress Close Units", float(SMART_UNSTUCK_CFG.no_progress_close_units)
+            ))))
+            new_early_exit = max(50.0, min(800.0, float(PyImGui.input_float(
+                "Min Dist Early Exit", float(SMART_UNSTUCK_CFG.obstacle_cleared_delta)
+            ))))
+            stuck_cfg_changed = (
+                abs(new_waypoint_smoothing - SMART_UNSTUCK_CFG.waypoint_smoothing) > 0.0001
+                or abs(new_touch_radius - SMART_UNSTUCK_CFG.touch_radius) > 0.0001
+                or abs(new_enemy_range - SMART_UNSTUCK_CFG.enemy_detection_range) > 0.0001
+                or new_sample_count != SMART_UNSTUCK_CFG.stuck_sample_count
+                or abs(new_min_distance - SMART_UNSTUCK_CFG.min_distance_activate_unstuck) > 0.0001
+                or abs(new_move_units - SMART_UNSTUCK_CFG.no_progress_move_units) > 0.0001
+                or abs(new_close_units - SMART_UNSTUCK_CFG.no_progress_close_units) > 0.0001
+                or abs(new_early_exit - SMART_UNSTUCK_CFG.obstacle_cleared_delta) > 0.0001
+            )
+            if stuck_cfg_changed:
+                SMART_UNSTUCK_CFG.waypoint_smoothing = new_waypoint_smoothing
+                SMART_UNSTUCK_CFG.touch_radius = new_touch_radius
+                SMART_UNSTUCK_CFG.enemy_detection_range = new_enemy_range
+                SMART_UNSTUCK_CFG.stuck_sample_count = new_sample_count
+                SMART_UNSTUCK_CFG.min_distance_activate_unstuck = new_min_distance
+                SMART_UNSTUCK_CFG.no_progress_move_units = new_move_units
+                SMART_UNSTUCK_CFG.no_progress_close_units = new_close_units
+                SMART_UNSTUCK_CFG.obstacle_cleared_delta = new_early_exit
+                dirty_runtime_cfg = True
+                # Force-write to INI immediately so follower clients see the
+                # change within their next 1s reload poll.
+                HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                reload_smart_unstuck_config_from_ini(force_reload=True)
 
             if dirty_runtime_cfg:
                 HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)

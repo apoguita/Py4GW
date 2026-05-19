@@ -9,6 +9,7 @@ Xinraes_Weapon_ID = Skill.GetID("Xinraes_Weapon")
 Signet_of_Lost_Souls_ID = Skill.GetID("Signet_of_Lost_Souls")
 Mend_Body_and_Soul_ID = Skill.GetID("Mend_Body_and_Soul")
 Spirit_Light_ID = Skill.GetID("Spirit_Light")
+Protective_Was_Kaolai_ID = Skill.GetID("Protective_Was_Kaolai")
 Vital_Weapon_ID = Skill.GetID("Vital_Weapon")
 Wielders_Boon_ID = Skill.GetID("Wielders_Boon")
 Mending_Grip_ID = Skill.GetID("Mending_Grip")
@@ -37,6 +38,7 @@ class Xinraes_Weapon_Healer(BuildMgr):
                 Signet_of_Lost_Souls_ID,
             ],
             optional_skills=[
+                Protective_Was_Kaolai_ID,
                 Vital_Weapon_ID,
                 Wielders_Boon_ID,
                 Mending_Grip_ID,
@@ -74,6 +76,12 @@ class Xinraes_Weapon_Healer(BuildMgr):
 
         # emergency: any ally at or below 40% HP preempts everything.
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.40)):
+            return True
+
+        # Protective Was Kaolai: drop the ashes to release the 85 HP party heal
+        # when 4+ allies are damaged. Gated on equipped so we don't drop quest
+        # items or other bundles the bot didn't put in our hand.
+        if self.IsSkillEquipped(Protective_Was_Kaolai_ID) and (yield from self.skills.Ritualist.NoAttribute.Drop_Held_Bundle(health_threshold=0.75)):
             return True
 
         # Signet of Lost Souls: emergency energy refill when caster < 30%.
@@ -128,8 +136,20 @@ class Xinraes_Weapon_Healer(BuildMgr):
         if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.60)):
             return True
 
+        # Life: spirit prep. Self-gated on aggro/close-to-aggro and on
+        # SpiritBuffExists, so safe to fire before the MBaS @75% tier and
+        # before the IsInAggro build gate.
+        if self.IsSkillEquipped(Life_ID) and (yield from self.skills.Ritualist.RestorationMagic.Life()):
+            return True
+
         # damaged: any ally at or below 75% HP, before combat skills.
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.75)):
+            return True
+
+        # Protective Was Kaolai: arm the next party-heal-on-drop. Cast on
+        # cooldown when not already holding a bundle - keeps ashes ready so
+        # Drop_Held_Bundle has something to release on the next damage spike.
+        if self.IsSkillEquipped(Protective_Was_Kaolai_ID) and (yield from self.skills.Ritualist.RestorationMagic.Protective_Was_Kaolai()):
             return True
 
         if not self.IsInAggro():
@@ -145,9 +165,6 @@ class Xinraes_Weapon_Healer(BuildMgr):
             return True
 
         if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Light()):
-            return True
-
-        if self.IsSkillEquipped(Life_ID) and (yield from self.skills.Ritualist.RestorationMagic.Life()):
             return True
 
         if self.IsSkillEquipped(Vital_Weapon_ID) and (yield from self.skills.Ritualist.Communing.Vital_Weapon()):
