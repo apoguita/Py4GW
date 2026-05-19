@@ -62,6 +62,8 @@ _KEEPER_OF_SOULS_MODEL_ID = 2373
 _UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
 _SCROLL_TRADER_NAME = 'Scroll Trader'
+_SCROLL_TRADER_MODEL_ID = 194
+_BANISHED_DREAM_RIDER_MODEL_ID = 7321
 _SCROLL_TRADER_APPROACH_DIST = 220.0  # stop short of NPC collision (Adjacent ~= 166)
 _SCROLL_TRADER_MOVE_TOLERANCE = 200.0
 DEFAULT_UW_ENTRYPOINT_KEY = 'embark_beach'
@@ -966,13 +968,21 @@ def _leader_needs_uw_scroll_buy() -> bool:
 
 
 def _resolve_scroll_trader_xy() -> tuple[float, float] | None:
-    agent_id = int(Agent.GetAgentIDByName(_SCROLL_TRADER_NAME) or 0)
-    if agent_id <= 0:
-        return None
-    pos = Agent.GetXY(agent_id)
-    if not pos:
-        return None
-    return float(pos[0]), float(pos[1])
+    """Locate Scroll Trader by model ID (avoid GetAgentIDByName / GetNameByID)."""
+    from Py4GWCoreLib import AgentArray as _AA
+
+    for agent_id in _AA.GetAgentArray():
+        if not Agent.IsValid(agent_id):
+            continue
+        try:
+            if int(Agent.GetModelID(agent_id)) != _SCROLL_TRADER_MODEL_ID:
+                continue
+        except Exception:
+            continue
+        pos = Agent.GetXY(agent_id)
+        if pos:
+            return float(pos[0]), float(pos[1])
+    return None
 
 
 def _scroll_trader_approach_xy(trader_x: float, trader_y: float) -> tuple[float, float]:
@@ -1064,6 +1074,68 @@ def _build_buy_uw_scrolls_tree(node: _BT.Node) -> _BT:
 
 
 _mb_timeout_ms = 120_000
+
+
+def _is_local_party_leader() -> bool:
+    leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+    local_id = int(Player.GetAgentID() or 0)
+    if leader_id <= 0 or local_id <= 0:
+        return True
+    return local_id == leader_id
+
+
+def _follower_wait_guild_hall_or_leader_map(_node: _BT.Node) -> _BT.NodeState:
+    """Followers block multibox setup until travel/summon finishes (map load safe)."""
+    if _is_local_party_leader():
+        return _BT.NodeState.SUCCESS
+    try:
+        if Map.IsMapLoading() or not Map.IsMapReady():
+            return _BT.NodeState.RUNNING
+    except Exception:
+        return _BT.NodeState.RUNNING
+    if Map.IsGuildHall():
+        return _BT.NodeState.SUCCESS
+    leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+    if leader_id > 0:
+        local_map_id = int(Map.GetMapID() or 0)
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData(include_isolated=True):
+            agent_id = int(getattr(getattr(account, 'AgentData', None), 'AgentID', 0) or 0)
+            if agent_id != leader_id:
+                continue
+            map_obj = getattr(getattr(account, 'AgentData', None), 'Map', None)
+            leader_map_id = int(getattr(account, 'MapID', 0) or getattr(map_obj, 'MapID', 0) or 0)
+            if leader_map_id > 0 and local_map_id == leader_map_id:
+                return _BT.NodeState.SUCCESS
+    return _BT.NodeState.RUNNING
+
+
+def _leader_only_subtree_tick(build_tree_fn):
+    """Run a BT subtree only on party leader; followers wait for GH / leader map."""
+    _state: dict = {'tree': None}
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not _is_local_party_leader():
+            return _follower_wait_guild_hall_or_leader_map(node)
+        if _state['tree'] is None:
+            _state['tree'] = build_tree_fn(node)
+        _state['tree'].blackboard = node.blackboard
+        result = _state['tree'].tick()
+        if result != _BT.NodeState.RUNNING:
+            _state['tree'] = None
+        return result
+
+    return _tick
+
+
+def _leader_only_action_tick(inner_tick_fn):
+    """Wrap a tick-factory (e.g. summon) so only the party leader runs it."""
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not _is_local_party_leader():
+            return _follower_wait_guild_hall_or_leader_map(node)
+        return inner_tick_fn(node)
+
+    return _tick
 
 
 def _make_summon_all_gh_tick():
@@ -1174,24 +1246,28 @@ def _enter_underworld_tree() -> _BT:
 
     return BT.Composite.Sequence(
         _log('KickAllAccounts'),
-        _BT(_BT.SubtreeNode(
+        _BT(_BT.ActionNode(
             name='KickAllAccounts',
-            subtree_fn=lambda node: BT.Shared.KickAllAccounts(timeout_ms=_mb_timeout_ms),
+            action_fn=_leader_only_subtree_tick(
+                lambda node: BT.Shared.KickAllAccounts(timeout_ms=_mb_timeout_ms),
+            ),
         )),
         _log('TravelGH'),
-        _BT(_BT.SubtreeNode(
+        _BT(_BT.ActionNode(
             name='TravelGH',
-            subtree_fn=lambda node: BT.Map.TravelGH(timeout=30_000),
+            action_fn=_leader_only_subtree_tick(
+                lambda node: BT.Map.TravelGH(timeout=30_000),
+            ),
         )),
         _log('SummonAllAccountsGH'),
         _BT(_BT.ActionNode(
             name='SummonAllAccountsGH',
-            action_fn=_make_summon_all_gh_tick(),
+            action_fn=_leader_only_action_tick(_make_summon_all_gh_tick()),
         )),
         _log('InviteAllAccounts'),
         _BT(_BT.ActionNode(
             name='InviteAllAccounts',
-            action_fn=_make_invite_all_tick(),
+            action_fn=_leader_only_action_tick(_make_invite_all_tick()),
         )),
         _log('BuyUWScrolls'),
         _BT(_BT.SubtreeNode(
@@ -1301,14 +1377,11 @@ def _build_behemoth_guard_service() -> _BT:
     """Parallel service: monitors Obsidian Behemoths while _behemoth_guard_active is True.
 
     - Only runs its check every 500 ms to stay lightweight.
-    - GetNameByID is called ONLY for enemies already within _BEHEMOTH_ENGAGE_RADIUS,
-      so the native-code call count is minimal even in large enemy groups.
+    - Uses Agent.GetModelID only (no GetNameByID) for enemy identification.
     - When a live behemoth enters range: removes it from the blacklist so HeroAI fights.
     - When no more live behemoths within range: re-adds to blacklist.
     - When the guard is deactivated (end of step): ensures the blacklist entry is restored.
     """
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-
     state: dict = {'fighting': False, 'last_check_ms': 0}
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
@@ -1316,8 +1389,8 @@ def _build_behemoth_guard_service() -> _BT:
 
         if not _behemoth_guard_active:
             if state['fighting']:
-                for _n in _BEHEMOTH_GUARD_NAMES:
-                    _EBL().add_name(_n)
+                _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+                _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
                 state['fighting'] = False
             return _BT.NodeState.RUNNING
 
@@ -1343,13 +1416,13 @@ def _build_behemoth_guard_service() -> _BT:
                 break
 
         if nearby and not state['fighting']:
-            for _n in _BEHEMOTH_GUARD_NAMES:
-                _EBL().remove_name(_n)
+            _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+            _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Enemy in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
             state['fighting'] = True
         elif not nearby and state['fighting']:
-            for _n in _BEHEMOTH_GUARD_NAMES:
-                _EBL().add_name(_n)
+            _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+            _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Fight done — blacklist ON, resuming.', Py4GW.Console.MessageType.Info)
             state['fighting'] = False
 
@@ -1358,13 +1431,32 @@ def _build_behemoth_guard_service() -> _BT:
     return _BT(_BT.ActionNode(name='BehemothGuardService', action_fn=_tick, aftercast_ms=0))
 
 
+def _blacklist_add_entry(name: str = '', model_id: int = 0) -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+
+    bl = _EBL()
+    if name:
+        bl.add_name(name)
+    if model_id > 0:
+        bl.add(model_id)
+
+
+def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+
+    bl = _EBL()
+    if name:
+        bl.remove_name(name)
+    if model_id > 0:
+        bl.remove(model_id)
+
+
 def _behemoth_guard_start() -> _BT:
     """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
-        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-        for _n in _BEHEMOTH_GUARD_NAMES:
-            _EBL().add_name(_n)
+        _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+        _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
         _behemoth_guard_active = True
         ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Behemoth + Spirit blacklisted.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
@@ -1376,9 +1468,8 @@ def _behemoth_guard_stop() -> _BT:
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
         _behemoth_guard_active = False
-        bl = EnemyBlacklist()
-        for name in _BEHEMOTH_GUARD_NAMES:
-            bl.remove_name(name)
+        _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+        _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
         ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped and blacklist cleared.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
     return _BT(_BT.ActionNode(name='BehemothGuardStop', action_fn=_tick))
@@ -1436,16 +1527,6 @@ def _wait_out_of_combat(timeout_ms: int = 120_000) -> _BT:
 def _deamon_assassin_tree() -> _BT:
     BT = Routines.BT
 
-    def _no_slayer_alive(node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib import AgentArray, Agent
-        for agent_id in AgentArray.GetEnemyArray():
-            if not Agent.IsAlive(agent_id):
-                continue
-            name = str(Agent.GetNameByID(agent_id) or '').lower()
-            if 'slayer' in name:
-                return _BT.NodeState.RUNNING
-        return _BT.NodeState.SUCCESS
-
     return BT.Composite.Sequence(
         _wait_out_of_combat(),
         BT.Player.Wait(duration_ms=10_000),
@@ -1463,15 +1544,14 @@ def _deamon_assassin_tree() -> _BT:
 
 
 def _restore_planes_tree() -> _BT:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
     from Py4GWCoreLib import AgentArray, Agent
 
     def _blacklist_add(node: _BT.Node) -> _BT.NodeState:
-        EnemyBlacklist().add_name('banished dream rider')
+        _blacklist_add_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
         return _BT.NodeState.SUCCESS
 
     def _blacklist_remove(node: _BT.Node) -> _BT.NodeState:
-        EnemyBlacklist().remove_name('banished dream rider')
+        _blacklist_remove_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
         return _BT.NodeState.SUCCESS
 
     def _wait_mindblade_spawn(
@@ -1616,8 +1696,7 @@ def _wait_quest_completed(
 
 
 def _blacklist_add_dream_rider() -> None:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-    EnemyBlacklist().add_name('banished dream rider')
+    _blacklist_add_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
 
 
 def _clear_follower_flags() -> _BT:
@@ -1715,19 +1794,9 @@ def _restore_pools_tree() -> _BT:
 
 def _terrorweb_queen_tree() -> _BT:
     BT = Routines.BT
-    from Py4GWCoreLib import AgentArray, Agent
 
     def _blacklist_add(node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-        EnemyBlacklist().add_name('obsidian guardian')
-        return _BT.NodeState.SUCCESS
-
-    def _queen_dead(node: _BT.Node) -> _BT.NodeState:
-        for aid in AgentArray.GetEnemyArray():
-            if not Agent.IsAlive(aid):
-                continue
-            if 'terrorweb queen' in str(Agent.GetNameByID(aid) or '').lower():
-                return _BT.NodeState.RUNNING
+        _blacklist_add_entry('obsidian guardian')
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(
@@ -1739,12 +1808,7 @@ def _terrorweb_queen_tree() -> _BT:
             dialog_id=0x806B01,
         ),
         BT.Movement.Move(x=-12432, y=-15874),
-        _BT(_BT.WaitUntilNode(
-            name='WaitTerrorwebQueenDead',
-            condition_fn=_queen_dead,
-            throttle_interval_ms=1000,
-            timeout_ms=300_000,
-        )),
+        _wait_quest_completed(hold_x=-12432, hold_y=-15874, timeout_ms=300_000),
         BT.Movement.Move(x=-6957, y=-19478),
         BT.Agents.MoveTargetInteractAndDialog(
             x=-6957, y=-19478,
@@ -2117,9 +2181,6 @@ def _wait_for_uw_chest() -> _BT:
                 continue
             if not Agent.IsGadget(agent_id):
                 continue
-            name = (Agent.GetNameByID(agent_id) or '').strip().lower()
-            if _UW_CHEST_NAME not in name:
-                continue
             if Utils.Distance(_UW_CHEST_POS, Agent.GetXY(agent_id)) <= _UW_CHEST_RADIUS:
                 ConsoleLog(BOT_NAME, '[Dhuum] Underworld Chest appeared — Dhuum done.', Py4GW.Console.MessageType.Info)
                 return _BT.NodeState.SUCCESS
@@ -2441,6 +2502,8 @@ def _skip_background_upkeep(blackboard: dict) -> bool:
         return True
     if blackboard.get('party_wipe_recovery_active', False):
         return True
+    if str(blackboard.get('current_step_name', '') or '') == 'Enter Underworld':
+        return True
     try:
         if Map.IsMapLoading() or not Map.IsMapReady():
             return True
@@ -2628,13 +2691,13 @@ _orig_tick_planner = bot._tick_planner
 
 
 def _in_aggro_excluding_blacklist(aggro_area: float = 1020.0) -> bool:
-    """Live radius scan that ignores blacklisted enemies."""
+    """Live radius scan that ignores blacklisted enemies (model IDs only — no GetNameByID)."""
     from Py4GWCoreLib.AgentArray import AgentArray
     from Py4GWCoreLib.Agent import Agent
     from Py4GWCoreLib.Player import Player as _Player
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 
-    bl = EnemyBlacklist()
+    bl_ids = frozenset(EnemyBlacklist().get_all())
     player_id = _Player.GetAgentID()
     player_pos = _Player.GetXY()
     if not player_pos:
@@ -2651,8 +2714,11 @@ def _in_aggro_excluding_blacklist(aggro_area: float = 1020.0) -> bool:
             continue
         if not Agent.IsAlive(agent_id):
             continue
-        if bl.is_blacklisted(agent_id):
-            continue
+        try:
+            if int(Agent.GetModelID(agent_id)) in bl_ids:
+                continue
+        except Exception:
+            pass
         pos = Agent.GetXY(agent_id)
         if not pos:
             continue
@@ -2671,9 +2737,14 @@ def _planner_pause_on_danger_range(bb: dict) -> float:
 
 def _tight_combat_active_planner_tick(node):  # type: ignore[override]
     bb = node.blackboard
-    if bb.get('COMBAT_ACTIVE', False):
-        r = _planner_pause_on_danger_range(bb)
-        bb['COMBAT_ACTIVE'] = _in_aggro_excluding_blacklist(r)
+    if str(bb.get('current_step_name', '') or '') != 'Enter Underworld':
+        try:
+            map_ok = Map.IsMapReady() and not Map.IsMapLoading()
+        except Exception:
+            map_ok = False
+        if map_ok and bb.get('COMBAT_ACTIVE', False):
+            r = _planner_pause_on_danger_range(bb)
+            bb['COMBAT_ACTIVE'] = _in_aggro_excluding_blacklist(r)
     return _orig_tick_planner(node)
 
 
