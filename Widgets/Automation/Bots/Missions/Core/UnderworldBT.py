@@ -1063,6 +1063,53 @@ def _build_buy_uw_scrolls_tree(node: _BT.Node) -> _BT:
     )
 
 
+_mb_timeout_ms = 120_000
+
+
+def _make_summon_all_gh_tick():
+    """Tick-factory for SummonAllAccountsGH.
+
+    Runs BT.Shared.SummonAllAccounts and treats FAILURE (timeout) as SUCCESS so
+    the outer Sequence is never blocked by accounts that never arrive.
+    """
+    _subtree: list[_BT | None] = [None]
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        BT = Routines.BT
+        if _subtree[0] is None:
+            _subtree[0] = BT.Shared.SummonAllAccounts(timeout_ms=_mb_timeout_ms)
+        _subtree[0].blackboard = node.blackboard
+        result = _subtree[0].tick()
+        if result == _BT.NodeState.RUNNING:
+            return _BT.NodeState.RUNNING
+        # SUCCESS or FAILURE (timeout) → always continue
+        _subtree[0] = None
+        return _BT.NodeState.SUCCESS
+
+    return _tick
+
+
+def _make_invite_all_tick():
+    """Tick-factory for InviteAllAccounts.
+
+    Same timeout-tolerant wrapper as _make_summon_all_gh_tick.
+    """
+    _subtree: list[_BT | None] = [None]
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        BT = Routines.BT
+        if _subtree[0] is None:
+            _subtree[0] = BT.Shared.InviteAllAccounts(timeout_ms=_mb_timeout_ms)
+        _subtree[0].blackboard = node.blackboard
+        result = _subtree[0].tick()
+        if result == _BT.NodeState.RUNNING:
+            return _BT.NodeState.RUNNING
+        _subtree[0] = None
+        return _BT.NodeState.SUCCESS
+
+    return _tick
+
+
 def _enter_underworld_tree() -> _BT:
     """
     Step 1: Multibox party setup at Guild Hall, then entry point and UW scroll.
@@ -1073,7 +1120,6 @@ def _enter_underworld_tree() -> _BT:
       3. Travel to configured entry outpost; leader uses UW scroll locally.
     """
     BT = Routines.BT
-    _mb_timeout_ms = 120_000
 
     def _wait_all_on_leader_map(node: _BT.Node) -> _BT.NodeState:
         if not Map.IsMapReady():
@@ -1138,14 +1184,14 @@ def _enter_underworld_tree() -> _BT:
             subtree_fn=lambda node: BT.Map.TravelGH(timeout=30_000),
         )),
         _log('SummonAllAccountsGH'),
-        _BT(_BT.SubtreeNode(
+        _BT(_BT.ActionNode(
             name='SummonAllAccountsGH',
-            subtree_fn=lambda node: BT.Shared.SummonAllAccounts(timeout_ms=_mb_timeout_ms),
+            action_fn=_make_summon_all_gh_tick(),
         )),
         _log('InviteAllAccounts'),
-        _BT(_BT.SubtreeNode(
+        _BT(_BT.ActionNode(
             name='InviteAllAccounts',
-            subtree_fn=lambda node: BT.Shared.InviteAllAccounts(timeout_ms=_mb_timeout_ms),
+            action_fn=_make_invite_all_tick(),
         )),
         _log('BuyUWScrolls'),
         _BT(_BT.SubtreeNode(
@@ -1239,9 +1285,13 @@ def _clear_the_chamber_tree() -> _BT:
     )
 
 
-_OBSIDIAN_BEHEMOTH_NAME     = 'obsidian behemoth'
-_OBSIDIAN_BEHEMOTH_MODEL_ID = 2369
-_BEHEMOTH_ENGAGE_RADIUS     = 500.0
+_OBSIDIAN_BEHEMOTH_NAME          = 'obsidian behemoth'
+_OBSIDIAN_BEHEMOTH_MODEL_ID      = 2369
+_SPIRIT_NATURES_RENEWAL_NAME     = "spirit of nature's renewal"
+_SPIRIT_NATURES_RENEWAL_MODEL_ID = 2938
+_BEHEMOTH_GUARD_NAMES            = (_OBSIDIAN_BEHEMOTH_NAME, _SPIRIT_NATURES_RENEWAL_NAME)
+_BEHEMOTH_GUARD_MODEL_IDS        = frozenset({_OBSIDIAN_BEHEMOTH_MODEL_ID, _SPIRIT_NATURES_RENEWAL_MODEL_ID})
+_BEHEMOTH_ENGAGE_RADIUS          = 500.0
 
 # Toggled by _behemoth_guard_start / _stop nodes; read every tick by the service.
 _behemoth_guard_active: bool = False
@@ -1266,7 +1316,8 @@ def _build_behemoth_guard_service() -> _BT:
 
         if not _behemoth_guard_active:
             if state['fighting']:
-                _EBL().add_name(_OBSIDIAN_BEHEMOTH_NAME)
+                for _n in _BEHEMOTH_GUARD_NAMES:
+                    _EBL().add_name(_n)
                 state['fighting'] = False
             return _BT.NodeState.RUNNING
 
@@ -1282,7 +1333,7 @@ def _build_behemoth_guard_service() -> _BT:
             if not Agent.IsAlive(aid):
                 continue
             try:
-                if int(Agent.GetModelID(aid)) != _OBSIDIAN_BEHEMOTH_MODEL_ID:
+                if int(Agent.GetModelID(aid)) not in _BEHEMOTH_GUARD_MODEL_IDS:
                     continue
                 dist = Utils.Distance((px, py), Agent.GetXY(aid))
             except Exception:
@@ -1292,11 +1343,13 @@ def _build_behemoth_guard_service() -> _BT:
                 break
 
         if nearby and not state['fighting']:
-            _EBL().remove_name(_OBSIDIAN_BEHEMOTH_NAME)
-            ConsoleLog(BOT_NAME, '[BehemothGuard] Behemoth in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
+            for _n in _BEHEMOTH_GUARD_NAMES:
+                _EBL().remove_name(_n)
+            ConsoleLog(BOT_NAME, '[BehemothGuard] Enemy in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
             state['fighting'] = True
         elif not nearby and state['fighting']:
-            _EBL().add_name(_OBSIDIAN_BEHEMOTH_NAME)
+            for _n in _BEHEMOTH_GUARD_NAMES:
+                _EBL().add_name(_n)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Fight done — blacklist ON, resuming.', Py4GW.Console.MessageType.Info)
             state['fighting'] = False
 
@@ -1306,23 +1359,27 @@ def _build_behemoth_guard_service() -> _BT:
 
 
 def _behemoth_guard_start() -> _BT:
-    """Enable the BehemothGuard service and add Obsidian Behemoth to the blacklist."""
+    """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-        _EBL().add_name(_OBSIDIAN_BEHEMOTH_NAME)
+        for _n in _BEHEMOTH_GUARD_NAMES:
+            _EBL().add_name(_n)
         _behemoth_guard_active = True
-        ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Obsidian Behemoth blacklisted.', Py4GW.Console.MessageType.Info)
+        ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Behemoth + Spirit blacklisted.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
     return _BT(_BT.ActionNode(name='BehemothGuardStart', action_fn=_tick))
 
 
 def _behemoth_guard_stop() -> _BT:
-    """Disable the BehemothGuard service (service will clean up the blacklist entry)."""
+    """Disable the BehemothGuard service and immediately remove all guarded names from the blacklist."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
         _behemoth_guard_active = False
-        ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped.', Py4GW.Console.MessageType.Info)
+        bl = EnemyBlacklist()
+        for name in _BEHEMOTH_GUARD_NAMES:
+            bl.remove_name(name)
+        ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped and blacklist cleared.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
     return _BT(_BT.ActionNode(name='BehemothGuardStop', action_fn=_tick))
 
@@ -1355,10 +1412,25 @@ def _restore_mountains_tree() -> _BT:
         BT.Movement.Move(x=1018,  y=-9456),
         BT.Movement.Move(x=-2419, y=-7770),
         BT.Movement.Move(x=-5391, y=-4426),
-        BT.Movement.Move(x=-8337, y=-5342),
         _behemoth_guard_stop(),
+        BT.Movement.Move(x=-8337, y=-5342),
         name='RestoreMountains',
     )
+
+
+def _wait_out_of_combat(timeout_ms: int = 120_000) -> _BT:
+    """RUNNING while COMBAT_ACTIVE is True in the blackboard; SUCCESS when combat ends or timeout."""
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if node.blackboard.get('COMBAT_ACTIVE', False):
+            return _BT.NodeState.RUNNING
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.WaitUntilNode(
+        name='WaitOutOfCombat',
+        condition_fn=_tick,
+        throttle_interval_ms=250,
+        timeout_ms=timeout_ms,
+    ))
 
 
 def _deamon_assassin_tree() -> _BT:
@@ -1375,13 +1447,17 @@ def _deamon_assassin_tree() -> _BT:
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(
+        _wait_out_of_combat(),
         BT.Player.Wait(duration_ms=10_000),
+        BT.Movement.Move(x=-8337, y=-5342),
         BT.Agents.MoveTargetInteractAndDialog(
             x=-8337, y=-5342,
             dialog_id=0x806801,
         ),
+        _behemoth_guard_start(),
         BT.Movement.Move(x=-3560, y=-5899),
         _wait_quest_completed(),
+        _behemoth_guard_stop(),
         name='DeamonAssassin',
     )
 
@@ -1401,7 +1477,7 @@ def _restore_planes_tree() -> _BT:
     def _wait_mindblade_spawn(
         x: float, y: float,
         clean_window_ms: int = 6_000,
-        move_throttle_ms: int = 2_000,
+        move_throttle_ms: int = 500,
     ) -> _BT:
         state: dict = {
             'clean_since_ms': None,
@@ -1435,14 +1511,7 @@ def _restore_planes_tree() -> _BT:
             except Exception:
                 found_mindblade = False
 
-            if found_mindblade:
-                state['clean_since_ms'] = None
-                return _BT.NodeState.RUNNING
-
-            # No Mindblade visible — start / continue clean window
-            if state['clean_since_ms'] is None:
-                state['clean_since_ms'] = now
-
+            # Always nudge player back to position when not in combat, regardless of Mindblade state.
             in_combat = bool(node.blackboard.get('COMBAT_ACTIVE', False))
             if not in_combat and not node.blackboard.get('PAUSE_MOVEMENT', False):
                 last_move = state['last_move_ms']
@@ -1452,6 +1521,14 @@ def _restore_planes_tree() -> _BT:
                     except Exception:
                         pass
                     state['last_move_ms'] = now
+
+            if found_mindblade:
+                state['clean_since_ms'] = None
+                return _BT.NodeState.RUNNING
+
+            # No Mindblade visible — start / continue clean window
+            if state['clean_since_ms'] is None:
+                state['clean_since_ms'] = now
 
             elapsed = now - state['clean_since_ms']
             if elapsed >= clean_window_ms:
@@ -1484,14 +1561,14 @@ def _restore_planes_tree() -> _BT:
         BT.Movement.Move(x=13704,  y=-16024),
         _BT(_BT.ActionNode(name='UnblacklistDreamRider', action_fn=_blacklist_remove)),
         _behemoth_guard_stop(),
+        _wait_out_of_combat(),
         BT.Player.Wait(duration_ms=10_000),
         _wait_mindblade_spawn(x=13704, y=-16024),
         BT.Movement.Move(x=11037, y=-17988),
-        _wait_mindblade_spawn(x=11037, y=-17988),
+        _wait_mindblade_spawn(x=11345, y=-17852),
         name='RestorePlanes',
     )
-
-
+s
 
 
 def _wait_quest_completed(
@@ -2469,7 +2546,9 @@ def _build_consolidated_consumable_upkeep_service() -> _BT:
 
     def _inner_for(prop: str) -> _BT:
         if prop not in _inners:
-            _inners[prop] = Routines.BT.Upkeepers.ConsumableService(prop)
+            preset = Routines.BT.Upkeepers.CONSUMABLE_UPKEEP_PRESETS.get(prop, {})
+            model_id = int(preset.get('model_id', 0))
+            _inners[prop] = Routines.BT.Upkeepers.ConsumableService(model_id)
         return _inners[prop]
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
