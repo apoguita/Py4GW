@@ -235,7 +235,12 @@
     ],
     "enc:\\\\x4045\\\\xC5F3\\\\xD79D\\\\x731F": [
       "Agent 109",
-      "Tiger"
+      "Tiger",
+      "Agent 67",
+      "Agent 52",
+      "Agent 62",
+      "Agent 38",
+      "Agent 59"
     ],
     "enc:\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59": [
       "Rot Wallow",
@@ -249,26 +254,37 @@
     "enc:\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85": [
       "Oni",
       "Agent 194",
-      "Agent 204"
+      "Agent 204",
+      "Agent 80",
+      "Agent 203",
+      "Agent 83",
+      "Agent 205"
     ],
     "enc:\\\\x40B5\\\\xF50F\\\\xFAA1\\\\x040A": [
       "Hukhrah Earthslove",
-      "Agent 190"
+      "Agent 190",
+      "Agent 70",
+      "Agent 94",
+      "Agent 127"
     ],
     "enc:\\\\x40B7\\\\xF090\\\\x95A8\\\\x3126": [
       "Chehbaba Roottripper",
       "Agent 50",
       "Agent 51",
-      "Agent 53"
+      "Agent 53",
+      "Agent 52",
+      "Agent 54"
     ],
     "enc:\\\\x40B8\\\\xB9AD\\\\xC16E\\\\x073E": [
-      "Tomton Spiriteater"
+      "Tomton Spiriteater",
+      "Agent 59"
     ],
     "enc:\\\\x40B9\\\\xBE3B\\\\xF3C3\\\\x5C86": [
       "Yeti",
       "Agent 32",
       "Agent 31",
-      "Agent 33"
+      "Agent 33",
+      "Agent 30"
     ],
     "enc:\\\\x40BA\\\\xF11E\\\\xAE9E\\\\x7218": [
       "Yeti",
@@ -280,10 +296,13 @@
     "enc:\\\\x40BB\\\\x9CFE\\\\xB332\\\\x28A3": [
       "Yeti",
       "Agent 33",
-      "Agent 34"
+      "Agent 34",
+      "Agent 50",
+      "Agent 52"
     ],
     "enc:\\\\x40BD\\\\xFEDF\\\\xD41D\\\\x2092": [
-      "Outcast Assassin"
+      "Outcast Assassin",
+      "Agent 190"
     ],
     "enc:\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A": [
       "Outcast Deathhand",
@@ -308,10 +327,14 @@
       "Naga Archer"
     ],
     "enc:\\\\x40D7\\\\xCE5A\\\\xD087\\\\x4A21": [
-      "Naga Ritualist"
+      "Naga Ritualist",
+      "Agent 199"
     ],
     "enc:\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43": [
-      "Island Guardian"
+      "Island Guardian",
+      "Agent 60",
+      "Agent 128",
+      "Agent 119"
     ],
     "enc:\\\\x4161\\\\xA291\\\\xB856\\\\x0259": [
       "Spirit of Famine"
@@ -321,7 +344,14 @@
       "Agent 74",
       "Agent 76",
       "Agent 124",
-      "Agent 190"
+      "Agent 190",
+      "Agent 121",
+      "Agent 77",
+      "Agent 193",
+      "Agent 123",
+      "Agent 87",
+      "Agent 126",
+      "Agent 75"
     ],
     "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": [
       "Agent 85",
@@ -330,20 +360,35 @@
       "Agent 189",
       "Agent 86",
       "Agent 187",
-      "Agent 76"
+      "Agent 76",
+      "Agent 94",
+      "Agent 188",
+      "Agent 93",
+      "Agent 191",
+      "Agent 190"
     ],
     "enc:\\\\x4165\\\\xAA52\\\\x6E73": [
       "Agent 120",
       "Spirit of Destruction",
       "Agent 85",
       "Agent 74",
-      "Agent 100"
+      "Agent 100",
+      "Agent 191",
+      "Agent 66",
+      "Agent 95",
+      "Agent 200"
     ],
     "enc:\\\\x4167\\\\x8FC3\\\\x08B6": [
       "Spirit of Displacement",
       "Agent 92",
       "Agent 207",
-      "Agent 188"
+      "Agent 188",
+      "Agent 212",
+      "Agent 100",
+      "Agent 70",
+      "Agent 211",
+      "Agent 199",
+      "Agent 73"
     ],
     "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": [
       "Kournan Seer"

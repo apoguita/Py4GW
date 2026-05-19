@@ -208,12 +208,15 @@ class CacheData:
     def GetActiveScanRange(self) -> float:
         from .settings import Settings
 
-        if Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
+        if self.data.party_position == 0 or Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
             return Range.Earshot.value if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else Range.Spellcast.value
 
         HighRange = Range.Longbow.value if not self.data.in_aggro else Range.Spellcast.value
         LowRange = Range.Longbow.value if not self.data.in_aggro else Range.Earshot.value
         return LowRange if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else HighRange
+
+    def IsHeadlessCombatPauseActive(self) -> bool:
+        return bool(self.data.in_aggro or self.data.local_in_aggro)
         
     def UpdateCombat(self):
         self.combat_handler.Update(self)
@@ -274,7 +277,7 @@ class CacheData:
                 self.data.local_in_aggro = local_in_aggro
 
                 from .settings import Settings
-                if Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
+                if self.data.party_position == 0 or Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
                     effective_in_aggro = local_in_aggro
                 else:
                     effective_in_aggro = self.data.party_in_aggro

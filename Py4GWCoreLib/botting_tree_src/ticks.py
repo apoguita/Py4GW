@@ -113,9 +113,7 @@ class BottingTreeTicksMixin:
             if self._should_log_heroai_state('knocked_down'):
                 Py4GW.Console.Log('BottingTree', 'HeroAI paused because player is knocked down.', Py4GW.Console.MessageType.Warning)
             self._last_heroai_state = 'knocked_down'
-            bb['COMBAT_ACTIVE'] = bool(
-                getattr(self.headless_heroai.cached_data.data, 'local_in_aggro', self.headless_heroai.cached_data.data.in_aggro)
-            )
+            bb['COMBAT_ACTIVE'] = bool(self.headless_heroai.cached_data.IsHeadlessCombatPauseActive())
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
             bb['HEROAI_STATUS'] = HeroAIStatus.PLAYER_KNOCKED_DOWN.value
@@ -130,9 +128,7 @@ class BottingTreeTicksMixin:
         bb['PAUSE_MOVEMENT'] = bool(bb['LOOTING_ACTIVE'] or bb['USER_INTERRUPT_ACTIVE'])
         bb['HEROAI_BUILD_CONTRACT'] = self.headless_heroai.GetBuildContractName()
 
-        combat_active = bool(
-            getattr(self.headless_heroai.cached_data.data, 'local_in_aggro', self.headless_heroai.cached_data.data.in_aggro)
-        )
+        combat_active = bool(self.headless_heroai.cached_data.IsHeadlessCombatPauseActive())
 
         if combat_active:
             if self._last_heroai_state != 'combat':

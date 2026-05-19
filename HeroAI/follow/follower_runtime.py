@@ -234,7 +234,7 @@ def execute_follower_follow(
             _reset_follow_runtime()
             return BehaviorTree.NodeState.FAILURE
 
-    combat_active = bool(cached_data.data.in_aggro)
+    combat_active = bool(cached_data.IsHeadlessCombatPauseActive())
     is_melee = cached_data.data.weapon_type in {
         Weapon.Axe.value,
         Weapon.Hammer.value,

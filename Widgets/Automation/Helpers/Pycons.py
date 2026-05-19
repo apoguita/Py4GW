@@ -8122,7 +8122,7 @@ try:
     def _compute_party_morale_states(eligible_name_norms: set, party_rows: list, same_party_accounts: list):
         morale_by_agent = {}
         try:
-            for agent_id, morale in (Party.GetPartyMorale() or []):
+            for agent_id, morale in (GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []):
                 morale_by_agent[int(agent_id)] = int(morale)
         except Exception:
             morale_by_agent = {}

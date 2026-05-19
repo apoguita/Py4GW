@@ -1785,7 +1785,8 @@
       "model_ids": [
         3005,
         4093,
-        4094
+        4094,
+        4073
       ],
       "observed_maps": {
         "200": {
@@ -1913,6 +1914,12 @@
           "name": "Demonic_Agility",
           "profession": "None",
           "profession_id": 0
+        },
+        "777": {
+          "id": 777,
+          "name": "Horns of the Ox",
+          "profession": "Assassin",
+          "profession_id": 7
         },
         "780": {
           "id": 780,
@@ -2243,6 +2250,12 @@
         "1029": {
           "id": 1029,
           "name": "Dark Apostasy",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "975": {
+          "id": 975,
+          "name": "Exhausting Assault",
           "profession": "Assassin",
           "profession_id": 7
         }

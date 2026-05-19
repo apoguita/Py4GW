@@ -269,7 +269,7 @@ class CombatClass:
         
     def Update(self, cached_data: CacheData) -> None:
         self.cached_data = cached_data
-        self.in_aggro = cached_data.data.in_aggro
+        self.in_aggro = cached_data.IsHeadlessCombatPauseActive()
         
         self.fast_casting_exists = cached_data.data.fast_casting_exists
         self.fast_casting_level = cached_data.data.fast_casting_level

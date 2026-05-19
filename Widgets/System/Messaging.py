@@ -1090,6 +1090,87 @@ def MerchantRules(index: int, message: SharedMessageStruct):
 
 # region UsePcon
 
+_PARTY_WIDE_MORALE_MODELS = {
+    int(ModelID.Four_Leaf_Clover.value),
+    int(ModelID.Honeycomb.value),
+    int(ModelID.Oath_Of_Purity.value),
+    int(ModelID.Rainbow_Candy_Cane.value),
+    int(ModelID.Elixir_Of_Valor.value),
+    int(ModelID.Powerstone_Of_Courage.value),
+}
+_SELF_MORALE_MODELS = {
+    int(ModelID.Pumpkin_Cookie.value),
+    int(ModelID.Peppermint_Candy_Cane.value),
+    int(ModelID.Refined_Jelly.value),
+    int(ModelID.Seal_Of_The_Dragon_Empire.value),
+    int(ModelID.Shining_Blade_Ration.value),
+    int(ModelID.Wintergreen_Candy_Cane.value),
+}
+_MORALE_PCON_TARGET_BY_MODEL = {
+    int(ModelID.Four_Leaf_Clover.value): 100,
+    int(ModelID.Honeycomb.value): 110,
+    int(ModelID.Oath_Of_Purity.value): 100,
+    int(ModelID.Rainbow_Candy_Cane.value): 110,
+    int(ModelID.Elixir_Of_Valor.value): 110,
+    int(ModelID.Powerstone_Of_Courage.value): 110,
+    int(ModelID.Pumpkin_Cookie.value): 110,
+    int(ModelID.Peppermint_Candy_Cane.value): 100,
+    int(ModelID.Refined_Jelly.value): 100,
+    int(ModelID.Seal_Of_The_Dragon_Empire.value): 110,
+    int(ModelID.Shining_Blade_Ration.value): 100,
+    int(ModelID.Wintergreen_Candy_Cane.value): 100,
+}
+
+
+def _shared_effect_ids_for_receiver() -> set[int]:
+    receiver_email = str(Player.GetAccountEmail() or "")
+    if not receiver_email:
+        return set()
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(receiver_email)
+    if account is None:
+        return set()
+    buffs = getattr(getattr(getattr(account, "AgentData", None), "Buffs", None), "Buffs", [])
+    return {
+        int(getattr(buff, "SkillId", 0) or 0)
+        for buff in buffs
+        if int(getattr(buff, "SkillId", 0) or 0) > 0
+    }
+
+
+def _shared_receiver_morale() -> int | None:
+    receiver_email = str(Player.GetAccountEmail() or "")
+    if not receiver_email:
+        return None
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(receiver_email)
+    if account is None:
+        return None
+    morale = int(getattr(getattr(account, "AgentData", None), "Morale", 0) or 0)
+    if morale <= 0:
+        return None
+    return morale
+
+
+def _shared_party_min_morale_for_pcon() -> int | None:
+    try:
+        entries = GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []
+    except Exception:
+        return None
+    valid_morale = [int(morale) for _, morale in entries if int(morale or 0) > 0]
+    if not valid_morale:
+        return None
+    return min(valid_morale)
+
+
+def _morale_target_for_models(model_ids: set[int]) -> int | None:
+    targets = [
+        int(_MORALE_PCON_TARGET_BY_MODEL[model_id])
+        for model_id in model_ids
+        if model_id in _MORALE_PCON_TARGET_BY_MODEL
+    ]
+    if not targets:
+        return None
+    return max(targets)
+
 
 def UsePcon(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info, False)
@@ -1110,17 +1191,43 @@ def UsePcon(index: int, message: SharedMessageStruct):
         return
     _pcon_last_exec_ms_by_signature[signature] = now_ms
 
-    # Halt if any of the effects is already active.
-    # Use live game-state check (Effects.HasEffect) rather than shared-memory
-    # (AccountHasEffect) because ShMem data can be stale (e.g. during map
-    # transitions), which previously caused consets to be consumed again even
-    # when the effect was still active on the character.
-    agent_id = Player.GetAgentID()
-    if (pcon_skill_id != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id)) or \
-       (pcon_skill_id2 != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id2)):
+    shared_effect_ids = _shared_effect_ids_for_receiver()
+    if (pcon_skill_id != 0 and pcon_skill_id in shared_effect_ids) or \
+       (pcon_skill_id2 != 0 and pcon_skill_id2 in shared_effect_ids):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
+    morale_model_ids = {model_id for model_id in (pcon_model_id, pcon_model_id2) if model_id > 0}
+    morale_target = _morale_target_for_models(morale_model_ids)
+    if morale_model_ids & _PARTY_WIDE_MORALE_MODELS:
+        shared_party_min_morale = _shared_party_min_morale_for_pcon()
+        if morale_target is not None and shared_party_min_morale is not None and shared_party_min_morale >= morale_target:
+            ConsoleLog(
+                MODULE_NAME,
+                (
+                    f"Skipping party-wide morale PCon {tuple(sorted(morale_model_ids))}: "
+                    f"shared_party_min_morale={shared_party_min_morale} target={morale_target}"
+                ),
+                Console.MessageType.Info,
+                False,
+            )
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+    elif morale_model_ids & _SELF_MORALE_MODELS:
+        player_morale = _shared_receiver_morale()
+        if morale_target is not None and player_morale is not None and player_morale >= morale_target:
+            ConsoleLog(
+                MODULE_NAME,
+                (
+                    f"Skipping self morale PCon {tuple(sorted(morale_model_ids))}: "
+                    f"player_morale={player_morale} target={morale_target}"
+                ),
+                Console.MessageType.Info,
+                False,
+            )
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
 
     # Check inventory to determine which PCon to use
     if GLOBAL_CACHE.Inventory.GetModelCount(pcon_model_id) > 0:
@@ -1137,6 +1244,19 @@ def UsePcon(index: int, message: SharedMessageStruct):
         # ConsoleLog(MODULE_NAME, f"Could not find item ID for PCon model {pcon_model_to_use}.", Console.MessageType.Error)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
+    if morale_target is not None:
+        try:
+            from Py4GWCoreLib.routines_src.behaviourtrees_src.upkeepers import BTUpkeepers
+
+            BTUpkeepers._log_party_morale_consume_event(
+                MODULE_NAME,
+                morale_target,
+                pcon_model_to_use,
+                item_id=item_id,
+            )
+        except Exception:
+            pass
 
     GLOBAL_CACHE.Inventory.UseItem(item_id)
     ConsoleLog(

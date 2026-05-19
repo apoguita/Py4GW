@@ -39,6 +39,9 @@ class BottingTreeServicesMixin:
             from ..py4gwcorelib_src.ActionQueue import ActionQueueManager
 
             now = time.monotonic() * 1000.0
+            if bool(node.blackboard.get('party_wipe_recovery_suppressed', False)):
+                _reset_state(node)
+                return BehaviorTree.NodeState.RUNNING
             is_wiped = bool(Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
 
             if not state['active']:

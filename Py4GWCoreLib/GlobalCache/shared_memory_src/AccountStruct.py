@@ -271,7 +271,10 @@ class AccountStruct(Structure):
                 stay_alert = self.InAggroTick64 > 0 and now - self.InAggroTick64 < IN_AGGRO_STAY_ALERT_TIME
                 try:
                     from HeroAI.settings import Settings
-                    legacy_range = Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY
+                    legacy_range = (
+                        int(getattr(self.AgentPartyData, "PartyPosition", -1)) == 0
+                        or Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY
+                    )
                 except Exception:
                     legacy_range = False
 
@@ -521,7 +524,9 @@ class AccountStruct(Structure):
         self.AgentData.CharacterName = pet_data.pet_name or f"PET {pet_data.owner_agent_id}s Pet"
         self.AgentData.OwnerAgentID = pet_data.owner_agent_id
         self.AgentData.HeroID = 0
-        self.AgentData.Morale = 100
+        # Pets do not have meaningful morale for party-wide consumable logic.
+        # Publish 0 so downstream shared-memory morale readers can exclude them.
+        self.AgentData.Morale = 0
         self.AgentData.TargetID = pet_data.locked_target_id
         self.AgentData.LoginNumber = 0
         self.AgentPartyData.PartyID = Party.GetPartyID()
