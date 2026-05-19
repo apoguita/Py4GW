@@ -128,10 +128,10 @@ class Psychic_Instability_Wastrels(BuildMgr):
 
         # 9 – Wastrel's hexes on non-KD enemies as low-priority damage.
         # Require at least 10 energy so the build does not drain itself dry.
-        if (yield from self.skills.Mesmer.DominationMagic.Wastrels_Demise(min_energy_abs=10)):
+        if (yield from self.skills.Mesmer.DominationMagic.Wastrels_Demise(min_energy_abs=10, exclude_knockdown=True)):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Wastrels_Worry(min_energy_abs=10)):
+        if (yield from self.skills.Mesmer.DominationMagic.Wastrels_Worry(min_energy_abs=10, exclude_knockdown=True)):
             return True
 
         yield
