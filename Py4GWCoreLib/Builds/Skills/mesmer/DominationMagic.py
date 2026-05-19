@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib import Range, Routines
@@ -13,10 +14,15 @@ if TYPE_CHECKING:
 
 __all__ = ["DominationMagic"]
 
+_WASTRELS_WORRY_COOLDOWN_S: float = 3.0
+_WASTRELS_DEMISE_COOLDOWN_S: float = 5.0
+
 
 class DominationMagic:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
+        self._wastrels_worry_last_cast: dict[int, float] = {}
+        self._wastrels_demise_last_cast: dict[int, float] = {}
 
     #region E
     def Energy_Surge(self) -> BuildCoroutine:
@@ -150,6 +156,38 @@ class DominationMagic:
     #endregion
 
     #region P
+    @coordinates_whiteboard_skill_target(Skill.GetID("Psychic_Instability"))
+    def Psychic_Instability(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent
+
+        psychic_instability_id: int = Skill.GetID("Psychic_Instability")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(psychic_instability_id) or Range.Adjacent.value
+
+        if not self.build.IsSkillEquipped(psychic_instability_id):
+            return False
+
+        # PI interrupts any skill or spell being cast, not only spells.
+        # The interrupt fires and knocks down the target plus all adjacent foes.
+        # Cast condition is hard – no fallback to non-casting targets.
+        # Among all casting enemies in spellcast range, prefer the one with the
+        # most adjacent enemies to maximise the knockdown area.
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
+
+        # Require at least one casting enemy – do not cast into the void.
+        if not target_agent_id or not Agent.IsCasting(target_agent_id):
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=psychic_instability_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     @coordinates_whiteboard_skill_target(Skill.GetID("Panic"))
     def Panic(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
@@ -222,6 +260,120 @@ class DominationMagic:
             target_agent_id=target_agent_id,
             aftercast_delay=250,
         ))
+    #endregion
+
+    #region W
+    @coordinates_whiteboard_skill_target(Skill.GetID("Wastrels_Demise"))
+    def Wastrels_Demise(self, *, require_knockdown: bool = False, min_energy_abs: int = 0) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Player, GLOBAL_CACHE
+
+        wastrels_demise_id: int = Skill.GetID("Wastrels_Demise")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(wastrels_demise_id) or Range.Adjacent.value
+
+        if not self.build.IsSkillEquipped(wastrels_demise_id):
+            return False
+
+        now = time.monotonic()
+
+        # Evict stale cooldown entries to keep the dict bounded.
+        self._wastrels_demise_last_cast = {
+            agent_id: t
+            for agent_id, t in self._wastrels_demise_last_cast.items()
+            if now - t < _WASTRELS_DEMISE_COOLDOWN_S
+        }
+
+        def _not_on_cooldown(agent_id: int) -> bool:
+            last = self._wastrels_demise_last_cast.get(agent_id)
+            return last is None or now - last >= _WASTRELS_DEMISE_COOLDOWN_S
+
+        # Tier 1: knocked-down enemies not on cooldown.
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsKnockedDown(agent_id) and _not_on_cooldown(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
+        if not target_agent_id or not Agent.IsKnockedDown(target_agent_id) or not _not_on_cooldown(target_agent_id):
+            if require_knockdown:
+                return False
+            # Tier 2: non-casting enemies not on cooldown. Energy gate applies here.
+            if min_energy_abs > 0:
+                player_id = Player.GetAgentID()
+                current_energy = Agent.GetEnergy(player_id) * Agent.GetMaxEnergy(player_id)
+                if current_energy < min_energy_abs:
+                    return False
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
+                cluster_radius=aoe_range,
+                preferred_condition=lambda agent_id: not Agent.IsCasting(agent_id) and _not_on_cooldown(agent_id),
+                filter_radius=Range.Spellcast.value,
+            )
+            if not target_agent_id or Agent.IsCasting(target_agent_id) or not _not_on_cooldown(target_agent_id):
+                return False
+
+        result = yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=wastrels_demise_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        )
+        if result:
+            self._wastrels_demise_last_cast[target_agent_id] = time.monotonic()
+        return result
+
+    @coordinates_whiteboard_skill_target(Skill.GetID("Wastrels_Worry"))
+    def Wastrels_Worry(self, *, require_knockdown: bool = False, min_energy_abs: int = 0) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Player, GLOBAL_CACHE
+
+        wastrels_worry_id: int = Skill.GetID("Wastrels_Worry")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(wastrels_worry_id) or Range.Adjacent.value
+
+        if not self.build.IsSkillEquipped(wastrels_worry_id):
+            return False
+
+        now = time.monotonic()
+
+        # Evict stale cooldown entries to keep the dict bounded.
+        self._wastrels_worry_last_cast = {
+            agent_id: t
+            for agent_id, t in self._wastrels_worry_last_cast.items()
+            if now - t < _WASTRELS_WORRY_COOLDOWN_S
+        }
+
+        def _not_on_cooldown(agent_id: int) -> bool:
+            last = self._wastrels_worry_last_cast.get(agent_id)
+            return last is None or now - last >= _WASTRELS_WORRY_COOLDOWN_S
+
+        # Tier 1: knocked-down enemies not on cooldown.
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsKnockedDown(agent_id) and _not_on_cooldown(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
+        if not target_agent_id or not Agent.IsKnockedDown(target_agent_id) or not _not_on_cooldown(target_agent_id):
+            if require_knockdown:
+                return False
+            # Tier 2: non-casting enemies not on cooldown. Energy gate applies here.
+            if min_energy_abs > 0:
+                player_id = Player.GetAgentID()
+                current_energy = Agent.GetEnergy(player_id) * Agent.GetMaxEnergy(player_id)
+                if current_energy < min_energy_abs:
+                    return False
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
+                cluster_radius=aoe_range,
+                preferred_condition=lambda agent_id: not Agent.IsCasting(agent_id) and _not_on_cooldown(agent_id),
+                filter_radius=Range.Spellcast.value,
+            )
+            if not target_agent_id or Agent.IsCasting(target_agent_id) or not _not_on_cooldown(target_agent_id):
+                return False
+
+        result = yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=wastrels_worry_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        )
+        if result:
+            self._wastrels_worry_last_cast[target_agent_id] = time.monotonic()
+        return result
     #endregion
 
     #region U
