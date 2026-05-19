@@ -1568,7 +1568,6 @@ def _restore_planes_tree() -> _BT:
         _wait_mindblade_spawn(x=11345, y=-17852),
         name='RestorePlanes',
     )
-s
 
 
 def _wait_quest_completed(
