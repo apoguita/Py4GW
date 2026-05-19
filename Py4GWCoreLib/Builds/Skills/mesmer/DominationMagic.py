@@ -96,12 +96,18 @@ class DominationMagic:
     #region M
     @coordinates_whiteboard_skill_target(Skill.GetID("Mistrust"))
     def Mistrust(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
+        from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
 
         mistrust_id: int = Skill.GetID("Mistrust")
+
+        if not self.build.IsSkillEquipped(mistrust_id):
+            return False
+
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(mistrust_id) or Range.Nearby.value
 
         def _is_enemy_casting_spell(agent_id: int) -> bool:
+            if not Agent.IsCaster(agent_id):
+                return False
             if not Agent.IsCasting(agent_id):
                 return False
             casting_skill_id = Agent.GetCastingSkillID(agent_id)
@@ -112,6 +118,21 @@ class DominationMagic:
             preferred_condition=_is_enemy_casting_spell,
             filter_radius=Range.Spellcast.value,
         )
+
+        if not target_agent_id:
+            best_enemy_target_id = Routines.Targeting.PickClusteredTarget(
+                cluster_radius=aoe_range,
+                filter_radius=Range.Spellcast.value,
+            )
+            current_target_id = Player.GetTargetID()
+            if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
+                current_target_score = Routines.Targeting.CountNearbyEnemies(current_target_id, aoe_range)
+                best_enemy_score = Routines.Targeting.CountNearbyEnemies(best_enemy_target_id, aoe_range)
+                if current_target_score >= best_enemy_score:
+                    target_agent_id = current_target_id
+
+            if not target_agent_id:
+                target_agent_id = best_enemy_target_id
 
         if not target_agent_id:
             return False
