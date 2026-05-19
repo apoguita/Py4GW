@@ -84,6 +84,7 @@ class UniqueSkills:
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         self.leave_junundu = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+        self.junundu_siege = GLOBAL_CACHE.Skill.GetID("Junundu_Siege") or 1441
         #nightfall
         self.vial_of_purified_water = 1417
         self.harbinger_model_ids = {5458, 5459, 5460}  # Harbinger model IDs
@@ -429,7 +430,11 @@ def _GetAppropiateTarget(
         elif target_allegiance == Skilltarget.EnemyKnockedDown:
             v_target = _GetEnemyKnockedDown(combat_distance)
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy           
+                v_target = nearest_enemy
+        elif target_allegiance == Skilltarget.EnemyNotNearby:
+            v_target = Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, combat_distance)
+            if v_target == 0 and not targeting_strict:
+                v_target = nearest_enemy
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = Routines.Agents.GetNearestEnemyRanged(combat_distance)
             if v_target == 0 and not targeting_strict:
@@ -627,14 +632,18 @@ def _AreCastConditionsMet(slot,
                 return Agent.IsHexed(Player.GetAgentID()) or Agent.IsConditioned(Player.GetAgentID())
 
             if (skills[slot].skill_id == unique_skills.junundu_wail):
+                if Routines.Agents.GetDeadAlly(Range.Earshot.value) != 0:
+                    return True
                 life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
-                ooc = Routines.Agents.GetNearestEnemy(Range.Earshot.value) == 0
-                nearest_corpse = Routines.Agents.GetNearestCorpse(Range.Earshot.value)
-                return (life and ooc) #or (nearest_corpse != 0)
+                return life and Routines.Agents.GetNearestEnemy(Range.Earshot.value) == 0
 
             if (skills[slot].skill_id == unique_skills.junundu_tunnel):
                 return Routines.Agents.GetNearestEnemy(Range.Earshot.value) == 0
-            
+
+            if (skills[slot].skill_id == unique_skills.junundu_siege):
+                return (Routines.Agents.GetNearestEnemy(Range.Nearby.value) != 0 and
+                        Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, Range.Earshot.value) != 0)
+
             if ((skills[slot].skill_id == unique_skills.unknown_junundu_ability) or
                 (skills[slot].skill_id == unique_skills.leave_junundu)
                 ):
@@ -1526,6 +1535,10 @@ class SkillManager:
                     v_target = get_nearest_enemy()
             elif target_allegiance == Skilltarget.EnemyKnockedDown:
                 v_target = Routines.Targeting.GetEnemyKnockedDown(self.get_combat_distance())
+                if v_target == 0 and not targeting_strict:
+                    v_target = get_nearest_enemy()
+            elif target_allegiance == Skilltarget.EnemyNotNearby:
+                v_target = Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, self.get_combat_distance())
                 if v_target == 0 and not targeting_strict:
                     v_target = get_nearest_enemy()
             elif target_allegiance == Skilltarget.EnemyMartialRanged:

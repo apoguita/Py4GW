@@ -1688,6 +1688,12 @@ def FlagAllHeroes(x: float, y: float) -> BehaviorTree:
 def FlagHeroesFromList(hero_positions: list[int | str] | None, x: float, y: float, flag_all: bool = False) -> BehaviorTree:
     return RoutinesBT.Party.FlagHeroesFromList(hero_positions=hero_positions, x=x, y=y, flag_all=flag_all,)
 
+def UnflagAllHeroes(log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
+    return RoutinesBT.Party.UnflagAllHeroes(log=log, aftercast_ms=aftercast_ms)
+
+def DropBundle(log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Party.DropBundle(log=log)
+
 def WaitForActiveQuest(quest_id: int, timeout_ms: int = 1500, throttle_interval_ms: int = 150) -> BehaviorTree:
     return RoutinesBT.Party.WaitForActiveQuest(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)
 
