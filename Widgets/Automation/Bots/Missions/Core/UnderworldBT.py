@@ -2,9 +2,10 @@
 # ╔══════════════════════════════════════════════════════════════════════════════
 # ║  File    : UnderworldBT.py
 # ║  Purpose : BehaviorTree port of the Underworld bot.
-# ║            UI only — bot logic not yet ported.
+# ║            BehaviorTree planner, parallel services, stats UI.
 # ╚══════════════════════════════════════════════════════════════════════════════
 
+import enum
 import json
 import math
 import os
@@ -255,6 +256,29 @@ _QUEST_ORDER: list[str] = [
     'Loot Chest',
 ]
 
+
+
+class UWQuestID(enum.IntEnum):
+    """GW quest IDs for the Underworld quest chain."""
+    ClearTheChamber           = 101
+    EscortOfSouls             = 108
+    UnwantedGuests            = 103
+    RestoringGrenthsMonuments = 109
+    ImprisonedSpirits         = 105
+    TheFourHorsemen           = 106
+    WrathfulSpirits           = 110
+    ServantsOfGrenth          = 102
+    TerrorwebQueen            = 107
+    DemonAssassin             = 104
+    TheNightmareCometh        = 1129
+
+
+# Explorable UW quest steps (derived from planner order; excludes entry + loot).
+_UW_EXPLORABLE_STEPS: frozenset[str] = frozenset(
+    q for q in _QUEST_ORDER if q not in ('Enter Underworld', 'Loot Chest')
+)
+
+
 _quest_completion_times: dict[str, int] = {}
 _DEBUG_LOG_MAX = 120
 _debug_watchdog_log: deque[str] = deque(maxlen=_DEBUG_LOG_MAX)
@@ -263,6 +287,7 @@ _SPIRIT_FORM_SKILL_ID = 3134
 # ── Log files ─────────────────────────────────────────────────────────────────
 _WIPE_LOG_FILE    = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_wipes.log')
 _QUEST_TIMES_FILE = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_quest_times.json')
+_WIPE_COUNTS_FILE = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_wipe_counts.json')
 
 
 def _load_quest_times_log() -> dict[str, list[int]]:
@@ -277,6 +302,29 @@ def _load_quest_times_log() -> dict[str, list[int]]:
 
 
 _quest_times_log: dict[str, list[int]] = _load_quest_times_log()
+
+
+def _load_wipe_counts() -> dict[str, int]:
+    try:
+        with open(_WIPE_COUNTS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return {k: int(v) for k, v in data.items() if isinstance(v, (int, float))}
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def _save_wipe_counts() -> None:
+    try:
+        os.makedirs(os.path.dirname(_WIPE_COUNTS_FILE), exist_ok=True)
+        with open(_WIPE_COUNTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(_wipe_counts_log, f, indent=2)
+    except OSError:
+        pass
+
+
+_wipe_counts_log: dict[str, int] = _load_wipe_counts()
 
 # ── Step timer ────────────────────────────────────────────────────────────────
 # Timer starts when 'Clear the Chamber' begins.  Each step's recorded value is
@@ -309,46 +357,6 @@ def _append_run_log(message: str) -> None:
     except OSError:
         pass
 
-
-def _build_step_timer_service():
-    """Service: watches blackboard step transitions and records cumulative elapsed time.
-
-    On each step transition X → Y:
-    - If Y == 'Enter Underworld': new run starting → clear this-run display times.
-    - If Y == 'Clear the Chamber': start the cumulative run timer.
-    - If X is a timed quest and the timer is running: record X's elapsed time,
-      append to _quest_times_log, and flush to JSON.
-    """
-    def _tick(node) -> '_BT.NodeState':
-        current_step = str(node.blackboard.get('current_step_name', '') or '')
-        last_step    = _timing_state['last_step']
-
-        if current_step == last_step:
-            return _BT.NodeState.RUNNING
-
-        now_ms = int(time.monotonic() * 1000)
-
-        if current_step == 'Enter Underworld':
-            _quest_completion_times.clear()
-            _timing_state['run_start_ms'] = None
-
-        if current_step == _RUN_START_QUEST:
-            _timing_state['run_start_ms'] = now_ms
-
-        run_start = _timing_state['run_start_ms']
-        if last_step and last_step in _TIMED_QUESTS and run_start is not None:
-            elapsed_ms = now_ms - run_start
-            _quest_completion_times[last_step] = elapsed_ms
-            _quest_times_log.setdefault(last_step, []).append(elapsed_ms // 1000)
-            _save_quest_times_log()
-            if last_step == 'Loot Chest':
-                total_s = elapsed_ms // 1000
-                _append_run_log(f'Run completed in {_fmt_s(total_s)}')
-
-        _timing_state['last_step'] = current_step
-        return _BT.NodeState.RUNNING
-
-    return _BT(_BT.ActionNode(name='StepTimerService', action_fn=_tick))
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
@@ -537,7 +545,7 @@ def _draw_cons_settings() -> None:
                 PyImGui.table_next_column()
                 PyImGui.text(dname)
 
-            PyImGui.end_table()
+        PyImGui.end_table()
         PyImGui.spacing()
 
 
@@ -730,7 +738,7 @@ def _draw_debug_settings() -> None:
                     dp_col = _color_warn if dp_pct >= 15 else _color_low
                     PyImGui.text_colored(f'-{dp_pct}%', dp_col)
 
-            PyImGui.end_table()
+        PyImGui.end_table()
 
     PyImGui.separator()
     PyImGui.text(f'Watchdog Log (last {_DEBUG_LOG_MAX})')
@@ -807,7 +815,7 @@ def _draw_main_additional_ui() -> None:
 
     PyImGui.text('Quest Progress')
     if PyImGui.begin_table(
-        '##uw_quest_table', 4,
+        '##uw_quest_table', 5,
         PyImGui.TableFlags.RowBg
         | PyImGui.TableFlags.BordersOuterH
         | PyImGui.TableFlags.BordersOuterV
@@ -817,6 +825,7 @@ def _draw_main_additional_ui() -> None:
         PyImGui.table_setup_column('Time',   PyImGui.TableColumnFlags.WidthFixed, 62)
         PyImGui.table_setup_column('Avg5',   PyImGui.TableColumnFlags.WidthFixed, 62)
         PyImGui.table_setup_column('AvgAll', PyImGui.TableColumnFlags.WidthFixed, 62)
+        PyImGui.table_setup_column('SR%',    PyImGui.TableColumnFlags.WidthFixed, 42)
         PyImGui.table_headers_row()
 
         enter_uw_done = _timing_state['run_start_ms'] is not None
@@ -865,6 +874,23 @@ def _draw_main_additional_ui() -> None:
             else:
                 PyImGui.text_colored('--:--:--', _color_pending)
 
+            # col 4 – Success rate (completions / (completions + wipes at this step))
+            PyImGui.table_set_column_index(4)
+            completions  = len(history)
+            wipes        = _wipe_counts_log.get(quest_name, 0)
+            attempts     = completions + wipes
+            if attempts > 0:
+                sr_pct = completions / attempts * 100.0
+                if sr_pct >= 90.0:
+                    sr_col = _color_done
+                elif sr_pct >= 70.0:
+                    sr_col = _color_avg
+                else:
+                    sr_col = _color_slow
+                PyImGui.text_colored(f'{sr_pct:.0f}%', sr_col)
+            else:
+                PyImGui.text_colored('--', _color_pending)
+
         PyImGui.end_table()
 
 
@@ -884,12 +910,542 @@ except Exception:
 bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())
 
-# ── Planner steps ──────────────────────────────────────────────────────────────
+# ── BehaviorTree import ──────────────────────────────────────────────────────
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree as _BT
 
-def _placeholder(name: str) -> _BT:
-    return _BT(_BT.ActionNode(name=name, action_fn=lambda node: _BT.NodeState.RUNNING))
+# ── Shared BT helpers ────────────────────────────────────────────────────────
 
+_OBSIDIAN_BEHEMOTH_NAME          = 'obsidian behemoth'
+_OBSIDIAN_BEHEMOTH_MODEL_ID      = 2369
+_SPIRIT_NATURES_RENEWAL_NAME     = "spirit of nature's renewal"
+_SPIRIT_NATURES_RENEWAL_MODEL_ID = 2938
+_BEHEMOTH_GUARD_NAMES            = (_OBSIDIAN_BEHEMOTH_NAME, _SPIRIT_NATURES_RENEWAL_NAME)
+_BEHEMOTH_GUARD_MODEL_IDS        = frozenset({_OBSIDIAN_BEHEMOTH_MODEL_ID, _SPIRIT_NATURES_RENEWAL_MODEL_ID})
+_BEHEMOTH_ENGAGE_RADIUS          = 500.0
+
+# Toggled by _behemoth_guard_start / _stop nodes; read every tick by the service.
+_behemoth_guard_active: bool = False
+
+
+def _build_behemoth_guard_service() -> _BT:
+    """Parallel service: monitors Obsidian Behemoths while _behemoth_guard_active is True.
+
+    No Routines.BT equivalent — dynamic EnemyBlacklist service.
+
+    - Only runs its check every 500 ms to stay lightweight.
+    - Uses Agent.GetModelID only (no GetNameByID) for enemy identification.
+    - When a live behemoth enters range: removes it from the blacklist so HeroAI fights.
+    - When no more live behemoths within range: re-adds to blacklist.
+    - When the guard is deactivated (end of step): ensures the blacklist entry is restored.
+    """
+    state: dict = {'fighting': False, 'last_check_ms': 0}
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        global _behemoth_guard_active
+
+        if not _behemoth_guard_active:
+            if state['fighting']:
+                _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+                _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+                state['fighting'] = False
+            return _BT.NodeState.RUNNING
+
+        now = int(Utils.GetBaseTimestamp())
+        if now - state['last_check_ms'] < 500:
+            return _BT.NodeState.RUNNING
+        state['last_check_ms'] = now
+
+        from Py4GWCoreLib import AgentArray as _AA
+        px, py = Player.GetXY()
+        nearby = False
+        for aid in _AA.GetEnemyArray():
+            if not Agent.IsAlive(aid):
+                continue
+            try:
+                if int(Agent.GetModelID(aid)) not in _BEHEMOTH_GUARD_MODEL_IDS:
+                    continue
+                dist = Utils.Distance((px, py), Agent.GetXY(aid))
+            except Exception:
+                continue
+            if dist <= _BEHEMOTH_ENGAGE_RADIUS:
+                nearby = True
+                break
+
+        if nearby and not state['fighting']:
+            _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+            _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+            ConsoleLog(BOT_NAME, '[BehemothGuard] Enemy in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
+            state['fighting'] = True
+        elif not nearby and state['fighting']:
+            _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+            _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+            ConsoleLog(BOT_NAME, '[BehemothGuard] Fight done — blacklist ON, resuming.', Py4GW.Console.MessageType.Info)
+            state['fighting'] = False
+
+        return _BT.NodeState.RUNNING
+
+    return _BT(_BT.ActionNode(name='BehemothGuardService', action_fn=_tick, aftercast_ms=0))
+def _blacklist_add_entry(name: str = '', model_id: int = 0) -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+
+    bl = _EBL()
+    if name:
+        bl.add_name(name)
+    if model_id > 0:
+        bl.add(model_id)
+def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+
+    bl = _EBL()
+    if name:
+        bl.remove_name(name)
+    if model_id > 0:
+        bl.remove(model_id)
+def _behemoth_guard_start() -> _BT:
+    """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        global _behemoth_guard_active
+        _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+        _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+        _behemoth_guard_active = True
+        ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Behemoth + Spirit blacklisted.', Py4GW.Console.MessageType.Info)
+        return _BT.NodeState.SUCCESS
+    return _BT(_BT.ActionNode(name='BehemothGuardStart', action_fn=_tick))
+def _behemoth_guard_stop() -> _BT:
+    """Disable the BehemothGuard service and immediately remove all guarded names from the blacklist."""
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        global _behemoth_guard_active
+        _behemoth_guard_active = False
+        _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
+        _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+        ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped and blacklist cleared.', Py4GW.Console.MessageType.Info)
+        return _BT.NodeState.SUCCESS
+    return _BT(_BT.ActionNode(name='BehemothGuardStop', action_fn=_tick))
+def _wait_out_of_combat(timeout_ms: int = 120_000) -> _BT:
+    """RUNNING while COMBAT_ACTIVE is True in the blackboard; SUCCESS when combat ends or timeout."""
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if node.blackboard.get('COMBAT_ACTIVE', False):
+            return _BT.NodeState.RUNNING
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.WaitUntilNode(
+        name='WaitOutOfCombat',
+        condition_fn=_tick,
+        throttle_interval_ms=250,
+        timeout_ms=timeout_ms,
+    ))
+
+
+def _dialog_until_quest_active(
+    x: float,
+    y: float,
+    dialog_id: int,
+    quest_id: int,
+    label: str = '',
+    max_retries: int = 5,
+    confirm_wait_ms: int = 2_000,
+    retry_wait_ms: int = 3_000,
+) -> _BT:
+    """
+    Move to (x, y), send dialog_id, then verify quest_id appears in the quest log.
+    If not, retry up to max_retries times (wait_out_of_combat before each attempt).
+    Always returns SUCCESS so the planner can continue even if all retries fail.
+    """
+    BT = Routines.BT
+    _tag          = label or f'Quest{quest_id}'
+    _retry_count  = [0]
+
+    def _quest_in_log() -> bool:
+        from Py4GWCoreLib import Quest as _Quest
+        try:
+            return any(int(q) == quest_id for q in (_Quest.GetQuestLogIds() or []))
+        except Exception:
+            return False
+
+    def _single_dialog_attempt(attempt_label: str) -> _BT:
+        return BT.Composite.Sequence(
+            _wait_out_of_combat(timeout_ms=30_000),
+            BT.Movement.Move(x=x, y=y),
+            BT.Agents.MoveTargetInteractAndDialog(x=x, y=y, dialog_id=dialog_id),
+            name=attempt_label,
+        )
+
+    def _check_or_retry(node: _BT.Node) -> _BT:
+        if _quest_in_log():
+            ConsoleLog(
+                BOT_NAME,
+                f'[{_tag}] Quest {quest_id} confirmed active.',
+                Py4GW.Console.MessageType.Info,
+            )
+            return _BT(_BT.ActionNode(name=f'{_tag}QuestOK', action_fn=lambda n: _BT.NodeState.SUCCESS))
+
+        if _retry_count[0] >= max_retries:
+            ConsoleLog(
+                BOT_NAME,
+                f'[{_tag}] Quest {quest_id} not in log after {max_retries} retries — continuing.',
+                Py4GW.Console.MessageType.Warning,
+            )
+            return _BT(_BT.ActionNode(name=f'{_tag}QuestGiveUp', action_fn=lambda n: _BT.NodeState.SUCCESS))
+
+        _retry_count[0] += 1
+        ConsoleLog(
+            BOT_NAME,
+            f'[{_tag}] Quest {quest_id} not in log — retry {_retry_count[0]}/{max_retries}.',
+            Py4GW.Console.MessageType.Warning,
+        )
+        return BT.Composite.Sequence(
+            BT.Player.Wait(duration_ms=retry_wait_ms),
+            _single_dialog_attempt(f'{_tag}Retry{_retry_count[0]}'),
+            BT.Player.Wait(duration_ms=confirm_wait_ms),
+            _BT(_BT.SubtreeNode(name=f'{_tag}RetryCheck{_retry_count[0]}', subtree_fn=_check_or_retry)),
+            name=f'{_tag}RetrySeq{_retry_count[0]}',
+        )
+
+    return BT.Composite.Sequence(
+        _single_dialog_attempt(f'{_tag}FirstAttempt'),
+        BT.Player.Wait(duration_ms=confirm_wait_ms),
+        _BT(_BT.SubtreeNode(name=f'{_tag}QuestCheck', subtree_fn=_check_or_retry)),
+        name=f'{_tag}DialogUntilQuestActive',
+    )
+
+
+def _wait_quest_completed(
+    hold_x: float | None = None,
+    hold_y: float | None = None,
+    hold_radius: float = 500.0,
+    move_throttle_ms: int = 2_000,
+    timeout_ms: int = 0,
+) -> _BT:
+    """Wait until the active quest is completed.
+
+    If hold_x/hold_y are given, the player is nudged back to that position
+    whenever they drift more than hold_radius units away and are not in combat.
+    """
+    from Py4GWCoreLib.Quest import Quest
+
+    state: dict = {'last_move_ms': None}
+
+    def _condition(node: _BT.Node) -> _BT.NodeState:
+        active = int(Quest.GetActiveQuest())
+        if active > 0 and bool(Quest.IsQuestCompleted(active)):
+            return _BT.NodeState.SUCCESS
+
+        if hold_x is not None and hold_y is not None:
+            px, py = Player.GetXY()
+            dist = Utils.Distance((px, py), (hold_x, hold_y))
+            if (
+                dist > hold_radius
+                and not node.blackboard.get('COMBAT_ACTIVE', False)
+                and not node.blackboard.get('PAUSE_MOVEMENT', False)
+            ):
+                now = int(Utils.GetBaseTimestamp())
+                last = state['last_move_ms']
+                if last is None or now - last >= move_throttle_ms:
+                    Player.Move(hold_x, hold_y)
+                    state['last_move_ms'] = now
+
+        return _BT.NodeState.RUNNING
+
+    return _BT(_BT.WaitUntilNode(
+        name='WaitQuestCompleted',
+        condition_fn=_condition,
+        throttle_interval_ms=500,
+        timeout_ms=timeout_ms,
+    ))
+def _blacklist_add_dream_rider() -> None:
+    _blacklist_add_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
+def _clear_follower_flags() -> _BT:
+    """No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero)."""
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            if int(_.AgentPartyData.PartyPosition) == 0:
+                continue
+            options.IsFlagged       = False
+            options.FlagPos.x       = 0.0
+            options.FlagPos.y       = 0.0
+            options.FlagFacingAngle = 0.0
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='ClearFollowerFlags', action_fn=_tick))
+_DHUUM_SAC_FLAG_X  = -15386.0
+_DHUUM_SAC_FLAG_Y  =  17295.0
+_DHUUM_SURV_FLAG_X = -14374.0
+_DHUUM_SURV_FLAG_Y =  17261.0
+
+
+def _flag_dhuum_accounts() -> _BT:
+    """Single-pass flag assignment for Dhuum.
+
+    No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero).
+
+    - Clears all follower flags first.
+    - Sacrifice accounts (DhuumSettings.SacrificeEmails) → (_DHUUM_SAC_FLAG_X/Y).
+    - All other followers (non-leader, non-sacrifice) → (_DHUUM_SURV_FLAG_X/Y).
+    - The leader (bot runner, party position 0) is never flagged.
+    """
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        sacrifice_emails = {e.strip().lower() for e in DhuumSettings.SacrificeEmails}
+        my_email = (Player.GetAccountEmail() or '').strip().lower()
+
+        sac_flagged:  list[str] = []
+        surv_flagged: list[str] = []
+
+        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            email = str(account.AccountEmail or '').strip().lower()
+
+            # Always clear first
+            options.IsFlagged       = False
+            options.FlagPos.x       = 0.0
+            options.FlagPos.y       = 0.0
+            options.FlagFacingAngle = 0.0
+
+            if email == my_email:
+                continue  # leader runs the bot — never flagged
+
+            if email in sacrifice_emails:
+                options.IsFlagged = True
+                options.FlagPos.x = _DHUUM_SAC_FLAG_X
+                options.FlagPos.y = _DHUUM_SAC_FLAG_Y
+                sac_flagged.append(email)
+            else:
+                options.IsFlagged = True
+                options.FlagPos.x = _DHUUM_SURV_FLAG_X
+                options.FlagPos.y = _DHUUM_SURV_FLAG_Y
+                surv_flagged.append(email)
+
+        if not sacrifice_emails:
+            ConsoleLog(BOT_NAME, '[Dhuum] No sacrifice accounts configured — all flagged as survivors.', Py4GW.Console.MessageType.Warning)
+        ConsoleLog(BOT_NAME, f'[Dhuum] Sacrifice flags ({len(sac_flagged)}): {sac_flagged}', Py4GW.Console.MessageType.Info)
+        ConsoleLog(BOT_NAME, f'[Dhuum] Survivor  flags ({len(surv_flagged)}): {surv_flagged}', Py4GW.Console.MessageType.Info)
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='FlagDhuumAccounts', action_fn=_tick))
+def _disable_heroai_combat_all() -> _BT:
+    """Set Combat = False on every active HeroAI account (all party slots).
+
+    No Routines.BT equivalent — HeroAI Combat toggle via SharedMemory options.
+    """
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            options.Combat = False
+        ConsoleLog(BOT_NAME, '[Dhuum] HeroAI combat disabled for all accounts.', Py4GW.Console.MessageType.Info)
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='DisableHeroAICombatAll', action_fn=_tick))
+def _enable_heroai_combat_all() -> _BT:
+    """Set Combat = True on every active HeroAI account (all party slots).
+
+    No Routines.BT equivalent — HeroAI Combat toggle via SharedMemory options.
+    """
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            options.Combat = True
+        ConsoleLog(BOT_NAME, '[Dhuum] HeroAI combat enabled for all accounts.', Py4GW.Console.MessageType.Info)
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='EnableHeroAICombatAll', action_fn=_tick))
+_UW_CHEST_NAME     = 'underworld chest'
+_UW_CHEST_POS      = (-14381.0, 17283.0)
+_UW_CHEST_RADIUS   = 300.0
+
+
+def _wait_for_uw_chest() -> _BT:
+    """RUNNING until the Underworld Chest gadget appears near its spawn point.
+
+    Bails out immediately (SUCCESS) on map change / wipe.
+    """
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not Routines.Checks.Map.MapValid() or int(Map.GetMapID() or 0) != UW_MAP_ID:
+            return _BT.NodeState.SUCCESS
+        from Py4GWCoreLib import AgentArray as _AA
+        for agent_id in _AA.GetAgentArray():
+            if not Agent.IsValid(agent_id):
+                continue
+            if not Agent.IsGadget(agent_id):
+                continue
+            if Utils.Distance(_UW_CHEST_POS, Agent.GetXY(agent_id)) <= _UW_CHEST_RADIUS:
+                ConsoleLog(BOT_NAME, '[Dhuum] Underworld Chest appeared — Dhuum done.', Py4GW.Console.MessageType.Info)
+                return _BT.NodeState.SUCCESS
+        return _BT.NodeState.RUNNING
+
+    return _BT(_BT.ActionNode(name='WaitForUWChest', action_fn=_tick))
+def _wait_for_spirit_forms() -> _BT:
+    """RUNNING until MinSpiritformAccounts party members in UW have Spirit Form (buff 3134).
+
+    Bails out immediately (SUCCESS) on map change / wipe so the planner can recover.
+    """
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not Routines.Checks.Map.MapValid() or int(Map.GetMapID() or 0) != UW_MAP_ID:
+            return _BT.NodeState.SUCCESS  # bail on wipe / map change
+        threshold = int(DhuumSettings.MinSpiritformAccounts)
+        count = 0
+        for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+            if getattr(acct.AgentData.Map, 'MapID', 0) != UW_MAP_ID:
+                continue
+            try:
+                if any(b.SkillId == _SPIRIT_FORM_BUFF_ID for b in acct.AgentData.Buffs.Buffs if b.SkillId != 0):
+                    count += 1
+            except Exception:
+                pass
+            if count >= threshold:
+                ConsoleLog(BOT_NAME, f'[Dhuum] {count}/{threshold} Spirit Form(s) active — enabling combat.', Py4GW.Console.MessageType.Info)
+                return _BT.NodeState.SUCCESS
+        return _BT.NodeState.RUNNING
+
+    return _BT(_BT.ActionNode(name='WaitForSpiritForms', action_fn=_tick))
+def _enable_dhuum_helper_on_all_accounts() -> _BT:
+    """Enable the 'Dhuum Helper' widget locally and send EnableWidget to every other account.
+
+    No Routines.BT equivalent — WidgetManager + EnableWidget multibox messages.
+    """
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+        from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
+
+        widget_name = 'Dhuum Helper'
+        handler = get_widget_handler()
+        if not handler.is_widget_enabled(widget_name):
+            handler.enable_widget(widget_name)
+
+        sender_email = Player.GetAccountEmail()
+        for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData():
+            acc_email = str(getattr(account, 'AccountEmail', '') or '').strip().lower()
+            if not acc_email or acc_email == (sender_email or '').lower():
+                continue
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                acc_email,
+                SharedCommandType.EnableWidget,
+                (0, 0, 0, 0),
+                (widget_name, '', '', ''),
+            )
+        ConsoleLog(BOT_NAME, '[Dhuum] Dhuum Helper enabled on all accounts.', Py4GW.Console.MessageType.Info)
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='EnableDhuumHelperAllAccounts', action_fn=_tick))
+def _follow_king_frozenwind() -> _BT:
+    """RUNNING while following King Frozenwind to his destination.
+
+    Mirrors _coro_follow_king_to_destination from legacy Underworld.py:
+    - Locate the King by model ID 2403 each tick.
+    - Nudge the player toward the King if distance > _KING_FROZENWIND_FOLLOW_RADIUS.
+    - Return SUCCESS once the King reaches _KING_FROZENWIND_DEST_X/Y ± DEST_RADIUS.
+    - Return SUCCESS on timeout so the sequence continues regardless.
+    """
+    import time as _t
+
+    state: dict = {'deadline': None}
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib import AgentArray as _AA
+
+        if state['deadline'] is None:
+            state['deadline'] = _t.time() + _KING_FROZENWIND_TIMEOUT_S
+            ConsoleLog(BOT_NAME, '[Dhuum] Following King Frozenwind to his position …', Py4GW.Console.MessageType.Info)
+
+        if _t.time() >= state['deadline']:
+            ConsoleLog(BOT_NAME, '[Dhuum] King follow timed out — continuing.', Py4GW.Console.MessageType.Warning)
+            state['deadline'] = None
+            return _BT.NodeState.SUCCESS
+
+        king_id = next(
+            (a for a in _AA.GetAgentArray() if Agent.IsValid(a) and int(Agent.GetModelID(a)) == _KING_FROZENWIND_MODEL_ID),
+            None,
+        )
+        if king_id is None:
+            return _BT.NodeState.RUNNING
+
+        kx, ky = Agent.GetXY(king_id)
+        if Utils.Distance((kx, ky), (_KING_FROZENWIND_DEST_X, _KING_FROZENWIND_DEST_Y)) <= _KING_FROZENWIND_DEST_RADIUS:
+            ConsoleLog(BOT_NAME, '[Dhuum] King has reached his position.', Py4GW.Console.MessageType.Info)
+            state['deadline'] = None
+            return _BT.NodeState.SUCCESS
+
+        px, py = Player.GetXY()
+        if Utils.Distance((px, py), (kx, ky)) > _KING_FROZENWIND_FOLLOW_RADIUS:
+            Player.Move(kx, ky)
+
+        return _BT.NodeState.RUNNING
+
+    return _BT(_BT.WaitUntilNode(
+        name='FollowKingFrozenwind',
+        condition_fn=_tick,
+        throttle_interval_ms=500,
+        timeout_ms=int(_KING_FROZENWIND_TIMEOUT_S * 1000) + 5000,
+    ))
+def _unblacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+    EnemyBlacklist().remove_name('chained soul')
+    return _BT.NodeState.SUCCESS
+def _blacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+    EnemyBlacklist().add_name('chained soul')
+    return _BT.NodeState.SUCCESS
+_BOT_MANAGED_BLACKLIST_NAMES: tuple[str, ...] = (
+    'chained soul',           # _restore_pit_tree
+    'tortured spirit',        # _wrathfull_spirits_tree
+    _OBSIDIAN_BEHEMOTH_NAME,  # _behemoth_guard_start / service
+    _SPIRIT_NATURES_RENEWAL_NAME,  # _behemoth_guard_start / service
+)
+def _clear_bot_blacklist_names() -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+    bl = EnemyBlacklist()
+    for name in _BOT_MANAGED_BLACKLIST_NAMES:
+        bl.remove_name(name)
+def _collect_keeper_of_souls_agent_ids() -> list[int]:
+    """Alive agents with Keeper of Souls model (see legacy FocusKeeperOfSouls).
+
+    Scans both the enemy list and the full agent array — some spawns may not appear
+    as enemies until briefly after aggro.
+    """
+    from Py4GWCoreLib.Agent import Agent as _Agent
+    from Py4GWCoreLib.AgentArray import AgentArray
+
+    seen: set[int] = set()
+    out: list[int] = []
+    for pool in (AgentArray.GetEnemyArray(), AgentArray.GetAgentArray()):
+        for raw in pool:
+            e = int(raw)
+            if e in seen:
+                continue
+            if not _Agent.IsAlive(e):
+                continue
+            try:
+                mid = int(_Agent.GetModelID(e))
+            except Exception:
+                continue
+            if mid != _KEEPER_OF_SOULS_MODEL_ID:
+                continue
+            seen.add(e)
+            out.append(e)
+    return out
+def _party_call_or_change_target(agent_id: int) -> None:
+    """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target.
+
+    No Routines.BT equivalent — HeroAI CallTarget + Player.ChangeTarget.
+    """
+    from Py4GWCoreLib.Agent import Agent as _Agent
+
+    if not agent_id or not _Agent.IsValid(agent_id):
+        return
+    try:
+        from HeroAI.call_target import CallTarget
+    except Exception:
+        CallTarget = None  # type: ignore[misc, assignment]
+
+    try:
+        leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+    except Exception:
+        leader_id = 0
+    local_id = int(Player.GetAgentID() or 0)
+
+    if CallTarget is not None and leader_id and local_id == leader_id:
+        if CallTarget(int(agent_id), interact=False):
+            return
+    Player.ChangeTarget(int(agent_id))
+
+# ── Entry / scroll ───────────────────────────────────────────────────────────
 
 def _force_local_skills_on() -> _BT:
     """Force all HeroAI skill slots for this account to True in SharedMemory.
@@ -1250,6 +1806,8 @@ def _make_invite_all_tick():
     return _tick
 
 
+# ── Quest trees (chronological) ──────────────────────────────────────────────
+
 def _enter_underworld_tree() -> _BT:
     """
     Step 1: Multibox party setup at Guild Hall, then entry point and UW scroll.
@@ -1422,129 +1980,25 @@ def _clear_the_chamber_tree() -> _BT:
             x=-5834, y=12812,
             button_number=0,
         ),
-        # Take Restore Monuments quest from same Reaper
-                BT.Agents.MoveTargetInteractAndDialog(
+        # Take Restore Monuments quest from same Reaper (with quest-active retry)
+        _dialog_until_quest_active(
             x=-5834, y=12812,
             dialog_id=0x806D01,
+            quest_id=int(UWQuestID.RestoringGrenthsMonuments),
+            label='RestoreMonuments',
         ),
         name='ClearTheChamber',
     )
 
 
-_OBSIDIAN_BEHEMOTH_NAME          = 'obsidian behemoth'
-_OBSIDIAN_BEHEMOTH_MODEL_ID      = 2369
-_SPIRIT_NATURES_RENEWAL_NAME     = "spirit of nature's renewal"
-_SPIRIT_NATURES_RENEWAL_MODEL_ID = 2938
-_BEHEMOTH_GUARD_NAMES            = (_OBSIDIAN_BEHEMOTH_NAME, _SPIRIT_NATURES_RENEWAL_NAME)
-_BEHEMOTH_GUARD_MODEL_IDS        = frozenset({_OBSIDIAN_BEHEMOTH_MODEL_ID, _SPIRIT_NATURES_RENEWAL_MODEL_ID})
-_BEHEMOTH_ENGAGE_RADIUS          = 500.0
-
-# Toggled by _behemoth_guard_start / _stop nodes; read every tick by the service.
-_behemoth_guard_active: bool = False
 
 
-def _build_behemoth_guard_service() -> _BT:
-    """Parallel service: monitors Obsidian Behemoths while _behemoth_guard_active is True.
-
-    No Routines.BT equivalent — dynamic EnemyBlacklist service.
-
-    - Only runs its check every 500 ms to stay lightweight.
-    - Uses Agent.GetModelID only (no GetNameByID) for enemy identification.
-    - When a live behemoth enters range: removes it from the blacklist so HeroAI fights.
-    - When no more live behemoths within range: re-adds to blacklist.
-    - When the guard is deactivated (end of step): ensures the blacklist entry is restored.
-    """
-    state: dict = {'fighting': False, 'last_check_ms': 0}
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        global _behemoth_guard_active
-
-        if not _behemoth_guard_active:
-            if state['fighting']:
-                _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-                _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
-                state['fighting'] = False
-            return _BT.NodeState.RUNNING
-
-        now = int(Utils.GetBaseTimestamp())
-        if now - state['last_check_ms'] < 500:
-            return _BT.NodeState.RUNNING
-        state['last_check_ms'] = now
-
-        from Py4GWCoreLib import AgentArray as _AA
-        px, py = Player.GetXY()
-        nearby = False
-        for aid in _AA.GetEnemyArray():
-            if not Agent.IsAlive(aid):
-                continue
-            try:
-                if int(Agent.GetModelID(aid)) not in _BEHEMOTH_GUARD_MODEL_IDS:
-                    continue
-                dist = Utils.Distance((px, py), Agent.GetXY(aid))
-            except Exception:
-                continue
-            if dist <= _BEHEMOTH_ENGAGE_RADIUS:
-                nearby = True
-                break
-
-        if nearby and not state['fighting']:
-            _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-            _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
-            ConsoleLog(BOT_NAME, '[BehemothGuard] Enemy in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
-            state['fighting'] = True
-        elif not nearby and state['fighting']:
-            _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-            _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
-            ConsoleLog(BOT_NAME, '[BehemothGuard] Fight done — blacklist ON, resuming.', Py4GW.Console.MessageType.Info)
-            state['fighting'] = False
-
-        return _BT.NodeState.RUNNING
-
-    return _BT(_BT.ActionNode(name='BehemothGuardService', action_fn=_tick, aftercast_ms=0))
 
 
-def _blacklist_add_entry(name: str = '', model_id: int = 0) -> None:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-
-    bl = _EBL()
-    if name:
-        bl.add_name(name)
-    if model_id > 0:
-        bl.add(model_id)
 
 
-def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-
-    bl = _EBL()
-    if name:
-        bl.remove_name(name)
-    if model_id > 0:
-        bl.remove(model_id)
 
 
-def _behemoth_guard_start() -> _BT:
-    """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        global _behemoth_guard_active
-        _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-        _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
-        _behemoth_guard_active = True
-        ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Behemoth + Spirit blacklisted.', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-    return _BT(_BT.ActionNode(name='BehemothGuardStart', action_fn=_tick))
-
-
-def _behemoth_guard_stop() -> _BT:
-    """Disable the BehemothGuard service and immediately remove all guarded names from the blacklist."""
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        global _behemoth_guard_active
-        _behemoth_guard_active = False
-        _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-        _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
-        ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped and blacklist cleared.', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-    return _BT(_BT.ActionNode(name='BehemothGuardStop', action_fn=_tick))
 
 
 def _pass_the_mountains_tree() -> _BT:
@@ -1581,31 +2035,17 @@ def _restore_mountains_tree() -> _BT:
     )
 
 
-def _wait_out_of_combat(timeout_ms: int = 120_000) -> _BT:
-    """RUNNING while COMBAT_ACTIVE is True in the blackboard; SUCCESS when combat ends or timeout."""
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        if node.blackboard.get('COMBAT_ACTIVE', False):
-            return _BT.NodeState.RUNNING
-        return _BT.NodeState.SUCCESS
-
-    return _BT(_BT.WaitUntilNode(
-        name='WaitOutOfCombat',
-        condition_fn=_tick,
-        throttle_interval_ms=250,
-        timeout_ms=timeout_ms,
-    ))
 
 
 def _deamon_assassin_tree() -> _BT:
     BT = Routines.BT
 
     return BT.Composite.Sequence(
-        _wait_out_of_combat(),
-        BT.Player.Wait(duration_ms=10_000),
-        BT.Movement.Move(x=-8337, y=-5342),
-        BT.Agents.MoveTargetInteractAndDialog(
+        _dialog_until_quest_active(
             x=-8337, y=-5342,
             dialog_id=0x806801,
+            quest_id=int(UWQuestID.DemonAssassin),
+            label='DeamonAssassin',
         ),
         _behemoth_guard_start(),
         BT.Movement.Move(x=-3560, y=-5899),
@@ -1736,69 +2176,10 @@ def _restore_planes_tree() -> _BT:
     )
 
 
-def _wait_quest_completed(
-    hold_x: float | None = None,
-    hold_y: float | None = None,
-    hold_radius: float = 500.0,
-    move_throttle_ms: int = 2_000,
-    timeout_ms: int = 0,
-) -> _BT:
-    """Wait until the active quest is completed.
-
-    If hold_x/hold_y are given, the player is nudged back to that position
-    whenever they drift more than hold_radius units away and are not in combat.
-    """
-    from Py4GWCoreLib.Quest import Quest
-
-    state: dict = {'last_move_ms': None}
-
-    def _condition(node: _BT.Node) -> _BT.NodeState:
-        active = int(Quest.GetActiveQuest())
-        if active > 0 and bool(Quest.IsQuestCompleted(active)):
-            return _BT.NodeState.SUCCESS
-
-        if hold_x is not None and hold_y is not None:
-            px, py = Player.GetXY()
-            dist = Utils.Distance((px, py), (hold_x, hold_y))
-            if (
-                dist > hold_radius
-                and not node.blackboard.get('COMBAT_ACTIVE', False)
-                and not node.blackboard.get('PAUSE_MOVEMENT', False)
-            ):
-                now = int(Utils.GetBaseTimestamp())
-                last = state['last_move_ms']
-                if last is None or now - last >= move_throttle_ms:
-                    Player.Move(hold_x, hold_y)
-                    state['last_move_ms'] = now
-
-        return _BT.NodeState.RUNNING
-
-    return _BT(_BT.WaitUntilNode(
-        name='WaitQuestCompleted',
-        condition_fn=_condition,
-        throttle_interval_ms=500,
-        timeout_ms=timeout_ms,
-    ))
 
 
-def _blacklist_add_dream_rider() -> None:
-    _blacklist_add_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
 
 
-def _clear_follower_flags() -> _BT:
-    """No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero)."""
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            if int(_.AgentPartyData.PartyPosition) == 0:
-                continue
-            options.IsFlagged       = False
-            options.FlagPos.x       = 0.0
-            options.FlagPos.y       = 0.0
-            options.FlagFacingAngle = 0.0
-        return _BT.NodeState.SUCCESS
-
-    return _BT(_BT.ActionNode(name='ClearFollowerFlags', action_fn=_tick))
 
 
 def _four_horsemen_tree() -> _BT:
@@ -1827,9 +2208,11 @@ def _four_horsemen_tree() -> _BT:
         _force_local_skills_on(),
         BT.Movement.Move(x=13598, y=-11526),
         _set_follower_flags(x=13598, y=-11526),
-        BT.Agents.MoveTargetInteractAndDialog(
+        _dialog_until_quest_active(
             x=11337, y=-17962,
             dialog_id=0x806A01,
+            quest_id=int(UWQuestID.TheFourHorsemen),
+            label='TheFourHorsemen',
         ),
         BT.Player.Wait(duration_ms=40_000),
         BT.Agents.MoveTargetInteractAndDialog(
@@ -1892,9 +2275,11 @@ def _terrorweb_queen_tree() -> _BT:
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='BlacklistObsidianBehemoth', action_fn=_blacklist_add)),
-        BT.Agents.MoveTargetInteractAndDialog(
+        _dialog_until_quest_active(
             x=-6957, y=-19478,
             dialog_id=0x806B01,
+            quest_id=int(UWQuestID.TerrorwebQueen),
+            label='TerrorwebQueen',
         ),
         BT.Movement.Move(x=-12432, y=-15874),
         _wait_quest_completed(hold_x=-12432, hold_y=-15874, timeout_ms=300_000),
@@ -1936,6 +2321,107 @@ def _restore_pit_tree() -> _BT:
     )
 
 
+def _imprisoned_spirits_tree() -> _BT:
+    BT = Routines.BT
+
+    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779), (13845, 6489), (13845, 6489)]
+    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139), (12239, 2324)]
+
+    _is_start_ms: list[int | None] = [None]
+
+    def _start_timer(node: _BT.Node) -> _BT.NodeState:
+        # Same clock as BehaviorTree wait nodes (GetBaseTimestamp ms).
+        _is_start_ms[0] = int(Utils.GetBaseTimestamp())
+        return _BT.NodeState.SUCCESS
+
+    def _wait_is_elapsed_ms(target_ms: int) -> _BT.NodeState:
+        start = _is_start_ms[0]
+        if start is None:
+            ConsoleLog(BOT_NAME, '[IS] Timer wait: start time missing (StartISTimer not run?).', Py4GW.Console.MessageType.Warning)
+            return _BT.NodeState.FAILURE
+        if int(Utils.GetBaseTimestamp()) - int(start) >= int(target_ms):
+            return _BT.NodeState.SUCCESS
+        return _BT.NodeState.RUNNING
+
+    # No Routines.BT equivalent — HeroAI multibox follower flags.
+    def _flag_teams(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib import Agent as _Agent
+        facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        pairs = GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False)
+
+        left_idx  = 0
+        right_idx = 0
+
+        for account, options in pairs:
+            party_pos = int(account.AgentPartyData.PartyPosition)
+            if party_pos == 0:
+                continue
+
+            email = str(account.AccountEmail or '').strip().lower()
+            settings = ImprisonedSpiritsSettings
+
+            if email in [e.strip().lower() for e in settings.LeftTeamEmails]:
+                if left_idx < len(LEFT_POINTS):
+                    px, py = LEFT_POINTS[left_idx]
+                    left_idx += 1
+                else:
+                    continue
+            else:
+                if right_idx < len(RIGHT_POINTS):
+                    px, py = RIGHT_POINTS[right_idx]
+                    right_idx += 1
+                else:
+                    continue
+
+            options.IsFlagged       = True
+            options.FlagPos.x       = float(px)
+            options.FlagPos.y       = float(py)
+            options.FlagFacingAngle = facing_angle
+
+        return _BT.NodeState.SUCCESS
+
+    return BT.Composite.Sequence(
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        _force_local_skills_on(),
+        BT.Movement.Move(x=13010, y=4452),
+        _BT(_BT.ActionNode(name='FlagTeams', action_fn=_flag_teams)),
+        _dialog_until_quest_active(
+            x=8679, y=6235,
+            dialog_id=0x806901,
+            quest_id=int(UWQuestID.ImprisonedSpirits),
+            label='ImprisonedSpirits',
+        ),
+        _BT(_BT.ActionNode(name='StartISTimer', action_fn=_start_timer)),
+        BT.Movement.Move(x=13924, y=6914),
+        _BT(_BT.WaitNode(
+            name='WaitISTimer38s',
+            check_fn=lambda: _wait_is_elapsed_ms(38_000),
+            timeout_ms=240_000,
+        )),
+        _clear_follower_flags(),
+        BT.Movement.Move(x=12497, y=2022),
+        _BT(_BT.WaitNode(
+            name='WaitISTimer90s',
+            check_fn=lambda: _wait_is_elapsed_ms(90_000),
+            timeout_ms=360_000,
+        )),
+        _BT(_BT.ActionNode(
+            name='UnblacklistChainedSoul',
+            action_fn=_unblacklist_chained_soul,
+        )),
+        BT.Movement.Move(x=10437, y=5005),
+        _wait_quest_completed(),
+        _BT(_BT.ActionNode(
+            name='BlacklistChainedSoul',
+            action_fn=_blacklist_chained_soul,
+        )),
+        BT.Agents.MoveTargetInteractAndDialog(
+            x=8692, y=6292,
+            dialog_id=0x8D,
+        ),
+        name='ImprisonedSpirits',
+    )
+
 def _restore_vale_tree() -> _BT:
     BT = Routines.BT
     _r = 2000.0
@@ -1975,9 +2461,11 @@ def _wrathfull_spirits_tree() -> _BT:
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='BlacklistTorturedSpirit', action_fn=_blacklist_tortured_spirit)),
-        BT.Agents.MoveTargetInteractAndDialog(
+        _dialog_until_quest_active(
             x=-13217, y=5167,
             dialog_id=0x806E01,
+            quest_id=int(UWQuestID.WrathfulSpirits),
+            label='WrathfulSpirits',
         ),
         BT.Movement.Move(x=-13422, y=973),
         _BT(_BT.ActionNode(name='UnblacklistTorturedSpirit', action_fn=_unblacklist_tortured_spirit)),
@@ -2064,9 +2552,11 @@ def _unwanted_guests_tree() -> _BT:
         BT.Movement.Move(x=_fx, y=_fy),
         _BT(_BT.ActionNode(name='SetFollowerFlagsUnwantedGuests', action_fn=_set_follower_flags_at_hold)),
         BT.Movement.Move(x=-5850, y=12818),
-        BT.Agents.MoveTargetInteractAndDialog(
+        _dialog_until_quest_active(
             x=-5850, y=12818,
             dialog_id=0x806701,
+            quest_id=int(UWQuestID.UnwantedGuests),
+            label='UnwantedGuests',
         ),
         _BT(_BT.ActionNode(name='EnableUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_enable)),
         BT.Movement.Move(x=_fx, y=_fy),
@@ -2162,9 +2652,11 @@ def _servants_of_grenth_tree() -> _BT:
         BT.Movement.Move(x=2700, y=19952),
         _BT(_BT.ActionNode(name='SetServantsOfGrenthFlags', action_fn=_set_spread_flags)),
         BT.Movement.Move(x=554, y=18384),
-        BT.Agents.MoveTargetInteractAndDialog(
+        _dialog_until_quest_active(
             x=554, y=18384,
             dialog_id=0x806601,
+            quest_id=int(UWQuestID.ServantsOfGrenth),
+            label='ServantsOfGrenth',
         ),
         BT.Movement.Move(x=2700, y=19952),
         _wait_quest_completed(),
@@ -2173,227 +2665,21 @@ def _servants_of_grenth_tree() -> _BT:
     )
 
 
-_DHUUM_SAC_FLAG_X  = -15386.0
-_DHUUM_SAC_FLAG_Y  =  17295.0
-_DHUUM_SURV_FLAG_X = -14374.0
-_DHUUM_SURV_FLAG_Y =  17261.0
 
 
-def _flag_dhuum_accounts() -> _BT:
-    """Single-pass flag assignment for Dhuum.
-
-    No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero).
-
-    - Clears all follower flags first.
-    - Sacrifice accounts (DhuumSettings.SacrificeEmails) → (_DHUUM_SAC_FLAG_X/Y).
-    - All other followers (non-leader, non-sacrifice) → (_DHUUM_SURV_FLAG_X/Y).
-    - The leader (bot runner, party position 0) is never flagged.
-    """
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        sacrifice_emails = {e.strip().lower() for e in DhuumSettings.SacrificeEmails}
-        my_email = (Player.GetAccountEmail() or '').strip().lower()
-
-        sac_flagged:  list[str] = []
-        surv_flagged: list[str] = []
-
-        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            email = str(account.AccountEmail or '').strip().lower()
-
-            # Always clear first
-            options.IsFlagged       = False
-            options.FlagPos.x       = 0.0
-            options.FlagPos.y       = 0.0
-            options.FlagFacingAngle = 0.0
-
-            if email == my_email:
-                continue  # leader runs the bot — never flagged
-
-            if email in sacrifice_emails:
-                options.IsFlagged = True
-                options.FlagPos.x = _DHUUM_SAC_FLAG_X
-                options.FlagPos.y = _DHUUM_SAC_FLAG_Y
-                sac_flagged.append(email)
-            else:
-                options.IsFlagged = True
-                options.FlagPos.x = _DHUUM_SURV_FLAG_X
-                options.FlagPos.y = _DHUUM_SURV_FLAG_Y
-                surv_flagged.append(email)
-
-        if not sacrifice_emails:
-            ConsoleLog(BOT_NAME, '[Dhuum] No sacrifice accounts configured — all flagged as survivors.', Py4GW.Console.MessageType.Warning)
-        ConsoleLog(BOT_NAME, f'[Dhuum] Sacrifice flags ({len(sac_flagged)}): {sac_flagged}', Py4GW.Console.MessageType.Info)
-        ConsoleLog(BOT_NAME, f'[Dhuum] Survivor  flags ({len(surv_flagged)}): {surv_flagged}', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-
-    return _BT(_BT.ActionNode(name='FlagDhuumAccounts', action_fn=_tick))
 
 
-def _disable_heroai_combat_all() -> _BT:
-    """Set Combat = False on every active HeroAI account (all party slots).
-
-    No Routines.BT equivalent — HeroAI Combat toggle via SharedMemory options.
-    """
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            options.Combat = False
-        ConsoleLog(BOT_NAME, '[Dhuum] HeroAI combat disabled for all accounts.', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-
-    return _BT(_BT.ActionNode(name='DisableHeroAICombatAll', action_fn=_tick))
-
-
-def _enable_heroai_combat_all() -> _BT:
-    """Set Combat = True on every active HeroAI account (all party slots).
-
-    No Routines.BT equivalent — HeroAI Combat toggle via SharedMemory options.
-    """
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            options.Combat = True
-        ConsoleLog(BOT_NAME, '[Dhuum] HeroAI combat enabled for all accounts.', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-
-    return _BT(_BT.ActionNode(name='EnableHeroAICombatAll', action_fn=_tick))
 
 
 _SPIRIT_FORM_BUFF_ID = 3134
 
 
-_UW_CHEST_NAME     = 'underworld chest'
-_UW_CHEST_POS      = (-14381.0, 17283.0)
-_UW_CHEST_RADIUS   = 300.0
 
 
-def _wait_for_uw_chest() -> _BT:
-    """RUNNING until the Underworld Chest gadget appears near its spawn point.
-
-    Bails out immediately (SUCCESS) on map change / wipe.
-    """
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        if not Routines.Checks.Map.MapValid() or int(Map.GetMapID() or 0) != UW_MAP_ID:
-            return _BT.NodeState.SUCCESS
-        from Py4GWCoreLib import AgentArray as _AA
-        for agent_id in _AA.GetAgentArray():
-            if not Agent.IsValid(agent_id):
-                continue
-            if not Agent.IsGadget(agent_id):
-                continue
-            if Utils.Distance(_UW_CHEST_POS, Agent.GetXY(agent_id)) <= _UW_CHEST_RADIUS:
-                ConsoleLog(BOT_NAME, '[Dhuum] Underworld Chest appeared — Dhuum done.', Py4GW.Console.MessageType.Info)
-                return _BT.NodeState.SUCCESS
-        return _BT.NodeState.RUNNING
-
-    return _BT(_BT.ActionNode(name='WaitForUWChest', action_fn=_tick))
 
 
-def _wait_for_spirit_forms() -> _BT:
-    """RUNNING until MinSpiritformAccounts party members in UW have Spirit Form (buff 3134).
-
-    Bails out immediately (SUCCESS) on map change / wipe so the planner can recover.
-    """
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        if not Routines.Checks.Map.MapValid() or int(Map.GetMapID() or 0) != UW_MAP_ID:
-            return _BT.NodeState.SUCCESS  # bail on wipe / map change
-        threshold = int(DhuumSettings.MinSpiritformAccounts)
-        count = 0
-        for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
-            if getattr(acct.AgentData.Map, 'MapID', 0) != UW_MAP_ID:
-                continue
-            try:
-                if any(b.SkillId == _SPIRIT_FORM_BUFF_ID for b in acct.AgentData.Buffs.Buffs if b.SkillId != 0):
-                    count += 1
-            except Exception:
-                pass
-            if count >= threshold:
-                ConsoleLog(BOT_NAME, f'[Dhuum] {count}/{threshold} Spirit Form(s) active — enabling combat.', Py4GW.Console.MessageType.Info)
-                return _BT.NodeState.SUCCESS
-        return _BT.NodeState.RUNNING
-
-    return _BT(_BT.ActionNode(name='WaitForSpiritForms', action_fn=_tick))
 
 
-def _enable_dhuum_helper_on_all_accounts() -> _BT:
-    """Enable the 'Dhuum Helper' widget locally and send EnableWidget to every other account.
-
-    No Routines.BT equivalent — WidgetManager + EnableWidget multibox messages.
-    """
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-        from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
-
-        widget_name = 'Dhuum Helper'
-        handler = get_widget_handler()
-        if not handler.is_widget_enabled(widget_name):
-            handler.enable_widget(widget_name)
-
-        sender_email = Player.GetAccountEmail()
-        for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData():
-            acc_email = str(getattr(account, 'AccountEmail', '') or '').strip().lower()
-            if not acc_email or acc_email == (sender_email or '').lower():
-                continue
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email,
-                acc_email,
-                SharedCommandType.EnableWidget,
-                (0, 0, 0, 0),
-                (widget_name, '', '', ''),
-            )
-        ConsoleLog(BOT_NAME, '[Dhuum] Dhuum Helper enabled on all accounts.', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-
-    return _BT(_BT.ActionNode(name='EnableDhuumHelperAllAccounts', action_fn=_tick))
-
-
-def _follow_king_frozenwind() -> _BT:
-    """RUNNING while following King Frozenwind to his destination.
-
-    Mirrors _coro_follow_king_to_destination from legacy Underworld.py:
-    - Locate the King by model ID 2403 each tick.
-    - Nudge the player toward the King if distance > _KING_FROZENWIND_FOLLOW_RADIUS.
-    - Return SUCCESS once the King reaches _KING_FROZENWIND_DEST_X/Y ± DEST_RADIUS.
-    - Return SUCCESS on timeout so the sequence continues regardless.
-    """
-    import time as _t
-
-    state: dict = {'deadline': None}
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib import AgentArray as _AA
-
-        if state['deadline'] is None:
-            state['deadline'] = _t.time() + _KING_FROZENWIND_TIMEOUT_S
-            ConsoleLog(BOT_NAME, '[Dhuum] Following King Frozenwind to his position …', Py4GW.Console.MessageType.Info)
-
-        if _t.time() >= state['deadline']:
-            ConsoleLog(BOT_NAME, '[Dhuum] King follow timed out — continuing.', Py4GW.Console.MessageType.Warning)
-            state['deadline'] = None
-            return _BT.NodeState.SUCCESS
-
-        king_id = next(
-            (a for a in _AA.GetAgentArray() if Agent.IsValid(a) and int(Agent.GetModelID(a)) == _KING_FROZENWIND_MODEL_ID),
-            None,
-        )
-        if king_id is None:
-            return _BT.NodeState.RUNNING
-
-        kx, ky = Agent.GetXY(king_id)
-        if Utils.Distance((kx, ky), (_KING_FROZENWIND_DEST_X, _KING_FROZENWIND_DEST_Y)) <= _KING_FROZENWIND_DEST_RADIUS:
-            ConsoleLog(BOT_NAME, '[Dhuum] King has reached his position.', Py4GW.Console.MessageType.Info)
-            state['deadline'] = None
-            return _BT.NodeState.SUCCESS
-
-        px, py = Player.GetXY()
-        if Utils.Distance((px, py), (kx, ky)) > _KING_FROZENWIND_FOLLOW_RADIUS:
-            Player.Move(kx, ky)
-
-        return _BT.NodeState.RUNNING
-
-    return _BT(_BT.WaitUntilNode(
-        name='FollowKingFrozenwind',
-        condition_fn=_tick,
-        throttle_interval_ms=500,
-        timeout_ms=int(_KING_FROZENWIND_TIMEOUT_S * 1000) + 5000,
-    ))
 
 
 def _dhuum_tree() -> _BT:
@@ -2590,150 +2876,65 @@ def _loot_chest_tree() -> _BT:
     )
 
 
-def _unblacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-    EnemyBlacklist().remove_name('chained soul')
-    return _BT.NodeState.SUCCESS
 
 
-def _blacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-    EnemyBlacklist().add_name('chained soul')
-    return _BT.NodeState.SUCCESS
 
 
-def _imprisoned_spirits_tree() -> _BT:
-    BT = Routines.BT
-
-    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779), (13845, 6489), (13845, 6489)]
-    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139), (12239, 2324)]
-
-    _is_start_ms: list[int | None] = [None]
-
-    def _start_timer(node: _BT.Node) -> _BT.NodeState:
-        # Same clock as BehaviorTree wait nodes (GetBaseTimestamp ms).
-        _is_start_ms[0] = int(Utils.GetBaseTimestamp())
-        return _BT.NodeState.SUCCESS
-
-    def _wait_is_elapsed_ms(target_ms: int) -> _BT.NodeState:
-        start = _is_start_ms[0]
-        if start is None:
-            ConsoleLog(BOT_NAME, '[IS] Timer wait: start time missing (StartISTimer not run?).', Py4GW.Console.MessageType.Warning)
-            return _BT.NodeState.FAILURE
-        if int(Utils.GetBaseTimestamp()) - int(start) >= int(target_ms):
-            return _BT.NodeState.SUCCESS
-        return _BT.NodeState.RUNNING
-
-    # No Routines.BT equivalent — HeroAI multibox follower flags.
-    def _flag_teams(node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib import Agent as _Agent
-        facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        pairs = GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False)
-
-        left_idx  = 0
-        right_idx = 0
-
-        for account, options in pairs:
-            party_pos = int(account.AgentPartyData.PartyPosition)
-            if party_pos == 0:
-                continue
-
-            email = str(account.AccountEmail or '').strip().lower()
-            settings = ImprisonedSpiritsSettings
-
-            if email in [e.strip().lower() for e in settings.LeftTeamEmails]:
-                if left_idx < len(LEFT_POINTS):
-                    px, py = LEFT_POINTS[left_idx]
-                    left_idx += 1
-                else:
-                    continue
-            else:
-                if right_idx < len(RIGHT_POINTS):
-                    px, py = RIGHT_POINTS[right_idx]
-                    right_idx += 1
-                else:
-                    continue
-
-            options.IsFlagged       = True
-            options.FlagPos.x       = float(px)
-            options.FlagPos.y       = float(py)
-            options.FlagFacingAngle = facing_angle
-
-        return _BT.NodeState.SUCCESS
-
-    return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
-        _force_local_skills_on(),
-        BT.Movement.Move(x=13010, y=4452),
-        _BT(_BT.ActionNode(name='FlagTeams', action_fn=_flag_teams)),
-        BT.Agents.MoveTargetInteractAndDialog(
-            x=8679, y=6235,
-            dialog_id=0x806901,
-        ),
-        _BT(_BT.ActionNode(name='StartISTimer', action_fn=_start_timer)),
-        BT.Movement.Move(x=13924, y=6914),
-        _BT(_BT.WaitNode(
-            name='WaitISTimer38s',
-            check_fn=lambda: _wait_is_elapsed_ms(38_000),
-            timeout_ms=240_000,
-        )),
-        _clear_follower_flags(),
-        BT.Movement.Move(x=12497, y=2022),
-        _BT(_BT.WaitNode(
-            name='WaitISTimer90s',
-            check_fn=lambda: _wait_is_elapsed_ms(90_000),
-            timeout_ms=360_000,
-        )),
-        _BT(_BT.ActionNode(
-            name='UnblacklistChainedSoul',
-            action_fn=_unblacklist_chained_soul,
-        )),
-        BT.Movement.Move(x=10437, y=5005),
-        _wait_quest_completed(),
-        _BT(_BT.ActionNode(
-            name='BlacklistChainedSoul',
-            action_fn=_blacklist_chained_soul,
-        )),
-        BT.Agents.MoveTargetInteractAndDialog(
-            x=8692, y=6292,
-            dialog_id=0x8D,
-        ),
-        name='ImprisonedSpirits',
-    )
 
 
 # Names temporarily added by the bot to EnemyBlacklist during specific quest steps.
 # Must be cleared on wipe recovery to avoid leaving stale name entries across runs,
 # which would cause GetNameByID to be called on dying/despawning agents → TextParser crash.
-_BOT_MANAGED_BLACKLIST_NAMES: tuple[str, ...] = (
-    'chained soul',           # _restore_pit_tree
-    'tortured spirit',        # _wrathfull_spirits_tree
-    _OBSIDIAN_BEHEMOTH_NAME,  # _behemoth_guard_start / service
-    _SPIRIT_NATURES_RENEWAL_NAME,  # _behemoth_guard_start / service
-)
 
 
-def _clear_bot_blacklist_names() -> None:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-    bl = EnemyBlacklist()
-    for name in _BOT_MANAGED_BLACKLIST_NAMES:
-        bl.remove_name(name)
 
 
 # How many consecutive ticks IsPartyWiped() must be True before recovery activates.
 # Kept high to avoid false positives from brief death windows in combat.
 _WIPE_CONFIRM_TICKS = 60  # ~3 seconds at 20 fps
 
-# During these steps the bot must always be in an explorable area.
-# If the map is ready but NOT explorable while in one of these steps → wipe.
-_UW_EXPLORABLE_STEPS: frozenset[str] = frozenset({
-    'Clear the Chamber', 'Pass the Mountains', 'Restore Mountains',
-    'Deamon Assassin', 'Restore Planes', 'The Four Horsemen',
-    'Restore Pools', 'Terrorweb Queen', 'Restore Pit',
-    'Imprisoned Spirits', 'Restore Vale', 'Wrathfull Spirits',
-    'Unwanted Guests', 'Restore Wastes', 'Servants of Grenth', 'Dhuum',
-})
 
+# ── Services ─────────────────────────────────────────────────────────────────
+
+def _build_step_timer_service():
+    """Service: watches blackboard step transitions and records cumulative elapsed time.
+
+    On each step transition X → Y:
+    - If Y == 'Enter Underworld': new run starting → clear this-run display times.
+    - If Y == 'Clear the Chamber': start the cumulative run timer.
+    - If X is a timed quest and the timer is running: record X's elapsed time,
+      append to _quest_times_log, and flush to JSON.
+    """
+    def _tick(node) -> '_BT.NodeState':
+        current_step = str(node.blackboard.get('current_step_name', '') or '')
+        last_step    = _timing_state['last_step']
+
+        if current_step == last_step:
+            return _BT.NodeState.RUNNING
+
+        now_ms = int(time.monotonic() * 1000)
+
+        if current_step == 'Enter Underworld':
+            _quest_completion_times.clear()
+            _timing_state['run_start_ms'] = None
+
+        if current_step == _RUN_START_QUEST:
+            _timing_state['run_start_ms'] = now_ms
+
+        run_start = _timing_state['run_start_ms']
+        if last_step and last_step in _TIMED_QUESTS and run_start is not None:
+            elapsed_ms = now_ms - run_start
+            _quest_completion_times[last_step] = elapsed_ms
+            _quest_times_log.setdefault(last_step, []).append(elapsed_ms // 1000)
+            _save_quest_times_log()
+            if last_step == 'Loot Chest':
+                total_s = elapsed_ms // 1000
+                _append_run_log(f'Run completed in {_fmt_s(total_s)}')
+
+        _timing_state['last_step'] = current_step
+        return _BT.NodeState.RUNNING
+
+    return _BT(_BT.ActionNode(name='StepTimerService', action_fn=_tick))
 
 def _build_uw_wipe_recovery_tree() -> _BT:
     """No Routines.BT equivalent — Party.ReturnToOutpost for wipe recovery."""
@@ -2786,6 +2987,9 @@ def _build_uw_wipe_recovery_tree() -> _BT:
             node.blackboard['party_wipe_recovery_active'] = True
             step_at_wipe = str(node.blackboard.get('current_step_name', '') or 'unknown')
             _append_run_log(f'Party wiped at step: {step_at_wipe}')
+            if step_at_wipe and step_at_wipe != 'unknown':
+                _wipe_counts_log[step_at_wipe] = _wipe_counts_log.get(step_at_wipe, 0) + 1
+                _save_wipe_counts()
             _clear_bot_blacklist_names()
             return _BT.NodeState.RUNNING
 
@@ -2808,33 +3012,6 @@ def _build_uw_wipe_recovery_tree() -> _BT:
     return _BT(_BT.ActionNode(name='PartyWipeRecoveryService', action_fn=_tick, aftercast_ms=0))
 
 
-def _collect_keeper_of_souls_agent_ids() -> list[int]:
-    """Alive agents with Keeper of Souls model (see legacy FocusKeeperOfSouls).
-
-    Scans both the enemy list and the full agent array — some spawns may not appear
-    as enemies until briefly after aggro.
-    """
-    from Py4GWCoreLib.Agent import Agent as _Agent
-    from Py4GWCoreLib.AgentArray import AgentArray
-
-    seen: set[int] = set()
-    out: list[int] = []
-    for pool in (AgentArray.GetEnemyArray(), AgentArray.GetAgentArray()):
-        for raw in pool:
-            e = int(raw)
-            if e in seen:
-                continue
-            if not _Agent.IsAlive(e):
-                continue
-            try:
-                mid = int(_Agent.GetModelID(e))
-            except Exception:
-                continue
-            if mid != _KEEPER_OF_SOULS_MODEL_ID:
-                continue
-            seen.add(e)
-            out.append(e)
-    return out
 
 
 def _skip_background_upkeep(blackboard: dict) -> bool:
@@ -2853,30 +3030,6 @@ def _skip_background_upkeep(blackboard: dict) -> bool:
     return False
 
 
-def _party_call_or_change_target(agent_id: int) -> None:
-    """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target.
-
-    No Routines.BT equivalent — HeroAI CallTarget + Player.ChangeTarget.
-    """
-    from Py4GWCoreLib.Agent import Agent as _Agent
-
-    if not agent_id or not _Agent.IsValid(agent_id):
-        return
-    try:
-        from HeroAI.call_target import CallTarget
-    except Exception:
-        CallTarget = None  # type: ignore[misc, assignment]
-
-    try:
-        leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
-    except Exception:
-        leader_id = 0
-    local_id = int(Player.GetAgentID() or 0)
-
-    if CallTarget is not None and leader_id and local_id == leader_id:
-        if CallTarget(int(agent_id), interact=False):
-            return
-    Player.ChangeTarget(int(agent_id))
 
 
 def _build_keeper_of_souls_target_cycle_service() -> _BT:
@@ -2976,6 +3129,8 @@ def _build_consolidated_consumable_upkeep_service() -> _BT:
 
     return _BT(_BT.ActionNode(name='ConsumableUpkeepConsolidated', action_fn=_tick, aftercast_ms=0))
 
+
+# ── Bot registration ─────────────────────────────────────────────────────────
 
 bot.SetNamedPlannerSteps([
     ('Enter Underworld',    _enter_underworld_tree),
@@ -3102,7 +3257,7 @@ def main() -> None:
 
     bot.UI.draw_window(
         icon_path=os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON),
-        main_child_dimensions=(350, 570),
+        main_child_dimensions=(550, 570),
         additional_ui=_draw_main_additional_ui,
         extra_tabs=[('Run Log', _draw_run_log)],
     )
