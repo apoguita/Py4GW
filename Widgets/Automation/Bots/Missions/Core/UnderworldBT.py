@@ -2256,7 +2256,7 @@ def _four_horsemen_tree() -> _BT:
             quest_id=int(UWQuestID.TheFourHorsemen),
             label='TheFourHorsemen',
         ),
-        BT.Player.Wait(duration_ms=40_000),
+        BT.Player.Wait(duration_ms=30_000 if BotSettings.HardMode else 40_000),
         BT.Agents.MoveTargetInteractAndDialog(
             x=11337, y=-17962,
             dialog_id=0x8D,
