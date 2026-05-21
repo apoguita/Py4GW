@@ -14,7 +14,7 @@ from collections import deque
 
 import Py4GW
 import PyImGui
-from Py4GWCoreLib import Agent, GLOBAL_CACHE, ConsoleLog, IniHandler, Map, Player, Routines, Utils
+from Py4GWCoreLib import Agent, GLOBAL_CACHE, ConsoleLog, IniHandler, Map, Player, Range, Routines, Utils
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 from Py4GWCoreLib.native_src.internals.types import Vec2f
@@ -57,8 +57,46 @@ class BotSettings:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 UW_MAP_ID = 72
-# Underworld "Keeper of Souls" (legacy FocusKeeperOfSouls in Underworld.py)
-_KEEPER_OF_SOULS_MODEL_ID = 2373
+# Underworld enemies ordered from highest to lowest party-call priority (UnderworldV2 + tracker).
+# Omitted on purpose: Chained Soul, Tortured Spirit, Spirit of Nature's Renewal (bot blacklists),
+# Dire/Hearty Black Widow (trash).
+UW_TARGET_PRIORITY: list[str] = [
+    # Quest / high-value targets
+    'Keeper of Souls',
+    'Skeleton of Dhuum',
+    'Terrorweb Queen',
+    'Ghozer Dhuum',
+    'Kazhad Dhuum',
+    'Madruk Dhuum',
+    'Thul Za Dhuum',
+    'Wailing Lord',
+    'Terrorweb Dryder',
+    'Mindblade Spectre',
+    'Banished Dream Rider',
+    'Dead Collector',
+    'Dead Thresher',
+    # Nightmare / Aatxe packs
+    'Grasping Darkness',
+    'Charged Blackness',
+    'Coldfire Night',
+    'Stalking Night',
+    'Dying Nightmare',
+    'Bladed Aatxe',
+    'Vengeful Aatxe',
+    # General UW mobs
+    'Smite Crawler',
+    'Bone Horror',
+    'Obsidian Guardian',
+    # Dhuum fight (Dhuum Helper still handles CB; low priority fallback)
+    'Champion of Dhuum',
+    'Slayer',
+    'Minion of Dhuum',
+    'Dhuum',
+    # Behemoth last — usually blacklisted until BehemothGuard engages
+    'Obsidian Behemoth',
+]
+_UW_PRIORITY_TARGET_RANGE = Range.Earshot.value + 100.0
+_UW_PRIORITY_TARGET_COOLDOWN_MS = 2000.0
 # Spectral Mindblade in Restore Planes wait (legacy Wait_for_Spawns in Underworld.py)
 _UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
@@ -1001,6 +1039,19 @@ def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
         bl.remove_name(name)
     if model_id > 0:
         bl.remove(model_id)
+
+
+def _is_agent_blacklisted(agent_id: int) -> bool:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+
+    if not agent_id:
+        return False
+    try:
+        return _EBL().is_blacklisted(int(agent_id))
+    except Exception:
+        return False
+
+
 def _behemoth_guard_start() -> _BT:
     """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
@@ -1393,33 +1444,6 @@ def _clear_bot_blacklist_names() -> None:
     bl = EnemyBlacklist()
     for name in _BOT_MANAGED_BLACKLIST_NAMES:
         bl.remove_name(name)
-def _collect_keeper_of_souls_agent_ids() -> list[int]:
-    """Alive agents with Keeper of Souls model (see legacy FocusKeeperOfSouls).
-
-    Scans both the enemy list and the full agent array — some spawns may not appear
-    as enemies until briefly after aggro.
-    """
-    from Py4GWCoreLib.Agent import Agent as _Agent
-    from Py4GWCoreLib.AgentArray import AgentArray
-
-    seen: set[int] = set()
-    out: list[int] = []
-    for pool in (AgentArray.GetEnemyArray(), AgentArray.GetAgentArray()):
-        for raw in pool:
-            e = int(raw)
-            if e in seen:
-                continue
-            if not _Agent.IsAlive(e):
-                continue
-            try:
-                mid = int(_Agent.GetModelID(e))
-            except Exception:
-                continue
-            if mid != _KEEPER_OF_SOULS_MODEL_ID:
-                continue
-            seen.add(e)
-            out.append(e)
-    return out
 def _party_call_or_change_target(agent_id: int) -> None:
     """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target.
 
@@ -2135,15 +2159,35 @@ def _restore_planes_tree() -> _BT:
             timeout_ms=600_000,
         ))
 
-    def _loot_off(_node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_combat_toggles import set_auto_looting
-        set_auto_looting(False, bot=bot)
+    def _set_local_looting(enabled: bool, label: str) -> _BT.NodeState:
+        """Toggle looting on this account only (BottingTree headless + local HeroAI option)."""
+        loot_on = bool(enabled)
+        bot.looting_enabled = loot_on
+        bot.blackboard['looting_enabled'] = loot_on
+        bot.headless_heroai.SetLootingEnabled(loot_on)
+
+        account_email = Player.GetAccountEmail()
+        if account_email:
+            try:
+                options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+                if options is not None:
+                    options.Looting = bool(enabled)
+                    GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
+            except Exception:
+                pass
+
+        ConsoleLog(
+            BOT_NAME,
+            f'[RestorePlanes] {label}: local looting={"on" if enabled else "off"}.',
+            Py4GW.Console.MessageType.Info,
+        )
         return _BT.NodeState.SUCCESS
 
+    def _loot_off(_node: _BT.Node) -> _BT.NodeState:
+        return _set_local_looting(False, 'DisableLootMindbladeWait')
+
     def _loot_on(_node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_combat_toggles import set_auto_looting
-        set_auto_looting(True, bot=bot)
-        return _BT.NodeState.SUCCESS
+        return _set_local_looting(True, 'EnableLootMindbladeWait')
 
     BT = Routines.BT
     return BT.Composite.Sequence(
@@ -2167,9 +2211,7 @@ def _restore_planes_tree() -> _BT:
         BT.Player.Wait(duration_ms=10_000),
         _BT(_BT.ActionNode(name='DisableLootMindbladeWait', action_fn=_loot_off)),
         _wait_mindblade_spawn(x=13704, y=-16024),
-        _BT(_BT.ActionNode(name='EnableLootMindbladeWait', action_fn=_loot_on)),
         BT.Movement.Move(x=11037, y=-17988),
-        _BT(_BT.ActionNode(name='DisableLootMindbladeWait', action_fn=_loot_off)),
         _wait_mindblade_spawn(x=11345, y=-17852),
         _BT(_BT.ActionNode(name='EnableLootMindbladeWait', action_fn=_loot_on)),
         name='RestorePlanes',
@@ -2498,40 +2540,6 @@ def _wrathfull_spirits_tree() -> _BT:
 def _unwanted_guests_tree() -> _BT:
     BT = Routines.BT
     _fx, _fy = -2816.0, 10036.0
-    _keeper_target_max_range = 2000.0
-
-    def _uw_keeper_cycle_clear(node: _BT.Node) -> _BT.NodeState:
-        node.blackboard['uw_keeper_cycle_active'] = False
-        return _BT.NodeState.SUCCESS
-
-    def _uw_keeper_cycle_enable(node: _BT.Node) -> _BT.NodeState:
-        node.blackboard['uw_keeper_cycle_active'] = True
-        node.blackboard['uw_keeper_cycle_max_range'] = _keeper_target_max_range
-
-        # Mark nearest Keeper only within the configured max range.
-        from Py4GWCoreLib.Agent import Agent as _Agent
-        player_pos = Player.GetXY()
-        if not player_pos:
-            return _BT.NodeState.SUCCESS
-
-        px, py = float(player_pos[0]), float(player_pos[1])
-        max_range_sq = float(_keeper_target_max_range) * float(_keeper_target_max_range)
-        keepers = _collect_keeper_of_souls_agent_ids()
-        in_range = [
-            eid for eid in keepers
-            if ((px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2) <= max_range_sq
-        ]
-        if not in_range:
-            return _BT.NodeState.SUCCESS
-
-        nxt = min(
-            in_range,
-            key=lambda eid: (
-                (px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2
-            ),
-        )
-        _party_call_or_change_target(int(nxt))
-        return _BT.NodeState.SUCCESS
 
     def _set_follower_flags_at_hold(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib import Agent as _Agent
@@ -2548,7 +2556,6 @@ def _unwanted_guests_tree() -> _BT:
     return BT.Composite.Sequence(
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
-        _BT(_BT.ActionNode(name='ClearUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_clear)),
         BT.Movement.Move(x=_fx, y=_fy),
         _BT(_BT.ActionNode(name='SetFollowerFlagsUnwantedGuests', action_fn=_set_follower_flags_at_hold)),
         BT.Movement.Move(x=-5850, y=12818),
@@ -2558,7 +2565,6 @@ def _unwanted_guests_tree() -> _BT:
             quest_id=int(UWQuestID.UnwantedGuests),
             label='UnwantedGuests',
         ),
-        _BT(_BT.ActionNode(name='EnableUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_enable)),
         BT.Movement.Move(x=_fx, y=_fy),
         BT.Movement.Move(x=-5850, y=12818),
         _clear_follower_flags(),
@@ -2591,7 +2597,6 @@ def _unwanted_guests_tree() -> _BT:
         BT.Movement.Move(x=-355,   y=2135,   tolerance=400, timeout_ms=60_000),
         BT.Movement.Move(x=87,     y=3672,   tolerance=400, timeout_ms=60_000),
         BT.Movement.Move(x=1539,   y=4708,   tolerance=400, timeout_ms=60_000),
-        _BT(_BT.ActionNode(name='DisableUnwantedGuestsKeeperCycle', action_fn=_uw_keeper_cycle_clear)),
         name='UnwantedGuests',
     )
 
@@ -2704,7 +2709,7 @@ def _dhuum_tree() -> _BT:
         _flag_dhuum_accounts(),
         _enable_dhuum_helper_on_all_accounts(),
         BT.Player.Wait(10000),
-        BT.Movement.Move(x=-14007, y=17287),
+        BT.Movement.Move(x=-14007, y=17287, pause_on_combat=False),
         _wait_for_spirit_forms(),
         _enable_heroai_combat_all(),
         _wait_for_uw_chest(),
@@ -3032,65 +3037,82 @@ def _skip_background_upkeep(blackboard: dict) -> bool:
 
 
 
-def _build_keeper_of_souls_target_cycle_service() -> _BT:
-    """While Unwanted Guests is active *after* the 0x806701 dialog, retarget every 2s.
+def _build_priority_target_service() -> _BT:
+    """Background service: call the highest-priority UW enemy in range as party target.
 
-    Cycles among alive Keepers of Souls (model 2373) like tab-targeting the next in a sorted list;
-    if the current target is not a Keeper, falls back to the nearest Keeper (legacy FocusKeeperOfSouls).
-
-    Uses HeroAI ``CallTarget`` on the party leader so the marked enemy is actually *called*
-    (party target), not only retargeted locally.
+    Port of UnderworldV2 ``BuildPriorityTargetService`` / ``CallPriorityTarget``.
+    Uses HeroAI ``CallTarget`` on the party leader via ``_party_call_or_change_target``.
+    Skips blacklisted enemies (model ID or name via EnemyBlacklist).
     """
+    priority_map: dict[str, int] = {
+        name.strip().lower(): idx for idx, name in enumerate(UW_TARGET_PRIORITY)
+    }
+    sentinel_priority = len(UW_TARGET_PRIORITY)
+    state: dict = {'last_call_ms': 0.0}
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
-        from Py4GWCoreLib.Agent import Agent as _Agent
+        from Py4GWCoreLib.AgentArray import AgentArray as _AgentArray
 
         if _skip_background_upkeep(node.blackboard):
             return _BT.NodeState.RUNNING
-
-        if str(node.blackboard.get('current_step_name', '') or '') != 'Unwanted Guests':
-            return _BT.NodeState.RUNNING
-        if not node.blackboard.get('uw_keeper_cycle_active'):
-            return _BT.NodeState.RUNNING
-        if int(Map.GetMapID()) != int(UW_MAP_ID):
+        try:
+            if not Map.IsExplorable() or int(Map.GetMapID()) != int(UW_MAP_ID):
+                return _BT.NodeState.RUNNING
+        except Exception:
             return _BT.NodeState.RUNNING
 
-        keepers = _collect_keeper_of_souls_agent_ids()
-        max_range = float(node.blackboard.get('uw_keeper_cycle_max_range') or 0.0)
-        if max_range > 0.0:
-            player_pos = Player.GetXY()
-            if not player_pos:
-                return _BT.NodeState.SUCCESS
-            px, py = float(player_pos[0]), float(player_pos[1])
-            max_range_sq = max_range * max_range
-            keepers = [
-                eid for eid in keepers
-                if ((px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2) <= max_range_sq
-            ]
-        if not keepers:
-            return _BT.NodeState.SUCCESS
+        player_pos = Player.GetXY()
+        if not player_pos:
+            return _BT.NodeState.RUNNING
 
-        keepers.sort()
-        cur = int(Player.GetTargetID() or 0)
-        if cur in keepers:
-            nxt = keepers[(keepers.index(cur) + 1) % len(keepers)]
-        else:
-            player_pos = Player.GetXY()
-            if player_pos:
-                px, py = float(player_pos[0]), float(player_pos[1])
-                nxt = min(
-                    keepers,
-                    key=lambda eid: (
-                        (px - float(_Agent.GetXY(eid)[0])) ** 2 + (py - float(_Agent.GetXY(eid)[1])) ** 2
-                    ),
-                )
-            else:
-                nxt = keepers[0]
+        best_agent_id = 0
+        best_priority = sentinel_priority
+        for agent_id in _AgentArray.GetEnemyArray():
+            if not Agent.IsAlive(agent_id):
+                continue
+            if _is_agent_blacklisted(agent_id):
+                continue
+            dist = Utils.Distance(player_pos, Agent.GetXY(agent_id))
+            if dist > _UW_PRIORITY_TARGET_RANGE:
+                continue
+            agent_name = (Agent.GetNameByID(agent_id) or '').strip().lower()
+            if not agent_name:
+                continue
+            prio = priority_map.get(agent_name, -1)
+            if prio == -1:
+                continue
+            if prio < best_priority:
+                best_priority = prio
+                best_agent_id = agent_id
 
-        _party_call_or_change_target(int(nxt))
-        return _BT.NodeState.SUCCESS
+        if best_agent_id == 0 or _is_agent_blacklisted(best_agent_id):
+            return _BT.NodeState.RUNNING
 
-    return _BT(_BT.ActionNode(name='KeeperOfSoulsTargetCycle', action_fn=_tick, aftercast_ms=2000))
+        now_ms = time.monotonic() * 1000.0
+        try:
+            current_target_id = int(Player.GetTargetID() or 0)
+        except Exception:
+            current_target_id = 0
+
+        if current_target_id != 0 and not _is_agent_blacklisted(current_target_id):
+            current_name = (Agent.GetNameByID(current_target_id) or '').strip().lower()
+            current_prio = priority_map.get(current_name, sentinel_priority)
+            if best_priority >= current_prio and (now_ms - state['last_call_ms']) < _UW_PRIORITY_TARGET_COOLDOWN_MS:
+                return _BT.NodeState.RUNNING
+
+        if (now_ms - state['last_call_ms']) < _UW_PRIORITY_TARGET_COOLDOWN_MS:
+            return _BT.NodeState.RUNNING
+
+        _party_call_or_change_target(int(best_agent_id))
+        state['last_call_ms'] = now_ms
+        return _BT.NodeState.RUNNING
+
+    return _BT(
+        _BT.RepeaterForeverNode(
+            child=_BT.ActionNode(name='PriorityTargetServiceTick', action_fn=_tick),
+            name='PriorityTargetService',
+        )
+    )
 
 
 def _build_consolidated_consumable_upkeep_service() -> _BT:
@@ -3165,7 +3187,7 @@ else:
     bot._rebuild_root_tree()
 
 bot.AddServiceTree('StepTimer',               _build_step_timer_service)
-bot.AddServiceTree('KeeperOfSoulsTargetCycle', _build_keeper_of_souls_target_cycle_service)
+bot.AddServiceTree('PriorityTargetService',   _build_priority_target_service)
 bot.AddServiceTree('ConsumableUpkeep', _build_consolidated_consumable_upkeep_service)
 bot.AddServiceTree('BehemothGuard', _build_behemoth_guard_service)
 
