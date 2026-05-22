@@ -345,12 +345,11 @@ class PvE:
 
     def _get_spirit_form_agent_ids(self) -> set[int]:
         from Py4GWCoreLib import GLOBAL_CACHE
-        from HeroAI.utils import SameMapOrPartyAsAccount
         result: set[int] = set()
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not SameMapOrPartyAsAccount(account):
+            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
                 continue
             try:
                 if any(
@@ -367,12 +366,11 @@ class PvE:
 
     def _get_morale_by_agent_id(self) -> dict[int, int]:
         from Py4GWCoreLib import GLOBAL_CACHE
-        from HeroAI.utils import SameMapOrPartyAsAccount
         morale_by_agent: dict[int, int] = {}
         for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not SameMapOrPartyAsAccount(account):
+            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
                 continue
             agent_id = int(account.AgentData.AgentID or 0)
             if agent_id <= 0:
@@ -387,9 +385,7 @@ class PvE:
         if len(spirit_form_ids) < self._SPIRIT_FORM_MIN_COUNT:
             return 0
 
-        # Spirit-form accounts are always valid targets.
-        # Non-spirit-form accounts are only valid when >= 3 spirit form accounts are present.
-        include_non_spirit_form = len(spirit_form_ids) >= 3
+        restrict_to_spirit_form = len(spirit_form_ids) <= 2
         morale_map = self._get_morale_by_agent_id()
         if not morale_map:
             return 0
@@ -401,7 +397,7 @@ class PvE:
             AgentArray.GetAllyArray(),
             lambda aid: Agent.IsAlive(aid)
             and int(aid) != my_id
-            and (int(aid) in spirit_form_ids or include_non_spirit_form)
+            and (not restrict_to_spirit_form or int(aid) in spirit_form_ids)
             and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= Range.Spellcast.value * 1.4,
         )
         if not allies:

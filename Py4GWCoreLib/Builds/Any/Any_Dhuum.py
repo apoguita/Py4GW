@@ -1,6 +1,7 @@
 import time
 
-from Py4GWCoreLib import Agent, AgentArray, BuildMgr, GLOBAL_CACHE, Party, Player, Profession, Routines, Skill, ThrottledTimer
+from Py4GWCoreLib import Agent, AgentArray, BuildMgr, GLOBAL_CACHE, Party, Player, Profession, Range, Routines, Skill, ThrottledTimer
+#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 
@@ -24,6 +25,12 @@ class _DhuumModeTracker:
         "reaper of the labyrinth",
         "reaper of the spawning pools",
         "reaper of the twin serpent mountains",
+    )
+
+    ACTIVATION_EVENT_TYPES = (
+        #EventType.SKILL_ACTIVATED,
+        #EventType.ATTACK_SKILL_ACTIVATED,
+        #EventType.INSTANT_SKILL_ACTIVATED,
     )
 
     # Skill name candidates matching the CB reaper_mode_tracker
@@ -178,27 +185,41 @@ class _DhuumModeTracker:
             return
         cls._event_refresh_timer.Reset()
 
+        effective_ids = set(cls._cached_reaper_ids).union(cls._learned_reaper_ids)
         now_ms = time.monotonic() * 1000.0
         player_id = int(Player.GetAgentID())
+        recent_skills = CombatEvents.GetRecentSkills(80)
+        candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
         party_member_ids = cls._get_party_member_agent_ids()
 
-        # Poll all non-party agents: if any is currently casting a Reaper
-        # Dhuum's Rest or Ghostly Fury variant, mirror that mode.
-        for agent_id in cls._get_reaper_candidate_agent_ids():
-            agent_id_int = int(agent_id)
-            if agent_id_int == player_id or agent_id_int in party_member_ids:
+        for ts, caster_id, skill_id, _, event_type in reversed(recent_skills):
+            if int(event_type) not in cls.ACTIVATION_EVENT_TYPES:
                 continue
-            casting_skill = int(Agent.GetCastingSkillID(agent_id_int) or 0)
-            if casting_skill <= 0:
+            caster_id_int = int(caster_id)
+            skill_id_int = int(skill_id)
+
+            is_drest = cls._skill_matches(skill_id_int, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES)
+            is_fury = cls._skill_matches(skill_id_int, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES)
+            if not is_drest and not is_fury:
                 continue
-            is_drest = cls._skill_matches(casting_skill, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES)
-            is_fury = cls._skill_matches(casting_skill, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES)
+
+            # Fallback learning: unknown non-party ally casting a candidate → promoted to reaper
+            if (
+                caster_id_int in candidate_agent_ids
+                and caster_id_int != player_id
+                and caster_id_int not in party_member_ids
+                and caster_id_int not in effective_ids
+            ):
+                cls._learned_reaper_ids.add(caster_id_int)
+                effective_ids.add(caster_id_int)
+
+            if caster_id_int not in effective_ids:
+                continue
+
             if is_drest:
-                cls._learned_reaper_ids.add(agent_id_int)
                 cls._set_mode(cls.MODE_DREST, now_ms)
                 return
             if is_fury:
-                cls._learned_reaper_ids.add(agent_id_int)
                 cls._set_mode(cls.MODE_FURY, now_ms)
                 return
 
@@ -220,6 +241,7 @@ class Any_Dhuum(BuildMgr):
 
     def __init__(self, match_only: bool = False):
         # Skill name resolution aligned with CB CustomSkill names
+        self.unyielding_aura_id = self._resolve_skill_id(("Unyielding_Aura",))
         self.dhuums_rest_id = self._resolve_skill_id(("Dhuum's_Rest",), fallback=3087)
         self.spiritual_healing_id = self._resolve_skill_id(("Spiritual_Healing",), fallback=3088)
         self.encase_skeletal_id = self._resolve_skill_id(("Encase_Skeletal",), fallback=3089)
@@ -227,6 +249,7 @@ class Any_Dhuum(BuildMgr):
         self.ghostly_fury_id = self._resolve_skill_id(("Ghostly_Fury",), fallback=3136)
 
         required_candidates = [
+            self.unyielding_aura_id,
             self.dhuums_rest_id,
             self.spiritual_healing_id,
             self.reversal_of_death_id,
@@ -286,6 +309,8 @@ class Any_Dhuum(BuildMgr):
         fury_active = fury_mode
 
         # Priority order matching CB scores (highest first)
+        if (yield from self._pve.Unyielding_Aura()):
+            return True
         if (yield from self._pve.Dhuums_Rest(is_active=drest_active)):
             return True
         if (yield from self._pve.Ghostly_Fury(is_active=fury_active)):

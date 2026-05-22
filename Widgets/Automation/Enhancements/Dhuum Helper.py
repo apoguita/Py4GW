@@ -322,22 +322,16 @@ def _find_nearby_max() -> int:
 	nearest_dist = 999999.0
 
 	for agent_id in AgentArray.GetNPCMinipetArray():
-		aid = int(agent_id)
-		if not Agent.IsValid(aid):
-			continue
-		try:
-			name = (Agent.GetNameByID(aid) or "").strip().lower()
-		except Exception:
-			continue
+		name = (Agent.GetNameByID(agent_id) or "").strip().lower()
 		if name != _TARGET_NPC_NAME.lower():
 			continue
 
-		ax, ay = Agent.GetXY(aid)
+		ax, ay = Agent.GetXY(agent_id)
 		dist = Utils.Distance((px, py), (ax, ay))
 		if dist > _NEARBY_NPC_RADIUS:
 			continue
 		if dist < nearest_dist:
-			nearest_id = aid
+			nearest_id = int(agent_id)
 			nearest_dist = float(dist)
 
 	return nearest_id
@@ -351,9 +345,8 @@ def _is_valid_target_npc(agent_id: int) -> bool:
 		npc_ids = AgentArray.GetNPCMinipetArray()
 		if int(agent_id) not in {int(npc_id) for npc_id in npc_ids}:
 			return False
-		if not Agent.IsValid(int(agent_id)):
-			return False
-		name = (Agent.GetNameByID(int(agent_id)) or "").strip().lower()
+
+		name = (Agent.GetNameByID(agent_id) or "").strip().lower()
 		return name == _TARGET_NPC_NAME.lower()
 	except Exception:
 		return False
@@ -406,7 +399,6 @@ def _coro_interact_and_dialog(target_npc: int):
 				"NPC disappeared before targeting - aborting.",
 				Py4GW.Console.MessageType.Warning,
 			)
-			Player.ChangeTarget(0)
 			return
 
 		Player.ChangeTarget(target_npc)
@@ -420,7 +412,6 @@ def _coro_interact_and_dialog(target_npc: int):
 					"NPC disappeared while moving - aborting.",
 					Py4GW.Console.MessageType.Warning,
 				)
-				Player.ChangeTarget(0)
 				return
 
 			try:
@@ -460,7 +451,6 @@ def _coro_interact_and_dialog(target_npc: int):
 					"NPC disappeared before interaction - aborting.",
 					Py4GW.Console.MessageType.Warning,
 				)
-				Player.ChangeTarget(0)
 				return
 
 			Py4GW.Console.Log(
@@ -500,11 +490,6 @@ def _coro_interact_and_dialog(target_npc: int):
 		yield from Routines.Yield.wait(800)
 		
 
-		# Clear target before Mayor Alegheri despawns to prevent AvSelect.cpp(780) crash.
-		# The assertion fires when manualAgentId is set but the agent is no longer
-		# in the AgentManager (despawning NPC after resurrection event completes).
-		Player.ChangeTarget(0)
-
 		# Move to safe position after resurrection
 		yield from Routines.Yield.wait(2000)
 		Player.Move(-14374, 17261)
@@ -520,7 +505,6 @@ def _coro_interact_and_dialog(target_npc: int):
 		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
 			_toggle_local_cb_movement(True)
-		Player.ChangeTarget(0)
 		_interaction_running = False
 
 
