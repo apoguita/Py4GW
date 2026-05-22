@@ -413,6 +413,16 @@ class Compass():
                 Utils.point_in_polygon(mouse[1], mouse[2], q1)
                 or Utils.point_in_polygon(mouse[1], mouse[2], q2)
             )
+        elif shape == "Tear2":
+            self.imgui.path_clear()
+            self.imgui.path_line_to(math.cos(math.radians(0) + rotation)*size*2 + x,math.sin(math.radians(0) + rotation)*size*2 + y)
+            self.imgui.path_arc_to(x, y, size, math.radians(60) + rotation, math.radians(300) + rotation)
+            self.imgui.path_fill_convex(color)
+
+            self.imgui.path_clear()
+            self.imgui.path_line_to(math.cos(math.radians(0) + rotation)*size*2 + x,math.sin(math.radians(0) + rotation)*size*2 + y)
+            self.imgui.path_arc_to(x, y, size, math.radians(60) + rotation, math.radians(300) + rotation)
+            self.imgui.path_stroke(line_col, True, line_thickness)
         else:
             scale = [1, 1, 1, 1]
             
@@ -784,21 +794,6 @@ def configure():
         if PyImGui.begin(compass.window_module.window_name, compass.window_module.window_flags):
             end_pos = PyImGui.get_window_pos()
 
-            # style/color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Header,           (.2,.2,.2,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered,    (.3,.3,.3,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive,     (.4,.4,.4,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg,          (0.2, 0.2, 0.2, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered,   (0.3, 0.3, 0.3, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive,    (0.4, 0.4, 0.4, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab,       (0.0, 0.0, 0.0, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0.0, 0.0, 0.0, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,           (0.35, 0.35, 0.35, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered,    (0.45, 0.45, 0.45, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,     (0.55, 0.55, 0.55, 1))
-
-            PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark,     (0.9, 0.9, 0.9, 1))
-
             header_opened = False
 
             # position settings
@@ -822,7 +817,7 @@ def configure():
                 PyImGui.unindent(10)
 
             # agent settings
-            items = ['Circle','Tear', 'Square']
+            items = ['Circle','Tear','Tear2','Square']
             if PyImGui.collapsing_header(f'Agents'):
                 PyImGui.indent(10)
 
@@ -869,7 +864,7 @@ def configure():
                         PyImGui.same_line(0.0, 42)
                         marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'Color##{name}', Utils.ColorToTuple(marker.color)))
                         PyImGui.push_item_width(120)
-                        items = ['Circle','Tear', 'Square']
+                        items = ['Circle','Tear','Tear2','Square']
                         marker.shape = items[PyImGui.combo(f'Shape##{name}',  items.index(marker.shape),  items)]
                         PyImGui.pop_item_width()
                         PyImGui.push_item_width(224)
@@ -883,7 +878,7 @@ def configure():
                             break
                         PyImGui.unindent(14)
 
-                PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark,     (0.9, 0.9, 0.9, 1))
+                    PyImGui.pop_style_color(1)
 
                 #PyImGui.indent(4)
                 PyImGui.push_item_width(150)
@@ -924,7 +919,6 @@ def configure():
             if PyImGui.button('Save Settings', PyImGui.get_window_width() - 20 if header_opened else 150):
                 compass.SaveConfig()
 
-            PyImGui.pop_style_color(11)
         PyImGui.end()
 
         compass.ini.write_key('position', 'config_x', str(int(end_pos[0])))
