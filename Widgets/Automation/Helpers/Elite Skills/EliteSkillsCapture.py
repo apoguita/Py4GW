@@ -335,16 +335,16 @@ SECONDARY_BUILDS = {
         Profession.DERVISH:      "OAqkAyiMpoGT18a+NLnnNm5mbAA",    # Rt/D
     },
     Profession.PARAGON: {
-        Profession.WARRIOR:      "OQGkUFliJjy0uoNJP2OmJ2NWN2AA",   # P/W
-        Profession.RANGER:       "OQKkkFliJjy0uoNJP2OmJ2NWN2AA",   # P/R
-        Profession.MONK:         "OQOk0EliJjy0uoNJP2OmJ2NWN2AA",   # P/Mo
-        Profession.NECROMANCER:  "OQSkcEliJjy0uoNJP2OmJ2NWN2AA",   # P/N
-        Profession.MESMER:       "OQWkMEliJjy0uoNJP2OmJ2NWN2AA",   # P/Me
-        Profession.ELEMENTALIST: "OQakoEliJjy0uoNJP2OmJ2NWN2AA",   # P/E
-        Profession.ASSASSIN:     "OQek8FliJjy0uoNJP2OmJ2NWN2AA",   # P/A
-        Profession.RITUALIST:    "OQCjUKmMKT7i2k8Y7YmY3Y1YDAA",   # P/Rt
-        Profession.PARAGON:      "OQCjUOmMKT7i2k8Y7YmY3Y1YDAA",   # P
-        Profession.DERVISH:      "OQqkUKmMKvG0uoNJP2OmJ2NWN2AA",   # P/D
+        Profession.WARRIOR:      "OQGkUFlopiyUNGQ4OmF2AQPm72ZN",   # P/W
+        Profession.RANGER:       "OQKkkFlopiyUNGQ4OmF2AQPm72ZN",   # P/R
+        Profession.MONK:         "OQOk8ElopiyUNGQ4OmF2AQPm72ZN",   # P/Mo
+        Profession.NECROMANCER:  "OQSkcElopiyUNGQ4OmF2AQPm72ZN",   # P/N
+        Profession.MESMER:       "OQWkMElopiyUNGQ4OmF2AQPm72ZN",   # P/Me
+        Profession.ELEMENTALIST: "OQaksElopiyUNGQ4OmF2AQPm72ZN",   # P/E
+        Profession.ASSASSIN:     "OQek8FlopiyUNGQ4OmF2AQPm72ZN",   # P/A
+        Profession.RITUALIST:    "OQikAGlopiyUNGQ4OmF2AQPm72ZN",   # P/Rt
+        Profession.PARAGON:      "OQCjUimKKT1YAh7YWYDA9Yubn1A",   # P
+        Profession.DERVISH:      "OQqkUimKKnGUNGQ4OmF2AQPm72ZN",   # P/D
     },
     Profession.DERVISH: { 
         Profession.WARRIOR:      "OgGkUFp5Kzmk513m4VMJB2+F71AA",   # D/W
