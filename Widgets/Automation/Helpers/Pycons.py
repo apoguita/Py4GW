@@ -4269,6 +4269,8 @@ try:
             self.runtime_enabled = {}
             self.runtime_alcohol_selected = {}
             self.runtime_alcohol_enabled = {}
+            self.main_hide_mode = False
+            self.main_hide_selected = {}
             self.sync_selected_accounts = {}
             self.sync_selected_categories = _default_pycons_sync_category_selection()
             self.sync_statuses = {}
@@ -9279,7 +9281,95 @@ try:
         _same_line(spacing)
         _text_meta(stock_text)
 
-    def _draw_main_row_checkbox_and_badge(key: str, label: str, enabled_now: bool, id_prefix: str, model_id: int = 0):
+    def _main_hide_token(kind: str, key: str) -> str:
+        return f"{str(kind or 'regular')}:{str(key or '')}"
+
+    def _main_hide_visible_refs(
+        selected_explorable_conset: list,
+        selected_explorable_other: list,
+        selected_summoning: list,
+        selected_outpost: list,
+        selected_mbdp: list,
+        selected_alcohol: list,
+        selected_party_items: list,
+    ) -> list[tuple[str, str]]:
+        refs: list[tuple[str, str]] = []
+        seen: set[str] = set()
+
+        def add(kind: str, key: str):
+            clean_key = str(key or "")
+            if not clean_key:
+                return
+            token = _main_hide_token(kind, clean_key)
+            if token in seen:
+                return
+            seen.add(token)
+            refs.append((str(kind), clean_key))
+
+        for spec in (
+            list(selected_explorable_conset or [])
+            + list(selected_explorable_other or [])
+            + list(selected_summoning or [])
+            + list(selected_outpost or [])
+            + list(selected_mbdp or [])
+            + list(selected_party_items or [])
+        ):
+            add("regular", str(spec.get("key", "") or ""))
+        for spec in selected_alcohol or []:
+            add("alcohol", str(spec.get("key", "") or ""))
+        return refs
+
+    def _main_hide_prune_selection(visible_refs: list[tuple[str, str]]):
+        visible_tokens = {_main_hide_token(kind, key) for kind, key in visible_refs}
+        for token in list(getattr(_rt, "main_hide_selected", {}).keys()):
+            if token not in visible_tokens:
+                _rt.main_hide_selected.pop(token, None)
+
+    def _main_hide_selected_count(visible_refs: list[tuple[str, str]]) -> int:
+        return sum(
+            1
+            for kind, key in visible_refs
+            if bool(getattr(_rt, "main_hide_selected", {}).get(_main_hide_token(kind, key), False))
+        )
+
+    def _main_hide_apply_selected(visible_refs: list[tuple[str, str]]) -> int:
+        hidden_count = 0
+        for kind, key in list(visible_refs or []):
+            token = _main_hide_token(kind, key)
+            if not bool(getattr(_rt, "main_hide_selected", {}).get(token, False)):
+                continue
+            if str(kind) == "alcohol":
+                _apply_alcohol_selection_change(key, False)
+            else:
+                _apply_regular_selection_change(key, False)
+            hidden_count += 1
+        _rt.main_hide_selected.clear()
+        _rt.main_hide_mode = False
+        return int(hidden_count)
+
+    def _draw_main_row_checkbox_and_badge(
+        key: str,
+        label: str,
+        enabled_now: bool,
+        id_prefix: str,
+        model_id: int = 0,
+        hide_kind: str = "regular",
+    ):
+        if bool(getattr(_rt, "main_hide_mode", False)):
+            token = _main_hide_token(hide_kind, key)
+            selected_now = bool(getattr(_rt, "main_hide_selected", {}).get(token, False))
+            changed, selected_next = ui_checkbox(
+                f"##pycons_main_hide_select_{id_prefix}_{hide_kind}_{key}",
+                selected_now,
+            )
+            if changed:
+                if bool(selected_next):
+                    _rt.main_hide_selected[token] = True
+                else:
+                    _rt.main_hide_selected.pop(token, None)
+            _tooltip_if_hovered("Select this item to hide from the main window.")
+            _same_line(6)
+
         enabled, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
             bool(enabled_now), key, label, f"{id_prefix}_main", icon_size=20.0
         )
@@ -9297,6 +9387,30 @@ try:
         )
         changed = (bool(enabled_now) != bool(enabled))
         return bool(enabled), bool(changed)
+
+    def _draw_main_regular_row(key: str, label: str, id_prefix: str, model_id: int = 0):
+        new_enabled, changed = _draw_main_row_checkbox_and_badge(
+            key,
+            label,
+            _runtime_regular_enabled(key),
+            id_prefix,
+            int(model_id),
+            "regular",
+        )
+        if changed:
+            _set_main_runtime_regular_enabled(key, bool(new_enabled))
+
+    def _draw_main_alcohol_row(key: str, label: str, id_prefix: str, model_id: int = 0):
+        new_enabled, changed = _draw_main_row_checkbox_and_badge(
+            key,
+            label,
+            _runtime_alcohol_enabled(key),
+            id_prefix,
+            int(model_id),
+            "alcohol",
+        )
+        if changed:
+            _set_main_runtime_alcohol_enabled(key, bool(new_enabled))
 
     def _has_inventory_for_model_id(model_id: int) -> bool:
         mid = int(model_id or 0)
@@ -9765,51 +9879,121 @@ try:
                 _text_secondary("ON/OFF here changes this session and saves the new default.")
             else:
                 _text_secondary("ON/OFF here only changes this session. Turn on saving in Settings to keep changes.")
-            if PyImGui.button(
-                "Enable all now and save##pycons_main_select_all"
-                if _main_runtime_persist_enabled()
-                else "Enable all for this session##pycons_main_select_all"
-            ):
-                for c in ALL_CONSUMABLES:
-                    k = c["key"]
-                    if bool(cfg.selected.get(k, False)):
-                        _set_main_runtime_regular_enabled(k, True)
-                for a in ALCOHOL_ITEMS:
-                    k = a["key"]
-                    if bool(cfg.alcohol_selected.get(k, False)):
-                        _set_main_runtime_alcohol_enabled(k, True)
-            _same_line(10)
-            if PyImGui.button(
-                "Disable all now and save##pycons_main_clear_all"
-                if _main_runtime_persist_enabled()
-                else "Disable all for this session##pycons_main_clear_all"
-            ):
-                for c in ALL_CONSUMABLES:
-                    k = c["key"]
-                    if bool(cfg.selected.get(k, False)):
-                        _set_main_runtime_regular_enabled(k, False)
-                for a in ALCOHOL_ITEMS:
-                    k = a["key"]
-                    if bool(cfg.alcohol_selected.get(k, False)):
-                        _set_main_runtime_alcohol_enabled(k, False)
-
-            selected_explorable_conset = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
-            selected_explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
+            selected_explorable_conset = [
+                c
+                for c in CONSUMABLES
+                if c.get("use_where") == "explorable"
+                and c.get("key") in CONSET_KEYS
+                and bool(cfg.selected.get(c["key"], False))
+            ]
+            selected_explorable_other = [
+                c
+                for c in CONSUMABLES
+                if c.get("use_where") == "explorable"
+                and c.get("key") not in CONSET_KEYS
+                and bool(cfg.selected.get(c["key"], False))
+            ]
             selected_summoning = sorted(
-                [c for c in CONSUMABLES if c.get("use_where") == "summoning" and bool(cfg.selected.get(c["key"], False))],
+                [
+                    c
+                    for c in CONSUMABLES
+                    if c.get("use_where") == "summoning" and bool(cfg.selected.get(c["key"], False))
+                ],
                 key=lambda x: str(x.get("label", "")).lower(),
             )
-            selected_outpost = [c for c in CONSUMABLES if c.get("use_where") == "outpost" and bool(cfg.selected.get(c["key"], False))]
+            selected_outpost = [
+                c
+                for c in CONSUMABLES
+                if c.get("use_where") == "outpost" and bool(cfg.selected.get(c["key"], False))
+            ]
             selected_mbdp = [c for c in MB_DP_ITEMS if bool(cfg.selected.get(c["key"], False))]
             selected_alcohol = [a for a in ALCOHOL_ITEMS if bool(cfg.alcohol_selected.get(a["key"], False))]
             selected_party_items = [c for c in PARTY_ITEMS if bool(cfg.selected.get(c["key"], False))]
             # Keep the main selected-items panel stable even when inventory hits 0.
             # Availability filtering remains in the Settings browser.
 
-            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_summoning or selected_outpost or selected_mbdp or selected_alcohol or selected_party_items)
+            any_selected = bool(
+                selected_explorable_conset
+                or selected_explorable_other
+                or selected_summoning
+                or selected_outpost
+                or selected_mbdp
+                or selected_alcohol
+                or selected_party_items
+            )
             if not any_selected:
+                _rt.main_hide_mode = False
+                _rt.main_hide_selected.clear()
                 PyImGui.text_disabled("None selected. Open Settings and pick consumables.")
             else:
+                main_hide_refs = _main_hide_visible_refs(
+                    selected_explorable_conset,
+                    selected_explorable_other,
+                    selected_summoning,
+                    selected_outpost,
+                    selected_mbdp,
+                    selected_alcohol,
+                    selected_party_items,
+                )
+                _main_hide_prune_selection(main_hide_refs)
+
+                if bool(getattr(_rt, "main_hide_mode", False)):
+                    _text_secondary("Choose items to hide from the main window.")
+                    if PyImGui.button("Select All##pycons_main_hide_select_all"):
+                        for kind, key in main_hide_refs:
+                            _rt.main_hide_selected[_main_hide_token(kind, key)] = True
+                    _tooltip_if_hovered("Select all items currently shown in the main-window list.")
+                    _same_line(10)
+                    if PyImGui.button("Deselect All##pycons_main_hide_deselect_all"):
+                        _rt.main_hide_selected.clear()
+                    _tooltip_if_hovered("Clear the hide selection.")
+                    _same_line(10)
+                    if PyImGui.button("Done##pycons_main_hide_done"):
+                        _rt.main_hide_mode = False
+                        _rt.main_hide_selected.clear()
+                    _tooltip_if_hovered("Leave hide mode without hiding more items.")
+
+                    selected_count = _main_hide_selected_count(main_hide_refs)
+                    disabled_mode = _begin_disabled(int(selected_count) <= 0)
+                    if PyImGui.button(f"Hide Selected Items ({int(selected_count)})##pycons_main_hide_apply"):
+                        _main_hide_apply_selected(main_hide_refs)
+                    _tooltip_if_hovered(
+                        "Hide selected items from the main window. This does not delete or consume inventory items."
+                    )
+                    _end_disabled(disabled_mode)
+                else:
+                    if PyImGui.button(
+                        "Enable all now and save##pycons_main_select_all"
+                        if _main_runtime_persist_enabled()
+                        else "Enable all for this session##pycons_main_select_all"
+                    ):
+                        for c in ALL_CONSUMABLES:
+                            k = c["key"]
+                            if bool(cfg.selected.get(k, False)):
+                                _set_main_runtime_regular_enabled(k, True)
+                        for a in ALCOHOL_ITEMS:
+                            k = a["key"]
+                            if bool(cfg.alcohol_selected.get(k, False)):
+                                _set_main_runtime_alcohol_enabled(k, True)
+                    _same_line(10)
+                    if PyImGui.button(
+                        "Disable all now and save##pycons_main_clear_all"
+                        if _main_runtime_persist_enabled()
+                        else "Disable all for this session##pycons_main_clear_all"
+                    ):
+                        for c in ALL_CONSUMABLES:
+                            k = c["key"]
+                            if bool(cfg.selected.get(k, False)):
+                                _set_main_runtime_regular_enabled(k, False)
+                        for a in ALCOHOL_ITEMS:
+                            k = a["key"]
+                            if bool(cfg.alcohol_selected.get(k, False)):
+                                _set_main_runtime_alcohol_enabled(k, False)
+                    if PyImGui.button("Hide Items##pycons_main_hide_mode"):
+                        _rt.main_hide_mode = True
+                        _rt.main_hide_selected.clear()
+                    _tooltip_if_hovered("Choose items to hide from the main window.")
+
                 child_height = _selected_list_child_height(
                     selected_explorable_conset,
                     selected_explorable_other,
@@ -9837,42 +10021,26 @@ try:
                             _section_text("Conset:", "explorable", secondary=True)
                             for c in selected_explorable_conset:
                                 k = c["key"]
-                                new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                    k, c["label"], _runtime_regular_enabled(k), "pycons", int(c.get("model_id", 0))
-                                )
-                                if chg:
-                                    _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                                _draw_main_regular_row(k, c["label"], "pycons", int(c.get("model_id", 0)))
                             PyImGui.separator()
 
                         for c in selected_explorable_other:
                             k = c["key"]
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, c["label"], _runtime_regular_enabled(k), "pycons", int(c.get("model_id", 0))
-                            )
-                            if chg:
-                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                            _draw_main_regular_row(k, c["label"], "pycons", int(c.get("model_id", 0)))
                         PyImGui.separator()
 
                     if selected_summoning:
                         _section_text("Summoning Stones/Items:", "summoning")
                         for c in selected_summoning:
                             k = c["key"]
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, c["label"], _runtime_regular_enabled(k), "pycons_summon", int(c.get("model_id", 0))
-                            )
-                            if chg:
-                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                            _draw_main_regular_row(k, c["label"], "pycons_summon", int(c.get("model_id", 0)))
                         PyImGui.separator()
 
                     if selected_outpost:
                         _section_text("In-town speed boosts:", "outpost")
                         for c in selected_outpost:
                             k = c["key"]
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, c["label"], _runtime_regular_enabled(k), "pycons", int(c.get("model_id", 0))
-                            )
-                            if chg:
-                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                            _draw_main_regular_row(k, c["label"], "pycons", int(c.get("model_id", 0)))
                         PyImGui.separator()
 
                     if selected_mbdp:
@@ -9883,16 +10051,17 @@ try:
 
                         party_specs = [c for c in selected_mbdp if str(c.get("key", "")) in MBDP_PARTY_KEYS]
                         self_specs = [c for c in selected_mbdp if str(c.get("key", "")) in MBDP_SELF_KEYS]
-                        unmapped_specs = [c for c in selected_mbdp if str(c.get("key", "")) not in MBDP_PARTY_KEYS and str(c.get("key", "")) not in MBDP_SELF_KEYS]
+                        unmapped_specs = [
+                            c
+                            for c in selected_mbdp
+                            if str(c.get("key", "")) not in MBDP_PARTY_KEYS
+                            and str(c.get("key", "")) not in MBDP_SELF_KEYS
+                        ]
 
                         _section_text("Party:", "mbdp", secondary=True)
                         for c in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
                             k = c["key"]
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, c["label"], _runtime_regular_enabled(k), "pycons_mbdp", int(c.get("model_id", 0))
-                            )
-                            if chg:
-                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                            _draw_main_regular_row(k, c["label"], "pycons_mbdp", int(c.get("model_id", 0)))
 
                         if missing_party_keys:
                             PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
@@ -9901,11 +10070,7 @@ try:
                         _section_text("Self:", "mbdp", secondary=True)
                         for c in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
                             k = c["key"]
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, c["label"], _runtime_regular_enabled(k), "pycons_mbdp", int(c.get("model_id", 0))
-                            )
-                            if chg:
-                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                            _draw_main_regular_row(k, c["label"], "pycons_mbdp", int(c.get("model_id", 0)))
 
                         if missing_self_keys:
                             PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
@@ -9915,34 +10080,32 @@ try:
                             _section_text("Unmapped:", "mbdp", secondary=True)
                             for c in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
                                 k = c["key"]
-                                new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                    k, c["label"], _runtime_regular_enabled(k), "pycons_mbdp", int(c.get("model_id", 0))
-                                )
-                                if chg:
-                                    _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                                _draw_main_regular_row(k, c["label"], "pycons_mbdp", int(c.get("model_id", 0)))
                         PyImGui.separator()
 
                     if selected_alcohol:
                         _section_text("Alcohol:", "alcohol")
                         for a in sorted(selected_alcohol, key=lambda x: x.get("label", "")):
                             k = a["key"]
-                            enabled_now = _runtime_alcohol_enabled(k)
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, _alcohol_display_label(a), enabled_now, "pycons_alc", int(a.get("model_id", 0))
+                            _draw_main_alcohol_row(
+                                k,
+                                _alcohol_display_label(a),
+                                "pycons_alc",
+                                int(a.get("model_id", 0)),
                             )
-                            if chg:
-                                _set_main_runtime_alcohol_enabled(k, bool(new_enabled))
                         PyImGui.separator()
 
                     if selected_party_items:
                         _section_text("Party Items:", "party_items")
-                        for c in sorted(selected_party_items, key=lambda x: (int(x.get("party_points", 0) or 0), str(x.get("label", "")).lower())):
+                        for c in sorted(
+                            selected_party_items,
+                            key=lambda x: (
+                                int(x.get("party_points", 0) or 0),
+                                str(x.get("label", "")).lower(),
+                            ),
+                        ):
                             k = c["key"]
-                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
-                                k, c["label"], _runtime_regular_enabled(k), "pycons_party", int(c.get("model_id", 0))
-                            )
-                            if chg:
-                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                            _draw_main_regular_row(k, c["label"], "pycons_party", int(c.get("model_id", 0)))
                     PyImGui.end_child()
 
         ImGui.End(INI_KEY_MAIN)
