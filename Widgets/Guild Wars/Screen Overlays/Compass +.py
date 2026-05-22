@@ -101,6 +101,7 @@ class Compass():
 
     class Pathing:
         visible = True
+        invert = False
         color = Utils.RGBToColor(255, 255, 255, 80)
 
     class Config:
@@ -240,6 +241,7 @@ class Compass():
         self.position.detached_size      = self.ini.read_int('position',  'detached_size',      self.position.detached_size)
 
         self.pathing.visible = self.ini.read_bool('pathing', 'visible', self.pathing.visible)
+        self.pathing.invert = self.ini.read_bool('pathing', 'invert', self.pathing.invert)
         self.pathing.color = self.ini.read_int('pathing', 'color', self.pathing.color)
 
         self.config.spirit_alpha = self.ini.read_int('misc', 'spirit_alpha', self.config.spirit_alpha)
@@ -281,6 +283,7 @@ class Compass():
         self.ini.write_key('position', 'detached_size',       str(self.position.detached_size))
 
         self.ini.write_key('pathing', 'visible', str(self.pathing.visible))
+        self.ini.write_key('pathing', 'invert', str(self.pathing.invert))
         self.ini.write_key('pathing', 'color',   str(self.pathing.color))
 
         self.ini.write_key('misc', 'spirit_alpha', str(self.config.spirit_alpha))
@@ -351,6 +354,11 @@ class Compass():
             #self.renderer.set_primitives(self.geometry, Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
             self.renderer.build_pathing_trapezoid_geometry(Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
             self.primitives_set = True
+
+            if self.pathing.invert:
+                self.renderer.inverse_rendering(True)
+            else:
+                self.renderer.inverse_rendering(False)
 
         self.renderer.world_space.set_zoom(zoom)
         self.renderer.world_space.set_rotation(-self.position.rotation)
@@ -659,6 +667,7 @@ class Compass():
                     self.DrawAgent(agent_id, mouse, *self.config.markers['Item (Green)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
                 case _:
                     self.DrawAgent(agent_id, mouse, *self.config.markers['Item (White)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
+    
     def Draw(self):
         self.UpdateOrientation()
     
@@ -914,6 +923,7 @@ def configure():
                 compass.pathing.visible = PyImGui.checkbox('Visible', compass.pathing.visible)
                 PyImGui.same_line(0.0, -1)
                 compass.pathing.color = Utils.TupleToColor(PyImGui.color_edit4('', Utils.ColorToTuple(compass.pathing.color)))
+                compass.pathing.invert = PyImGui.checkbox('Invert Pathing', compass.pathing.invert)
                 PyImGui.unindent(10)
 
             if PyImGui.button('Save Settings', PyImGui.get_window_width() - 20 if header_opened else 150):

@@ -14,6 +14,9 @@ class DXOverlay:
         def build_pathing_trapezoid_geometry(self, color: int) -> None:
             self.renderer.build_pathing_trapezoid_geometry(color)
 
+        def inverse_rendering(self, inverse: bool) -> None:
+            self.renderer.inverse_rendering(inverse)
+
         def render(self):
             self.renderer.render()
             
