@@ -1530,19 +1530,22 @@ def OpenChest(index: int, message: SharedMessageStruct):
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account) -> bool:                    
-                    return (account.AgentPartyData.PartyID == party_id and
-                            account.MapID == map_id and
-                            account.MapRegion == map_region and
-                            account.MapDistrict == map_district and
-                            account.MapLanguage == map_language)
+                def on_same_map_and_party(account : AccountStruct) -> bool:                    
+                    on_same_map = (account.AgentPartyData.PartyID == party_id and
+                            account.AgentData.Map.MapID == map_id and
+                            account.AgentData.Map.Region == map_region and
+                            account.AgentData.Map.District == map_district and
+                            account.AgentData.Map.Language == map_language)
+                    
+                    return on_same_map
                 
-                all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
+                all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []                                    
+                queued_accounts = [account for account in all_accounts if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
                 chest_pos = Agent.GetXY(chest_id)
-                                
+                                                
                 sorted_by_party_index = sorted(
-                    [acc for acc in all_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
-                key=lambda acc: acc.AgentPartyData.PartyPosition ) if all_accounts else []
+                    [acc for acc in queued_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
+                key=lambda acc: acc.AgentPartyData.PartyPosition ) if queued_accounts else []
                 
                 if sorted_by_party_index:
                     next_account = sorted_by_party_index[0]
