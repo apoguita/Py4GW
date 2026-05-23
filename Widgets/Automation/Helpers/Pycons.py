@@ -6000,11 +6000,39 @@ try:
                 out.append((key, spec))
         return out
 
+    def _all_normal_restock_specs() -> list[tuple[str, dict]]:
+        out = []
+        seen = set()
+        for spec in ALL_CONSUMABLES:
+            key = str(spec.get("key", "") or "")
+            if key and key not in seen:
+                out.append((key, spec))
+                seen.add(key)
+        for spec in ALCOHOL_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if key and key not in seen:
+                out.append((key, spec))
+                seen.add(key)
+        return out
+
+    def _configured_normal_restock_specs() -> list[tuple[str, dict]]:
+        out = []
+        selected_keys = {str(key) for key, _spec in _selected_restock_specs()}
+        for key, spec in _all_normal_restock_specs():
+            raw_target = 0
+            try:
+                raw_target = int(cfg.restock_targets.get(key, 0) or 0)
+            except Exception:
+                raw_target = 0
+            if key in selected_keys or bool(_restock_item_enabled(key)) or raw_target > 0:
+                out.append((key, spec))
+        return out
+
     def _restock_regular_enabled(key: str) -> bool:
-        return bool(cfg.selected.get(key, False)) and bool(_restock_item_enabled(key))
+        return str(key or "") in ALL_BY_KEY and bool(_restock_item_enabled(key))
 
     def _restock_alcohol_enabled(key: str) -> bool:
-        return bool(cfg.alcohol_selected.get(key, False)) and bool(_restock_item_enabled(key))
+        return str(key or "") in ALCOHOL_BY_KEY and bool(_restock_item_enabled(key))
 
     def _restock_special_enabled(key: str) -> bool:
         return str(key or "") in SPECIAL_RESTOCK_BY_KEY and bool(_restock_item_enabled(key))
@@ -10638,7 +10666,7 @@ try:
         except Exception:
             pass
 
-        for key, spec in _selected_restock_specs() + _special_restock_specs():
+        for key, spec in _all_normal_restock_specs() + _special_restock_specs():
             if not _restock_candidate_enabled(key):
                 continue
 
@@ -13084,6 +13112,9 @@ try:
             restock_flt = str(restock_filter_text[0] or "").strip().lower()
 
             selected_specs_all = _selected_restock_specs()
+            normal_restock_specs_all = (
+                _all_normal_restock_specs() if restock_flt else _configured_normal_restock_specs()
+            )
             special_specs = [
                 (key, spec)
                 for key, spec in _special_restock_specs()
@@ -13091,7 +13122,7 @@ try:
             ]
             selected_specs = [
                 (key, spec)
-                for key, spec in selected_specs_all
+                for key, spec in normal_restock_specs_all
                 if _matches_filter(
                     _alcohol_display_label(spec) if key in ALCOHOL_BY_KEY else str(spec.get("label", key) or key),
                     restock_flt,
@@ -13123,7 +13154,11 @@ try:
 
             _control_label("Set inventory target for all selected items:")
             _same_line(10)
-            changed_bulk, bulk_val = ui_input_int_fixed("##pycons_restock_bulk_target", int(restock_bulk_target[0]), width=90.0)
+            changed_bulk, bulk_val = ui_input_int_fixed(
+                "##pycons_restock_bulk_target",
+                int(restock_bulk_target[0]),
+                width=90.0,
+            )
             if changed_bulk:
                 restock_bulk_target[0] = max(0, min(2500, int(bulk_val)))
             _same_line(10)
@@ -13146,8 +13181,17 @@ try:
                     PyImGui.text_disabled("No selected consumables. Select consumables first.")
             else:
                 selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
-                selected_conset_specs = [pair for pair in selected_specs if str(pair[0]) in CONSET_KEYS]
-                selected_non_conset_specs = [pair for pair in selected_specs if str(pair[0]) not in CONSET_KEYS]
+                selected_normal_keys = {str(key) for key, _spec in selected_specs_all}
+                selected_visible_specs = [pair for pair in selected_specs if str(pair[0]) in selected_normal_keys]
+                unselected_visible_specs = [
+                    pair
+                    for pair in selected_specs
+                    if str(pair[0]) not in selected_normal_keys
+                ]
+                selected_conset_specs = [pair for pair in selected_visible_specs if str(pair[0]) in CONSET_KEYS]
+                selected_non_conset_specs = [pair for pair in selected_visible_specs if str(pair[0]) not in CONSET_KEYS]
+                configured_only_specs = [] if restock_flt else list(unselected_visible_specs)
+                search_only_specs = list(unselected_visible_specs) if restock_flt else []
                 _refresh_inventory_cache(False)
 
                 if PyImGui.begin_table("pycons_restock_targets_table", 3):
@@ -13155,59 +13199,62 @@ try:
                     PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
 
+                    def _draw_restock_table_separator():
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        PyImGui.separator()
+                        PyImGui.table_next_column()
+                        PyImGui.separator()
+                        PyImGui.table_next_column()
+                        PyImGui.separator()
+
+                    def _draw_restock_table_heading(label: str):
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        _section_text(str(label), "restock")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+
+                    def _draw_restock_table_group(label: str, pairs: list[tuple[str, dict]]):
+                        if not pairs:
+                            return
+                        _draw_restock_table_heading(label)
+                        conset_pairs = [pair for pair in pairs if str(pair[0]) in CONSET_KEYS]
+                        other_pairs = [pair for pair in pairs if str(pair[0]) not in CONSET_KEYS]
+                        if conset_pairs:
+                            _draw_restock_table_heading("Conset:")
+                            for key, spec in conset_pairs:
+                                _draw_restock_target_item_row(key, spec)
+                            if other_pairs:
+                                _draw_restock_table_separator()
+                        for key, spec in other_pairs:
+                            _draw_restock_target_item_row(key, spec)
+
+                    drew_any_restock_group = False
+
                     if special_specs:
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column()
-                        _section_text("Special items:", "restock")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
+                        _draw_restock_table_group("Special items:", special_specs)
+                        drew_any_restock_group = True
 
-                        for key, spec in special_specs:
-                            _draw_restock_target_item_row(key, spec)
+                    selected_group_specs = selected_conset_specs + selected_non_conset_specs
+                    if selected_group_specs:
+                        if drew_any_restock_group:
+                            _draw_restock_table_separator()
+                        _draw_restock_table_group("Selected consumables:", selected_group_specs)
+                        drew_any_restock_group = True
 
-                        if selected_specs:
-                            PyImGui.table_next_row()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
+                    if configured_only_specs:
+                        if drew_any_restock_group:
+                            _draw_restock_table_separator()
+                        _draw_restock_table_group("Restocked consumables:", configured_only_specs)
+                        drew_any_restock_group = True
 
-                    if selected_conset_specs:
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column()
-                        _section_text("Conset:", "restock")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-
-                        for key, spec in selected_conset_specs:
-                            _draw_restock_target_item_row(key, spec)
-
-                        if selected_non_conset_specs:
-                            PyImGui.table_next_row()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-
-                    if selected_non_conset_specs:
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column()
-                        _section_text("Selected consumables:", "restock")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-
-                    for key, spec in selected_non_conset_specs:
-                        _draw_restock_target_item_row(key, spec)
+                    if search_only_specs:
+                        if drew_any_restock_group:
+                            _draw_restock_table_separator()
+                        _draw_restock_table_group("Matching restock items:", search_only_specs)
 
                     PyImGui.end_table()
         tooltip_section_open = _styled_collapsing_header(
