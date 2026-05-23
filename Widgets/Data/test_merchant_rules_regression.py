@@ -274,11 +274,16 @@ def _install_stub_modules(project_root: Path) -> None:
     sys.modules["Py4GWCoreLib.py4gwcorelib_src.WidgetManager"] = widget_manager
 
     _ensure_package("Py4GWCoreLib.modular")
-    modular_actions = types.ModuleType("Py4GWCoreLib.modular.actions")
-    modular_actions.DEFAULT_NPC_SELECTORS = {}
-    modular_actions.SUPPORTED_MAP_NPC_SELECTORS = {}
-    modular_actions.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
-    sys.modules["Py4GWCoreLib.modular.actions"] = modular_actions
+    modular_selectors = types.ModuleType("Py4GWCoreLib.modular.selectors")
+    modular_selectors.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
+    sys.modules["Py4GWCoreLib.modular.selectors"] = modular_selectors
+
+    _ensure_package("Py4GWCoreLib.routines_src")
+    _ensure_package("Py4GWCoreLib.routines_src.behaviourtrees_src")
+    botting_inventory = types.ModuleType("Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory")
+    botting_inventory.DEFAULT_NPC_SELECTORS = {}
+    botting_inventory.SUPPORTED_MAP_NPC_SELECTORS = {}
+    sys.modules["Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory"] = botting_inventory
 
     _ensure_package("Sources")
     _ensure_package("Sources.marks_sources")

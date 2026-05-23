@@ -1265,20 +1265,9 @@ def bot_routine(bot: Botting):
 
 
 def Enter_UW(bot_instance: Botting):
-    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.step_context import StepContext
-    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_movement import handle_random_travel, handle_wait_map_change, handle_leave_party
-    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_party import handle_summon_all_accounts, handle_invite_all_accounts, handle_set_hard_mode
-    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_interaction import handle_use_item
-
-    def _make_ctx(step: dict) -> StepContext:
-        return StepContext(
-            bot=bot_instance,
-            step=step,
-            step_idx=0,
-            recipe_name="UW_Enter",
-            step_type=step.get("type", ""),
-            step_display=step.get("name", ""),
-        )
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_interaction import add_use_item_state
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_movement import add_wait_map_change_state
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_multibox import add_leave_party_state
 
     bot_instance.States.AddHeader("Enter Underworld")
 
@@ -1293,7 +1282,7 @@ def Enter_UW(bot_instance: Botting):
     _do_merchant_rules_refill(bot_instance)
 
     # ── Leave any existing party (multibox-aware) ─────────────────────
-    handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
+    add_leave_party_state(bot_instance, multibox=True, name="Leave Party")
 
     # ── Travel to the selected entrypoint (resolved at execution time) ──
     # entrypoint_name / map_id are resolved lazily into _enter_ep so that
@@ -1327,7 +1316,8 @@ def Enter_UW(bot_instance: Botting):
     bot_instance.Wait.ForTime(1000)
 
     # ── Form party ───────────────────────────────────────────────────
-    handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 10000}))
+    bot_instance.States.AddCustomState(lambda: bot_instance.Multibox.SummonAllAccounts(), "Summon Alts")
+    bot_instance.Wait.ForTime(10000)
 
     # Wait until every account has loaded into the entrypoint map (up to 90 s).
     bot_instance.Wait.UntilCondition(
@@ -1335,16 +1325,16 @@ def Enter_UW(bot_instance: Botting):
         duration=5000,
     )
 
-    handle_invite_all_accounts(_make_ctx({"type": "invite_all_accounts", "name": "Invite Alts"}))
+    bot_instance.States.AddCustomState(lambda: bot_instance.Multibox.InviteAllAccounts(), "Invite Alts")
 
     # ── Apply hard mode before using scroll ──────────────────────────
-    handle_set_hard_mode(_make_ctx({"type": "set_hard_mode", "name": "Set Hard Mode", "enabled": BotSettings.HardMode}))
+    bot_instance.States.AddCustomState(lambda: bot_instance.Party.SetHardMode(BotSettings.HardMode), "Set Hard Mode")
 
     # ── Use UW scroll (model 3746) ───────────────────────────────────
-    handle_use_item(_make_ctx({"type": "use_item", "name": "Use UW Scroll", "model_id": UW_SCROLL_MODEL_ID}))
+    add_use_item_state(bot_instance, model_id=UW_SCROLL_MODEL_ID, name="Use UW Scroll")
 
     # ── Wait until inside the Underworld ────────────────────────────
-    handle_wait_map_change(_make_ctx({"type": "wait_map_change", "name": "Wait For UW", "target_map_id": UW_MAP_ID}))
+    add_wait_map_change_state(bot_instance, target_map_id=UW_MAP_ID, name="Wait For UW")
 
     bot_instance.States.AddCustomState(_mark_entered_dungeon, "Mark entered dungeon")
     bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
@@ -2335,7 +2325,7 @@ def _do_merchant_rules_refill(bot_instance: Botting) -> None:
             return
 
         # ── 6. Wait for all follower messages to be consumed ──────────
-        from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.combat_engine import outbound_messages_done
+        from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_multibox import outbound_messages_done
         elapsed = 0
         all_done = False
         while elapsed < _FOLLOWER_TIMEOUT_MS:

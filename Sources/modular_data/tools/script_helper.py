@@ -1,15 +1,18 @@
 """
-Script Helper
+Modular JSON Script Helper.
 
-Displays:
-- Dialog recorder controls
-- Player/target quick copy helpers
-- Active dialog options
-- Dialog click recorder (auto captures sent dialog ids)
+Runtime widget/tool for recording canonical JSON steps while playing. It is
+intentionally recording-only: it does not replay steps or instantiate bot
+runners.
 """
+from __future__ import annotations
 
 import json
+import os
+import re
 import time
+from pathlib import Path
+from typing import Any
 
 import PyAgent
 import PyImGui
@@ -19,112 +22,55 @@ try:
 except Exception:
     PyDialog = None
 
-from Py4GWCoreLib import Agent, AgentArray, Botting, ConsoleLog, Item, Map, Party, Player
-from Py4GWCoreLib.modular.domain.target_registry import ENEMY_TARGETS, GADGET_TARGETS, NPC_TARGETS
-from Py4GWCoreLib.modular.bot import ModularBot
-from Py4GWCoreLib.modular.recipes.modular_block import (
-    build_inline_modular_phase,
-    build_modular_block_phase,
-)
+from Py4GWCoreLib import Agent
+from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import Item
+from Py4GWCoreLib import Map
+from Py4GWCoreLib import Player
+from Py4GWCoreLib.modular.domain.target_registry import ENEMY_TARGETS
+from Py4GWCoreLib.modular.domain.target_registry import GADGET_TARGETS
+from Py4GWCoreLib.modular.domain.target_registry import NPC_TARGETS
 
 
-_TEST_MISSION_NAME = "script_helper"
-_test_bot: ModularBot | None = None
-_test_running = False
-_replay_bot: ModularBot | None = None
-_replay_running = False
-_replay_status = ""
+_DEFAULT_RECIPE_NAME = "New Recording"
+_DEFAULT_RELATIVE_PATH = "missions/new_recording.json"
 
-_dialog_copy_status = ""
+_recipe_name = _DEFAULT_RECIPE_NAME
+_relative_save_path = _DEFAULT_RELATIVE_PATH
+_auto_capture_dialogs = True
 _dialog_init_attempted = False
 _dialog_init_ok = False
-
-_dialog_recorder_enabled = True
+_dialog_init_last_attempt = 0.0
 _dialog_last_tick = 0
-_dialog_recorder_steps: list[dict] = []
-_dialog_recorder_npc_entries: dict[str, str] = {}
-_dialog_recorder_enemy_entries: dict[str, str] = {}
-_dialog_recorder_gadget_entries: dict[str, str] = {}
-_dialog_recorder_item_entries: dict[str, str] = {}
-_dialog_recorder_status = ""
-_dialog_recorder_last_action_ts: float | None = None
+_recorded_steps: list[dict[str, Any]] = []
+_captured_npc_entries: dict[str, str] = {}
+_captured_enemy_entries: dict[str, str] = {}
+_captured_gadget_entries: dict[str, str] = {}
+_captured_item_entries: dict[str, str] = {}
+_status = ""
+_last_action_ts: float | None = None
+
 _exit_recording_active = False
 _exit_recording_waiting_load = False
-_exit_record_start_x = 0
-_exit_record_start_y = 0
 _exit_record_last_x = 0
 _exit_record_last_y = 0
 _exit_record_source_map_id = 0
 _exit_record_source_map_name = ""
+
 _travel_recording_active = False
 _travel_record_source_map_id = 0
-_travel_record_source_map_name = ""
 
 DEBUG_LOGGING = False
 
 
 def _debug_log(message: str) -> None:
-    if not DEBUG_LOGGING:
-        return
-    ConsoleLog("Script Helper", message)
+    if DEBUG_LOGGING:
+        ConsoleLog("Script Helper", message)
 
 
-def _sync_engine_upkeep(bot: Botting) -> None:
-    """Keep helper runner from unintentionally toggling HeroAI off."""
-    try:
-        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-
-        handler = get_widget_handler()
-        hero_ai_enabled = bool(handler.is_widget_enabled("HeroAI"))
-        if bot.Properties.exists("hero_ai"):
-            bot.Properties.ApplyNow("hero_ai", "active", hero_ai_enabled)
-    except Exception as exc:
-        _debug_log(f"Engine upkeep sync failed: {exc}")
-
-
-def _build_test_bot() -> ModularBot:
-    phase = build_modular_block_phase(
-        _TEST_MISSION_NAME,
-        name=f"Mission: {_TEST_MISSION_NAME}",
-        kind="missions",
-        recipe_name="Mission",
-        anchor=True,
-    )
-    return ModularBot(
-        "ScriptHelperTestRunner",
-        [phase],
-        loop=False,
-        template="preserve",
-    )
-
-
-def _build_replay_bot(steps: list[dict]) -> ModularBot:
-    prepared_steps = [_prepare_replay_step(dict(step)) for step in steps if isinstance(step, dict)]
-    phase = build_inline_modular_phase(
-        display_name="Script Helper Replay",
-        name="Replay Recorded Steps",
-        steps=prepared_steps,
-        recipe_name="ScriptHelperReplay",
-        anchor=True,
-    )
-    return ModularBot(
-        "ModularBotHelperReplay",
-        [phase],
-        loop=False,
-        template="preserve",
-    )
-
-
-def _prepare_replay_step(step: dict) -> dict:
-    replay_step = dict(step)
-    step_type = str(replay_step.get("type", "") or "").strip().lower()
-
-    if step_type in ("path", "auto_path", "auto_path_delayed"):
-        replay_step.setdefault("wait_for_loot", True)
-    if step_type in ("auto_path", "auto_path_delayed"):
-        replay_step.setdefault("pause_on_combat", True)
-
-    return replay_step
+def _modular_data_root() -> Path:
+    return Path(__file__).resolve().parents[1]
 
 
 def _fmt_xy(x: float, y: float) -> str:
@@ -138,53 +84,85 @@ def _enum_key_from_name(name: str, default_prefix: str) -> str:
         if ch.isalnum():
             cleaned.append(ch)
             previous_was_underscore = False
-            continue
-        if not previous_was_underscore:
+        elif not previous_was_underscore:
             cleaned.append("_")
             previous_was_underscore = True
     key = "".join(cleaned).strip("_")
     return key or default_prefix
 
 
-def _fmt_target_enum_entry(agent_id: int) -> str:
+def _safe_display_name(name: str) -> str:
+    return str(name or "").replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _target_enum_entry(agent_id: int) -> tuple[str | None, str | None, str]:
+    if agent_id <= 0 or not Agent.IsValid(agent_id):
+        return None, None, ""
     enc_name = PyAgent.PyAgent.GetAgentEncName(agent_id) or []
     display_name = Agent.GetNameByID(agent_id) or ""
     enc_name_str = ", ".join(str(int(value)) for value in enc_name)
     enum_key = _enum_key_from_name(display_name, "TARGET")
-    safe_display_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    return f"\"{enum_key}\": ((({enc_name_str}),), \"{safe_display_name}\"),"
+    enum_entry = f'"{enum_key}": ((({enc_name_str}),), "{_safe_display_name(display_name)}"),'
+    return enum_key, enum_entry, display_name
 
 
-def _fmt_item_enum_entry(agent_id: int) -> str:
-    item_id = int(Agent.GetItemAgentItemID(agent_id))
-    model_id = int(Item.GetModelID(item_id)) if item_id > 0 else 0
-    display_name = Agent.GetNameByID(agent_id) or (f"Item {model_id}" if model_id > 0 else "Item")
-    enum_key = _enum_key_from_name(display_name, "ITEM")
-    safe_display_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    return f"\"{enum_key}\": ({model_id}, \"{safe_display_name}\"),"
+def _target_registry_for_kind(kind: str) -> dict[str, object]:
+    if kind == "enemy":
+        return ENEMY_TARGETS
+    if kind == "gadget":
+        return GADGET_TARGETS
+    return NPC_TARGETS
 
 
-def _build_target_item_enum_and_model(agent_id: int) -> tuple[str | None, str | None, str, int]:
+def _captured_entries_for_kind(kind: str) -> dict[str, str]:
+    if kind == "enemy":
+        return _captured_enemy_entries
+    if kind == "gadget":
+        return _captured_gadget_entries
+    return _captured_npc_entries
+
+
+def _capture_target_enum(kind: str, agent_id: int) -> tuple[str | None, str | None, str]:
+    key, entry, display_name = _target_enum_entry(agent_id)
+    if key and entry:
+        _captured_entries_for_kind(kind)[key] = entry
+    return key, entry, display_name
+
+
+def _target_registry_title(kind: str) -> str:
+    if kind == "enemy":
+        return "ENEMY_TARGETS"
+    if kind == "gadget":
+        return "GADGET_TARGETS"
+    return "NPC_TARGETS"
+
+
+def _target_registry_file_hint() -> str:
+    return "Py4GWCoreLib/modular/domain/target_registry.py"
+
+
+def _item_enum_entry(agent_id: int) -> tuple[str | None, str | None, str, int]:
     if agent_id <= 0 or not Agent.IsValid(agent_id) or not Agent.IsItem(agent_id):
         return None, None, "", 0
     item_id = int(Agent.GetItemAgentItemID(agent_id))
     model_id = int(Item.GetModelID(item_id)) if item_id > 0 else 0
     display_name = Agent.GetNameByID(agent_id) or (f"Item {model_id}" if model_id > 0 else "Item")
     enum_key = _enum_key_from_name(display_name, "ITEM")
-    safe_display_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    enum_entry = f"\"{enum_key}\": ({model_id}, \"{safe_display_name}\"),"
+    enum_entry = f'"{enum_key}": ({model_id}, "{_safe_display_name(display_name)}"),'
     return enum_key, enum_entry, display_name, model_id
 
 
 def _ensure_dialog_initialized() -> bool:
-    global _dialog_init_attempted, _dialog_init_ok
+    global _dialog_init_attempted, _dialog_init_last_attempt, _dialog_init_ok
     if PyDialog is None or not hasattr(PyDialog, "PyDialog"):
         return False
-
-    if _dialog_init_attempted:
+    if _dialog_init_attempted and _dialog_init_ok:
         return _dialog_init_ok
-
+    now = time.monotonic()
+    if _dialog_init_attempted and now - _dialog_init_last_attempt < 5.0:
+        return False
     _dialog_init_attempted = True
+    _dialog_init_last_attempt = now
     try:
         init_fn = getattr(PyDialog.PyDialog, "initialize", None)
         if init_fn is not None:
@@ -196,18 +174,15 @@ def _ensure_dialog_initialized() -> bool:
     return _dialog_init_ok
 
 
-def _get_active_dialog_options() -> list[tuple[int, str]]:
+def _active_dialog_options() -> list[tuple[int, str]]:
     if not _ensure_dialog_initialized():
         return []
-
     getter = getattr(PyDialog.PyDialog, "get_active_dialog_buttons", None)
     if getter is None:
         return []
-
-    raw_buttons = getter() or []
     options: list[tuple[int, str]] = []
     seen: set[int] = set()
-    for button in raw_buttons:
+    for button in getter() or []:
         dialog_id = int(getattr(button, "dialog_id", 0) or 0)
         if dialog_id <= 0 or dialog_id in seen:
             continue
@@ -217,137 +192,7 @@ def _get_active_dialog_options() -> list[tuple[int, str]]:
     return options
 
 
-def _build_target_npc_enum() -> tuple[str | None, str | None, str]:
-    target_id = int(Player.GetTargetID() or 0)
-    if target_id <= 0 or not Agent.IsValid(target_id):
-        return None, None, ""
-
-    display_name = Agent.GetNameByID(target_id) or ""
-    enum_key = _enum_key_from_name(display_name, "NPC")
-    enc_name = PyAgent.PyAgent.GetAgentEncName(target_id) or []
-    enc_name_str = ", ".join(str(int(value)) for value in enc_name)
-    safe_display_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    enum_entry = f"\"{enum_key}\": ((({enc_name_str}),), \"{safe_display_name}\"),"
-    return enum_key, enum_entry, display_name
-
-
-def _build_target_gadget_enum() -> tuple[str | None, str | None, str]:
-    target_id = int(Player.GetTargetID() or 0)
-    if target_id <= 0 or not Agent.IsValid(target_id) or not Agent.IsGadget(target_id):
-        return None, None, ""
-
-    display_name = Agent.GetNameByID(target_id) or "Gadget"
-    enum_key = _enum_key_from_name(display_name, "GADGET")
-    enc_name = PyAgent.PyAgent.GetAgentEncName(target_id) or []
-    enc_name_str = ", ".join(str(int(value)) for value in enc_name)
-    safe_display_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    enum_entry = f"\"{enum_key}\": ((({enc_name_str}),), \"{safe_display_name}\"),"
-    return enum_key, enum_entry, display_name
-
-
-def _build_target_enemy_enum() -> tuple[str | None, str | None, str]:
-    target_id = int(Player.GetTargetID() or 0)
-    if target_id <= 0 or not Agent.IsValid(target_id):
-        return None, None, ""
-    if Agent.IsItem(target_id) or Agent.IsGadget(target_id):
-        return None, None, ""
-    if target_id not in AgentArray.GetEnemyArray():
-        return None, None, ""
-
-    display_name = Agent.GetNameByID(target_id) or "Enemy"
-    enum_key = _enum_key_from_name(display_name, "ENEMY")
-    enc_name = PyAgent.PyAgent.GetAgentEncName(target_id) or []
-    enc_name_str = ", ".join(str(int(value)) for value in enc_name)
-    safe_display_name = display_name.replace("\\", "\\\\").replace('"', '\\"')
-    enum_entry = f"\"{enum_key}\": ((({enc_name_str}),), \"{safe_display_name}\"),"
-    return enum_key, enum_entry, display_name
-
-
-def _append_dialog_recorder_step(dialog_id: int) -> None:
-    global _dialog_recorder_steps
-    npc_key, enum_entry, display_name = _build_target_npc_enum()
-    if npc_key and enum_entry:
-        _dialog_recorder_npc_entries[npc_key] = enum_entry
-        base_selector = {"npc": npc_key}
-    else:
-        base_selector = {"nearest": True}
-
-    new_id = f"0x{int(dialog_id):X}"
-    step = {"type": "dialog", "id": new_id}
-    step.update(base_selector)
-    if display_name:
-        step["name"] = f"Dialog - {display_name}"
-
-    merged = False
-    if _dialog_recorder_steps:
-        last = _dialog_recorder_steps[-1]
-        same_npc = False
-        if "npc" in base_selector:
-            same_npc = last.get("npc") == base_selector["npc"]
-        elif "nearest" in base_selector:
-            same_npc = bool(last.get("nearest", False))
-
-        if same_npc:
-            if last.get("type") == "dialog":
-                previous_id = str(last.get("id", "")).strip()
-                upgraded = {"type": "dialogs", "id": [previous_id, new_id]}
-                if "npc" in base_selector:
-                    upgraded["npc"] = base_selector["npc"]
-                else:
-                    upgraded["nearest"] = True
-                if last.get("name"):
-                    upgraded["name"] = last["name"]
-                _dialog_recorder_steps[-1] = upgraded
-                merged = True
-            elif last.get("type") == "dialogs":
-                ids = last.get("id")
-                if isinstance(ids, list):
-                    ids.append(new_id)
-                    merged = True
-
-    if not merged:
-        _add_recorded_step(step)
-
-
-def _poll_dialog_recorder() -> None:
-    global _dialog_last_tick, _dialog_recorder_status
-    if not _dialog_recorder_enabled:
-        return
-    if not _ensure_dialog_initialized():
-        return
-
-    getter = getattr(PyDialog.PyDialog, "get_dialog_callback_journal_sent", None)
-    if getter is None:
-        return
-
-    entries = getter() or []
-    max_tick = _dialog_last_tick
-    captured = 0
-    for entry in entries:
-        tick = int(getattr(entry, "tick", 0) or 0)
-        if tick <= _dialog_last_tick:
-            continue
-        max_tick = max(max_tick, tick)
-
-        if str(getattr(entry, "event_type", "") or "") != "sent_choice":
-            continue
-        dialog_id = int(getattr(entry, "dialog_id", 0) or 0)
-        if dialog_id <= 0:
-            continue
-
-        _append_dialog_recorder_step(dialog_id)
-        captured += 1
-
-    _dialog_last_tick = max_tick
-    if captured > 0:
-        _dialog_recorder_status = f"Captured {captured} dialog click(s)."
-
-
-def _sync_dialog_journal_cursor_to_latest() -> None:
-    """
-    Advance recorder cursor to the latest known dialog journal tick.
-    This prevents old entries from being recaptured after clearing.
-    """
+def _sync_dialog_cursor_to_latest() -> None:
     global _dialog_last_tick
     if not _ensure_dialog_initialized():
         return
@@ -355,407 +200,386 @@ def _sync_dialog_journal_cursor_to_latest() -> None:
     if getter is None:
         return
     entries = getter() or []
-    if not entries:
+    if entries:
+        _dialog_last_tick = max(_dialog_last_tick, max(int(getattr(entry, "tick", 0) or 0) for entry in entries))
+
+
+def _poll_dialog_recorder() -> None:
+    global _dialog_last_tick, _status
+    if not _auto_capture_dialogs or not _ensure_dialog_initialized():
         return
-    latest_tick = max(int(getattr(entry, "tick", 0) or 0) for entry in entries)
-    _dialog_last_tick = max(_dialog_last_tick, latest_tick)
+    getter = getattr(PyDialog.PyDialog, "get_dialog_callback_journal_sent", None)
+    if getter is None:
+        return
+    max_tick = _dialog_last_tick
+    captured = 0
+    for entry in getter() or []:
+        tick = int(getattr(entry, "tick", 0) or 0)
+        if tick <= _dialog_last_tick:
+            continue
+        max_tick = max(max_tick, tick)
+        if str(getattr(entry, "event_type", "") or "") != "sent_choice":
+            continue
+        dialog_id = int(getattr(entry, "dialog_id", 0) or 0)
+        if dialog_id <= 0:
+            continue
+        _record_dialog_step(dialog_id)
+        captured += 1
+    _dialog_last_tick = max_tick
+    if captured:
+        _status = f"Captured {captured} dialog click(s)."
 
 
-def _dialog_recorder_npc_data_text() -> str:
-    lines: list[str] = []
-    if _dialog_recorder_npc_entries:
-        ordered_npc = sorted(_dialog_recorder_npc_entries.items(), key=lambda kv: kv[0])
-        lines.extend(value for _, value in ordered_npc)
-    if _dialog_recorder_enemy_entries:
-        ordered_enemy = sorted(_dialog_recorder_enemy_entries.items(), key=lambda kv: kv[0])
-        lines.extend(value for _, value in ordered_enemy)
-    if _dialog_recorder_gadget_entries:
-        ordered_gadget = sorted(_dialog_recorder_gadget_entries.items(), key=lambda kv: kv[0])
-        lines.extend(value for _, value in ordered_gadget)
-    if _dialog_recorder_item_entries:
-        ordered_item = sorted(_dialog_recorder_item_entries.items(), key=lambda kv: kv[0])
-        lines.extend(value for _, value in ordered_item)
-    if not lines:
-        return ""
-    return "\n".join(lines)
+def _record_dialog_step(dialog_id: int) -> None:
+    target_id = int(Player.GetTargetID() or 0)
+    npc_key, npc_entry, display_name = _capture_target_enum("npc", target_id)
+    selector: dict[str, Any]
+    if npc_key and npc_entry:
+        selector = {"npc": npc_key}
+    else:
+        selector = {"nearest": True}
+
+    dialog_value = f"0x{int(dialog_id):X}"
+    step: dict[str, Any] = {"type": "interact", "action": "dialog", "target": "npc", "id": dialog_value}
+    step.update(selector)
+    if target_id > 0 and Agent.IsValid(target_id):
+        x, y = Agent.GetXY(target_id)
+        step["point"] = [int(x), int(y)]
+    if display_name:
+        step["name"] = f"Dialog - {display_name}"
+
+    last = _recorded_steps[-1] if _recorded_steps else None
+    if isinstance(last, dict) and last.get("type") == "interact" and last.get("action") == "dialog":
+        same_selector = (
+            ("npc" in selector and last.get("npc") == selector["npc"])
+            or ("nearest" in selector and bool(last.get("nearest")))
+        )
+        if same_selector:
+            ids = last.get("ids")
+            if not isinstance(ids, list):
+                previous = last.pop("id", None)
+                ids = [previous] if previous is not None else []
+                last["ids"] = ids
+            ids.append(dialog_value)
+            _mark_last_action_now()
+            return
+
+    _add_step(step)
 
 
-def _dialog_recorder_payload() -> str:
-    lines = ["{", '  "name": "dialog_recorded",', '  "steps": [']
-    step_lines = _dialog_recorder_steps_single_line_list()
+def _add_step(step: dict[str, Any]) -> None:
+    _recorded_steps.append(step)
+    _mark_last_action_now()
+
+
+def _mark_last_action_now() -> None:
+    global _last_action_ts
+    _last_action_ts = time.monotonic()
+
+
+def _elapsed_wait_ms_since_last_action(default_ms: int = 1000) -> int:
+    if _last_action_ts is None:
+        return default_ms
+    return max(100, int((time.monotonic() - _last_action_ts) * 1000.0))
+
+
+def _recipe_payload() -> dict[str, Any]:
+    return {
+        "name": _recipe_name.strip() or _DEFAULT_RECIPE_NAME,
+        "steps": [dict(step) for step in _recorded_steps],
+    }
+
+
+def _recipe_json() -> str:
+    payload = _recipe_payload()
+    lines = ["{", f'  "name": {json.dumps(payload["name"])},', '  "steps": [']
+    step_lines = [json.dumps(step, ensure_ascii=False, separators=(", ", ": ")) for step in payload["steps"]]
     for index, line in enumerate(step_lines):
         suffix = "," if index < len(step_lines) - 1 else ""
         lines.append(f"    {line}{suffix}")
     lines.append("  ]")
     lines.append("}")
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
-def _collect_used_selector_keys() -> tuple[set[str], set[str], set[str]]:
-    used_npcs: set[str] = set()
-    used_enemies: set[str] = set()
-    used_gadgets: set[str] = set()
-    for step in _dialog_recorder_steps:
-        if not isinstance(step, dict):
-            continue
-        npc_value = step.get("npc")
-        enemy_value = step.get("enemy")
-        gadget_value = step.get("gadget")
-        if isinstance(npc_value, str) and npc_value.strip():
-            used_npcs.add(npc_value.strip())
-        if isinstance(enemy_value, str) and enemy_value.strip():
-            used_enemies.add(enemy_value.strip())
-        if isinstance(gadget_value, str) and gadget_value.strip():
-            used_gadgets.add(gadget_value.strip())
-    return used_npcs, used_enemies, used_gadgets
+def _steps_text() -> str:
+    return "\n".join(json.dumps(step, ensure_ascii=False, separators=(", ", ": ")) for step in _recorded_steps)
 
 
 def _captured_entry_encoded_tuple(entry: str) -> tuple[int, ...] | None:
     try:
         start = entry.index("(((") + 3
         end = entry.index("),),", start)
-    except ValueError:
+        raw = entry[start:end].strip()
+        if not raw:
+            return ()
+        return tuple(int(value.strip()) for value in raw.split(",") if value.strip())
+    except (ValueError, TypeError):
         return None
-
-    raw_numbers = entry[start:end]
-    values: list[int] = []
-    for token in raw_numbers.split(","):
-        token = token.strip()
-        if not token:
-            continue
-        try:
-            values.append(int(token))
-        except ValueError:
-            return None
-    if not values:
-        return None
-    return tuple(values)
 
 
 def _registry_encoded_tuples(value: object) -> set[tuple[int, ...]]:
-    encoded_set: set[tuple[int, ...]] = set()
-
     if value is None:
-        return encoded_set
-
-    # AgentTargetDefinition path
+        return set()
     encoded_names = getattr(value, "encoded_names", None)
-    if isinstance(encoded_names, tuple):
-        for encoded in encoded_names:
-            if isinstance(encoded, tuple) and encoded:
-                try:
-                    encoded_set.add(tuple(int(v) for v in encoded))
-                except Exception:
-                    pass
-        if encoded_set:
-            return encoded_set
-
-    # Legacy tuple path: (encoded_names_raw, display_name)
-    if isinstance(value, tuple) and len(value) == 2:
-        encoded_names_raw = value[0]
-        if isinstance(encoded_names_raw, tuple):
-            if encoded_names_raw and all(isinstance(v, int) for v in encoded_names_raw):
-                encoded_set.add(tuple(int(v) for v in encoded_names_raw))
-                return encoded_set
-            for encoded in encoded_names_raw:
-                if isinstance(encoded, tuple) and encoded:
-                    try:
-                        encoded_set.add(tuple(int(v) for v in encoded))
-                    except Exception:
-                        pass
-    return encoded_set
+    if encoded_names is not None:
+        return {tuple(int(part) for part in encoded_name) for encoded_name in encoded_names}
+    if not isinstance(value, tuple) or not value:
+        return set()
+    encoded_raw = value[0]
+    if not encoded_raw:
+        return set()
+    try:
+        if isinstance(encoded_raw[0], int):
+            return {tuple(int(part) for part in encoded_raw)}
+        return {tuple(int(part) for part in encoded_name) for encoded_name in encoded_raw}
+    except (TypeError, ValueError, IndexError):
+        return set()
 
 
-def _missing_and_extend_keys(
-    used_keys: set[str],
-    captured_entries: dict[str, str],
-    registry: dict[str, object],
-) -> tuple[list[str], list[str]]:
-    missing: list[str] = []
-    extend: list[str] = []
-    for key in sorted(used_keys):
-        if key not in registry:
-            missing.append(key)
-            continue
-
-        captured_entry = captured_entries.get(key)
-        if not captured_entry:
-            continue
-        captured_encoded = _captured_entry_encoded_tuple(captured_entry)
-        if captured_encoded is None:
-            continue
-        existing = _registry_encoded_tuples(registry.get(key))
-        if captured_encoded not in existing:
-            extend.append(key)
-    return missing, extend
+def _encoded_tuple_text(encoded: tuple[int, ...]) -> str:
+    return "(" + ", ".join(str(value) for value in encoded) + ")"
 
 
-def _missing_enum_appendix_text() -> str:
-    used_npcs, used_enemies, used_gadgets = _collect_used_selector_keys()
-    missing_enemies, extend_enemies = _missing_and_extend_keys(used_enemies, _dialog_recorder_enemy_entries, ENEMY_TARGETS)
-    missing_gadgets, extend_gadgets = _missing_and_extend_keys(used_gadgets, _dialog_recorder_gadget_entries, GADGET_TARGETS)
-    missing_npcs, extend_npcs = _missing_and_extend_keys(used_npcs, _dialog_recorder_npc_entries, NPC_TARGETS)
-
+def _target_registry_update_lines(kind: str, captured: dict[str, str]) -> list[str]:
+    title = _target_registry_title(kind)
+    registry = _target_registry_for_kind(kind)
     lines: list[str] = []
-    lines.append("")
-    lines.append("#ADD/EXTEND these ENEMIES to modularBot")
-    if missing_enemies or extend_enemies:
-        for key in missing_enemies + extend_enemies:
-            entry = _dialog_recorder_enemy_entries.get(key)
-            if entry:
-                lines.append(entry)
-            else:
-                lines.append(f'# MISSING_CAPTURE: "{key}"')
-    else:
-        lines.append("# none")
-
-    lines.append("")
-    lines.append("#ADD/EXTEND these GADGETS to modularBot")
-    if missing_gadgets or extend_gadgets:
-        for key in missing_gadgets + extend_gadgets:
-            entry = _dialog_recorder_gadget_entries.get(key)
-            if entry:
-                lines.append(entry)
-            else:
-                lines.append(f'# MISSING_CAPTURE: "{key}"')
-    else:
-        lines.append("# none")
-
-    lines.append("")
-    lines.append("#ADD/EXTEND these NPCs to modularBot")
-    if missing_npcs or extend_npcs:
-        for key in missing_npcs + extend_npcs:
-            entry = _dialog_recorder_npc_entries.get(key)
-            if entry:
-                lines.append(entry)
-            else:
-                lines.append(f'# MISSING_CAPTURE: "{key}"')
-    else:
-        lines.append("# none")
-
-    return "\n".join(lines)
+    for key, entry in sorted(captured.items()):
+        encoded = _captured_entry_encoded_tuple(entry)
+        if encoded is None:
+            continue
+        existing_encoded = _registry_encoded_tuples(registry.get(key))
+        if key in registry and encoded in existing_encoded:
+            continue
+        encoded_text = _encoded_tuple_text(encoded)
+        if key in registry:
+            lines.append(f"extend {title} {key} with {encoded_text}")
+        else:
+            lines.append(f"add {key} with {encoded_text} to {title}")
+    return lines
 
 
-def _dialog_recorder_payload_with_appendix() -> str:
-    return _dialog_recorder_payload() + _missing_enum_appendix_text()
-
-
-def _dialog_recorder_steps_single_line_list() -> list[str]:
-    return [json.dumps(step, separators=(", ", ": ")) for step in _dialog_recorder_steps]
-
-
-def _dialog_recorder_steps_single_line_text() -> str:
-    return "\n".join(_dialog_recorder_steps_single_line_list())
-
-
-def _extract_subject_from_step_name(step_name: str, prefixes: tuple[str, ...]) -> str:
-    raw = str(step_name or "").strip()
-    for prefix in prefixes:
-        if raw.lower().startswith(prefix.lower()):
-            subject = raw[len(prefix):].strip(" -")
-            return subject
-    return raw
-
-
-def _prettify_selector_label(value: object) -> str:
-    raw = str(value or "").strip()
-    if not raw:
+def _target_registry_action(kind: str, key: str | None, entry: str | None) -> str:
+    if not key or not entry:
         return ""
-    text = raw.replace("_", " ").strip()
-    if text.upper() == text:
-        return text.title()
-    return text
+    lines = _target_registry_update_lines(kind, {key: entry})
+    if not lines:
+        return "already indexed"
+    return lines[0]
 
 
-def _infer_autopath_name_from_follow_step(step: dict) -> str:
-    step_type = str(step.get("type", "") or "").strip().lower()
-    step_name = str(step.get("name", "") or "").strip()
-
-    if step_type in ("dialog", "dialogs"):
-        if "npc" in step:
-            return f"To {_prettify_selector_label(step['npc'])}"
-        subject = _extract_subject_from_step_name(step_name, ("Dialog",))
-        return f"To {subject}" if subject else "To Dialog"
-    if step_type == "interact_gadget":
-        if "gadget" in step:
-            return f"To {_prettify_selector_label(step['gadget'])}"
-        subject = _extract_subject_from_step_name(step_name, ("Interact",))
-        return f"To {subject}" if subject else "To Gadget"
-    if step_type in ("interact_npc", "interact_quest_npc", "interact_nearest_npc"):
-        if "npc" in step:
-            return f"To {_prettify_selector_label(step['npc'])}"
-        if "target" in step:
-            return f"To {_prettify_selector_label(step['target'])}"
-        return "To NPC"
-    if step_type == "interact_item":
-        return "To Item"
-    if step_type == "exit_map":
-        return "To Exit"
-    if step_type == "travel":
-        return "To Travel"
-    if step_name:
-        return f"To {step_name}"
-    return "Path"
+def _captured_enum_entries_text() -> str:
+    lines: list[str] = []
+    for kind, captured in (
+        ("enemy", _captured_enemy_entries),
+        ("gadget", _captured_gadget_entries),
+        ("npc", _captured_npc_entries),
+    ):
+        updates = _target_registry_update_lines(kind, captured)
+        if not updates:
+            continue
+        lines.extend(updates)
+    if _captured_item_entries:
+        lines.append("")
+        lines.append("# Captured item model IDs")
+        lines.extend(value for _key, value in sorted(_captured_item_entries.items()))
+    if not lines:
+        return "No target registry updates needed."
+    return _target_registry_file_hint() + "\n" + "\n".join(lines).strip()
 
 
-def _apply_name_to_previous_open_autopath(follow_step: dict) -> None:
-    if not _dialog_recorder_steps:
-        return
-    last = _dialog_recorder_steps[-1]
-    if str(last.get("type", "")).strip().lower() != "auto_path":
-        return
-    if str(last.get("name", "")).strip():
-        return
-    last["name"] = _infer_autopath_name_from_follow_step(follow_step)
+def _registry_appendix() -> str:
+    lines: list[str] = []
+    for kind, captured in (
+        ("enemy", _captured_enemy_entries),
+        ("gadget", _captured_gadget_entries),
+        ("npc", _captured_npc_entries),
+    ):
+        updates = _target_registry_update_lines(kind, captured)
+        if not updates:
+            continue
+        lines.extend(updates)
+    if _captured_item_entries:
+        lines.append("")
+        lines.append("# Captured item model IDs")
+        lines.extend(value for _key, value in sorted(_captured_item_entries.items()))
+    if not lines:
+        return ""
+    return _target_registry_file_hint() + "\n" + "\n".join(lines).strip()
 
 
-def _add_recorded_step(step: dict) -> None:
-    global _dialog_recorder_last_action_ts
-    step_type = str(step.get("type", "") or "").strip().lower()
-    if step_type != "auto_path":
-        _apply_name_to_previous_open_autopath(step)
-    _dialog_recorder_steps.append(step)
-    _dialog_recorder_last_action_ts = time.monotonic()
+def _recipe_json_with_appendix() -> str:
+    appendix = _registry_appendix()
+    if not appendix:
+        return _recipe_json()
+    return _recipe_json() + "\n" + appendix + "\n"
 
 
-def _mark_last_action_now() -> None:
-    global _dialog_recorder_last_action_ts
-    _dialog_recorder_last_action_ts = time.monotonic()
-
-
-def _elapsed_wait_ms_since_last_action(default_ms: int = 1000) -> int:
-    if _dialog_recorder_last_action_ts is None:
-        return int(default_ms)
-    elapsed_ms = int((time.monotonic() - _dialog_recorder_last_action_ts) * 1000.0)
-    # Keep generated waits practical and readable.
-    elapsed_ms = max(100, elapsed_ms)
-    return int(round(elapsed_ms / 100.0) * 100)
-
-
-def _build_load_party_step(minionless: bool = False) -> dict:
-    party_size = int(Map.GetMaxPartySize() or 0)
-    if party_size <= 0:
-        party_size = int(Party.GetPartySize() or 0)
-    if party_size >= 8:
-        max_heroes = 8
-        team = "heroes_7_minionless" if minionless else "heroes_7"
-    elif party_size >= 6:
-        max_heroes = 6
-        team = "heroes_5_minionless" if minionless else "heroes_5"
-    elif party_size >= 4:
-        max_heroes = 4
-        team = "heroes_3_minionless" if minionless else "heroes_3"
-    else:
-        max_heroes = 6
-        team = "heroes_5_minionless" if minionless else "heroes_5"
-
-    step = {
-        "type": "load_party",
-        "name": "Load Party",
-        "max_heroes": int(max_heroes),
-        "team": team,
-    }
-    if minionless:
-        step["minionless"] = True
-    return step
+def _save_recipe() -> str:
+    relative = re.sub(r"^[\\/]+", "", _relative_save_path.strip() or _DEFAULT_RELATIVE_PATH)
+    if not relative.lower().endswith(".json"):
+        relative += ".json"
+    path = (_modular_data_root() / relative).resolve()
+    root = _modular_data_root().resolve()
+    if root not in path.parents and path != root:
+        raise ValueError("Save path must stay inside Sources/modular_data.")
+    os.makedirs(path.parent, exist_ok=True)
+    path.write_text(_recipe_json(), encoding="utf-8", newline="\n")
+    return str(path)
 
 
 def _start_exit_map_recording() -> None:
     global _exit_recording_active, _exit_recording_waiting_load
-    global _exit_record_start_x, _exit_record_start_y, _exit_record_last_x, _exit_record_last_y
-    global _exit_record_source_map_id, _exit_record_source_map_name
-    global _dialog_recorder_status
-
+    global _exit_record_last_x, _exit_record_last_y, _exit_record_source_map_id, _exit_record_source_map_name, _status
     x, y = Player.GetXY()
-    _exit_record_start_x = int(x)
-    _exit_record_start_y = int(y)
     _exit_record_last_x = int(x)
     _exit_record_last_y = int(y)
     _exit_record_source_map_id = int(Map.GetMapID() or 0)
     _exit_record_source_map_name = str(Map.GetMapName(_exit_record_source_map_id) or "").strip()
     _exit_recording_active = True
     _exit_recording_waiting_load = False
-    _dialog_recorder_status = (
-        f"Exit-map recording started at [{_exit_record_start_x}, {_exit_record_start_y}]. "
-        "Waiting for 0,0 (map load)."
-    )
+    _status = f"Exit-map recording started at [{_exit_record_last_x}, {_exit_record_last_y}]."
 
 
 def _poll_exit_map_recording() -> None:
-    global _exit_recording_active, _exit_recording_waiting_load, _dialog_recorder_status
-    global _exit_record_last_x, _exit_record_last_y
+    global _exit_recording_active, _exit_recording_waiting_load, _exit_record_last_x, _exit_record_last_y, _status
     if not _exit_recording_active:
         return
-
+    x, y = Player.GetXY()
+    ix, iy = int(x), int(y)
     if not _exit_recording_waiting_load:
-        x, y = Player.GetXY()
-        ix, iy = int(x), int(y)
         if ix != 0 or iy != 0:
             _exit_record_last_x = ix
             _exit_record_last_y = iy
-        if ix == 0 and iy == 0:
-            _exit_recording_waiting_load = True
-            _dialog_recorder_status = (
-                f"Exit-map recording: load detected at 0,0. "
-                f"Using last pre-load xy [{_exit_record_last_x}, {_exit_record_last_y}]. "
-                "Waiting for map ready."
-            )
+            return
+        _exit_recording_waiting_load = True
+        _status = f"Exit-map recording: load detected, using [{_exit_record_last_x}, {_exit_record_last_y}]."
         return
-
-    if not Map.IsMapReady():
+    if ix == 0 and iy == 0:
         return
-
     target_map_id = int(Map.GetMapID() or 0)
-    if target_map_id <= 0:
-        return
-
-    if target_map_id == int(_exit_record_source_map_id):
+    if target_map_id <= 0 or target_map_id == _exit_record_source_map_id:
         _exit_recording_active = False
         _exit_recording_waiting_load = False
-        _dialog_recorder_status = "Exit-map recording canceled (map did not change)."
+        _status = "Exit-map recording canceled; map did not change."
         return
-
     name_suffix = _exit_record_source_map_name or str(_exit_record_source_map_id or "Map")
-    step = {
-        "type": "exit_map",
-        "name": f"Leave {name_suffix}",
-        "point": [int(_exit_record_last_x), int(_exit_record_last_y)],
-        "target_map_id": int(target_map_id),
-    }
-    _add_recorded_step(step)
+    _add_step(
+        {
+            "type": "route",
+            "name": f"Exit {name_suffix}",
+            "mode": "exit",
+            "point": [int(_exit_record_last_x), int(_exit_record_last_y)],
+            "target_map_id": target_map_id,
+        }
+    )
     _exit_recording_active = False
     _exit_recording_waiting_load = False
-    _dialog_recorder_status = f"Recorded exit_map to target_map_id {target_map_id}."
+    _status = f"Recorded route exit to target_map_id {target_map_id}."
 
 
 def _start_travel_recording() -> None:
-    global _travel_recording_active, _travel_record_source_map_id, _travel_record_source_map_name, _dialog_recorder_status
+    global _travel_recording_active, _travel_record_source_map_id, _status
     _travel_record_source_map_id = int(Map.GetMapID() or 0)
-    _travel_record_source_map_name = str(Map.GetMapName(_travel_record_source_map_id) or "").strip()
     _travel_recording_active = True
-    _dialog_recorder_status = f"Travel recording started from map {_travel_record_source_map_id}. Travel now..."
+    _status = f"Travel recording started from map {_travel_record_source_map_id}. Travel now."
 
 
 def _poll_travel_recording() -> None:
-    global _travel_recording_active, _dialog_recorder_status
+    global _travel_recording_active, _status
     if not _travel_recording_active:
         return
-    if not Map.IsMapReady():
-        return
-
     current_map_id = int(Map.GetMapID() or 0)
-    if current_map_id <= 0 or current_map_id == int(_travel_record_source_map_id):
+    if current_map_id <= 0 or current_map_id == _travel_record_source_map_id:
+        return
+    _add_step({"type": "map", "name": "Travel", "action": "travel", "target_map_id": current_map_id})
+    _travel_recording_active = False
+    _status = f"Recorded map travel to target_map_id {current_map_id}."
+
+
+def _record_route_point() -> None:
+    global _status
+    x, y = Player.GetXY()
+    point = [int(x), int(y)]
+    if _recorded_steps and _recorded_steps[-1].get("type") == "route" and _recorded_steps[-1].get("mode") == "move":
+        points = _recorded_steps[-1].setdefault("points", [])
+        if not points or points[-1] != point:
+            points.append(point)
+            _mark_last_action_now()
+        _status = f"Appended route point {point} ({len(points)} total)."
+        return
+    _add_step({"type": "route", "name": "Route", "mode": "move", "points": [point]})
+    _status = f"Started route at {point}."
+
+
+def _record_interact_target(target: str) -> None:
+    global _status
+    target_id = int(Player.GetTargetID() or 0)
+    if target_id <= 0 or not Agent.IsValid(target_id):
+        _status = "No target selected."
+        return
+    if target == "npc" and (Agent.IsItem(target_id) or Agent.IsGadget(target_id) or target_id in AgentArray.GetEnemyArray()):
+        _status = "Target is not an NPC."
+        return
+    if target == "gadget" and not Agent.IsGadget(target_id):
+        _status = "Target is not a gadget."
+        return
+    if target == "item" and not Agent.IsItem(target_id):
+        _status = "Target is not an item."
         return
 
-    destination_map_name = str(Map.GetMapName(current_map_id) or "").strip()
-    step = {
-        "type": "travel",
-        "name": f"Travel to {destination_map_name or current_map_id}",
-        "target_map_id": int(current_map_id),
+    if target == "item":
+        item_key, item_entry, item_name, model_id = _item_enum_entry(target_id)
+        if item_key and item_entry:
+            _captured_item_entries[item_key] = item_entry
+        if model_id <= 0:
+            _status = "Unable to resolve target item model_id."
+            return
+        _add_step({"type": "interact", "name": f"Pick {item_name}", "target": "item", "model_id": int(model_id)})
+        _status = f"Recorded interact item model_id {model_id}."
+        return
+
+    key, entry, display_name = _capture_target_enum(target, target_id)
+    x, y = Agent.GetXY(target_id)
+    step: dict[str, Any] = {
+        "type": "interact",
+        "name": f"Interact {display_name or target.title()}",
+        "target": target,
+        "point": [int(x), int(y)],
     }
-    _add_recorded_step(step)
-    _travel_recording_active = False
-    _dialog_recorder_status = f"Recorded travel to target_map_id {current_map_id}."
+    if key and entry:
+        if target == "npc":
+            step["npc"] = key
+        else:
+            step["gadget"] = key
+    _add_step(step)
+    registry_status = _target_registry_action(target, key, entry)
+    suffix = f" ({key}; {registry_status})" if key and registry_status else ""
+    _status = f"Recorded interact {target}{suffix}."
+
+
+def _record_enemy_blacklist(mode: str) -> None:
+    global _status
+    target_id = int(Player.GetTargetID() or 0)
+    if target_id <= 0 or not Agent.IsValid(target_id) or target_id not in AgentArray.GetEnemyArray():
+        _status = "Target is not an enemy."
+        return
+    key, entry, display_name = _capture_target_enum("enemy", target_id)
+    if not key or not entry:
+        _status = "Could not build enemy selector."
+        return
+    _add_step({"type": "behavior", "name": f"{mode.title()} {display_name}", "action": "enemy_blacklist", "mode": mode, "enemy": key})
+    registry_status = _target_registry_action("enemy", key, entry)
+    _status = f"Recorded enemy_blacklist {mode} for {display_name or key} ({registry_status})."
+
+
+def _record_party_load() -> None:
+    global _status
+    party_size = int(Map.GetMaxPartySize() or 8)
+    party_size = party_size if party_size in {4, 6, 8} else 8
+    _add_step({"type": "party", "name": "Load Party", "action": "load", "max_heroes": party_size})
+    _status = f"Recorded priority party load for max_heroes={party_size}."
 
 
 def _grid_button(label: str, index: int, columns: int = 3, help_text: str = "") -> bool:
@@ -767,318 +591,178 @@ def _grid_button(label: str, index: int, columns: int = 3, help_text: str = "") 
     return clicked
 
 
-def main():
-    global _test_bot, _test_running, _replay_bot, _replay_running, _replay_status
-    global _dialog_copy_status, _dialog_recorder_enabled, _dialog_recorder_status
-    global _dialog_recorder_steps, _dialog_recorder_npc_entries, _dialog_recorder_enemy_entries
-    global _dialog_recorder_gadget_entries, _dialog_recorder_item_entries, _dialog_last_tick
-    global _dialog_recorder_last_action_ts
-    global _exit_recording_active, _exit_recording_waiting_load
+def main() -> None:
+    global _recipe_name, _relative_save_path, _auto_capture_dialogs, _recorded_steps, _status
+    global _captured_npc_entries, _captured_enemy_entries, _captured_gadget_entries, _captured_item_entries
+    global _dialog_last_tick, _last_action_ts, _exit_recording_active, _exit_recording_waiting_load
     global _travel_recording_active
 
     _poll_dialog_recorder()
     _poll_exit_map_recording()
     _poll_travel_recording()
 
-    if PyImGui.begin("Modular Coder Assistant"):
-        PyImGui.text("Dialog Recorder")
-        _dialog_recorder_enabled = PyImGui.checkbox("Auto Capture Clicked Dialogs", _dialog_recorder_enabled)
-        PyImGui.text(f"Recorded steps: {len(_dialog_recorder_steps)}")
+    if not PyImGui.begin("Modular Script Helper"):
+        PyImGui.end()
+        return
 
-        PyImGui.text("Copy/Clear")
-        if _grid_button("Copy Recorder JSON", 0, help_text="Copy mission JSON plus missing ENEMY/NPC/GADGET appendix."):
-            PyImGui.set_clipboard_text(_dialog_recorder_payload_with_appendix())
-            _dialog_recorder_status = "Copied recorder JSON."
-        if _grid_button("Copy Recorder Steps", 1, help_text="Copy recorded steps only, one JSON object per line."):
-            PyImGui.set_clipboard_text(_dialog_recorder_steps_single_line_text())
-            _dialog_recorder_status = "Copied recorder steps."
-        if _grid_button("Clear Recorder", 2, help_text="Reset recorded steps, captured enums, and active monitors."):
-            _dialog_recorder_steps = []
-            _dialog_recorder_npc_entries = {}
-            _dialog_recorder_enemy_entries = {}
-            _dialog_recorder_gadget_entries = {}
-            _dialog_recorder_item_entries = {}
-            _dialog_last_tick = 0
-            _sync_dialog_journal_cursor_to_latest()
-            _dialog_recorder_last_action_ts = None
-            _exit_recording_active = False
-            _exit_recording_waiting_load = False
-            _travel_recording_active = False
-            _dialog_recorder_status = "Dialog recorder cleared (old dialog journal entries ignored)."
+    _recipe_name = PyImGui.input_text("Recipe Name", _recipe_name, 128)
+    _relative_save_path = PyImGui.input_text("Save Path", _relative_save_path, 260)
+    _auto_capture_dialogs = PyImGui.checkbox("Auto Capture Dialog Clicks", _auto_capture_dialogs)
+    PyImGui.text(f"Recorded steps: {len(_recorded_steps)}")
+    captured_enum_count = (
+        len(_captured_npc_entries)
+        + len(_captured_enemy_entries)
+        + len(_captured_gadget_entries)
+        + len(_captured_item_entries)
+    )
+    PyImGui.text(
+        f"Captured enums: {captured_enum_count} "
+        f"(npc {len(_captured_npc_entries)}, gadget {len(_captured_gadget_entries)}, "
+        f"enemy {len(_captured_enemy_entries)}, item {len(_captured_item_entries)})"
+    )
 
-        PyImGui.text("Replay")
-        if _grid_button("Replay Recorded Steps", 0, 2, help_text="Execute recorded steps with active combat-engine hooks."):
-            if not _dialog_recorder_steps:
-                _replay_status = "Replay skipped: no recorded steps."
-            else:
-                try:
-                    payload = [dict(step) for step in _dialog_recorder_steps if isinstance(step, dict)]
-                    if _replay_bot is not None:
-                        _replay_bot.stop(reason="Script Helper replay restart")
-                    _replay_bot = _build_replay_bot(payload)
-                    _sync_engine_upkeep(_replay_bot.bot)
-                    _replay_bot.start()
-                    _replay_running = True
-                    _replay_status = f"Replay started ({len(payload)} step(s))."
-                except Exception as exc:
-                    _replay_running = False
-                    _replay_status = f"Replay failed to start: {exc}"
-        if _grid_button("Stop Replay", 1, 2, help_text="Stop replay runner immediately."):
-            if _replay_bot is not None:
-                _replay_bot.stop(reason="Script Helper stop replay")
-            _replay_running = False
-            _replay_status = "Replay stopped."
-        if _replay_status:
-            PyImGui.text_wrapped(_replay_status)
+    PyImGui.separator()
+    PyImGui.text("Export")
+    if _grid_button("Copy JSON", 0, help_text="Copy full recipe JSON plus missing target-registry appendix."):
+        PyImGui.set_clipboard_text(_recipe_json_with_appendix())
+        _status = "Copied recipe JSON."
+    if _grid_button("Copy Steps", 1, help_text="Copy recorded step objects only, one per line."):
+        PyImGui.set_clipboard_text(_steps_text())
+        _status = "Copied recorded steps."
+    if _grid_button("Copy Enums", 2, help_text="Copy every captured NPC/gadget/enemy/item enum entry."):
+        PyImGui.set_clipboard_text(_captured_enum_entries_text())
+        _status = "Copied captured enum entries."
+    if _grid_button("Save JSON", 0, help_text="Save recipe JSON under Sources/modular_data."):
+        try:
+            _status = f"Saved recipe to {_save_recipe()}."
+        except Exception as exc:
+            _status = f"Save failed: {exc}"
+    if _grid_button("Clear", 1, help_text="Clear steps and captured registry appendix entries."):
+        _recorded_steps = []
+        _captured_npc_entries = {}
+        _captured_enemy_entries = {}
+        _captured_gadget_entries = {}
+        _captured_item_entries = {}
+        _dialog_last_tick = 0
+        _sync_dialog_cursor_to_latest()
+        _last_action_ts = None
+        _exit_recording_active = False
+        _exit_recording_waiting_load = False
+        _travel_recording_active = False
+        _status = "Recorder cleared."
 
-        PyImGui.text("Record Actions")
-        PyImGui.text("Movement")
-        if _grid_button("Record AutoPath", 0, help_text="Add current player XY to the active auto_path (or start a new one)."):
-            px, py = Player.GetXY()
-            ix, iy = int(px), int(py)
-            if _dialog_recorder_steps and str(_dialog_recorder_steps[-1].get("type", "")).strip().lower() == "auto_path":
-                points = _dialog_recorder_steps[-1].setdefault("points", [])
-                if not points or points[-1] != [ix, iy]:
-                    points.append([ix, iy])
-                    _mark_last_action_now()
-                _dialog_recorder_status = f"Appended auto_path point [{ix}, {iy}] ({len(points)} total)."
-            else:
-                step = {
-                    "type": "auto_path",
-                    "name": "",
-                    "points": [[ix, iy]],
-                }
-                _add_recorded_step(step)
-                _dialog_recorder_status = f"Started auto_path with point [{ix}, {iy}]."
-        if _grid_button("Record Exit Map", 1, help_text="Track movement into portal and record exit_map with last pre-load XY + target map."):
-            if _exit_recording_active:
-                _dialog_recorder_status = "Exit-map recording already active."
-            else:
-                _start_exit_map_recording()
-        if _grid_button("Record Map Travel", 2, help_text="Record a travel step after map changes to a new loaded map."):
-            if _travel_recording_active:
-                _dialog_recorder_status = "Travel recording already active."
-            else:
-                _start_travel_recording()
-        if _grid_button("Record Wait", 0, help_text="Add wait using elapsed time since last recorded action."):
-            wait_ms = _elapsed_wait_ms_since_last_action(default_ms=1000)
-            step = {"type": "wait", "ms": int(wait_ms)}
-            _add_recorded_step(step)
-            _dialog_recorder_status = f"Recorded wait: {int(wait_ms)} ms."
-        if _grid_button("Record wait_for_map_load", 1, help_text="Add wait_for_map_load with the current map id."):
-            current_map_id = int(Map.GetMapID() or 0)
-            if current_map_id <= 0:
-                _dialog_recorder_status = "Unable to resolve current map id."
-            else:
-                step = {"type": "wait_for_map_load", "map_id": int(current_map_id)}
-                _add_recorded_step(step)
-                _dialog_recorder_status = f"Recorded wait_for_map_load for map_id {int(current_map_id)}."
-        PyImGui.text("Interactions")
-        if _grid_button("Record Interact NPC", 0, help_text="Requires targeted NPC/ally. Records interact_npc using captured NPC selector."):
-            target_id = int(Player.GetTargetID() or 0)
-            if target_id <= 0 or not Agent.IsValid(target_id):
-                _dialog_recorder_status = "No target selected."
-            elif Agent.IsItem(target_id) or Agent.IsGadget(target_id) or target_id in AgentArray.GetEnemyArray():
-                _dialog_recorder_status = "Target is not an NPC."
-            else:
-                npc_key, npc_entry, npc_name = _build_target_npc_enum()
-                if npc_key and npc_entry:
-                    _dialog_recorder_npc_entries[npc_key] = npc_entry
-                    step = {
-                        "type": "interact_npc",
-                        "name": f"Interact {npc_name or 'NPC'}",
-                        "npc": npc_key,
-                    }
-                else:
-                    nx, ny = Agent.GetXY(target_id)
-                    step = {
-                        "type": "interact_npc",
-                        "name": "Interact NPC",
-                        "point": [int(nx), int(ny)],
-                    }
-                _add_recorded_step(step)
-                _dialog_recorder_status = f"Recorded interact_npc for {npc_name or 'target'}."
-        if _grid_button("Record Interact Nearby NPC", 1, help_text="Add interact_npc step that targets nearest NPC within 1000 range."):
-            step = {"type": "interact_npc", "nearest": True, "max_dist": 1000}
-            _add_recorded_step(step)
-            _dialog_recorder_status = "Recorded interact_npc nearest (max_dist=1000)."
-        if _grid_button("Record Interact Gadget", 2, help_text="Requires targeted gadget. Records selector key + exact XY."):
-            target_id = int(Player.GetTargetID() or 0)
-            if target_id <= 0 or not Agent.IsValid(target_id):
-                _dialog_recorder_status = "No target selected."
-            elif not Agent.IsGadget(target_id):
-                _dialog_recorder_status = "Target is not a gadget."
-            else:
-                gx, gy = Agent.GetXY(target_id)
-                gadget_key, gadget_entry, gadget_name = _build_target_gadget_enum()
-                if gadget_key and gadget_entry:
-                    _dialog_recorder_gadget_entries[gadget_key] = gadget_entry
-                    step = {
-                        "type": "interact_gadget",
-                        "name": f"Interact {gadget_name}",
-                        "gadget": gadget_key,
-                        "point": [int(gx), int(gy)],
-                    }
-                else:
-                    step = {
-                        "type": "interact_gadget",
-                        "name": "Interact Gadget",
-                        "point": [int(gx), int(gy)],
-                    }
-                _add_recorded_step(step)
-                _dialog_recorder_status = f"Recorded interact_gadget at [{int(gx)}, {int(gy)}]."
-        if _grid_button("Record Item", 0, help_text="Requires targeted item. Records interact_item with model_id."):
-            target_id = int(Player.GetTargetID() or 0)
-            if target_id <= 0 or not Agent.IsValid(target_id):
-                _dialog_recorder_status = "No target selected."
-            elif not Agent.IsItem(target_id):
-                _dialog_recorder_status = "Target is not an item."
-            else:
-                item_key, item_entry, item_name, model_id = _build_target_item_enum_and_model(target_id)
-                if item_key and item_entry:
-                    _dialog_recorder_item_entries[item_key] = item_entry
-                if model_id <= 0:
-                    _dialog_recorder_status = "Unable to resolve target item model_id."
-                else:
-                    step = {
-                        "type": "interact_item",
-                        "name": f"Pick {item_name}",
-                        "model_id": int(model_id),
-                    }
-                    _add_recorded_step(step)
-                    _dialog_recorder_status = f"Recorded interact_item model_id {int(model_id)}."
-        if _grid_button("Record Enemy", 0, help_text="Requires targeted enemy. Records target_enemy using captured enemy selector."):
-            target_id = int(Player.GetTargetID() or 0)
-            if target_id <= 0 or not Agent.IsValid(target_id):
-                _dialog_recorder_status = "No target selected."
-            elif Agent.IsItem(target_id) or Agent.IsGadget(target_id) or target_id not in AgentArray.GetEnemyArray():
-                _dialog_recorder_status = "Target is not an enemy."
-            else:
-                enemy_key, enemy_entry, enemy_name = _build_target_enemy_enum()
-                if enemy_key and enemy_entry:
-                    _dialog_recorder_enemy_entries[enemy_key] = enemy_entry
-                    step = {
-                        "type": "path_to_target",
-                        "name": f"Target {enemy_name}",
-                        "enemy": enemy_key,
-                    }
-                else:
-                    model_id = int(Agent.GetModelID(target_id) or 0)
-                    target_name = str(Agent.GetNameByID(target_id) or "").strip()
-                    step = {
-                        "type": "target_enemy",
-                        "name": f"Target {target_name or 'Enemy'}",
-                    }
-                    if model_id > 0:
-                        step["model_id"] = model_id
-                    if target_name:
-                        step["target"] = target_name
-                _add_recorded_step(step)
-                _dialog_recorder_status = f"Recorded target_enemy for {enemy_name or 'target'}."
-
-        PyImGui.text("Utility / Party")
-        if _grid_button("Record Resign", 0, help_text="Add a resign step."):
-            step = {"type": "resign"}
-            _add_recorded_step(step)
-            _dialog_recorder_status = "Recorded resign."
-        if _grid_button("Record /kneel", 1, help_text="Add emote step that sends /kneel."):
-            step = {"type": "emote", "command": "kneel"}
-            _add_recorded_step(step)
-            _dialog_recorder_status = "Recorded emote /kneel."
-        if _grid_button("Record load_party", 2, help_text="Add load_party step with detected party size (4/6/8)."):
-            step = _build_load_party_step(minionless=False)
-            _add_recorded_step(step)
-            _dialog_recorder_status = (
-                f"Recorded load_party: max_heroes={int(step['max_heroes'])}, team={step['team']}."
-            )
-        if _grid_button("Record load_party_minionless", 0, help_text="Add load_party minionless step (6-man uses no spirits/minions team)."):
-            step = _build_load_party_step(minionless=True)
-            _add_recorded_step(step)
-            _dialog_recorder_status = (
-                f"Recorded load_party_minionless: max_heroes={int(step['max_heroes'])}, team={step['team']}."
-            )
+    PyImGui.separator()
+    PyImGui.text("Movement")
+    if _grid_button("Route Point", 0, help_text="Append current player XY to the current route step or start a new route."):
+        _record_route_point()
+    if _grid_button("Exit Map", 1, help_text="Monitor portal transition and record a route exit step."):
         if _exit_recording_active:
-            phase = "waiting map ready" if _exit_recording_waiting_load else "waiting for 0,0"
-            PyImGui.text(f"Exit-map monitor: {phase}")
-        if _travel_recording_active:
-            PyImGui.text("Travel monitor: waiting for map change")
-        if _dialog_recorder_status:
-            PyImGui.text_wrapped(_dialog_recorder_status)
-
-        PyImGui.separator()
-        PyImGui.text("Static Helpers")
-        player_x, player_y = Player.GetXY()
-        map_id = Map.GetMapID()
-        map_name = Map.GetMapName(map_id)
-        target_id = Player.GetTargetID()
-
-        player_coords = _fmt_xy(player_x, player_y)
-        PyImGui.text(f"Player: {player_coords} | Map: [{map_id}] {map_name}")
-        if _grid_button("Copy Player XY", 0, help_text="Copy your current player coordinates [x, y]."):
-            PyImGui.set_clipboard_text(player_coords)
-        if _grid_button("Copy Map ID", 1, help_text="Copy current map id."):
-            PyImGui.set_clipboard_text(str(map_id))
-        if _grid_button("Run Test", 2, help_text="Run Sources/modular_data/missions/script_helper.json."):
-            try:
-                if _test_bot is not None:
-                    _test_bot.stop(reason="Script Helper test restart")
-                _test_bot = _build_test_bot()
-                _sync_engine_upkeep(_test_bot.bot)
-                _test_bot.start()
-                _test_running = True
-                _debug_log(f"Started mission: {_TEST_MISSION_NAME}")
-            except FileNotFoundError:
-                _test_running = False
-                _debug_log(f"Mission file not found: Sources/modular_data/missions/{_TEST_MISSION_NAME}.json")
-
-        if target_id and Agent.IsValid(target_id):
-            target_x, target_y = Agent.GetXY(target_id)
-            target_coords = _fmt_xy(target_x, target_y)
-            target_name = Agent.GetNameByID(target_id) or "<unnamed>"
-            target_encoded = _fmt_target_enum_entry(target_id)
-            PyImGui.text(f"Target: {target_name} @ {target_coords}")
-
-            if _grid_button("Copy Target XY", 0, help_text="Copy targeted agent coordinates [x, y]."):
-                PyImGui.set_clipboard_text(target_coords)
-            if _grid_button("Copy Target Enum", 1, help_text="Copy encoded enum entry for the current target."):
-                PyImGui.set_clipboard_text(target_encoded)
-            if Agent.IsItem(target_id):
-                item_enum_entry = _fmt_item_enum_entry(target_id)
-                if _grid_button("Copy Item Enum", 2, help_text="Copy item enum entry for targeted item model_id."):
-                    PyImGui.set_clipboard_text(item_enum_entry)
+            _status = "Exit-map recording is already active."
         else:
-            PyImGui.text("Target: <none>")
+            _start_exit_map_recording()
+    if _grid_button("Travel", 2, help_text="Monitor the next map change and record a map travel step."):
+        if _travel_recording_active:
+            _status = "Travel recording is already active."
+        else:
+            _start_travel_recording()
+    if _grid_button("Wait", 0, help_text="Record a wait using elapsed time since the last recorded step."):
+        wait_ms = _elapsed_wait_ms_since_last_action()
+        _add_step({"type": "wait", "action": "wait", "ms": int(wait_ms)})
+        _status = f"Recorded wait {wait_ms} ms."
+    if _grid_button("Wait Map", 1, help_text="Record wait_for_map_load for the current map."):
+        map_id = int(Map.GetMapID() or 0)
+        if map_id <= 0:
+            _status = "Unable to resolve current map id."
+        else:
+            _add_step({"type": "map", "action": "wait_for_map_load", "map_id": map_id})
+            _status = f"Recorded wait_for_map_load for map_id {map_id}."
 
+    PyImGui.text("Interaction")
+    if _grid_button("NPC", 0):
+        _record_interact_target("npc")
+    if _grid_button("Gadget", 1):
+        _record_interact_target("gadget")
+    if _grid_button("Item", 2):
+        _record_interact_target("item")
+
+    PyImGui.text("Quest / Party / Behavior")
+    if _grid_button("Party Load", 0):
+        _record_party_load()
+    if _grid_button("Resign", 1):
+        _add_step({"type": "party", "action": "resign"})
+        _status = "Recorded resign."
+    if _grid_button("/kneel", 2):
+        _add_step({"type": "wait", "action": "emote", "command": "kneel"})
+        _status = "Recorded /kneel emote."
+    if _grid_button("Anchor", 0):
+        _add_step({"type": "wait", "name": "Anchor", "action": "wait", "ms": 100, "anchor": True})
+        _status = "Recorded anchor checkpoint."
+    if _grid_button("Blacklist Enemy", 1):
+        _record_enemy_blacklist("add")
+    if _grid_button("Unblacklist Enemy", 2):
+        _record_enemy_blacklist("remove")
+    if _grid_button("Flag Heroes", 0):
+        x, y = Player.GetXY()
+        _add_step(
+            {
+                "type": "party",
+                "name": "Flag Heroes",
+                "action": "flag_heroes",
+                "point": [int(x), int(y)],
+            }
+        )
+        _status = f"Recorded hero flag at [{int(x)}, {int(y)}]."
+    if _grid_button("Unflag Heroes", 1):
+        _add_step({"type": "party", "name": "Unflag Heroes", "action": "unflag_heroes"})
+        _status = "Recorded hero unflag."
+
+    if _exit_recording_active:
+        phase = "waiting for map ready" if _exit_recording_waiting_load else "waiting for map load"
+        PyImGui.text(f"Exit-map recorder: {phase}")
+    if _travel_recording_active:
+        PyImGui.text("Travel recorder: waiting for map change")
+    if _status:
+        PyImGui.text_wrapped(_status)
+
+    PyImGui.separator()
+    PyImGui.text("Quick Copy")
+    player_x, player_y = Player.GetXY()
+    map_id = int(Map.GetMapID() or 0)
+    map_name = str(Map.GetMapName(map_id) or "")
+    target_id = int(Player.GetTargetID() or 0)
+    PyImGui.text(f"Player: {_fmt_xy(player_x, player_y)} | Map: [{map_id}] {map_name}")
+    if _grid_button("Copy XY", 0):
+        PyImGui.set_clipboard_text(_fmt_xy(player_x, player_y))
+    if _grid_button("Copy Map", 1):
+        PyImGui.set_clipboard_text(str(map_id))
+    if target_id > 0 and Agent.IsValid(target_id):
+        target_x, target_y = Agent.GetXY(target_id)
+        PyImGui.text(f"Target: [{target_id}] {Agent.GetNameByID(target_id) or ''} @ {_fmt_xy(target_x, target_y)}")
+        if _grid_button("Copy Target XY", 0, help_text="Copy targeted agent coordinates [x, y]."):
+            PyImGui.set_clipboard_text(_fmt_xy(target_x, target_y))
+        if _grid_button("Copy Target Key", 1, help_text="Copy encoded target registry key for the current target."):
+            key, _entry, _name = _target_enum_entry(target_id)
+            PyImGui.set_clipboard_text(key or "")
+        if _grid_button("Copy Target Enum", 2, help_text="Copy encoded enum entry for the current target."):
+            _key, entry, _name = _target_enum_entry(target_id)
+            PyImGui.set_clipboard_text(entry or "")
+        if Agent.IsItem(target_id):
+            if _grid_button("Copy Item Enum", 0, help_text="Copy item enum entry for the targeted item model_id."):
+                _item_key, item_entry, _item_name, _model_id = _item_enum_entry(target_id)
+                PyImGui.set_clipboard_text(item_entry or "")
+
+    options = _active_dialog_options()
+    if options:
         PyImGui.separator()
         PyImGui.text("Active Dialog Options")
-        if PyDialog is None:
-            PyImGui.text_wrapped("PyDialog module unavailable in this runtime.")
-        else:
-            try:
-                dialog_options = _get_active_dialog_options()
-                if _dialog_init_attempted and not _dialog_init_ok:
-                    PyImGui.text_wrapped("PyDialog failed to initialize. Check injection log.")
-                if dialog_options:
-                    for index, (dialog_id, text) in enumerate(dialog_options, start=1):
-                        display_text = text if text else "<no text>"
-                        PyImGui.text_wrapped(f"{index}. 0x{dialog_id:X} - {display_text}")
-                        if PyImGui.button(f"Copy##active_dialog_{dialog_id}_{index}"):
-                            PyImGui.set_clipboard_text(f"0x{dialog_id:X} | {display_text}")
-                            _dialog_copy_status = f"Copied 0x{dialog_id:X}"
-                else:
-                    PyImGui.text("No active dialog options.")
-            except Exception as exc:
-                PyImGui.text_wrapped(f"Failed to read active dialog options: {exc}")
-        if _dialog_copy_status:
-            PyImGui.text(_dialog_copy_status)
+        for index, (dialog_id, message) in enumerate(options):
+            PyImGui.text(f"0x{int(dialog_id):X}: {message[:96]}")
+            PyImGui.same_line(0, 4)
+            if PyImGui.button(f"Record##dialog_{dialog_id}_{index}"):
+                _record_dialog_step(dialog_id)
+                _status = f"Recorded dialog 0x{int(dialog_id):X}."
+            PyImGui.same_line(0, 4)
+            if PyImGui.button(f"Copy##dialog_{dialog_id}_{index}"):
+                PyImGui.set_clipboard_text(f"0x{int(dialog_id):X}")
 
     PyImGui.end()
-    if _test_bot is not None:
-        _test_bot.update()
-        if _test_running and (not _test_bot.is_running()):
-            _test_running = False
-    if _replay_bot is not None:
-        _replay_bot.update()
-        if _replay_running and (not _replay_bot.is_running()):
-            _replay_running = False
-            _replay_status = "Replay finished."
