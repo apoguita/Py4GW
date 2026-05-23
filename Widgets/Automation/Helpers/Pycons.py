@@ -1877,6 +1877,12 @@ try:
             payload[f"alcohol_enabled_{item_key}"] = False
             payload[f"restock_enabled_{item_key}"] = False
             payload[f"restock_target_{item_key}"] = 0
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            payload[f"restock_enabled_{item_key}"] = False
+            payload[f"restock_target_{item_key}"] = 0
         return payload
 
     def _profile_dp_threshold_to_effective(raw_value: int) -> int:
@@ -2022,6 +2028,29 @@ try:
             payload[restock_enabled_key] = bool(restock_enabled_value)
             payload[restock_target_key] = max(0, min(2500, int(ini_handler.read_int(section, f"{prefix}{restock_target_key}", default_target))))
 
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            restock_enabled_key = f"restock_enabled_{item_key}"
+            restock_target_key = f"restock_target_{item_key}"
+            restock_enabled_value = bool(
+                ini_handler.read_bool(
+                    section,
+                    f"{prefix}{restock_enabled_key}",
+                    bool(payload.get(restock_enabled_key, False)),
+                )
+            )
+            default_target = int(payload.get(restock_target_key, 0) or 0)
+            target_missing = not bool(ini_handler.has_key(section, f"{prefix}{restock_target_key}"))
+            if target_missing and restock_enabled_value and default_target <= 0:
+                default_target = int(VAULT_RESTOCK_TARGET_QTY)
+            payload[restock_enabled_key] = bool(restock_enabled_value)
+            payload[restock_target_key] = max(
+                0,
+                min(2500, int(ini_handler.read_int(section, f"{prefix}{restock_target_key}", default_target))),
+            )
+
         return payload
 
     def _build_current_profile_payload() -> dict[str, Any]:
@@ -2053,6 +2082,12 @@ try:
                 continue
             payload[f"alcohol_selected_{item_key}"] = bool(cfg.alcohol_selected.get(item_key, False))
             payload[f"alcohol_enabled_{item_key}"] = bool(_runtime_alcohol_enabled(item_key))
+            payload[f"restock_enabled_{item_key}"] = bool(cfg.restock_enabled_items.get(item_key, False))
+            payload[f"restock_target_{item_key}"] = max(0, min(2500, int(cfg.restock_targets.get(item_key, 0) or 0)))
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
             payload[f"restock_enabled_{item_key}"] = bool(cfg.restock_enabled_items.get(item_key, False))
             payload[f"restock_target_{item_key}"] = max(0, min(2500, int(cfg.restock_targets.get(item_key, 0) or 0)))
 
@@ -2089,6 +2124,12 @@ try:
                 continue
             add_key(f"alcohol_selected_{item_key}")
             add_key(f"alcohol_enabled_{item_key}")
+            add_key(f"restock_enabled_{item_key}")
+            add_key(f"restock_target_{item_key}")
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
             add_key(f"restock_enabled_{item_key}")
             add_key(f"restock_target_{item_key}")
 
@@ -2150,6 +2191,15 @@ try:
             set_profile_key(f"alcohol_enabled_{item_key}", bool(payload.get(f"alcohol_enabled_{item_key}", False)))
             set_profile_key(f"restock_enabled_{item_key}", bool(payload.get(f"restock_enabled_{item_key}", False)))
             set_profile_key(f"restock_target_{item_key}", int(max(0, min(2500, int(payload.get(f"restock_target_{item_key}", 0) or 0)))))
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            set_profile_key(f"restock_enabled_{item_key}", bool(payload.get(f"restock_enabled_{item_key}", False)))
+            set_profile_key(
+                f"restock_target_{item_key}",
+                int(max(0, min(2500, int(payload.get(f"restock_target_{item_key}", 0) or 0)))),
+            )
 
     def _write_profile_section_to_config(
         config,
@@ -2236,6 +2286,14 @@ try:
             selected_value = bool(payload.get(selected_key, False))
             set_live_key(selected_key, selected_value)
             set_live_key(enabled_key, bool(payload.get(enabled_key, False)) if selected_value else False)
+            set_live_key(restock_enabled_key, bool(payload.get(restock_enabled_key, False)))
+            set_live_key(restock_target_key, int(max(0, min(2500, int(payload.get(restock_target_key, 0) or 0)))))
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            restock_enabled_key = f"restock_enabled_{item_key}"
+            restock_target_key = f"restock_target_{item_key}"
             set_live_key(restock_enabled_key, bool(payload.get(restock_enabled_key, False)))
             set_live_key(restock_target_key, int(max(0, min(2500, int(payload.get(restock_target_key, 0) or 0)))))
         set_live_key("last_applied_preset", _profile_display_name(profile_name))
@@ -3226,6 +3284,15 @@ try:
 
     ALL_CONSUMABLES = CONSUMABLES + MB_DP_ITEMS
     ALL_BY_KEY = {c["key"]: c for c in ALL_CONSUMABLES}
+    SPECIAL_RESTOCK_ITEMS = [
+        {
+            "key": RESURRECTION_SCROLL_KEY,
+            "label": "Scroll of Resurrection",
+            "model_id": int(RESURRECTION_SCROLL_MODEL_ID),
+            "restock_only": True,
+        }
+    ]
+    SPECIAL_RESTOCK_BY_KEY = {c["key"]: c for c in SPECIAL_RESTOCK_ITEMS}
     SUMMONING_BY_KEY = {c["key"]: c for c in SUMMONING_ITEMS}
     SWEET_ITEMS_BY_KEY = {c["key"]: c for c in SWEET_ITEMS}
     PARTY_ITEMS_BY_KEY = {c["key"]: c for c in PARTY_ITEMS}
@@ -3445,6 +3512,11 @@ try:
         return "No description available."
 
     def _consumable_tooltip_with_label(key: str, label: str) -> str:
+        if str(key or "") == RESURRECTION_SCROLL_KEY:
+            return (
+                "Scroll of Resurrection\n"
+                "Restock-only item. Scroll use is controlled by Scroll of Resurrection settings."
+            )
         base_label = str(label or "").strip()
         extra = str(_consumable_tooltip_text(key) or "").strip()
         if extra and extra != "No description available.":
@@ -4212,6 +4284,15 @@ try:
                 raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
                 self.restock_targets[k] = max(0, min(2500, raw_target))
 
+            for s in SPECIAL_RESTOCK_ITEMS:
+                k = str(s.get("key", "") or "")
+                if not k:
+                    continue
+                self.restock_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"restock_enabled_{k}", False)
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.restock_enabled_items.get(k, False)) else 0
+                raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
+                self.restock_targets[k] = max(0, min(2500, raw_target))
+
             # Team / multibox settings
             self.team_broadcast = ini_handler.read_bool(INI_SECTION, "team_broadcast", False)
             self.team_consume_opt_in = ini_handler.read_bool(INI_SECTION, "team_consume_opt_in", False)
@@ -4477,6 +4558,7 @@ try:
             self.request_expand_selected = [False]
             self.request_collapse_selected = [False]
             self.restock_bulk_target = [int(VAULT_RESTOCK_TARGET_QTY)]
+            self.restock_filter_text = [""]
             self.runtime_selected = {}
             self.runtime_enabled = {}
             self.runtime_alcohol_selected = {}
@@ -5910,69 +5992,81 @@ try:
                 out.append((key, spec))
         return out
 
+    def _special_restock_specs() -> list[tuple[str, dict]]:
+        out = []
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if key:
+                out.append((key, spec))
+        return out
+
     def _restock_regular_enabled(key: str) -> bool:
         return bool(cfg.selected.get(key, False)) and bool(_restock_item_enabled(key))
 
     def _restock_alcohol_enabled(key: str) -> bool:
         return bool(cfg.alcohol_selected.get(key, False)) and bool(_restock_item_enabled(key))
 
+    def _restock_special_enabled(key: str) -> bool:
+        return str(key or "") in SPECIAL_RESTOCK_BY_KEY and bool(_restock_item_enabled(key))
+
+    def _restock_candidate_enabled(key: str) -> bool:
+        if str(key or "") in cfg.alcohol_selected:
+            return bool(_restock_alcohol_enabled(key))
+        if str(key or "") in SPECIAL_RESTOCK_BY_KEY:
+            return bool(_restock_special_enabled(key))
+        return bool(_restock_regular_enabled(key))
+
     def _build_vault_restock_candidates():
         out = []
         seen_models = set()
+
+        def add_candidate(key: str, spec: dict):
+            key = str(key or "")
+            if not key:
+                return
+            model_id = int(spec.get("model_id", 0) or 0)
+            if model_id <= 0:
+                if int(_restock_target_for_key(key)) > 0:
+                    wt = _warn_timer_for(f"restock_modelid_missing_{key}")
+                    if wt.IsStopped() or wt.HasElapsed(15000):
+                        wt.Start()
+                        _record_blocked_action(
+                            f"restock_modelid_missing_{key}",
+                            f"{str(spec.get('label', key) or key)}: model_id=0",
+                        )
+                        _debug(
+                            f"Vault restock: skipping {spec.get('label', key)} because model_id is 0.",
+                            Console.MessageType.Warning,
+                        )
+                return
+            if model_id in seen_models:
+                return
+            known, cnt = _stock_status_for_model_id(model_id)
+            if not known:
+                return
+            target = _restock_target_for_key(key)
+            delta = int(target) - int(cnt)
+            if delta != 0:
+                out.append((key, spec, model_id, int(cnt), int(target), int(delta)))
+            seen_models.add(model_id)
 
         for spec in ALL_CONSUMABLES:
             key = str(spec.get("key", "") or "")
             if not key or not _restock_regular_enabled(key):
                 continue
-            model_id = int(spec.get("model_id", 0) or 0)
-            if model_id <= 0:
-                if int(_restock_target_for_key(key)) > 0:
-                    wt = _warn_timer_for(f"restock_modelid_missing_{key}")
-                    if wt.IsStopped() or wt.HasElapsed(15000):
-                        wt.Start()
-                        _record_blocked_action(
-                            f"restock_modelid_missing_{key}",
-                            f"{str(spec.get('label', key) or key)}: model_id=0",
-                        )
-                        _debug(f"Vault restock: skipping {spec.get('label', key)} because model_id is 0.", Console.MessageType.Warning)
-                continue
-            if model_id in seen_models:
-                continue
-            known, cnt = _stock_status_for_model_id(model_id)
-            if not known:
-                continue
-            target = _restock_target_for_key(key)
-            delta = int(target) - int(cnt)
-            if delta != 0:
-                out.append((key, spec, model_id, int(cnt), int(target), int(delta)))
-            seen_models.add(model_id)
+            add_candidate(key, spec)
 
         for spec in ALCOHOL_ITEMS:
             key = str(spec.get("key", "") or "")
             if not key or not _restock_alcohol_enabled(key):
                 continue
-            model_id = int(spec.get("model_id", 0) or 0)
-            if model_id <= 0:
-                if int(_restock_target_for_key(key)) > 0:
-                    wt = _warn_timer_for(f"restock_modelid_missing_{key}")
-                    if wt.IsStopped() or wt.HasElapsed(15000):
-                        wt.Start()
-                        _record_blocked_action(
-                            f"restock_modelid_missing_{key}",
-                            f"{str(spec.get('label', key) or key)}: model_id=0",
-                        )
-                        _debug(f"Vault restock: skipping {spec.get('label', key)} because model_id is 0.", Console.MessageType.Warning)
+            add_candidate(key, spec)
+
+        for spec in SPECIAL_RESTOCK_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if not key or not _restock_special_enabled(key):
                 continue
-            if model_id in seen_models:
-                continue
-            known, cnt = _stock_status_for_model_id(model_id)
-            if not known:
-                continue
-            target = _restock_target_for_key(key)
-            delta = int(target) - int(cnt)
-            if delta != 0:
-                out.append((key, spec, model_id, int(cnt), int(target), int(delta)))
-            seen_models.add(model_id)
+            add_candidate(key, spec)
 
         return out
 
@@ -5995,12 +6089,8 @@ try:
         move_cap_per_cycle = int(_restock_move_cap_per_cycle_value())
         now_ms = _now_ms()
         for key, spec, model_id, _cur_count, _target_count, _delta in _ordered_vault_restock_candidates(candidates):
-            if key in cfg.alcohol_selected:
-                if not _restock_alcohol_enabled(key):
-                    continue
-            else:
-                if not _restock_regular_enabled(key):
-                    continue
+            if not _restock_candidate_enabled(key):
+                continue
 
             live_known, live_count = _stock_status_for_model_id(int(model_id))
             if not live_known:
@@ -6576,12 +6666,8 @@ try:
 
         for key, spec, model_id, _cur_count, _target_count, _delta in ordered_candidates:
             # Guard against runtime/UI changes while iterating candidates.
-            if key in cfg.alcohol_selected:
-                if not _restock_alcohol_enabled(key):
-                    continue
-            else:
-                if not _restock_regular_enabled(key):
-                    continue
+            if not _restock_candidate_enabled(key):
+                continue
 
             # Always re-evaluate current inventory state before attempting any action.
             if not _refresh_inventory_cache(force=True):
@@ -7490,6 +7576,15 @@ try:
                     continue
                 set_key(f"restock_enabled_{item_key}", bool(cfg.restock_enabled_items.get(item_key, False)))
                 set_key(f"restock_target_{item_key}", int(max(0, min(2500, int(cfg.restock_targets.get(item_key, VAULT_RESTOCK_TARGET_QTY) or 0)))))
+            for spec in SPECIAL_RESTOCK_ITEMS:
+                item_key = str(spec.get("key", "") or "")
+                if not item_key:
+                    continue
+                set_key(f"restock_enabled_{item_key}", bool(cfg.restock_enabled_items.get(item_key, False)))
+                set_key(
+                    f"restock_target_{item_key}",
+                    int(max(0, min(2500, int(cfg.restock_targets.get(item_key, VAULT_RESTOCK_TARGET_QTY) or 0)))),
+                )
 
         if PYCONS_SYNC_CATEGORY_SELECTION in category_set:
             include_enabled_state = bool(getattr(cfg, "sync_selection_include_enabled_state", False))
@@ -10543,13 +10638,9 @@ try:
         except Exception:
             pass
 
-        for key, spec in _selected_restock_specs():
-            if key in cfg.alcohol_selected:
-                if not _restock_alcohol_enabled(key):
-                    continue
-            else:
-                if not _restock_regular_enabled(key):
-                    continue
+        for key, spec in _selected_restock_specs() + _special_restock_specs():
+            if not _restock_candidate_enabled(key):
+                continue
 
             model_id = int(spec.get("model_id", 0) or 0)
             if model_id <= 0 or model_id in seen_models:
@@ -11355,7 +11446,11 @@ try:
         PyImGui.text(str(int(cnt)) if known else "-")
 
         PyImGui.table_next_column()
-        changed_target, new_target = ui_input_int_fixed(f"##pycons_restock_target_{key}", int(current_target), width=90.0)
+        changed_target, new_target = ui_input_int_fixed(
+            f"##pycons_restock_target_{key}",
+            int(current_target),
+            width=90.0,
+        )
         if changed_target:
             cfg.restock_targets[key] = max(0, min(2500, int(new_target)))
             cfg.mark_dirty()
@@ -12970,16 +13065,44 @@ try:
             _text_meta(participation_summary)
 
             PyImGui.separator()
-            _section_text("Selected item targets:", "settings_restock")
-            PyImGui.text_wrapped("Choose how many of each selected item you want to keep in inventory. Click an item icon to include or exclude it from Xunlai restock.")
+            _section_text("Item targets:", "settings_restock")
+            PyImGui.text_wrapped(
+                "Choose how many of each item you want to keep in inventory. Click an item icon to include or exclude "
+                "it from Xunlai restock."
+            )
             PyImGui.text_wrapped("Main-window ON/OFF controls item use only. Restock uses the icon toggle below.")
-            selected_specs = _selected_restock_specs()
 
-            disabled_selected = (int(len(selected_specs)) == 0)
+            restock_filter_text = getattr(_rt, "restock_filter_text", [""])
+            changed_filter, restock_filter_value = ui_input_text(
+                "Search restock items##pycons_restock_filter",
+                str(restock_filter_text[0] or ""),
+                128,
+            )
+            if changed_filter:
+                restock_filter_text[0] = str(restock_filter_value or "")
+            _show_setting_tooltip("filter_search")
+            restock_flt = str(restock_filter_text[0] or "").strip().lower()
+
+            selected_specs_all = _selected_restock_specs()
+            special_specs = [
+                (key, spec)
+                for key, spec in _special_restock_specs()
+                if _matches_filter(str(spec.get("label", key) or key), restock_flt)
+            ]
+            selected_specs = [
+                (key, spec)
+                for key, spec in selected_specs_all
+                if _matches_filter(
+                    _alcohol_display_label(spec) if key in ALCOHOL_BY_KEY else str(spec.get("label", key) or key),
+                    restock_flt,
+                )
+            ]
+
+            disabled_selected = (int(len(selected_specs_all)) == 0)
             mode = _begin_disabled(disabled_selected)
             if PyImGui.button("Restock all selected items##pycons_restock_enable_all"):
                 changed_any = False
-                for key, _spec in selected_specs:
+                for key, _spec in selected_specs_all:
                     if not _restock_item_enabled(key):
                         _set_restock_item_enabled(key, True)
                         changed_any = True
@@ -12989,7 +13112,7 @@ try:
             _same_line(10)
             if PyImGui.button("Stop restocking all selected items##pycons_restock_disable_all"):
                 changed_any = False
-                for key, _spec in selected_specs:
+                for key, _spec in selected_specs_all:
                     if _restock_item_enabled(key):
                         _set_restock_item_enabled(key, False)
                         changed_any = True
@@ -13007,7 +13130,7 @@ try:
             if PyImGui.button("Apply to all selected##pycons_restock_apply_all"):
                 target = int(max(0, min(2500, int(restock_bulk_target[0]))))
                 changed_any = False
-                for key, _spec in selected_specs:
+                for key, _spec in selected_specs_all:
                     prev = _restock_target_for_key(key)
                     if int(prev) != int(target):
                         cfg.restock_targets[key] = int(target)
@@ -13016,8 +13139,11 @@ try:
                     cfg.mark_dirty()
             _show_setting_tooltip("restock_set_all_selected_target")
 
-            if not selected_specs:
-                PyImGui.text_disabled("No selected items. Select consumables first.")
+            if not special_specs and not selected_specs:
+                if restock_flt:
+                    PyImGui.text_disabled("No restock items match the search.")
+                else:
+                    PyImGui.text_disabled("No selected consumables. Select consumables first.")
             else:
                 selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
                 selected_conset_specs = [pair for pair in selected_specs if str(pair[0]) in CONSET_KEYS]
@@ -13028,6 +13154,27 @@ try:
                     PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+
+                    if special_specs:
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        _section_text("Special items:", "restock")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+
+                        for key, spec in special_specs:
+                            _draw_restock_target_item_row(key, spec)
+
+                        if selected_specs:
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
 
                     if selected_conset_specs:
                         PyImGui.table_next_row()
@@ -13049,6 +13196,15 @@ try:
                             PyImGui.separator()
                             PyImGui.table_next_column()
                             PyImGui.separator()
+
+                    if selected_non_conset_specs:
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        _section_text("Selected consumables:", "restock")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
 
                     for key, spec in selected_non_conset_specs:
                         _draw_restock_target_item_row(key, spec)
