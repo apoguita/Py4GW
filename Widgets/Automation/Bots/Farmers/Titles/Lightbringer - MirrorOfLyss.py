@@ -42,6 +42,7 @@ _SETTINGS_SECTION = "Settings"
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing with alts
 _mode_loaded: bool = False
+_mode_change_status: str = ""
 
 bot = Botting(BotSettings.BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -125,6 +126,7 @@ _hero_import_source_index: int = 0
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     if _party_mode == 1:
         bot.Templates.Multibox_Aggressive()
+        bot.States.AddCustomState(lambda: _apply_multibox_runtime(bot), "Apply Multibox Runtime")
     else:
         bot.Templates.Aggressive()
     bot.Properties.Enable("auto_inventory_management")
@@ -138,6 +140,7 @@ def _next_header_step_name(bot: Botting, step_name: str) -> str:
 
 def bot_routine(bot: Botting) -> None:
     global LOOP_STEP_NAME, RESIGN_STEP_NAME
+    _ensure_mode_loaded(bot)
 
     #events
     condition = lambda: OnPartyWipe(bot)
@@ -476,6 +479,9 @@ def _do_bounty_interaction(bot: Botting):
         yield from bot.Wait._coro_for_time(1500)
         yield from bot.helpers.Multibox._send_dialog_with_target(BotSettings.BOUNTY_DIALOG)
         yield from bot.Wait._coro_for_time(1500)
+        # Messaging temporarily pauses HeroAI on followers for the dialog;
+        # reassert shared follow/combat before the killing path starts.
+        yield from _apply_multibox_runtime(bot)
     else:
         # Single account: move to NPC and send dialog to self only
         yield from bot.Move._coro_xy(*BotSettings.BOUNTY_COORDS)
@@ -486,11 +492,102 @@ def _do_bounty_interaction(bot: Botting):
 
 def _maybe_setup_heroes(bot: Botting):
     if _party_mode == 1:
+        yield from _apply_multibox_runtime(bot)
         yield from bot.helpers.Multibox._summon_all_accounts()
         yield from bot.Wait._coro_for_time(4000)
         yield from bot.helpers.Multibox._invite_all_accounts()
+        yield from bot.Wait._coro_for_time(2000)
+        yield from _apply_multibox_runtime(bot)
         return
     yield from _setup_heroes(bot)
+
+
+def _iter_active_account_data():
+    try:
+        return [
+            account
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData()
+            if getattr(account, "IsSlotActive", True) and getattr(account, "AccountEmail", "")
+        ]
+    except Exception:
+        return []
+
+
+def _set_hero_ai_options_for_email(email: str, *, looting: bool = True) -> bool:
+    try:
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(email)
+        if not options:
+            return False
+        options.Following = True
+        options.Avoidance = True
+        options.Looting = bool(looting)
+        options.Targeting = True
+        options.Combat = True
+        try:
+            for skill_index in range(len(options.Skills)):
+                options.Skills[skill_index] = True
+        except Exception:
+            pass
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(email, options)
+        return True
+    except Exception:
+        return False
+
+
+def _apply_multibox_runtime_now(bot: Botting, *, broadcast_widget: bool = True) -> None:
+    """Keep HeroAI/multibox in shared mode for this multi-account farm."""
+    accounts = _iter_active_account_data()
+    own_email = Player.GetAccountEmail()
+    affected = 0
+
+    for account in accounts:
+        email = getattr(account, "AccountEmail", "")
+        if not email:
+            continue
+        try:
+            GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(email, False)
+        except Exception:
+            pass
+        if _set_hero_ai_options_for_email(email, looting=True):
+            affected += 1
+        if broadcast_widget and own_email and email != own_email:
+            try:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    own_email,
+                    email,
+                    SharedCommandType.EnableWidget,
+                    (0, 0, 0, 0),
+                    ("HeroAI", "", "", ""),
+                )
+            except Exception:
+                pass
+
+    try:
+        bot.Properties.ApplyNow("hero_ai", "active", True)
+        bot.Properties.Enable("hero_ai")
+    except Exception:
+        pass
+
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+        widget_handler = get_widget_handler()
+        if not widget_handler.is_widget_enabled("HeroAI"):
+            widget_handler.enable_widget("HeroAI")
+    except Exception:
+        pass
+
+    if accounts:
+        ConsoleLog(
+            BotSettings.BOT_NAME,
+            f"Multibox runtime repaired: isolation disabled, HeroAI follow/combat enabled for {affected}/{len(accounts)} accounts.",
+            Py4GW.Console.MessageType.Info,
+        )
+
+
+def _apply_multibox_runtime(bot: Botting):
+    _apply_multibox_runtime_now(bot, broadcast_widget=True)
+    yield from bot.Wait._coro_for_time(500)
 
 
 
@@ -503,11 +600,52 @@ def _load_mode_setting(bot: Botting) -> None:
     _party_mode = 1 if raw else 0
 
 
+def _ensure_mode_loaded(bot: Botting) -> None:
+    global _mode_loaded
+    if _mode_loaded:
+        return
+    _load_mode_setting(bot)
+    _mode_loaded = True
+    if _party_mode == 1:
+        _apply_multibox_runtime_now(bot, broadcast_widget=False)
+
+
 def _save_mode_setting(bot: Botting) -> None:
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
         return
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
+
+
+def _rebuild_routine_if_safe(bot: Botting) -> bool:
+    try:
+        is_running = bool(getattr(bot.config, "fsm_running", False))
+        fsm_started = bool(bot.config.FSM.is_started())
+    except Exception:
+        is_running = False
+        fsm_started = False
+
+    if is_running or fsm_started:
+        return False
+
+    try:
+        bot.config.FSM.stop()
+        bot.config.FSM.states.clear()
+        bot.config.FSM.managed_coroutines.clear()
+        bot.config.FSM._named_managed.clear()
+        bot.config.FSM.current_state = None
+        bot.config.FSM.state_counter = 0
+        bot.config.FSM.finished = False
+        bot.config.initialized = False
+        bot.SetMainRoutine(bot_routine)
+        return True
+    except Exception as exc:
+        ConsoleLog(
+            BotSettings.BOT_NAME,
+            f"Could not rebuild routine after party mode change: {exc}",
+            Py4GW.Console.MessageType.Warning,
+        )
+        return False
 
 
 def _resign(bot: Botting):
@@ -518,10 +656,8 @@ bot.UI.override_draw_config(lambda: _draw_settings(bot))
 bot.UI.override_draw_help(lambda: _draw_help(bot))
 
 def _draw_settings(bot:Botting):
-    global _party_mode, _mode_loaded
-    if not _mode_loaded:
-        _load_mode_setting(bot)
-        _mode_loaded = True
+    global _party_mode, _mode_change_status
+    _ensure_mode_loaded(bot)
 
     PyImGui.text("Bot Settings")
 
@@ -533,9 +669,23 @@ def _draw_settings(bot:Botting):
     if new_mode != _party_mode:
         _party_mode = new_mode
         _save_mode_setting(bot)
+        if _party_mode == 1:
+            _apply_multibox_runtime_now(bot, broadcast_widget=True)
+        if _rebuild_routine_if_safe(bot):
+            _mode_change_status = "Routine rebuilt with the new party mode."
+        else:
+            _mode_change_status = "Party mode saved. Stop/reload the bot before starting to rebuild the routine."
     if _party_mode == 1:
         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 1.0, 1.0))
         PyImGui.text("Resign uses Multibox Party Resign. Hero setup is skipped.")
+        PyImGui.text("Account isolation is disabled and HeroAI follow/combat is repaired for all active accounts.")
+        PyImGui.pop_style_color(1)
+        if PyImGui.button("Repair Multibox Runtime Now", 220, 26):
+            _apply_multibox_runtime_now(bot, broadcast_widget=True)
+            _mode_change_status = "Multibox runtime repair sent."
+    if _mode_change_status:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 0.85, 0.35, 1.0))
+        PyImGui.text(_mode_change_status)
         PyImGui.pop_style_color(1)
     PyImGui.separator()
 
@@ -712,6 +862,7 @@ def main():
     if not _hero_config_loaded:
         _load_hero_config()
         _hero_config_loaded = True
+    _ensure_mode_loaded(bot)
     if Map.IsMapLoading():
         return
     bot.Update()
