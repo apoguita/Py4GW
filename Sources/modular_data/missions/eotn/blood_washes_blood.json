@@ -1,16 +1,16 @@
 {
   "name": "Blood Washes Blood",
   "steps": [
-    {"type": "auto_path", "name": "To Bear Spirit", "points": [[9852, -21129]]},
-    {"type": "dialog", "id": "0x84", "npc": "BEAR_SPIRIT", "name": "Dialog - Bear Spirit"},
-    {"type": "auto_path", "name": "To Exit", "points": [[15075, -20374]]},
-    {"type": "exit_map", "name": "Leave Jaga Moraine", "point": [15589, -20504], "target_map_id": 654},
-    {"type": "auto_path", "name": "Path", "points": [[2676, 13968], [1923, 12097], [147, 12953], [499, 15733], [890, 14115]]},
+    {"type": "route", "name": "To Bear Spirit", "points": [[9852, -21129]], "mode": "kill"},
+    {"type": "interact", "id": "0x84", "npc": "BEAR_SPIRIT", "name": "Dialog - Bear Spirit", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[15075, -20374]], "mode": "kill"},
+    {"type": "route", "name": "Leave Jaga Moraine", "point": [15589, -20504], "target_map_id": 654, "mode": "exit"},
+    {"type": "route", "name": "Path", "points": [[2676, 13968], [1923, 12097], [147, 12953], [499, 15733], [890, 14115]], "mode": "kill"},
     {"type": "wait", "ms": 500},
-    {"type": "interact_npc", "name": "Interact Shrine of the Bear Spirit", "npc": "SHRINE_OF_THE_BEAR_SPIRIT"},
-    {"type": "auto_path", "name": "Path", "points": [[8150, 12058], [11390, 11327], [13030, 9321], [14485, 5848], [13322, 3666], [14086, 2207]]},
+    {"type": "interact", "name": "Interact Shrine of the Bear Spirit", "npc": "SHRINE_OF_THE_BEAR_SPIRIT", "action": "target", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[8150, 12058], [11390, 11327], [13030, 9321], [14485, 5848], [13322, 3666], [14086, 2207]], "mode": "kill"},
     {"type": "wait", "ms": 400},
-    {"type": "auto_path", "name": "Path", "points": [[15484, 3382], [16878, 3503], [16801, 4951], [18194, 3516], [17283, 1185]]},
-    {"type": "wait_for_map_load", "map_id": 644}
+    {"type": "route", "name": "Path", "points": [[15484, 3382], [16878, 3503], [16801, 4951], [18194, 3516], [17283, 1185]], "mode": "kill"},
+    {"type": "map", "map_id": 644, "action": "wait_for_map_load"}
   ]
 }

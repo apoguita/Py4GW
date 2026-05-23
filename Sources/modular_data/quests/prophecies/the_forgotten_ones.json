@@ -1,15 +1,15 @@
 {
   "name": "The Forgotten Ones",
   "steps": [
-    {"type": "travel", "name": "Travel to Destinys Gorge", "target_map_id": 154},
-    {"type": "auto_path", "name": "To Annelle Fipps", "points": [[-14899, 18776]]},
-    {"type": "dialog", "id": "0x801701", "npc": "ANNELLE_FIPPS", "name": "Dialog - Annelle Fipps"},
-    {"type": "auto_path", "name": "To Travel", "points": [[-14833, 18798]]},
-    {"type": "travel", "name": "Travel to Augury Rock outpost", "target_map_id": 38},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 6, "team": "heroes_5"},
-    {"type": "auto_path", "name": "To Exit", "points": [[-15272, 1501]]},
-    {"type": "exit_map", "name": "Leave Augury Rock outpost", "point": [-15248, 2187], "target_map_id": 115},
-    {"type": "auto_path", "name": "To Sariss Yassith", "points": [[6357, -6758]]},
-    {"type": "dialog", "id": "0x801707", "npc": "SARISS_YASSITH", "name": "Dialog - Sariss Yassith"}
+    {"type": "map", "name": "Travel to Destinys Gorge", "target_map_id": 154, "action": "travel"},
+    {"type": "route", "name": "To Annelle Fipps", "points": [[-14899, 18776]], "mode": "kill"},
+    {"type": "interact", "id": "0x801701", "npc": "ANNELLE_FIPPS", "name": "Dialog - Annelle Fipps", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Travel", "points": [[-14833, 18798]], "mode": "kill"},
+    {"type": "map", "name": "Travel to Augury Rock outpost", "target_map_id": 38, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-15272, 1501]], "mode": "kill"},
+    {"type": "route", "name": "Leave Augury Rock outpost", "point": [-15248, 2187], "target_map_id": 115, "mode": "exit"},
+    {"type": "route", "name": "To Sariss Yassith", "points": [[6357, -6758]], "mode": "kill"},
+    {"type": "interact", "id": "0x801707", "npc": "SARISS_YASSITH", "name": "Dialog - Sariss Yassith", "action": "dialog", "target": "npc"}
   ]
 }

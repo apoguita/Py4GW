@@ -1,22 +1,18 @@
 {
   "name": "Slaves of Menzies",
   "steps": [
-    {"type": "auto_path", "name": "path to Miko", "points": [[12009, 6356]]},
-    {"type": "dialog_multibox", "name": "Start Menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
-    {"type": "auto_path", "name": "path to Miko", "points": [[12009, 6356]]},
-    {"type": "dialog_multibox", "name": "Start Menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
-    {"type": "auto_path", "name": "getting into position", "points": [[19000, 8400], [21462, 11027]]},
-    {"type": "auto_path", "name": "moving closer", "points": [[22946, 12727]]},
-    {"type": "auto_path", "name": "clear Overlords", "points": [[20900, 15900], [22511, 16038]]},
-    {"type": "auto_path", "name": "Wolf spot", "points": [[19240, 12803]]},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "auto_path", "name": "to Miko", "points": [[13611, 9281], [12122, 8326], [12157, 6555]]},
-    {"type": "dialog_multibox", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07"},
-    {"type": "auto_path", "name": "to Miko", "points": [[12157, 6555]]},
-    {"type": "dialog_multibox", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07"},
-    {"type": "auto_path", "name": "to Forge", "points": [[10830, 10524], [8682, 12324]]}
+    {"type": "route", "name": "path to Miko", "points": [[12009, 6356]], "mode": "kill"},
+    {"type": "interact", "name": "Start Menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "path to Miko", "points": [[12009, 6356]], "mode": "kill"},
+    {"type": "interact", "name": "Start Menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "getting into position", "points": [[19000, 8400], [21462, 11027]], "mode": "kill"},
+    {"type": "route", "name": "moving closer", "points": [[22946, 12727]], "mode": "kill"},
+    {"type": "route", "name": "clear Overlords", "points": [[20900, 15900], [22511, 16038]], "mode": "kill"},
+    {"type": "route", "name": "Wolf spot", "points": [[19240, 12803]], "mode": "kill"},
+    {"type": "route", "name": "to Miko", "points": [[13611, 9281], [12122, 8326], [12157, 6555]], "mode": "kill"},
+    {"type": "interact", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "to Miko", "points": [[12157, 6555]], "mode": "kill"},
+    {"type": "interact", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "to Forge", "points": [[10830, 10524], [8682, 12324]], "mode": "kill"}
   ]
 }
-
