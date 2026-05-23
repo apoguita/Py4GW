@@ -915,6 +915,14 @@ class Checks:
             return (owner == Player.GetAgentID()) or (owner == 0)
         
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="GetBuffs")
+        def GetBuffs(agent_id: int):
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is None:
+                return []
+            return [b for b in shared_agent_data.Buffs.Buffs if int(b.SkillId) > 0]
+
+        @staticmethod
         @frame_cache(category="Checks.Agents", source_lib="HasEffect")
         def HasEffect(agent_id, skill_id, exact_weapon_spell=False):
             from ..GlobalCache import GLOBAL_CACHE

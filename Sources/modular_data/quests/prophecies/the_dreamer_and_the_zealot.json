@@ -1,0 +1,21 @@
+{
+  "name": "The Dreamer and the Zealot",
+  "steps": [
+    {"type": "auto_path", "name": "To Ghost Of Althea", "points": [[-7569, -9231]]},
+    {"type": "dialog", "id": "0x85B401", "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea"},
+    {"type": "auto_path", "name": "To Item", "points": [[-8906, -4811]]},
+    {"type": "interact_item", "name": "Pick Elemental Keystone", "model_id": 38301},
+    {"type": "auto_path", "name": "To Exit", "points": [[-8744, 3134], [-8702, 3909]]},
+    {"type": "exit_map", "name": "Leave Unknown Map ID", "point": [-8692, 4687], "target_map_id": 881},
+    {"type": "auto_path", "name": "To Exit", "points": [[-524, 19425], [-16516, 5885], [-16693, 5225]]},
+    {"type": "exit_map", "name": "Leave Unknown Map ID", "point": [-16773, 4430], "target_map_id": 882},
+    {"type": "auto_path", "name": "To Item", "points": [[-17022, -1566], [-12479, -5705]]},
+    {"type": "interact_item", "name": "Pick Boss Key[s]", "model_id": 25416},
+    {"type": "auto_path", "name": "To Boss Lock", "points": [[-6256, -4310]]},
+    {"type": "interact_gadget", "name": "Interact Boss Lock", "gadget": "BOSS_LOCK", "point": [-6471, -4283]},
+    {"type": "auto_path", "name": "To Zealot S Chest", "points": [[-9551, -8035], [-13331, -8604], [-13746, -7877], [-14061, -8130], [-13214, -8943], [-13631, -7805], [-14089, -9093], [-12917, -8624], [-13500, -7703], [-14271, -8268], [-15863, -8644]]},
+    {"type": "interact_gadget", "name": "Interact Zealot's Chest", "gadget": "ZEALOT_S_CHEST", "point": [-16068, -8484]},
+    {"type": "dialog", "id": "0x85B407", "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea"},
+    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40}
+  ]
+}

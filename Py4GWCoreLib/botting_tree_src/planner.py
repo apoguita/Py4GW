@@ -253,6 +253,9 @@ class BottingTreePlannerMixin:
         self._planner_sequence_name = name
         self.planner_repeat = repeat
         self._set_planner_tree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name, repeat=repeat))
+        self.EnsurePartyWipeRecoveryService(
+            default_step_name=lambda: (self.GetNamedPlannerStepNames() or [None])[0],
+        )
 
     def SetCurrentNamedPlannerSteps(
         self,

@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent, Player, Party
+from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent, Player
 from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .constants import (
     Range,
@@ -17,9 +17,9 @@ def _filter_blacklisted(agent_id: int) -> int:
         return agent_id
     return 0 if bl.is_blacklisted(agent_id) else agent_id
 
-def GetAllAlliesArray(distance=Range.SafeCompass.value):
+def GetAllAlliesArray(distance=Range.SafeCompass.value, ordered=True):
     #Pets are added here
-    ally_array = Routines.Targeting.GetAllAlliesArray(distance)
+    ally_array = Routines.Targeting.GetAllAlliesArray(distance, ordered=ordered)
     return ally_array
 
 def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
@@ -36,45 +36,23 @@ def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
     
     return array
 
-def SortAlliesByPartyPosition(agent_array):
-    player_order = {}
-    for index, player in enumerate(Party.GetPlayers() or []):
-        agent_id = int(Party.Players.GetAgentIDByLoginNumber(player.login_number) or 0)
-        if agent_id:
-            player_order[agent_id] = index
-
-    hero_order = {}
-    hero_start = len(player_order)
-    for index, hero in enumerate(Party.GetHeroes() or []):
-        agent_id = int(getattr(hero, "agent_id", 0) or 0)
-        if agent_id:
-            hero_order[agent_id] = hero_start + index
-
-    pet_owner_order = {}
-    for owner_agent_id, order in player_order.items():
-        pet_id = int(Party.Pets.GetPetID(owner_agent_id) or 0)
-        if pet_id:
-            pet_owner_order[pet_id] = order
-
-    fallback_index = hero_start + len(hero_order)
-
-    def sort_key(agent_id):
-        if agent_id in player_order:
-            return (0, player_order[agent_id], agent_id)
-        if agent_id in hero_order:
-            return (1, hero_order[agent_id], agent_id)
-        if agent_id in pet_owner_order:
-            return (2, pet_owner_order[agent_id], agent_id)
-        return (3, fallback_index, agent_id)
-
-    return sorted(agent_array or [], key=sort_key)
-
 def SortAlliesByLowestHp(agent_array):
     """Sort allies by current HP ascending, with party position as a stable
-    tiebreak. Python's sort is stable, so equal-HP entries preserve the order
-    from SortAlliesByPartyPosition (players -> heroes -> pet-owners)."""
-    position_sorted = SortAlliesByPartyPosition(agent_array)
-    return sorted(position_sorted, key=lambda agent_id: Agent.GetHealth(agent_id))
+    tiebreak. Python's sort is stable, so equal-HP entries preserve party order
+    (players -> heroes -> pet-owners)."""
+    party_order = {
+        agent_id: index
+        for index, agent_id in enumerate(GetAllAlliesArray(Range.SafeCompass.value, ordered=True) or [])
+    }
+    fallback_index = len(party_order)
+    return sorted(
+        agent_array or [],
+        key=lambda agent_id: (
+            Agent.GetHealth(agent_id),
+            party_order.get(agent_id, fallback_index),
+            agent_id,
+        ),
+    )
 
 
 def IsResurrectablePartyMember(agent_id: int) -> bool:
@@ -105,19 +83,16 @@ def TargetAllyByPredicate(
     include_spirit_pets=False,
     distance=Range.Spellcast.value,
 ):
-    ally_array = AgentArray.GetAllyArray()
+    ally_array = GetAllAlliesArray(distance, ordered=True)
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
 
-    if include_spirit_pets:
-        spirit_pet_array = AgentArray.GetSpiritPetArray()
-        spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
-        spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id))
-        ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array)
+    if not include_spirit_pets:
+        spirit_pet_ids = set(AgentArray.GetSpiritPetArray() or [])
+        ally_array = [agent_id for agent_id in ally_array if agent_id not in spirit_pet_ids]
 
     if predicate is not None:
         ally_array = AgentArray.Filter.ByCondition(ally_array, predicate)
 
-    ally_array = SortAlliesByPartyPosition(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
 def TargetLowestAlly(other_ally=False,filter_skill_id=0):

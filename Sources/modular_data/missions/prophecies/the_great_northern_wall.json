@@ -25,10 +25,9 @@
     {"type": "interact_nearest_npc", "ms": 3000},
     {"type": "interact_nearest_npc", "ms": 1000},
     {"type": "auto_path", "name": "Defend the Wall", "points": [[-477, 15126], [1404, 17353], [-1192, 19559], [-3019, 19725], [-3353, 17674], [-5203, 18650], [-7450, 16834], [-7751, 15058], [-9977, 13941], [-12866, 11817], [-16775, 11870], [-16915, 15220], [-14498, 12744]]},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 28},
     {"type": "path", "name": "Return to Start", "points": [[-14464, 4187], [-8647, 79], [-7699, -2235], [-2332, -5860], [2899, -7794], [6334, -10506], [4961, -12069]]},
     {"type": "interact_quest_npc", "ms": 5000},
-    {"type": "skip_cutscene"},
     {"type": "wait_map_change", "target_map_id": 29}
   ]
 }

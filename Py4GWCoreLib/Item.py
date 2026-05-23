@@ -1,4 +1,4 @@
-from typing import Optional, Type, TypeVar
+from typing import Iterable, Optional, Type, TypeVar
 
 import PyItem
 import PyInventory
@@ -582,4 +582,141 @@ class Item:
                     weapon_damage = Item.Properties.GetDamage(item_id)
                     
                     return weapon_damage == damage_for_requirement[1]
+
+
+SUMMONING_SICKNESS_EFFECT_ID = 2886
+
+KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS = frozenset({
+    513,         # Fire Imp
+    1726,        # Fire Imp variant
+    8028,        # Legionnaire
+    9055, 9076,  # Tengu Support Flare - Warrior
+    9056, 9077,  # Tengu Support Flare - Ranger
+    9058, 9079,  # Tengu Support Flare - Monk
+    9060, 9081,  # Tengu Support Flare - Mesmer
+    9062, 9083,  # Tengu Support Flare - Ritualist
+    9065, 9086,  # Tengu Support Flare - Assassin
+    9067, 9088,  # Tengu Support Flare - Elementalist
+    9069, 9090,  # Tengu Support Flare - Necromancer
+    9264,        # Imperial Guard Reinforcement Order / Canthan Guard
+})
+
+KNOWN_SUMMONING_STONE_CREATURE_ENC_NAMES = frozenset({
+    "\\x8103\\x06FE",  # Imperial Guard Reinforcement Order / Canthan Guard
+})
+
+
+def party_player_agent_ids() -> set[int]:
+    from .Party import Party
+    from .Player import Player
+
+    out: set[int] = set()
+    try:
+        me = int(Player.GetAgentID() or 0)
+        if me > 0:
+            out.add(me)
+    except Exception:
+        pass
+
+    try:
+        for player in Party.GetPlayers() or []:
+            try:
+                login_number = int(getattr(player, "login_number", 0) or 0)
+                if login_number <= 0:
+                    continue
+                agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
+                if agent_id > 0:
+                    out.add(agent_id)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
+
+
+def has_summoning_sickness(agent_id: int | None = None) -> bool:
+    from .Effect import Effects
+    from .Player import Player
+
+    try:
+        target_agent_id = int(agent_id or Player.GetAgentID() or 0)
+        if target_agent_id <= 0:
+            return False
+        return bool(Effects.HasEffect(target_agent_id, SUMMONING_SICKNESS_EFFECT_ID))
+    except Exception:
+        return False
+
+
+def is_active_summoning_stone_ally(agent_id: int, owner_ids: set[int] | None = None) -> bool:
+    from .Agent import Agent
+
+    try:
+        agent_id = int(agent_id or 0)
+    except Exception:
+        return False
+    if agent_id <= 0:
+        return False
+
+    try:
+        if not Agent.IsAlive(agent_id):
+            return False
+    except Exception:
+        return False
+
+    try:
+        model_id = int(Agent.GetModelID(agent_id) or 0)
+        if model_id in KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS:
+            return True
+    except Exception:
+        pass
+
+    try:
+        encoded_name = Agent.GetEncNameStrByID(agent_id, literal=True)
+        if encoded_name in KNOWN_SUMMONING_STONE_CREATURE_ENC_NAMES:
+            return True
+    except Exception:
+        pass
+
+    try:
+        if Agent.IsSpirit(agent_id) or Agent.IsMinion(agent_id):
+            return False
+    except Exception:
+        pass
+
+    if owner_ids is None:
+        owner_ids = party_player_agent_ids()
+
+    try:
+        owner_id = int(Agent.GetOwnerID(agent_id) or 0)
+    except Exception:
+        owner_id = 0
+
+    if owner_id > 0 and owner_id in owner_ids:
+        try:
+            if Agent.IsNPC(agent_id):
+                return True
+        except Exception:
+            return True
+
+    return False
+
+
+def has_active_party_summon(others: Iterable[int] | None = None) -> bool:
+    from .Party import Party
+
+    owner_ids = party_player_agent_ids()
+    if others is None:
+        try:
+            others = Party.GetOthers() or []
+        except Exception:
+            others = []
+
+    for other in others:
+        try:
+            agent_id = int(other or 0)
+        except Exception:
+            continue
+        if is_active_summoning_stone_ally(agent_id, owner_ids=owner_ids):
+            return True
+    return False
                     

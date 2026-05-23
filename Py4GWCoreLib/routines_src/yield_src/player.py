@@ -157,5 +157,5 @@ class Player:
             log (bool) Optional: Whether to log the action. Default is False.
         Returns: None
         """
-        tree = BT.Player.Move(x, y, log=log)
+        tree = BT.Movement.Move(x, y, log=log)
         yield from _run_bt_tree(tree, throttle_ms=100)

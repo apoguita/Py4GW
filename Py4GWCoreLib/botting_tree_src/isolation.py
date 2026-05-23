@@ -21,6 +21,48 @@ class BottingTreeIsolationMixin:
         deterministic_group = int(zlib.crc32(str(account_email).encode('utf-8')) % 1_000_000)
         return max(1, deterministic_group)
 
+    def SetAccountConfig(self, config) -> None:
+        from .account_config import BottingTreeAccountConfig
+
+        self.account_config = BottingTreeAccountConfig.coerce(config)
+        self.isolation_enabled = self.account_config.resolve_isolation_enabled()
+
+    def GetAccountConfig(self):
+        return self.account_config
+
+    def SetAccountMode(self, mode, *, apply_runtime: bool = True) -> bool:
+        from .account_config import BottingTreeAccountMode
+
+        self.account_config.mode = BottingTreeAccountMode.coerce(mode)
+        if self.account_config.isolation_enabled is None:
+            self.isolation_enabled = self.account_config.resolve_isolation_enabled()
+        if apply_runtime:
+            return self.ApplyAccountIsolation()
+        return False
+
+    def SetMultiAccount(self, multi_account: bool, *, apply_runtime: bool = True) -> bool:
+        from .account_config import BottingTreeAccountMode
+
+        self.account_config.mode = (
+            BottingTreeAccountMode.MULTI_ACCOUNT
+            if multi_account
+            else BottingTreeAccountMode.SINGLE_ACCOUNT
+        )
+        if self.account_config.isolation_enabled is None:
+            self.isolation_enabled = self.account_config.resolve_isolation_enabled()
+        if apply_runtime:
+            return self.ApplyAccountIsolation()
+        return False
+
+    def GetAccountMode(self) -> str:
+        return self.account_config.mode.value
+
+    def IsSingleAccountMode(self) -> bool:
+        return self.GetAccountMode() == 'single_account'
+
+    def IsMultiAccountMode(self) -> bool:
+        return self.GetAccountMode() == 'multi_account'
+
     def _sync_party_isolation_group(self, account_email: str, group_id: int) -> bool:
         local_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
         if local_account is None:
@@ -76,7 +118,8 @@ class BottingTreeIsolationMixin:
             current_group_id = int(GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(account_email) or 0)
             if current_group_id != target_group_id:
                 changed = bool(GLOBAL_CACHE.ShMem.SetAccountGroupByEmail(account_email, target_group_id)) or changed
-            changed = self._sync_party_isolation_group(account_email, target_group_id) or changed
+            if bool(getattr(self.account_config, 'sync_party_isolation', True)):
+                changed = self._sync_party_isolation_group(account_email, target_group_id) or changed
         else:
             current_group_id = int(GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(account_email) or 0)
             if current_group_id != 0:
@@ -122,6 +165,7 @@ class BottingTreeIsolationMixin:
         return bool(changed)
 
     def SetIsolationEnabled(self, enabled: bool) -> bool:
+        self.account_config.isolation_enabled = bool(enabled)
         self.isolation_enabled = enabled
         return self.ApplyAccountIsolation()
 
@@ -132,6 +176,7 @@ class BottingTreeIsolationMixin:
         return self.SetIsolationEnabled(False)
 
     def ToggleIsolation(self) -> bool:
+        self.account_config.isolation_enabled = not self.isolation_enabled
         self.isolation_enabled = not self.isolation_enabled
         self.ApplyAccountIsolation()
         return self.isolation_enabled

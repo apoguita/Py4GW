@@ -45,7 +45,7 @@ class BottingTreeUpkeepMixin:
 
     def AddPartyWipeRecoveryService(
         self,
-        default_step_name: str | None = None,
+        default_step_name: str | Callable[[], str | None] | None = None,
         return_interval_ms: float = 1000.0,
     ) -> None:
         self.AddServiceTree(
@@ -55,3 +55,21 @@ class BottingTreeUpkeepMixin:
                 return_interval_ms=return_interval_ms,
             ),
         )
+
+    def EnsurePartyWipeRecoveryService(
+        self,
+        default_step_name: str | Callable[[], str | None] | None = None,
+        return_interval_ms: float = 1000.0,
+    ) -> None:
+        subtree_or_builder = lambda: self.PartyWipeRecoveryServiceTree(
+            default_step_name=default_step_name,
+            return_interval_ms=return_interval_ms,
+        )
+        for index, (service_name, _existing) in enumerate(self._service_steps):
+            if service_name != 'PartyWipeRecoveryService':
+                continue
+            self._service_steps[index] = (service_name, subtree_or_builder)
+            self._service_trees[index] = (service_name, self._coerce_runtime_tree(subtree_or_builder))
+            self._rebuild_root_tree()
+            return
+        self.AddServiceTree('PartyWipeRecoveryService', subtree_or_builder)

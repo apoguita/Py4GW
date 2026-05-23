@@ -7,6 +7,7 @@ from Py4GWCoreLib import AgentArray, Range, Routines, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
+from Py4GWCoreLib.GlobalCache.HexRemovalPriority import HexRemovalPriority, cast_hex_removal_and_track, get_hexed_ally_for_removal
 from HeroAI.targeting import GetAllAlliesArray
 from HeroAI.types import Skilltarget
 
@@ -22,6 +23,30 @@ class HealingPrayers:
 
     def __init__(self, build: BuildMgr) -> None:
         self.build = build
+
+    #region C
+    def Cure_Hex(self, min_priority: int = HexRemovalPriority.LOW) -> BuildCoroutine:
+        cure_hex_id: int = Skill.GetID("Cure_Hex")
+
+        if not self.build.IsSkillEquipped(cure_hex_id):
+            return False
+
+        target_agent_id = get_hexed_ally_for_removal(
+            Range.Spellcast.value,
+            reserve=True,
+            skill_id=cure_hex_id,
+            min_priority=min_priority,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from cast_hex_removal_and_track(
+            self.build,
+            skill_id=cure_hex_id,
+            target_agent_id=target_agent_id,
+            aftercast_delay=250,
+        ))
+    #endregion
 
     #region D
     def Dwaynas_Kiss(self) -> BuildCoroutine:

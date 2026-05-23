@@ -20,10 +20,15 @@ class _WAIT:
         from ...Routines import Routines
         yield from Routines.Yield.wait(duration, break_on_map_transition=True)
         
-    def _coro_for_map_load(self, target_map_id, target_map_name=""):
+    def _coro_for_map_load(self, target_map_id, target_map_name="", timeout_ms: int = 10000):
         from ...Routines import Routines
         import Py4GW
-        wait_of_map_load = yield from Routines.Yield.Map.WaitforMapLoad(target_map_id,log=True, timeout=10000, map_name=target_map_name)
+        wait_of_map_load = yield from Routines.Yield.Map.WaitforMapLoad(
+            target_map_id,
+            log=True,
+            timeout=max(0, int(timeout_ms)),
+            map_name=target_map_name,
+        )
         if not wait_of_map_load:
             Py4GW.Console.Log("Wait for map load", "Map load failed.", Py4GW.Console.MessageType.Error)
             self._Events.on_unmanaged_fail()
@@ -93,8 +98,8 @@ class _WAIT:
         yield from self._coro_for_time(duration)
         
     @_yield_step(label="WaitForMapLoad", counter_key="WAIT_FOR_MAP_LOAD")
-    def ys_for_map_load(self, target_map_id, target_map_name=""):
-        yield from self._coro_for_map_load(target_map_id, target_map_name=target_map_name)
+    def ys_for_map_load(self, target_map_id, target_map_name="", timeout_ms: int = 10000):
+        yield from self._coro_for_map_load(target_map_id, target_map_name=target_map_name, timeout_ms=timeout_ms)
 
     @_yield_step(label="WasteTimeUntilConditionMet", counter_key="WASTE_TIME")
     def ys_until_condition(self, condition: Callable[[], bool], duration: int=1000):
@@ -146,8 +151,8 @@ class _WAIT:
     def UntilOnExplorable(self) -> None:
         self.ys_until_on_explorable()
 
-    def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
-        self.ys_for_map_load(target_map_id, target_map_name=target_map_name)
+    def ForMapLoad(self, target_map_id: int = 0, target_map_name: str = "", timeout_ms: int = 10000) -> None:
+        self.ys_for_map_load(target_map_id, target_map_name=target_map_name, timeout_ms=timeout_ms)
 
     def ForMapToChange(self, target_map_id: int = 0, target_map_name: str = "") -> None:
         self.ys_for_map_to_change(target_map_id, target_map_name=target_map_name)

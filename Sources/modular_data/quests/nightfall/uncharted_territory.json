@@ -14,9 +14,6 @@
     {"type": "set_anchor", "phase": "Shrine"},
     {"type": "auto_path", "name": "To Tortured Sunspear", "points": [[19690, 16090]]},
     {"type": "dialog", "id": "0x85", "npc": "TORTURED_SUNSPEAR", "name": "Dialog - Tortured Sunspear"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 494},
     {"type": "dialog", "id": "0x82BD07", "npc": "JARINDOK", "name": "Dialog - Jarindok"}
   ]

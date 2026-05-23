@@ -1,0 +1,13 @@
+{
+  "name": "Vlox's Falls to Gadd's Encampment",
+  "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 624},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[16356, 14638], [15737, 13131]]},
+    {"type": "exit_map", "name": "Leave Vlox's Falls", "point": [15471, 12385], "target_map_id": 485},
+    {"type": "auto_path", "name": "Arbor Bay to Shards of Oor", "points": [[13958, 10940], [11597, 6915], [10650, 1716], [10843, -1363], [9931, -4878], [9027, -6093], [8213, -10234], [9694, -14933], [10640, -18085]]},
+    {"type": "exit_map", "name": "Leave Arbor Bay", "point": [8944, -20527], "target_map_id": 581},
+    {"type": "auto_path", "name": "Shards of Oor to Gadd's Encampment", "points": [[-14101, 8760], [-11921, 9941], [-9500, 9850], [-7806, 9829], [-6000, 10500], [-4170, 11332], [-1382, 12572], [1604, 15277], [6106, 14173], [10786, 13449], [12491, 15101], [14073, 16225], [16029, 16965], [17143, 13564], [16173, 11678]]},
+    {"type": "exit_map", "name": "Leave Shards of Oor", "point": [14106, 12184], "target_map_id": 638}
+  ]
+}

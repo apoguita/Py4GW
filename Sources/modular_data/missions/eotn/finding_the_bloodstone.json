@@ -1,0 +1,28 @@
+{
+  "name": "Finding the Bloodstone",
+  "steps": [
+    {"type": "dialog", "id": "0x84", "npc": "INSCRIPTION_STONE", "name": "Dialog - Inscription Stone"},
+    {"type": "wait_for_map_load", "map_id": 661},
+    {"type": "auto_path", "name": "To Target Inscribed Sentry", "points": [[17494, 15175], [16243, 10279], [15709, 8096]]},
+    {"type": "path_to_target", "name": "Target Inscribed Sentry", "enemy": "INSCRIBED_SENTRY"},
+    {"type": "path_to_target", "name": "Target Inscribed Sentry", "enemy": "INSCRIBED_SENTRY"},
+    {"type": "auto_path", "name": "Path", "points": [[15181, 5611]]},
+    {"type": "wait", "ms": 10000},
+    {"type": "auto_path", "name": "To Inscription Stone", "points": [[18089, 15393]]},
+    {"type": "interact_gadget", "name": "Interact Inscription Stone", "gadget": "INSCRIPTION_STONE", "point": [18168, 15240]},
+    {"type": "wait", "ms": 10000},
+    {"type": "exit_map", "name": "Leave Finding the Bloodstone (level 1)", "point": [19119, 15988], "target_map_id": 662},
+    {"type": "auto_path", "name": "To Target Inscribed Sentry", "points": [[13810, -5801]]},
+    {"type": "path_to_target", "name": "Target Inscribed Sentry", "enemy": "INSCRIBED_SENTRY"},
+    {"type": "path_to_target", "name": "Target Inscribed Sentry", "enemy": "INSCRIBED_SENTRY"},
+    {"type": "path_to_target", "name": "Target Inscribed Sentry", "enemy": "INSCRIBED_SENTRY"},
+    {"type": "auto_path", "name": "Path", "points": [[13882, -8673]]},
+    {"type": "wait", "ms": 10000},
+    {"type": "auto_path", "name": "To Inscription Stone", "points": [[16501, -10195]]},
+    {"type": "interact_gadget", "name": "Interact Inscription Stone", "gadget": "INSCRIPTION_STONE", "point": [16712, -10366]},
+    {"type": "wait", "ms": 10000},
+    {"type": "exit_map", "name": "Leave Finding the Bloodstone (level 2)", "point": [17326, -10300], "target_map_id": 663},
+    {"type": "auto_path", "name": "Path", "points": [[-11979, -16822], [-14856, -16744]]},
+    {"type": "wait_for_map_load", "map_id": 638}
+  ]
+}

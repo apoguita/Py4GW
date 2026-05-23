@@ -769,7 +769,7 @@ class Player:
             button_number (int): Visible button index starting at 0.
         Returns: None
         """
-        import PyDialog
+        from . import Dialog
 
         if button_number < 0:
             Py4GW.Console.Log(
@@ -780,7 +780,10 @@ class Player:
             return
 
         try:
-            buttons = list(PyDialog.PyDialog.get_active_dialog_buttons())
+            available_buttons = [
+                button for button in Dialog.get_active_dialog_buttons()
+                if getattr(button, "dialog_id", 0) != 0
+            ]
         except Exception as e:
             Py4GW.Console.Log(
                 "Player.SendAutomaticDialog",
@@ -788,8 +791,6 @@ class Player:
                 Py4GW.Console.MessageType.Error,
             )
             return
-
-        available_buttons = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
         if not available_buttons:
             Py4GW.Console.Log(
                 "Player.SendAutomaticDialog",

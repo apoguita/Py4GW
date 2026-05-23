@@ -142,6 +142,8 @@ class Skilltarget (IntEnum):
     AllyWeaponSpell = 38
     NonWeaponSpelledAlly = 39
     ResurrectionAlly = 40
+    HexedAlly = 41
+    EnemyNotNearby = 42
 
 
 

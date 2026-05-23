@@ -1,0 +1,13 @@
+{
+  "name": "The Final Vision",
+  "steps": [
+    {"type": "travel", "name": "Travel to Eye of the North outpost", "target_map_id": 642},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[-3717, 4387]]},
+    {"type": "exit_map", "name": "Leave Eye of the North outpost", "point": [-4596, 5017], "target_map_id": 646},
+    {"type": "auto_path", "name": "To Scrying Pool", "points": [[-6462, 6448]]},
+    {"type": "dialogs", "id": ["0x63A", "0x63C"], "npc": "SCRYING_POOL", "name": "Dialog - Scrying Pool"},
+    {"type": "wait", "ms": 11800},
+    {"type": "wait_for_map_load", "map_id": 646}
+  ]
+}

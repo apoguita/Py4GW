@@ -6,6 +6,8 @@ import Py4GW
 from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
+from Py4GWCoreLib.GlobalCache.HexRemovalPriority import get_hexed_ally_for_removal
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled, TargetDeadPartyMember, IsResurrectablePartyMember
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
@@ -117,6 +119,7 @@ class CombatClass:
         self.is_targeting_enabled: bool = False
         self.is_combat_enabled: bool = False
         self.is_skill_enabled: list[bool] = []
+
         self.blocked_skill_ids: set[int] = set()
         self.fast_casting_exists: bool = False
         self.fast_casting_level: int = 0
@@ -231,10 +234,43 @@ class CombatClass:
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         self.leave_junundu = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+        self.junundu_siege = GLOBAL_CACHE.Skill.GetID("Junundu_Siege") or 1441
+
+    @staticmethod
+    def _normalize_weapon_requirement_name(value: str) -> str:
+        text = ''.join(ch for ch in str(value or '') if ch.isalnum()).lower()
+        if text.startswith('weapon'):
+            text = text[6:]
+        return text
+
+    @classmethod
+    def _matches_required_weapon(cls, required_weapon: str) -> bool:
+        normalized_required_weapon = cls._normalize_weapon_requirement_name(required_weapon)
+        if not normalized_required_weapon:
+            return True
+
+        player_id = Player.GetAgentID()
+        if Agent.IsHoldingItem(player_id):
+            return False
+
+        if normalized_required_weapon in {"melee"}:
+            return Agent.IsMelee(player_id)
+
+        if normalized_required_weapon in {"rangedmartial"}:
+            return Agent.IsRanged(player_id)
+
+        if normalized_required_weapon == "caster":
+            return Agent.IsCaster(player_id)
+
+        if normalized_required_weapon == "ranged":
+            return Agent.IsRanged(player_id) or Agent.IsCaster(player_id)
+
+        _, current_weapon_name = Agent.GetWeaponType(player_id)
+        return cls._normalize_weapon_requirement_name(current_weapon_name) == normalized_required_weapon
         
     def Update(self, cached_data: CacheData) -> None:
         self.cached_data = cached_data
-        self.in_aggro = cached_data.data.in_aggro
+        self.in_aggro = cached_data.IsHeadlessCombatPauseActive()
         
         self.fast_casting_exists = cached_data.data.fast_casting_exists
         self.fast_casting_level = cached_data.data.fast_casting_level
@@ -256,6 +292,11 @@ class CombatClass:
         self.blocked_skill_ids = {
             int(skill_id) for skill_id in (blocked_skill_ids or []) if int(skill_id) != 0
         }
+
+    def _clear_auto_call_target_state(self) -> None:
+        self.auto_call_target_id = 0
+        self.auto_call_target_called = False
+        self.auto_call_target_source = ""
             
     def _get_active_spirit_buff_skill_ids(self) -> set[int]:
         spirit_array = AgentArray.GetSpiritPetArray()
@@ -481,7 +522,7 @@ class CombatClass:
         if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
             return False
         _, target_allegiance = Agent.GetAllegiance(target_id)
-        return target_allegiance == "Enemy"
+        return target_allegiance == "Enemy" and not self._is_blacklisted_enemy_target(target_id)
 
     def MaybeCallCombatTarget(
         self,
@@ -492,15 +533,20 @@ class CombatClass:
         source: str = "auto",
     ) -> None:
         if cached_data is None or not Settings().AutoCallTargets:
+            self._clear_auto_call_target_state()
             return
 
-        if not cached_data.account_data.AgentPartyData.IsPartyLeader:
+        is_local_party_leader = Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if (
+            not is_local_party_leader
+            or not Agent.IsAlive(Player.GetAgentID())
+            or not Routines.Checks.Map.MapValid()
+        ):
+            self._clear_auto_call_target_state()
             return
 
         if not self._is_valid_call_target(self.auto_call_target_id):
-            self.auto_call_target_id = 0
-            self.auto_call_target_called = False
-            self.auto_call_target_source = ""
+            self._clear_auto_call_target_state()
 
         if (
             self.auto_call_target_id != 0
@@ -535,7 +581,13 @@ class CombatClass:
     def _post_spike_lock(self, skill: SkillData, target_id: int) -> None:
         if not self._spike_lock_enabled(skill):
             return
-        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+        if (
+            target_id == 0
+            or not Routines.Checks.Map.MapValid()
+            or not Agent.IsValid(target_id)
+            or Agent.IsDead(target_id)
+            or not Agent.IsLiving(target_id)
+        ):
             return
         try:
             from Py4GWCoreLib.enums_src.Whiteboard_enums import (
@@ -568,7 +620,13 @@ class CombatClass:
     def _apply_spike_lock(self, skill: SkillData, target_id: int) -> None:
         if not self._spike_lock_enabled(skill):
             return
-        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+        if (
+            target_id == 0
+            or not Routines.Checks.Map.MapValid()
+            or not Agent.IsValid(target_id)
+            or Agent.IsDead(target_id)
+            or not Agent.IsLiving(target_id)
+        ):
             return
         _, target_allegiance = Agent.GetAllegiance(target_id)
         if target_allegiance != "Enemy":
@@ -585,12 +643,17 @@ class CombatClass:
         if self.is_targeting_enabled and party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
-                if Agent.IsLiving(party_target):
+                if Agent.IsLiving(party_target) and not self._is_blacklisted_enemy_target(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
                     if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
                         self.SafeChangeTarget(party_target)
                         return party_target
         return 0
+
+    def _is_blacklisted_enemy_target(self, agent_id: int) -> bool:
+        if not agent_id:
+            return False
+        return EnemyBlacklist().is_blacklisted(agent_id)
 
     def get_combat_distance(self) -> float:
         if self.cached_data is not None:
@@ -601,6 +664,7 @@ class CombatClass:
 
     def GetAppropiateTarget(self, slot: int) -> int:
         from .utils import HasIllusionaryWeaponry
+        from Py4GWCoreLib import Party
         v_target: int = 0
 
         if not self.is_targeting_enabled:
@@ -609,6 +673,17 @@ class CombatClass:
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
         target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
         conditions = self.skills[slot].custom_skill_data.Conditions
+        preferred_enemy_target: int = 0
+
+        party_target = int(Party.GetPartyTarget() or 0)
+        if (
+            party_target != 0
+            and Agent.IsValid(party_target)
+            and Agent.IsLiving(party_target)
+            and not Agent.IsDead(party_target)
+            and not self._is_blacklisted_enemy_target(party_target)
+        ):
+            preferred_enemy_target = party_target
 
         # Lazy helpers — only call expensive scans when a branch actually needs them
         _nearest_enemy = None
@@ -630,7 +705,7 @@ class CombatClass:
                 return Player.GetAgentID()
 
         if target_allegiance == Skilltarget.Enemy:
-            v_target = self.GetPartyTarget()
+            v_target = preferred_enemy_target
             if v_target == 0:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyCaster:
@@ -646,11 +721,13 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyClustered:
-            v_target = TargetClusteredEnemy(
-                self.get_combat_distance(),
-                skill_id=self.skills[slot].skill_id,
-                cluster_radius=Range.Earshot.value,
-            )
+            v_target = preferred_enemy_target
+            if v_target == 0:
+                v_target = TargetClusteredEnemy(
+                    self.get_combat_distance(),
+                    skill_id=self.skills[slot].skill_id,
+                    cluster_radius=Range.Earshot.value,
+                )
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyAttacking:
@@ -717,6 +794,10 @@ class CombatClass:
             v_target = GetEnemyKnockedDown(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
+        elif target_allegiance == Skilltarget.EnemyNotNearby:
+            v_target = Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
@@ -762,6 +843,12 @@ class CombatClass:
                 reserve=True,
                 skill_id=self.skills[slot].skill_id,
             )
+        elif target_allegiance == Skilltarget.HexedAlly:
+            v_target = get_hexed_ally_for_removal(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=self.skills[slot].skill_id,
+            )
         elif target_allegiance == Skilltarget.Spirit:
             v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Minion:
@@ -800,7 +887,7 @@ class CombatClass:
             if v_target == Player.GetAgentID():
                 v_target = 0
         else:
-            v_target = self.GetPartyTarget()
+            v_target = preferred_enemy_target
             if v_target == 0:
                 v_target = get_nearest_enemy()
 
@@ -1007,6 +1094,10 @@ class CombatClass:
             if (self.skills[slot].skill_id == self.junundu_tunnel):
                 return Routines.Agents.GetNearestEnemy(self.get_combat_distance()) == 0
 
+            if (self.skills[slot].skill_id == self.junundu_siege):
+                return (Routines.Agents.GetNearestEnemy(Range.Nearby.value) != 0 and
+                        Routines.Agents.GetNearestEnemyOutsideRange(Range.Nearby.value, Range.Earshot.value) != 0)
+
             if ((self.skills[slot].skill_id == self.unknown_junundu_ability) or
                 (self.skills[slot].skill_id == self.leave_junundu)
                 ):
@@ -1049,6 +1140,7 @@ class CombatClass:
         feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
         feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
         feature_count += (1 if Conditions.CloseToAggro else 0)
+        feature_count += (1 if str(Conditions.RequireWeapon or '').strip() else 0)
 
         if Conditions.IsAlive:
             if Routines.Checks.Agents.IsAlive(vTarget):
@@ -1352,11 +1444,17 @@ class CombatClass:
                 return False
 
         if Conditions.CloseToAggro:
-            if Routines.Checks.Agents.InAggro(self.get_combat_distance()) or Routines.Checks.Agents.IsCloseToAggro():
+            if self.in_aggro:
                 number_of_features += 1
             else:
                 return False
-            
+
+        if str(Conditions.RequireWeapon or '').strip():
+            if self._matches_required_weapon(Conditions.RequireWeapon):
+                number_of_features += 1
+            else:
+                return False
+             
 
         #Py4GW.Console.Log("AreCastConditionsMet", f"feature count: {feature_count}, No of features {number_of_features}", Py4GW.Console.MessageType.Info)
         
@@ -1465,6 +1563,23 @@ class CombatClass:
             self.in_casting_routine = False
             return False, 0
 
+        v_target_allegiance, _ = Agent.GetAllegiance(v_target)
+        if (
+            v_target_allegiance == Allegiance.Enemy.value
+            and self._is_blacklisted_enemy_target(v_target)
+        ):
+            self.in_casting_routine = False
+            return False, 0
+
+        # Hex spells must never be cast on spirits.
+        if skill_type == SkillType.Hex.value:
+            if Agent.IsSpirit(v_target) or (
+                v_target_allegiance == Allegiance.Enemy.value
+                and Agent.IsSpawned(v_target)
+            ):
+                self.in_casting_routine = False
+                return False, 0
+
         # --- Target-dependent checks ---
 
         # Check combo conditions
@@ -1550,8 +1665,18 @@ class CombatClass:
 
         target_id = Player.GetTargetID()
         _, target_allegiance = Agent.GetAllegiance(target_id)
+        has_valid_enemy_target = (
+            target_id != 0
+            and Agent.IsValid(target_id)
+            and not Agent.IsDead(target_id)
+            and target_allegiance == "Enemy"
+            and not self._is_blacklisted_enemy_target(target_id)
+        )
 
-        if target_id == 0 or Agent.IsDead(target_id) or (target_allegiance != "Enemy"):
+        if has_valid_enemy_target and Agent.IsAttacking(player_id):
+            self.MaybeCallCombatTarget(target_id, cached_data, source="auto_attack")
+
+        if not has_valid_enemy_target:
             if self.ChooseTarget():
                 self.MaybeCallCombatTarget(Player.GetTargetID(), cached_data)
                 cached_data.auto_attack_time = cached_data.GetWeaponAttackAftercast()

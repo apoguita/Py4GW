@@ -281,5 +281,9 @@ def handle_recovery(self, bot: Botting, target: Union[str, Callable], reason: st
         )
         return
 
+    self._debug_log(
+        f"[{reason}] Recovery trigger accepted; restarting from {target_label} "
+        f"(phase={phase_name!r}, state={state_name!r})."
+    )
     _queue_pending_recovery(self, str(phase_name), str(state_name), str(reason), str(target_label))
 

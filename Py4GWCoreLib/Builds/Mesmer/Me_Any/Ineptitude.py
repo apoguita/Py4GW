@@ -110,11 +110,11 @@ class Ineptitude(BuildMgr):
         if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain()):
             return True
 
-        if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
-            return True
+        #if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
+        #    return True
 
-        if (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
-            return True
+        #if (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
+            #return True
 
         if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
             return True

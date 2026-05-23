@@ -1,15 +1,13 @@
-import json
+import builtins
 import math
 import os
 import sys
 from dataclasses import dataclass, field
-from typing import ClassVar
-
 import PyImGui
 
 from HeroAI.call_target import CallTarget
 from HeroAI.ui_base import HeroAI_BaseUI
-from Py4GWCoreLib import GLOBAL_CACHE, Py4GW, Range, Map
+from Py4GWCoreLib import GLOBAL_CACHE, Py4GW, Range, Map, ThrottledTimer
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.ImGui import ImGui
@@ -17,37 +15,32 @@ from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.Party import Party
 from Py4GWCoreLib.Player import Player
-from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 
 @dataclass
 class EnemyTrackerConfig:
-    MODULE_NAME: str = "Enemy Tracker"
+    MODULE_NAME: str = "Enemy Party"
     INI_PATH: str = "Widgets/Automation/Helpers/EnemyTracker"
     MAIN_INI_FILENAME: str = "EnemyTracker.ini"
     FLOATING_INI_FILENAME: str = "EnemyTrackerFloating.ini"
-    DATA_FILENAME: str = "EnemyTrackerData.json"
-    NAME_DATA_PREFIX: str = "EnemyTrackerNames"
 
     MAIN_INI_KEY: str = ""
     FLOATING_INI_KEY: str = ""
     INI_INIT: bool = False
     ICON_PATH: str = os.path.join(Py4GW.Console.get_projects_path(), "crossed swords.png")
     DEFAULT_NAME_LANGUAGE: str = "en"
-    NAME_LANGUAGE_CODES: ClassVar[dict[int, str]] = {
-        0: "en",
-        1: "ko",
-        2: "fr",
-        3: "de",
-        4: "it",
-        5: "es",
-        6: "zh-Hant",
-        8: "ja",
-        9: "pl",
-        10: "ru",
-        17: "bork",
-    }
+
+
+ENEMY_TRACKER_SHARED_VARS_ATTR = "_py4gw_enemy_tracker_shared_vars"
+ENEMY_BAR_DEBUG = False
+ENEMY_BAR_DEBUG_STARTUP_LOGGED = False
+
+
+def _enemy_bar_debug(message: str) -> None:
+    if not ENEMY_BAR_DEBUG:
+        return
+    Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"[EnemyBarDebug] {message}", Py4GW.Console.MessageType.Warning)
 
 
 @dataclass
@@ -71,14 +64,8 @@ class EnemyLiveState:
 class EnemyTrackerVars:
     enemy_array: list[int] = field(default_factory=list)
     live_rows: list[EnemyLiveState] = field(default_factory=list)
-    last_cast_skill_by_agent: dict[int, int] = field(default_factory=dict)
-    observed_agent_map_keys: set[str] = field(default_factory=set)
-    current_map_id: int = 0
     records: dict[str, dict] = field(default_factory=dict)
     name_records: dict[str, dict[str, list[str]]] = field(default_factory=dict)
-    data_dirty: bool = False
-    names_dirty: bool = False
-    last_save_ms: int = 0
     range_filter: int = 2500
     range_preset_index: int = 0
     sort_index: int = 0
@@ -102,30 +89,104 @@ class EnemyTrackerVars:
     atlas_selected_skill_id: int = 0
 
 
-class HealthBar:
+@dataclass
+class EnemyBarInteraction:
+    rect: tuple[float, float, float, float]
+    hovered: bool = False
+    clicked: bool = False
+    double_clicked: bool = False
+
+
+class EnemyBarWidget:
     def __init__(self, width: float = 280.0, height: float = 18.0) -> None:
         self.width = width
         self.height = height
-        self.progress = 0.0
         self.empty_color = Utils.RGBToColor(70, 70, 70, 230)
         self.text_color = Utils.RGBToColor(245, 245, 245, 255)
         self.text_shadow_color = Utils.RGBToColor(0, 0, 0, 220)
-        
-    def draw(self, progress: float, label: str, fill_color: int) -> bool:
-        self.progress = max(0.0, min(1.0, float(progress)))
+        self.double_click_ms = 350
+        self.double_click_max_move = 8.0
+        self._last_click_by_id: dict[int, tuple[int, float, float]] = {}
+        self._hover_state_by_id: dict[int, bool] = {}
 
-        ImGui.dummy(self.width, self.height)
+    def _debug_log(self, row_id: int, event: str, **data: object) -> None:
+        details = ", ".join(f"{key}={value}" for key, value in data.items())
+        message = f"row={row_id} event={event}"
+        if details:
+            message = f"{message} {details}"
+        _enemy_bar_debug(message)
+
+    def draw(self, row_id: int, progress: float, label: str, fill_color: int) -> EnemyBarInteraction:
+        progress = max(0.0, min(1.0, float(progress)))
+
+        ImGui.invisible_button(f"##enemy_bar_{row_id}", self.width, self.height)
+        hovered = PyImGui.is_item_hovered()
+        clicked = PyImGui.is_item_clicked(0)
+        io = PyImGui.get_io()
+        now = int(Py4GW.Game.get_tick_count64())
+        mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+        mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+        double_clicked = False
+        was_hovered = bool(self._hover_state_by_id.get(int(row_id), False))
+        if hovered != was_hovered:
+            self._hover_state_by_id[int(row_id)] = hovered
+            self._debug_log(
+                row_id,
+                "hover_on" if hovered else "hover_off",
+                mouse_x=round(mouse_x, 1),
+                mouse_y=round(mouse_y, 1),
+            )
+        if clicked:
+            self._debug_log(
+                row_id,
+                "clicked",
+                mouse_x=round(mouse_x, 1),
+                mouse_y=round(mouse_y, 1),
+                label=label,
+            )
+            last_click = self._last_click_by_id.get(int(row_id))
+            if last_click is not None:
+                last_ms, last_x, last_y = last_click
+                dx = mouse_x - last_x
+                dy = mouse_y - last_y
+                moved_too_far = (dx * dx + dy * dy) > (self.double_click_max_move * self.double_click_max_move)
+                if (now - last_ms) <= self.double_click_ms and not moved_too_far:
+                    double_clicked = True
+                    self._last_click_by_id.pop(int(row_id), None)
+                    self._debug_log(
+                        row_id,
+                        "double_clicked",
+                        dt_ms=now - last_ms,
+                        move_px=round((dx * dx + dy * dy) ** 0.5, 2),
+                    )
+                else:
+                    self._last_click_by_id[int(row_id)] = (now, mouse_x, mouse_y)
+                    self._debug_log(
+                        row_id,
+                        "click_rearmed",
+                        dt_ms=now - last_ms,
+                        move_px=round((dx * dx + dy * dy) ** 0.5, 2),
+                        moved_too_far=moved_too_far,
+                    )
+            else:
+                self._last_click_by_id[int(row_id)] = (now, mouse_x, mouse_y)
+                self._debug_log(row_id, "click_armed", at_ms=now)
 
         item_min, item_max, item_size = ImGui.get_item_rect()
         x1, y1 = item_min
         x2, y2 = item_max
 
+        _enemy_bar_debug(
+            f"bar draw row={row_id} hovered={hovered} clicked={clicked} "
+            f"double_clicked={double_clicked} rect=({round(x1,1)},{round(y1,1)},{round(x2,1)},{round(y2,1)}) "
+            f"mouse=({round(mouse_x,1)},{round(mouse_y,1)})"
+        )
+
         width = x2 - x1
         height = y2 - y1
 
-        fill_x2 = x1 + (width * self.progress)
+        fill_x2 = x1 + (width * progress)
 
-        # 100% background / empty bar
         PyImGui.draw_list_add_rect_filled(
             x1, y1,
             x2, y2,
@@ -134,8 +195,7 @@ class HealthBar:
             0
         )
 
-        # Remaining life fill
-        if self.progress > 0.0:
+        if progress > 0.0:
             PyImGui.draw_list_add_rect_filled(
                 x1, y1,
                 fill_x2, y2,
@@ -160,7 +220,12 @@ class HealthBar:
             PyImGui.draw_list_add_text(text_x + 1.0, text_y + 1.0, self.text_shadow_color, text)
             PyImGui.draw_list_add_text(text_x, text_y, self.text_color, text)
 
-        return PyImGui.is_item_clicked(0)
+        return EnemyBarInteraction(
+            rect=(x1, y1, x2, y2),
+            hovered=hovered,
+            clicked=clicked,
+            double_clicked=double_clicked,
+        )
 
 
 PROFESSION_ABBREVIATIONS = {
@@ -195,6 +260,7 @@ class EnemyTracker:
         (range_value.name, int(range_value.value))
         for range_value in sorted(Range, key=lambda value: float(value.value))
     ]
+    SCANNER_RADIUS = float(Range.SafeCompass.value)
 
     def __init__(self) -> None:
         self.floating_button = ImGui.FloatingIcon(
@@ -209,11 +275,37 @@ class EnemyTracker:
             draw_callback=self.draw_window,
         )
         self.vars = EnemyTrackerVars()
+        self._sync_shared_data()
         self._sync_range_preset_from_filter()
-        self.health_bar = HealthBar(width=220.0, height=18.0)
-        self.data_path = os.path.join(Py4GW.Console.get_projects_path(), EnemyTrackerConfig.DATA_FILENAME)
-        self.data_dir = os.path.dirname(self.data_path)
-        self._load_data()
+        self.enemy_bar = EnemyBarWidget(width=220.0, height=18.0)
+        self._live_poll_timer = ThrottledTimer(150)
+
+    def _sync_shared_data(self) -> None:
+        shared_vars = _get_shared_vars()
+        if shared_vars is None:
+            self.vars.records = {}
+            self.vars.name_records = {}
+            return
+        self.vars.records = shared_vars.records
+        self.vars.name_records = shared_vars.name_records
+
+    def _clear_live_state(self) -> None:
+        self.vars.enemy_array = []
+        self.vars.live_rows = []
+        self.vars.called_target_id = 0
+        self.vars.hovered_agent_id = 0
+
+    def _refresh_live_state(self, force: bool = False) -> None:
+        self._sync_shared_data()
+        if not Map.IsMapReady() or not Player.IsPlayerLoaded() or not Map.IsExplorable():
+            self._clear_live_state()
+            return
+
+        if not force and not self._live_poll_timer.IsExpired():
+            return
+
+        self._live_poll_timer.Reset()
+        self._poll()
 
     def _sync_range_preset_from_filter(self) -> None:
         self.vars.range_preset_index = 0
@@ -222,91 +314,12 @@ class EnemyTracker:
                 self.vars.range_preset_index = index
                 return
 
-    def _load_data(self) -> None:
-        try:
-            if os.path.exists(self.data_path):
-                with open(self.data_path, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                self.vars.records = self._normalize_records(dict(data.get("enemies", {})))
-                if int(data.get("schema_version", 1) or 1) < 2:
-                    self.vars.data_dirty = True
-            self._load_name_data()
-        except Exception as exc:
-            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load data: {exc}", Py4GW.Console.MessageType.Warning)
-
-    def _name_data_path(self, language: str) -> str:
-        language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip()
-        return os.path.join(self.data_dir, f"{EnemyTrackerConfig.NAME_DATA_PREFIX}.{language_key}.json")
-
-    def _load_name_data(self) -> None:
-        prefix = f"{EnemyTrackerConfig.NAME_DATA_PREFIX}."
-        suffix = ".json"
-        if not os.path.isdir(self.data_dir):
-            return
-        for filename in os.listdir(self.data_dir):
-            if not filename.startswith(prefix) or not filename.endswith(suffix):
-                continue
-            language = filename[len(prefix):-len(suffix)].strip().lower()
-            if not language:
-                continue
-            path = os.path.join(self.data_dir, filename)
-            try:
-                with open(path, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                self.vars.name_records[language] = self._normalize_name_records(dict(data.get("names", {})))
-            except Exception as exc:
-                Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load {filename}: {exc}", Py4GW.Console.MessageType.Warning)
-
-    def _save_data_if_needed(self, force: bool = False) -> None:
-        if not self.vars.data_dirty and not self.vars.names_dirty and not force:
-            return
-        now = int(Py4GW.Game.get_tick_count64())
-        if not force and now - self.vars.last_save_ms < 2000:
-            return
-        try:
-            if self.vars.data_dirty or force:
-                payload = {
-                    "schema": "py4gw_enemy_tracker",
-                    "schema_version": 2,
-                    "enemies": self.vars.records,
-                }
-                with open(self.data_path, "w", encoding="utf-8") as handle:
-                    json.dump(payload, handle, indent=2, sort_keys=True)
-            if self.vars.names_dirty or force:
-                self._save_name_data()
-            self.vars.data_dirty = False
-            self.vars.names_dirty = False
-            self.vars.last_save_ms = now
-        except Exception as exc:
-            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to save data: {exc}", Py4GW.Console.MessageType.Warning)
-
-    def _save_name_data(self) -> None:
-        for language, names in self.vars.name_records.items():
-            payload = {
-                "schema": "py4gw_enemy_tracker_names",
-                "schema_version": 1,
-                "language": language,
-                "names": names,
-            }
-            with open(self._name_data_path(language), "w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2, sort_keys=True)
-
     def _enemy_key(self, agent_id: int, name: str, enc_name: str, model_id: int) -> str:
         if enc_name:
             return f"enc:{enc_name}"
         if model_id:
             return f"model:{model_id}"
         return f"name:{name}"
-
-    def _current_name_language(self) -> str:
-        try:
-            language_id = int(UIManager.GetTextLanguage())
-        except Exception:
-            language_id = 0
-        return EnemyTrackerConfig.NAME_LANGUAGE_CODES.get(
-            language_id,
-            EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE,
-        )
 
     def _clean_name_values(self, names: object) -> list[str]:
         if isinstance(names, str):
@@ -322,69 +335,6 @@ class EnemyTracker:
             if name and name not in clean_names:
                 clean_names.append(name)
         return clean_names
-
-    def _normalize_names_by_language(self, record: dict) -> dict[str, list[str]]:
-        language_names: dict[str, list[str]] = {}
-        raw_language_names = record.get("names_by_language", {})
-        if isinstance(raw_language_names, dict):
-            for language, names in raw_language_names.items():
-                language_key = str(language or "").strip().lower()
-                if not language_key:
-                    continue
-                clean_names = self._clean_name_values(names)
-                if clean_names:
-                    language_names[language_key] = clean_names
-
-        legacy_names = self._clean_name_values(record.get("names", []))
-        if legacy_names:
-            english_names = language_names.setdefault(EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE, [])
-            for name in legacy_names:
-                if name not in english_names:
-                    english_names.append(name)
-
-        record.pop("names", None)
-        record.pop("names_by_language", None)
-        return language_names
-
-    def _add_name_record(self, key: str, language: str, name: str) -> bool:
-        clean_name = str(name or "").strip()
-        if not clean_name:
-            return False
-        language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
-        names = self.vars.name_records.setdefault(language_key, {}).setdefault(key, [])
-        if clean_name in names:
-            return False
-        names.append(clean_name)
-        return True
-
-    def _normalize_name_records(self, raw_names: dict[str, object]) -> dict[str, list[str]]:
-        normalized: dict[str, list[str]] = {}
-        for key, names in raw_names.items():
-            clean_names = self._clean_name_values(names)
-            if clean_names:
-                normalized[str(key)] = clean_names
-        return normalized
-
-    def _normalize_record(self, key: str, record: dict) -> dict:
-        for language, names in self._normalize_names_by_language(record).items():
-            for name in names:
-                if self._add_name_record(key, language, name):
-                    self.vars.names_dirty = True
-        record.setdefault("observed_maps", {})
-        record.setdefault("observed_skills", {})
-        record.pop("profession_counts", None)
-        record.setdefault("encoded_names", [])
-        record.setdefault("model_ids", [])
-        record.setdefault("inferred_primary", "")
-        record.setdefault("inferred_secondary", "")
-        return record
-
-    def _normalize_records(self, records: dict[str, dict]) -> dict[str, dict]:
-        normalized: dict[str, dict] = {}
-        for key, record in records.items():
-            if isinstance(record, dict):
-                normalized[str(key)] = self._normalize_record(str(key), record)
-        return normalized
 
     def _record_names(self, key: str, language: str = EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE) -> list[str]:
         language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
@@ -411,90 +361,6 @@ class EnemyTracker:
             prof_id, prof_name = 0, ""
         return skill_name or f"Skill {skill_id}", int(prof_id or 0), str(prof_name or "")
 
-    def _ensure_record(self, key: str, name: str, enc_name: str, model_id: int) -> dict:
-        record = self.vars.records.get(key)
-        if record is None:
-            record = {
-                "encoded_names": [],
-                "model_ids": [],
-                "observed_maps": {},
-                "observed_skills": {},
-                "inferred_primary": "",
-                "inferred_secondary": "",
-            }
-            self.vars.records[key] = record
-            self.vars.data_dirty = True
-
-        self._normalize_record(key, record)
-        language = self._current_name_language()
-        if self._add_name_record(key, language, name):
-            self.vars.names_dirty = True
-        if enc_name and enc_name not in record["encoded_names"]:
-            record["encoded_names"].append(enc_name)
-            self.vars.data_dirty = True
-        if model_id and model_id not in record["model_ids"]:
-            record["model_ids"].append(model_id)
-            self.vars.data_dirty = True
-        return record
-
-    def _current_map_observation(self) -> dict | None:
-        try:
-            map_id = int(Map.GetMapID() or 0)
-        except Exception:
-            map_id = 0
-        if map_id <= 0:
-            return None
-
-        try:
-            map_name = Map.GetMapName(map_id)
-        except Exception:
-            map_name = ""
-        try:
-            base_map_id = int(Map.GetBaseMapID(map_id) or map_id)
-        except Exception:
-            base_map_id = map_id
-        try:
-            instance_type = Map.GetInstanceTypeName()
-        except Exception:
-            instance_type = ""
-
-        return {
-            "id": map_id,
-            "name": map_name,
-            "base_id": base_map_id,
-            "instance_type": instance_type,
-        }
-
-    def _observe_map(self, record_key: str, record: dict, map_info: dict | None) -> None:
-        if not map_info:
-            return
-
-        map_id = int(map_info.get("id", 0) or 0)
-        if map_id <= 0:
-            return
-
-        if self.vars.current_map_id != map_id:
-            self.vars.current_map_id = map_id
-            self.vars.observed_agent_map_keys.clear()
-
-        seen_key = f"{record_key}|{map_id}"
-        if seen_key in self.vars.observed_agent_map_keys:
-            return
-        self.vars.observed_agent_map_keys.add(seen_key)
-
-        maps = record.setdefault("observed_maps", {})
-        map_key = str(map_id)
-        if map_key in maps:
-            return
-
-        maps[map_key] = {
-            "id": map_id,
-            "name": str(map_info.get("name", "") or ""),
-            "base_id": int(map_info.get("base_id", map_id) or map_id),
-            "instance_type": str(map_info.get("instance_type", "") or ""),
-        }
-        self.vars.data_dirty = True
-
     def _infer_professions(self, record: dict) -> tuple[str, str]:
         counts: dict[str, int] = {}
         for skill in record.get("observed_skills", {}).values():
@@ -507,35 +373,7 @@ class EnemyTracker:
         )
         primary = ranked[0][0] if len(ranked) >= 1 else ""
         secondary = ranked[1][0] if len(ranked) >= 2 else ""
-        if record.get("inferred_primary") != primary or record.get("inferred_secondary") != secondary:
-            record["inferred_primary"] = primary
-            record["inferred_secondary"] = secondary
-            self.vars.data_dirty = True
         return primary, secondary
-
-    def _observe_cast(self, agent_id: int, record: dict, skill_id: int) -> None:
-        if skill_id <= 0:
-            self.vars.last_cast_skill_by_agent[agent_id] = 0
-            return
-
-        if self.vars.last_cast_skill_by_agent.get(agent_id) == skill_id:
-            return
-        self.vars.last_cast_skill_by_agent[agent_id] = skill_id
-
-        skill_name, prof_id, prof_name = self._skill_info(skill_id)
-        skills = record.setdefault("observed_skills", {})
-        skill_key = str(skill_id)
-        if skill_key in skills:
-            return
-
-        skills[skill_key] = {
-            "id": int(skill_id),
-            "name": skill_name,
-            "profession_id": int(prof_id),
-            "profession": prof_name,
-        }
-        self._infer_professions(record)
-        self.vars.data_dirty = True
 
     def _statuses(self, agent_id: int) -> list[str]:
         statuses: list[str] = []
@@ -564,7 +402,6 @@ class EnemyTracker:
     def _poll(self) -> None:
         player_xy = Player.GetXY()
         rows: list[EnemyLiveState] = []
-        map_info = self._current_map_observation()
         try:
             self.vars.called_target_id = int(Party.GetPartyTarget() or 0)
         except Exception:
@@ -576,19 +413,19 @@ class EnemyTracker:
             if Agent.IsDead(agent_id) and not self.vars.include_dead:
                 continue
             distance = Utils.Distance(player_xy, Agent.GetXY(agent_id))
-            if not self._is_inside_scan_frustum(player_xy, Agent.GetXY(agent_id), distance):
+            if distance > self.SCANNER_RADIUS:
                 continue
 
             name = Agent.GetNameByID(agent_id) or f"Agent {agent_id}"
             enc_name = Agent.GetEncNameStrByID(agent_id)
             model_id = int(Agent.GetModelID(agent_id) or 0)
             key = self._enemy_key(agent_id, name, enc_name, model_id)
-            record = self._ensure_record(key, name, enc_name, model_id)
-            self._observe_map(key, record, map_info)
-
+            record = self.vars.records.get(key, {})
             casting_skill_id = int(Agent.GetCastingSkillID(agent_id) if Agent.IsCasting(agent_id) else 0)
-            self._observe_cast(agent_id, record, casting_skill_id)
-            primary, secondary = self._infer_professions(record)
+            primary = str(record.get("inferred_primary", "") or "")
+            secondary = str(record.get("inferred_secondary", "") or "")
+            if not primary and not secondary and record:
+                primary, secondary = self._infer_professions(record)
 
             rows.append(
                 EnemyLiveState(
@@ -609,7 +446,6 @@ class EnemyTracker:
             )
 
         self.vars.live_rows = self._sort_rows(rows)
-        self._save_data_if_needed()
 
     def _normalize_degrees(self, angle: float) -> float:
         return (float(angle) + 180.0) % 360.0 - 180.0
@@ -731,13 +567,19 @@ class EnemyTracker:
         return ["All"] + sorted(name for name in names if name != "All")
 
     def _filtered_rows(self) -> list[EnemyLiveState]:
+        self._refresh_live_state()
         filters = self._profession_filters()
         self.vars.profession_filter_index = max(0, min(self.vars.profession_filter_index, len(filters) - 1))
         prof_filter = filters[self.vars.profession_filter_index]
+        rows = [
+            row
+            for row in self.vars.live_rows
+            if self._is_inside_scan_frustum(Player.GetXY(), Agent.GetXY(row.agent_id), row.distance)
+        ]
         if prof_filter == "All":
-            return self.vars.live_rows
+            return rows
         return [
-            row for row in self.vars.live_rows
+            row for row in rows
             if row.inferred_primary == prof_filter or row.inferred_secondary == prof_filter
         ]
 
@@ -769,45 +611,87 @@ class EnemyTracker:
     def _yellow_color(self, alpha: int = 255) -> int:
         return Utils.RGBToColor(255, 220, 40, alpha)
 
+    def _resolve_called_target_id(self) -> int:
+        try:
+            called_target_id = int(Party.GetPartyTarget() or 0)
+        except Exception:
+            called_target_id = 0
+
+        self.vars.called_target_id = called_target_id if called_target_id > 0 and Agent.IsValid(called_target_id) else 0
+        return self.vars.called_target_id
+
+    def _draw_target_outline(
+        self,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        color: int,
+    ) -> None:
+        PyImGui.draw_list_add_rect(x1 - 2.0, y1 - 2.0, x2 + 2.0, y2 + 2.0, color, 0.0, 0, 2.0)
+
     def _draw_row(self, row: EnemyLiveState) -> None:
         skill_text = ""
         if row.casting_skill_id:
             skill_name, _, _ = self._skill_info(row.casting_skill_id)
             skill_text = skill_name
+        called_target_id = self._resolve_called_target_id()
+        is_called_target = row.agent_id == called_target_id
+
+        _enemy_bar_debug(f"draw_row start agent_id={row.agent_id} name={row.name} distance={int(row.distance)}")
 
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if PyImGui.button(f"Call##call_{row.agent_id}"):
+            _enemy_bar_debug(f"call button clicked agent_id={row.agent_id} name={row.name}")
             CallTarget(row.agent_id, interact=False)
+        call_hovered = PyImGui.is_item_hovered()
+        call_item_min, call_item_max, _ = ImGui.get_item_rect()
+        call_x1, call_y1 = call_item_min
+        call_x2, call_y2 = call_item_max
+        if call_hovered:
+            self.vars.hovered_agent_id = row.agent_id
+            _enemy_bar_debug(f"call button hovered agent_id={row.agent_id} name={row.name}")
         PyImGui.table_next_column()
-        self.health_bar.draw(row.health, self._health_label(row), self._health_color(row))
-        hovered = PyImGui.is_item_hovered()
+        bar_state = self.enemy_bar.draw(
+            row.agent_id,
+            row.health,
+            self._health_label(row),
+            self._health_color(row),
+        )
+        x1, y1, x2, y2 = bar_state.rect
+        row_x1 = min(call_x1, x1)
+        row_y1 = min(call_y1, y1)
+        row_x2 = max(call_x2, x2)
+        row_y2 = max(call_y2, y2)
+        row_hovered = ImGui.is_mouse_in_rect((row_x1, row_y1, row_x2 - row_x1, row_y2 - row_y1))
+        _enemy_bar_debug(
+            f"row geometry agent_id={row.agent_id} "
+            f"call_rect=({round(call_x1,1)},{round(call_y1,1)},{round(call_x2,1)},{round(call_y2,1)}) "
+            f"bar_rect=({round(x1,1)},{round(y1,1)},{round(x2,1)},{round(y2,1)}) "
+            f"row_rect=({round(row_x1,1)},{round(row_y1,1)},{round(row_x2,1)},{round(row_y2,1)}) "
+            f"row_hovered={row_hovered}"
+        )
+        if bar_state.double_clicked:
+            _enemy_bar_debug(f"row handler double click agent_id={row.agent_id} name={row.name}")
+            CallTarget(row.agent_id, interact=False)
+        hovered = call_hovered or bar_state.hovered or row_hovered
         if hovered:
             self.vars.hovered_agent_id = row.agent_id
-        if hovered and self.vars.draw_hover_row_outline:
-            item_min, item_max, _ = ImGui.get_item_rect()
-            x1, y1 = item_min
-            x2, y2 = item_max
-            PyImGui.draw_list_add_rect(x1 - 2.0, y1 - 2.0, x2 + 2.0, y2 + 2.0, self._magenta_color(), 0.0, 0, 2.0)
-        if row.agent_id == self.vars.called_target_id:
-            item_min, item_max, _ = ImGui.get_item_rect()
-            x1, y1 = item_min
-            x2, y2 = item_max
-            PyImGui.draw_list_add_rect(x1 - 1.0, y1 - 1.0, x2 + 1.0, y2 + 1.0, self._yellow_color(), 0.0, 0, 2.0)
+            _enemy_bar_debug(
+                f"row hovered agent_id={row.agent_id} name={row.name} "
+                f"call_hovered={call_hovered} bar_hovered={bar_state.hovered} row_hovered={row_hovered}"
+            )
+        if hovered and self.vars.draw_hover_row_outline and not is_called_target:
+            self._draw_target_outline(row_x1, row_y1, row_x2, row_y2, self._magenta_color())
+        if is_called_target:
+            self._draw_target_outline(row_x1, row_y1, row_x2, row_y2, self._yellow_color())
         if hovered:
             PyImGui.begin_tooltip()
-            PyImGui.text(f"HP: {int(row.health * 100)}%")
-            if row.agent_id == self.vars.called_target_id:
+            self._draw_enemy_hover_card(row)
+            if is_called_target:
+                PyImGui.separator()
                 PyImGui.text("Called target")
-            PyImGui.text(f"Distance: {int(row.distance)}")
-            PyImGui.text(f"Agent: {row.agent_id}")
-            PyImGui.text(f"Model: {row.model_id}")
-            if skill_text:
-                PyImGui.text(f"Casting: {skill_text}")
-            if row.statuses:
-                PyImGui.text(f"Status: {', '.join(row.statuses)}")
-            if row.enc_name:
-                PyImGui.text(f"Enc: {row.enc_name}")
             PyImGui.end_tooltip()
 
     def _draw_controls(self) -> None:
@@ -879,7 +763,8 @@ class EnemyTracker:
 
         PyImGui.separator()
         PyImGui.text(f"Visible: {len(rows)} / Polled: {len(self.vars.live_rows)}")
-        PyImGui.separator()
+
+    def _draw_config_tab(self) -> None:
         self._draw_controls()
 
     def _record_label(self, key: str, record: dict) -> str:
@@ -992,6 +877,60 @@ class EnemyTracker:
             if (index + 1) % cards_per_row != 0 and index + 1 < len(skills):
                 PyImGui.same_line(0, 8)
 
+    def _draw_observed_skillbar_mini(self, skills: list[dict], icon_size: float = 28.0) -> None:
+        shown_skills = skills[:8]
+        if not shown_skills:
+            PyImGui.text("No observed skills yet.")
+            return
+
+        for index, skill in enumerate(shown_skills):
+            skill_id = int(skill.get("id", 0) or 0)
+            texture_path = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id) if skill_id > 0 else ""
+            if texture_path:
+                ImGui.DrawTexture(texture_path, icon_size, icon_size)
+            else:
+                ImGui.dummy(icon_size, icon_size)
+
+            if PyImGui.is_item_hovered() and skill_id > 0 and PyImGui.begin_tooltip():
+                HeroAI_BaseUI._draw_skill_info_card(skill_id, compact=True, tooltip=True)
+                self._draw_skill_observation_meta(skill)
+                PyImGui.end_tooltip()
+
+            if index + 1 < len(shown_skills):
+                PyImGui.same_line(0, 4)
+
+        if len(skills) > len(shown_skills):
+            PyImGui.same_line(0, 8)
+            PyImGui.text(f"+{len(skills) - len(shown_skills)}")
+
+    def _draw_enemy_hover_card(self, row: EnemyLiveState) -> None:
+        record = self.vars.records.get(row.key)
+        if not record:
+            PyImGui.text(row.name)
+            PyImGui.text(f"Profession: {self._profession_prefix(row)}")
+            return
+
+        names = self._record_names(row.key)
+        primary = str(record.get("inferred_primary", "") or row.inferred_primary or "?")
+        secondary = str(record.get("inferred_secondary", "") or row.inferred_secondary or "")
+        profession_text = f"{primary}/{secondary}" if secondary else primary
+        observed_maps = self._observed_maps_for_record(record)
+        observed_skills = self._observed_skills_for_record(record)
+
+        PyImGui.text(names[0] if names else row.name)
+        PyImGui.text(f"Profession: {profession_text}")
+        PyImGui.separator()
+        PyImGui.text("Skillbar")
+        self._draw_observed_skillbar_mini(observed_skills)
+        PyImGui.separator()
+        PyImGui.text(f"Maps Observed: {len(observed_maps)}")
+        for map_entry in observed_maps[:6]:
+            map_name = str(map_entry.get("name", "") or "Unknown Map")
+            map_id = int(map_entry.get("id", 0) or 0)
+            PyImGui.bullet_text(f"{map_name} id:({map_id})")
+        if len(observed_maps) > 6:
+            PyImGui.bullet_text(f"... {len(observed_maps) - len(observed_maps[:6])} more")
+
     def _draw_atlas_skills(self, record: dict) -> None:
         skills = self._observed_skills_for_record(record)
         PyImGui.text(f"Observed skills: {len(skills)}")
@@ -1037,6 +976,9 @@ class EnemyTracker:
                 self._draw_atlas_skills(record)
             PyImGui.end_table()
 
+    def draw_scanner_config(self) -> None:
+        return
+
     def draw_window(self) -> None:
         expanded, open_ = ImGui.BeginWithClose(
             ini_key=EnemyTrackerConfig.MAIN_INI_KEY,
@@ -1047,13 +989,16 @@ class EnemyTracker:
         self.floating_button.sync_begin_with_close(open_)
 
         if expanded:
-            self._poll()
+            self._refresh_live_state()
             rows = self._filtered_rows()
             self.vars.hovered_agent_id = 0
 
             if PyImGui.begin_tab_bar("EnemyTrackerTabs"):
                 if PyImGui.begin_tab_item("Tracker"):
                     self._draw_tracker_tab(rows)
+                    PyImGui.end_tab_item()
+                if PyImGui.begin_tab_item("Config"):
+                    self._draw_config_tab()
                     PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Enemy Atlas"):
                     self._draw_enemy_atlas()
@@ -1074,15 +1019,16 @@ class EnemyTracker:
         if not Player.IsPlayerLoaded():
             return
 
+        called_target_id = self._resolve_called_target_id()
         draw_hover = (
             self.vars.draw_hover_world_circle
             and self.vars.hovered_agent_id > 0
             and Agent.IsValid(self.vars.hovered_agent_id)
+            and self.vars.hovered_agent_id != called_target_id
         )
         draw_called = (
             self.vars.draw_called_world_circle
-            and self.vars.called_target_id > 0
-            and Agent.IsValid(self.vars.called_target_id)
+            and called_target_id > 0
         )
         if not draw_hover and not draw_called:
             return
@@ -1094,7 +1040,7 @@ class EnemyTracker:
                 x, y, z = Agent.GetXYZ(self.vars.hovered_agent_id)
                 overlay.DrawPoly3D(x, y, z, float(Range.Touch.value), self._magenta_color(), 32, 4.0)
             if draw_called:
-                x, y, z = Agent.GetXYZ(self.vars.called_target_id)
+                x, y, z = Agent.GetXYZ(called_target_id)
                 overlay.DrawPoly3D(x, y, z, float(Range.Touch.value), self._yellow_color(), 32, 4.0)
         finally:
             overlay.EndDraw()
@@ -1186,7 +1132,10 @@ class EnemyTracker:
                         x2, y2 = frustum_points[index + 1]
                         PyImGui.draw_list_add_line(x1, y1, x2, y2, outline, 3.0)
                         PyImGui.draw_list_add_line(x1, y1, x2, y2, color, 2.0)
-                if self.vars.draw_hover_mission_map:
+                called_target_id = self._resolve_called_target_id()
+                if called_target_id > 0:
+                    self._draw_agent_mission_map_marker(called_target_id, self._yellow_color())
+                elif self.vars.draw_hover_mission_map:
                     self._draw_agent_mission_map_marker(self.vars.hovered_agent_id, self._magenta_color())
             PyImGui.end()
         finally:
@@ -1195,6 +1144,10 @@ class EnemyTracker:
 
 FloatingButton: EnemyTracker | None = None
 
+
+def _get_shared_vars() -> EnemyTrackerVars | None:
+    state = getattr(builtins, ENEMY_TRACKER_SHARED_VARS_ATTR, None)
+    return state if state is not None else None
 
 def _ensure_ini() -> bool:
     if EnemyTrackerConfig.INI_INIT:
@@ -1226,18 +1179,42 @@ def GetCurrentRangeFilter() -> int:
     return int(FloatingButton.vars.range_filter)
 
 
-def main():
+def scanner_main():
+    try:
+        if not _ensure_ini():
+            return
+        state = _ensure_state()
+        state._refresh_live_state(force=True)
+    except Exception as exc:
+        Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Scanner error: {exc}", Py4GW.Console.MessageType.Error)
+        raise
+
+
+def configure():
+    return
+
+
+def ui_main():
     try:
         if not _ensure_ini():
             return
 
+        global ENEMY_BAR_DEBUG_STARTUP_LOGGED
+        if ENEMY_BAR_DEBUG and not ENEMY_BAR_DEBUG_STARTUP_LOGGED:
+            ENEMY_BAR_DEBUG_STARTUP_LOGGED = True
+            _enemy_bar_debug("Enemy Party ui_main started")
         state = _ensure_state()
+        state._refresh_live_state()
         state.floating_button.draw(EnemyTrackerConfig.FLOATING_INI_KEY)
         state.draw_world_agent_markers()
         state.draw_mission_map_range_ring()
     except Exception as exc:
         Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Error: {exc}", Py4GW.Console.MessageType.Error)
         raise
+
+
+def main():
+    ui_main()
 
 
 if __name__ == "__main__":

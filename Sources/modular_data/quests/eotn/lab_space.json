@@ -1,0 +1,23 @@
+{
+  "name": "Lab Space",
+  "steps": [
+    {"type": "travel", "name": "Travel to Vlox's Falls", "target_map_id": 624},
+    {"type": "auto_path", "name": "To Lork", "points": [[16313, 16016]]},
+    {"type": "dialog", "id": "0x832C01", "npc": "LORK", "name": "Dialog - Lork"},
+    {"type": "travel", "name": "Travel to Rata Sum", "target_map_id": 640},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Blimm", "points": [[16064, 18401]]},
+    {"type": "dialog", "id": "0x832C04", "npc": "BLIMM", "name": "Dialog - Blimm"},
+    {"type": "auto_path", "name": "To Exit", "points": [[16532, 14408]]},
+    {"type": "exit_map", "name": "Leave Rata Sum", "point": [16407, 13739], "target_map_id": 569},
+    {"type": "auto_path", "name": "To Experiment Krewe Member", "points": [[14811, 13087]]},
+    {"type": "dialog", "id": "0x84", "npc": "EXPERIMENT_KREWE_MEMBER", "name": "Dialog - Experiment Krewe Member"},
+    {"type": "auto_path", "name": "To Blimm", "points": [[10371, 11459]]},
+    {"type": "dialog", "id": "0x832C04", "npc": "BLIMM", "name": "Dialog - Blimm"},
+    {"type": "auto_path", "name": "To Item", "points": [[-17395, 14998]]},
+    {"type": "interact_item", "name": "Pick Vine Seed", "model_id": 24628},
+    {"type": "auto_path", "name": "To Blimm", "points": [[-16325, 14284]]},
+    {"type": "interact_npc", "name": "Interact Blimm", "npc": "BLIMM"},
+    {"type": "dialog", "id": "0x832C07", "npc": "BLIMM", "name": "Dialog - Blimm"}
+  ]
+}

@@ -75,7 +75,7 @@ class PropheciesCampaignOptions:
         *,
         start_phase_index: int = 0,
         loop: bool = False,
-        template: str = "multibox_aggressive",
+        template: str = "multibox_aggressive_no_inventory",
         debug_logging: bool = False,
     ) -> None:
         self.start_phase_index = int(start_phase_index)
@@ -147,11 +147,12 @@ def create_prophecies_campaign_bot(
         name=name,
         phases=phases,
         loop=bool(opts.loop),
-        template=str(opts.template),
+        template=str(opts.template or "multibox_aggressive_no_inventory"),
         on_party_wipe=restart_target,
         on_death=restart_target,
         main_ui=main_ui,
         settings_ui=settings_ui,
         help_ui=help_ui,
+        manage_auto_inventory_management=False,
         debug_logging=bool(opts.debug_logging),
     )

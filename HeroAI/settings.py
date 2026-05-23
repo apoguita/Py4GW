@@ -206,18 +206,16 @@ class Settings:
     def set_runtime_combat_range_mode_override(self, mode: str | None) -> None:
         self._combat_range_mode_override = None if mode is None else self.normalize_combat_range_mode(mode)
     
-    def ensure_initialized(self) -> bool: 
+    def ensure_initialized(self) -> bool:
         account_email = Player.GetAccountEmail()
-        
+
         if not account_email:
             return True
-         
-        initialized = True if account_email and account_email == self.account_email else False
-        
-        if not initialized or not self._initialized:
+
+        if not self._initialized or self.account_email != account_email:
             self.initialize_account_config()
-        
-        return self._initialized == initialized
+
+        return self._initialized and self.account_email == account_email
 
     def initialize_account_config(self):
         base_path = Console.get_projects_path()        

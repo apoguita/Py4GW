@@ -744,8 +744,14 @@ class Map:
     @staticmethod
     def SkipCinematic() -> None:
         """ Skip the cinematic."""
+        if not Map.IsInCinematic():
+            return
+
         def _skip_cinematic() -> bool:
+            if not Map.IsInCinematic():
+                return False
             return MapMethods.SkipCinematic()
+
         ActionQueueManager().AddAction("TRANSITION", _skip_cinematic)
 
         

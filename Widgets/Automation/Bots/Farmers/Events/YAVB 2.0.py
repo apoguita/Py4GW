@@ -13,10 +13,29 @@ from Py4GWCoreLib.Builds.Assassin.A_Me.SF_Ass_vaettir import SF_Ass_vaettir
 
 from typing import List, Tuple
 
-bot = Botting("YAVB 2.0", 
-              upkeep_birthday_cupcake_restock=1)
+bot = Botting(
+    "YAVB 2.0",
+    upkeep_birthday_cupcake_restock=1,
+    upkeep_identify_kits_restock=2,   # ← 4 ID Kits
+    upkeep_salvage_kits_restock=3     # ← 1 Salvage Kit
+)
+bot.Properties.Set("leave_empty_inventory_slots", value=6)
   
 MODULE_ICON = "Textures\\Module_Icons\\YAVB 2.0 mascot.png"
+
+
+def _log_yavb_debug(reason: str, extra: str = "", message_type=Py4GW.Console.MessageType.Info) -> None:
+    map_id = Map.GetMapID()
+    map_name = Map.GetMapName(map_id) if map_id else "Unknown"
+    player_dead = Agent.IsDead(Player.GetAgentID())
+    instance_uptime = Map.GetInstanceUptime()
+    msg = (
+        f"{reason} | map_id={map_id} map='{map_name}' "
+        f"dead={player_dead} instance_uptime_ms={instance_uptime}"
+    )
+    if extra:
+        msg = f"{msg} | {extra}"
+    ConsoleLog("YAVB Debug", msg, message_type, True)
 
 def create_bot_routine(bot: Botting) -> None:
     TownRoutines(bot)
@@ -25,6 +44,7 @@ def create_bot_routine(bot: Botting) -> None:
     ResetFarmLoop(bot)
     
 def InitializeBot(bot: Botting) -> None:
+    _log_yavb_debug("InitializeBot", "Registering death callback and runtime properties")
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
     bot.States.AddHeader("Initialize Bot")
@@ -41,6 +61,7 @@ def InitializeBot(bot: Botting) -> None:
     
 def TownRoutines(bot: Botting) -> None:
     bot.States.AddHeader("Town Routines")
+    _log_yavb_debug("TownRoutines", "Traveling to Longeyes Ledge")
     bot.Map.Travel(target_map_id=650) #target_map_name="Longeyes Ledge")
     InitializeBot(bot)
     bot.States.AddCustomState(lambda: EquipSkillBar(bot), "Equip SkillBar")
@@ -51,6 +72,7 @@ def TownRoutines(bot: Botting) -> None:
     
 def TraverseBjoraMarches(bot: Botting) -> None:
     bot.States.AddHeader("Traverse Bjora Marches")
+    _log_yavb_debug("TraverseBjoraMarches", "Starting path to Jaga Moraine")
     bot.Player.SetTitle(TitleID.Norn.value)
     path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
@@ -79,12 +101,23 @@ def printEach(bot: Botting, seconds: int):
    
     
 def JagaMoraineFarmRoutine(bot: Botting) -> None:
+    global in_waiting_routine, finished_routine, stuck_counter
+    global stuck_timer, movement_check_timer, old_player_position, in_killing_routine
+
     def _follow_and_wait(path_points: List[Tuple[float, float]], wait_state_name: str, cycle_timeout: int = 150):
         bot.Move.FollowPath(path_points)
         bot.States.AddCustomState(lambda: WaitForBall(bot, wait_state_name, cycle_timeout), f"Wait for {wait_state_name}")
 
 
     bot.States.AddHeader("Jaga Moraine Farm Routine")
+    _log_yavb_debug("JagaMoraineFarmRoutine", "Entering main farm sequence")
+    in_waiting_routine = False
+    in_killing_routine = False
+    finished_routine = False
+    stuck_counter = 0
+    old_player_position = Player.GetXY()
+    stuck_timer.Reset()
+    movement_check_timer.Reset()
     InitializeBot(bot)
     bot.States.AddCustomState(lambda: AssignBuild(bot), "Assign Build")
     bot.Move.XY(13372.44, -20758.50)
@@ -143,6 +176,15 @@ def NeedsInventoryManagement(bot: Botting):
         or count_of_id_kits == 0
         or count_of_salvage_kits == 0
     ):
+        _log_yavb_debug(
+            "NeedsInventoryManagement",
+            (
+                f"Triggering resign | free_slots={free_slots_in_inventory} "
+                f"leave_empty_slots={leave_empty_slots} id_kits={count_of_id_kits} "
+                f"salvage_kits={count_of_salvage_kits}"
+            ),
+            Py4GW.Console.MessageType.Warning,
+        )
         Player.SendChatCommand("resign") 
         yield from Routines.Yield.wait(500)
     yield
@@ -150,12 +192,14 @@ def NeedsInventoryManagement(bot: Botting):
     
 def ResetFarmLoop(bot: Botting) -> None:
     bot.States.AddHeader("Reset Farm Loop")
+    _log_yavb_debug("ResetFarmLoop", "Exiting to Jaga Moraine and jumping to [H]Jaga Moraine Farm Routine_6")
     bot.Move.XYAndExitMap(-20300, 5600 , target_map_id=546) #target_map_name="Jaga Moraine")
     bot.States.JumpToStepName("[H]Jaga Moraine Farm Routine_6")
     
 def KillEnemies(bot: Botting):
     global in_killing_routine
     in_killing_routine = True
+    _log_yavb_debug("KillEnemies", "Entered kill routine")
     build = bot.config.build_handler
     if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         build.SetKillingRoutine(in_killing_routine)
@@ -170,12 +214,22 @@ def KillEnemies(bot: Botting):
         current_time = Utils.GetBaseTimestamp()
         delta = current_time - start_time
         if delta > timeout and timeout > 0:
+            _log_yavb_debug(
+                "KillEnemies",
+                f"Timeout reached during kill routine | elapsed_ms={delta} enemy_count={len(enemy_array)}",
+                Py4GW.Console.MessageType.Error,
+            )
             ConsoleLog("Killing Routine", "Timeout reached, restarting.", Py4GW.Console.MessageType.Error)
             Player.SendChatCommand("resign") 
             yield from Routines.Yield.wait(500)
             return
-  
+   
         if Agent.IsDead(Player.GetAgentID()):
+            _log_yavb_debug(
+                "KillEnemies",
+                f"Death detected during kill routine | elapsed_ms={delta} enemy_count={len(enemy_array)}",
+                Py4GW.Console.MessageType.Warning,
+            )
             ConsoleLog("Killing Routine", "Player is dead, restarting.", Py4GW.Console.MessageType.Warning)
             yield from Routines.Yield.wait(500)
             return 
@@ -187,6 +241,7 @@ def KillEnemies(bot: Botting):
     if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         build.SetKillingRoutine(False)
         build.SetRoutineFinished(finished_routine)
+    _log_yavb_debug("KillEnemies", "Finished kill routine successfully")
     ConsoleLog("Killing Routine", "Finished Killing Routine", Py4GW.Console.MessageType.Info)
     yield from Routines.Yield.wait(1000)  # Wait a bit to ensure the enemies are dead
     
@@ -297,22 +352,66 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
 
 
 def WaitForBall(bot: Botting, side_label: str, cycle_timeout: int = 150):
+    _log_yavb_debug("WaitForBall", f"Starting wait | label={side_label} cycle_timeout_ticks={cycle_timeout}")
     yield from _wait_for_aggro_ball(bot, side_label, cycle_timeout)
 
 #region Events
     
 def _on_death(bot: "Botting"):
-    yield from Routines.Yield.wait(10000)
+    _log_yavb_debug("OnDeathCoroutine", "Death coroutine started; waiting for resurrection before FSM jump", Py4GW.Console.MessageType.Warning)
+    wait_step_ms = 1000
+    max_wait_ms = 60000
+    elapsed_ms = 0
+    while Agent.IsDead(Player.GetAgentID()):
+        if elapsed_ms == 0 or elapsed_ms % 5000 == 0:
+            _log_yavb_debug(
+                "OnDeathCoroutine",
+                f"Still dead; deferring FSM jump | waited_ms={elapsed_ms}",
+                Py4GW.Console.MessageType.Warning,
+            )
+        if elapsed_ms >= max_wait_ms:
+            _log_yavb_debug(
+                "OnDeathCoroutine",
+                f"Timed out waiting for resurrection; forcing FSM jump | waited_ms={elapsed_ms}",
+                Py4GW.Console.MessageType.Error,
+            )
+            break
+        yield from Routines.Yield.wait(wait_step_ms)
+        elapsed_ms += wait_step_ms
     fsm = bot.config.FSM
+    _log_yavb_debug(
+        "OnDeathCoroutine",
+        f"Jumping FSM to [H]Town Routines_1 and resuming | waited_ms={elapsed_ms}",
+        Py4GW.Console.MessageType.Warning,
+    )
     fsm.jump_to_state_by_name("[H]Town Routines_1") 
-    fsm.resume()                           
+    fsm.resume()
     yield  
     
 def on_death(bot: "Botting"):
+    _log_yavb_debug("OnDeathCallback", "Death callback fired; resetting queues, pausing FSM, scheduling OnDeath coroutine", Py4GW.Console.MessageType.Warning)
     ConsoleLog("Death detected", "Player Died - Run Failed, Restarting...", Py4GW.Console.MessageType.Notice)
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
+    removed_coroutines = fsm.RemoveAllManagedCoroutines()
+    current_state = getattr(fsm, "current_state", None)
+    current_state_name = getattr(current_state, "name", "Unknown")
+    if current_state is not None:
+        try:
+            current_state.reset()
+        except Exception as exc:
+            _log_yavb_debug(
+                "OnDeathCallback",
+                f"Current state reset raised {exc!r} | state={current_state_name}",
+                Py4GW.Console.MessageType.Error,
+            )
+        else:
+            _log_yavb_debug(
+                "OnDeathCallback",
+                f"Cancelled active self-managed state | state={current_state_name} removed_managed={removed_coroutines}",
+                Py4GW.Console.MessageType.Warning,
+            )
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
     
 #region Stuck
@@ -335,6 +434,10 @@ def HandleStuckJagaMoraine(bot: Botting):
     
     log_actions = False
     forced_log = True
+    old_player_position = Player.GetXY()
+    stuck_counter = 0
+    stuck_timer.Reset()
+    movement_check_timer.Reset()
 
     ConsoleLog("Stuck Detection", "Starting Stuck Detection Coroutine.", Py4GW.Console.MessageType.Info, forced_log)
 
@@ -354,6 +457,7 @@ def HandleStuckJagaMoraine(bot: Botting):
         
         instance_time = Map.GetInstanceUptime() / 1000  # Convert ms to seconds
         if instance_time > 7 * 60:  # 7 minutes in seconds
+            _log_yavb_debug("HandleStuck", f"Instance watchdog triggered resign | instance_time_s={instance_time:.1f}", Py4GW.Console.MessageType.Warning)
             ConsoleLog("HandleStuck", "Instance time exceeded 7 minutes, force resigning.", Py4GW.Console.MessageType.Debug, forced_log)
             stuck_counter = 0
             if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
@@ -421,6 +525,7 @@ def HandleStuckJagaMoraine(bot: Botting):
                 movement_check_timer.Reset()
 
             if stuck_counter >= 10:
+                _log_yavb_debug("HandleStuck", f"Unrecoverable stuck triggered resign | stuck_counter={stuck_counter}", Py4GW.Console.MessageType.Error)
                 ConsoleLog("HandleStuck", "Unrecoverable stuck detected, force resigning.", Py4GW.Console.MessageType.Error, forced_log)
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):

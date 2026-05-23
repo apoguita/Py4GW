@@ -225,6 +225,48 @@ class BuildMgr:
             return None
         return self.GetCustomSkill(skill_id)
 
+    @staticmethod
+    def _normalize_weapon_requirement_name(value: str) -> str:
+        text = ''.join(ch for ch in str(value or '') if ch.isalnum()).lower()
+        if text.startswith('weapon'):
+            text = text[6:]
+        return text
+
+    def _matches_required_weapon(self, required_weapon: str) -> bool:
+        from Py4GWCoreLib import Agent, Player
+
+        normalized_required_weapon = self._normalize_weapon_requirement_name(required_weapon)
+        if not normalized_required_weapon:
+            return True
+
+        player_id = Player.GetAgentID()
+        if Agent.IsHoldingItem(player_id):
+            return False
+
+        if normalized_required_weapon in {"melee", "closecombat", "close"}:
+            return Agent.IsMelee(player_id)
+
+        if normalized_required_weapon in {"rangedmelee", "rangedmartial", "martialranged"}:
+            return Agent.IsRanged(player_id)
+
+        if normalized_required_weapon == "caster":
+            return Agent.IsCaster(player_id)
+
+        if normalized_required_weapon == "ranged":
+            return Agent.IsRanged(player_id) or Agent.IsCaster(player_id)
+
+        _, current_weapon_name = Agent.GetWeaponType(player_id)
+        return self._normalize_weapon_requirement_name(current_weapon_name) == normalized_required_weapon
+
+    def _meets_custom_skill_weapon_requirement(self, skill_id: int) -> bool:
+        custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return True
+        required_weapon = str(getattr(custom_skill.Conditions, "RequireWeapon", "") or "").strip()
+        if not required_weapon:
+            return True
+        return self._matches_required_weapon(required_weapon)
+
     def _get_shared_skill_toggle(self, slot: int) -> bool:
         if not (1 <= int(slot) <= 8):
             return False
@@ -253,6 +295,8 @@ class BuildMgr:
             return True
 
     def IsSharedSkillToggleEnabled(self, slot: int) -> bool:
+        if not self.is_combat_automator_compatible:
+            return True
         return self._get_shared_skill_toggle(slot)
     
     def GetActiveScanRange(self) -> float:
@@ -597,7 +641,7 @@ class BuildMgr:
         from Py4GWCoreLib.Agent import Agent
         from Py4GWCoreLib.Player import Player
 
-        if not Agent.IsValid(target_agent_id) or Agent.IsDead(target_agent_id):
+        if not self._is_valid_enemy_target_candidate(target_agent_id):
             return False
 
         _, allegiance = Agent.GetAllegiance(target_agent_id)
@@ -612,6 +656,24 @@ class BuildMgr:
 
     def ResetTarget(self) -> None:
         self.current_target_id = 0
+
+    def _is_blacklisted_enemy(self, agent_id: int) -> bool:
+        if not agent_id:
+            return False
+
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+
+        return EnemyBlacklist().is_blacklisted(agent_id)
+
+    def _is_valid_enemy_target_candidate(self, agent_id: int) -> bool:
+        from Py4GWCoreLib.Agent import Agent
+
+        return (
+            bool(agent_id)
+            and Agent.IsValid(agent_id)
+            and not Agent.IsDead(agent_id)
+            and not self._is_blacklisted_enemy(agent_id)
+        )
 
     def ResetPartyHealthMonitor(self) -> None:
         self._party_health_monitor.clear()
@@ -899,18 +961,18 @@ class BuildMgr:
                 combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
             )
-            if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
+            if not self._is_valid_enemy_target_candidate(return_target):
                 return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttackingClustered":
             return_target = Routines.Targeting.PickClusteredTarget(
                 combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
             )
-            if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
+            if not self._is_valid_enemy_target_candidate(return_target):
                 return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttacking":
             return_target = GetEnemyAttacking(combat_distance)
-            if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
+            if not self._is_valid_enemy_target_candidate(return_target):
                 return_target = GetEnemyInjured(combat_distance)
                   
         elif target_type == "EnemyInjured":
@@ -918,7 +980,7 @@ class BuildMgr:
 
         return_target = self._prefer_melee_nearest_enemy(return_target)
 
-        if Agent.IsValid(return_target) and not Agent.IsDead(return_target):
+        if self._is_valid_enemy_target_candidate(return_target):
             return return_target 
         return 0
 
@@ -944,7 +1006,7 @@ class BuildMgr:
 
         # Party target is an explicit caller directive and must override every
         # other targeting heuristic. If one exists, stop here and use it.
-        if Agent.IsValid(party_target) and not Agent.IsDead(party_target):
+        if self._is_valid_enemy_target_candidate(party_target):
             desired_target = party_target
             target_source = "party"
         # Melee gets first claim on its current live target only when no party
@@ -953,7 +1015,7 @@ class BuildMgr:
         # immediate melee range, prefer that contact target over a farther
         # current target so skills do not keep failing on a body-blocked enemy
         # behind the front line.
-        elif is_melee_player and Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
+        elif is_melee_player and self._is_valid_enemy_target_candidate(self.current_target_id):
             current_target_distance = Utils.Distance(player_pos, Agent.GetXY(self.current_target_id))
             if nearest_contact_enemy and current_target_distance > Range.Adjacent.value:
                 desired_target = self._prefer_melee_nearest_enemy(nearest_contact_enemy)
@@ -961,14 +1023,14 @@ class BuildMgr:
             else:
                 desired_target = self.current_target_id
                 target_source = "current"
-        elif Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
+        elif self._is_valid_enemy_target_candidate(self.current_target_id):
             desired_target = self.current_target_id
             target_source = "current"
         else:
             desired_target = self._pick_fallback_target(target_type)
             target_source = "fallback"
 
-        if Agent.IsValid(desired_target) and not Agent.IsDead(desired_target):
+        if self._is_valid_enemy_target_candidate(desired_target):
             target_changed = desired_target != self.current_target_id
             self.current_target_id = desired_target
             if target_changed:
@@ -1372,6 +1434,8 @@ class BuildMgr:
     def _validate_target_for_skill_cast(self, skill_id: int, target_agent_id: int) -> bool:
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Routines
+        from Py4GWCoreLib.Agent import Agent
+        from Py4GWCoreLib.enums_src.GameData_enums import Allegiance
 
         if not target_agent_id:
             return True
@@ -1379,6 +1443,21 @@ class BuildMgr:
         custom_skill = self.GetCustomSkill(skill_id)
         if custom_skill is None:
             return True
+
+        target_allegiance_value, _ = Agent.GetAllegiance(target_agent_id)
+        if (
+            target_allegiance_value == Allegiance.Enemy.value
+            and self._is_blacklisted_enemy(target_agent_id)
+        ):
+            return False
+
+        # Hex spells must never be cast on spirits.
+        if custom_skill.SkillType == SkillType.Hex.value:
+            if Agent.IsSpirit(target_agent_id) or (
+                target_allegiance_value == Allegiance.Enemy.value
+                and Agent.IsSpawned(target_agent_id)
+            ):
+                return False
 
         target_allegiance = custom_skill.TargetAllegiance
         if target_allegiance == Skilltarget.NonWeaponSpelledAlly.value:
@@ -1445,7 +1524,13 @@ class BuildMgr:
         if skill_id <= 0 or target_agent_id <= 0:
             return False
         try:
-            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            from Py4GWCoreLib import Agent, GLOBAL_CACHE, Player, Routines
+
+            if not Routines.Checks.Map.MapValid():
+                return False
+            if not Agent.IsValid(target_agent_id) or Agent.IsDead(target_agent_id):
+                return False
+
             email = Player.GetAccountEmail() or ""
             if not email:
                 return False
@@ -1466,10 +1551,16 @@ class BuildMgr:
         if skill_id <= 0 or target_agent_id <= 0:
             return
         try:
-            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            from Py4GWCoreLib import Agent, GLOBAL_CACHE, Player, Routines
             from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import (
                 SHMEM_INTENT_DEFAULT_PING_BUDGET_MS,
             )
+
+            if not Routines.Checks.Map.MapValid():
+                return
+            if not Agent.IsValid(target_agent_id) or Agent.IsDead(target_agent_id):
+                return
+
             email = Player.GetAccountEmail() or ""
             if not email:
                 return
@@ -1536,6 +1627,8 @@ class BuildMgr:
             return False
         if not self.IsSharedSkillToggleEnabled(slot):
             return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
+            return False
         if not Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot):
             return False
         if self.SpiritBuffExists(skill_id):
@@ -1564,6 +1657,8 @@ class BuildMgr:
             return False
         if not self.IsSharedSkillToggleEnabled(slot):
             return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
+            return False
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
             return False
         if not Routines.Checks.Skills.IsSkillSlotReady(slot):
@@ -1588,6 +1683,8 @@ class BuildMgr:
             yield
 
         if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
             return False
         if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
             return False
@@ -1663,6 +1760,8 @@ class BuildMgr:
         if not target_agent_id:
             return False
         if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
             return False
 
         previous_enemy_target = Player.GetTargetID()

@@ -27,10 +27,12 @@ from .AccountStruct import AccountStruct
 from .KeyStruct import KeyStruct
 from .IntentStruct import IntentStruct
 
-# Flip this to False to silence whiteboard POST/CLEAR/SWEEP console logs.
-# Can also be toggled at runtime:
+# Master toggle for all whiteboard/lock debug logs.
+# Default is silent. Flip this single flag when you want visibility again.
+#
+# Runtime toggle:
 #   from Py4GWCoreLib.GlobalCache.shared_memory_src import AllAccounts as _wb_mod
-#   _wb_mod.WHITEBOARD_DEBUG = False
+#   _wb_mod.WHITEBOARD_DEBUG = True
 WHITEBOARD_DEBUG: bool = False
 _HERO_SUBMIT_RETRY_AFTER: dict[tuple[int, int], int] = {}
 _PET_SUBMIT_RETRY_AFTER: dict[tuple[int, int], int] = {}
@@ -194,12 +196,34 @@ class AllAccounts(Structure):
     def _find_account_slot_by_email(self, account_email: str) -> int:
         if not account_email:
             return -1
+        candidates: list[int] = []
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             account = all_accounts[i]
             if account.AccountEmail == account_email and account.IsAccount:
-                return i
-        return -1
+                candidates.append(i)
+
+        if not candidates:
+            return -1
+        if len(candidates) == 1:
+            return candidates[0]
+
+        try:
+            local_hwnd = int(Py4GW.Console.get_gw_window_handle() or 0)
+        except Exception:
+            local_hwnd = 0
+
+        if local_hwnd:
+            for i in candidates:
+                key = self.Keys[i]
+                if key.HWND == local_hwnd and key.EntityType == 0 and self._is_slot_active(i):
+                    return i
+
+        active_candidates = [i for i in candidates if self._is_slot_active(i)]
+        if active_candidates:
+            return max(active_candidates, key=lambda idx: (int(self.AccountData[idx].LastUpdated), idx))
+
+        return max(candidates, key=lambda idx: (int(self.AccountData[idx].LastUpdated), idx))
 
     def _find_player_slot_by_key(self, account_email: str, hwnd: int) -> int:
         if not account_email or not hwnd:
@@ -694,14 +718,14 @@ class AllAccounts(Structure):
     def AccountHasEffect(self, account_email: str, effect_id: int) -> bool:
         """Check if the account with the given email has the specified effect."""
         if effect_id == 0: return False
-        
+
         player = self.GetAccountDataFromEmail(account_email)
         if player:
             for buff in player.AgentData.Buffs.Buffs:
                 if buff.SkillId == effect_id:
                     return True
         return False
-    
+
     #region HeroAI
     def GetAllAccountHeroAIOptions(self) -> list[HeroAIOptionStruct]:
         """Get HeroAI options for all accounts."""
@@ -1011,7 +1035,7 @@ class AllAccounts(Structure):
 
     #region Whiteboard (cross-hero cast-intent)
 
-    def _wb_log(self, msg: str) -> None:
+    def _wb_log(self, kind_id: int, msg: str) -> None:
         """Gated debug log for whiteboard state transitions."""
         if not WHITEBOARD_DEBUG:
             return
@@ -1068,8 +1092,9 @@ class AllAccounts(Structure):
         if intent.Active:
             lifetime = int(Py4GW.Game.get_tick_count64()) - int(intent.PostedAtTick)
             self._wb_log(
+                int(intent.KindID),
                 f"CLEAR slot={index} email='{intent.OwnerEmail}' "
-                f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=explicit"
+                f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=explicit",
             )
         intent.reset()
 
@@ -1084,11 +1109,51 @@ class AllAccounts(Structure):
             if intent.Active and intent.OwnerEmail == owner_email:
                 lifetime = now - int(intent.PostedAtTick)
                 self._wb_log(
+                    int(intent.KindID),
                     f"CLEAR slot={i} email='{owner_email}' "
-                    f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=owner_clear"
+                    f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=owner_clear",
                 )
                 intent.reset()
                 count += 1
+        return count
+
+    def ClearLockByOwnerKindTarget(
+        self,
+        owner_email: str,
+        kind_id: int,
+        target_id: int,
+        group_id: int,
+    ) -> int:
+        """Zero active locks matching (owner, kind, target, group). Returns count cleared.
+
+        Used by hex-removal helpers to release a target lock immediately after
+        confirming the hex came off, so another client can step in for the next
+        dangerous hex on the same teammate.
+        """
+        if not owner_email:
+            return 0
+        count = 0
+        now = int(Py4GW.Game.get_tick_count64())
+        for i in range(SHMEM_MAX_INTENTS):
+            intent = self.Intents[i]
+            if not intent.Active:
+                continue
+            if intent.OwnerEmail != owner_email:
+                continue
+            if int(intent.KindID) != int(kind_id):
+                continue
+            if int(intent.TargetAgentID) != int(target_id):
+                continue
+            if int(intent.IsolationGroupID) != int(group_id):
+                continue
+            lifetime = now - int(intent.PostedAtTick)
+            self._wb_log(
+                int(intent.KindID),
+                f"CLEAR slot={i} email='{owner_email}' "
+                f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=owner_clear",
+            )
+            intent.reset()
+            count += 1
         return count
 
     def PostLock(
@@ -1140,12 +1205,14 @@ class AllAccounts(Structure):
             intent.Active = True
             budget = int(expires_at_tick) - now
             self._wb_log(
+                int(intent.KindID),
                 f"POST  slot={i} email='{owner_email}' "
                 f"{self._wb_lock_display(intent)} holders={int(max_holders)} "
-                f"expires_in={budget}ms"
+                f"expires_in={budget}ms",
             )
             return i
         self._wb_log(
+            int(kind_id),
             f"POST-FAIL email='{owner_email}' kind={self._wb_kind_display(kind_id)} "
             f"key={int(key_id)} target={int(target_id)} reason=full"
         )
@@ -1308,8 +1375,9 @@ class AllAccounts(Structure):
             if intent.Active and now_tick >= int(intent.ExpiresAtTick):
                 lifetime = int(now_tick) - int(intent.PostedAtTick)
                 self._wb_log(
+                    int(intent.KindID),
                     f"SWEEP slot={i} email='{intent.OwnerEmail}' "
-                    f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=expired"
+                    f"{self._wb_lock_display(intent)} lifetime={lifetime}ms reason=expired",
                 )
                 intent.reset()
                 count += 1

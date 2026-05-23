@@ -20,6 +20,7 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
+from Py4GWCoreLib.GlobalCache.WhiteboardLocks import post_loot_lock, clear_loot_lock
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -28,6 +29,7 @@ from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
 from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
+from Py4GWCoreLib.Item import has_active_party_summon, has_summoning_sickness
 
 cached_data = CacheData()
 
@@ -85,6 +87,28 @@ hero_ai_has_paragon_skills = False
 def _c_wchar_array_to_str(arr: ctypes.Array) -> str:
         """Convert c_wchar array back to Python str, stopping at null terminator."""
         return "".join(ch for ch in arr if ch != '\0').rstrip()
+
+
+# Reply cache lives on GLOBAL_CACHE (singleton). A plain module-level dict
+# would split when Py4GW reloads this widget under a synthetic module name.
+def _inventory_cache() -> dict:
+    cache = getattr(GLOBAL_CACHE, "_inventory_count_cache", None)
+    if cache is None:
+        cache = {}
+        GLOBAL_CACHE._inventory_count_cache = cache
+    return cache
+
+
+def get_inventory_count(sender_email: str, model_id_min: int, model_id_max: int) -> int:
+    return _inventory_cache().get(
+        (sender_email, int(model_id_min), int(model_id_max)), -1
+    )
+
+
+def reset_inventory_count(sender_email: str, model_id_min: int, model_id_max: int) -> None:
+    _inventory_cache().pop(
+        (sender_email, int(model_id_min), int(model_id_max)), None
+    )
 
 
 def _get_merchant_rules_widget():
@@ -697,6 +721,12 @@ def GetBlessing(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
+    dialog_button = int(message.Params[1])
+    if dialog_button < 0:
+        ConsoleLog(MODULE_NAME, "Invalid blessing dialog button index.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
     SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
@@ -705,10 +735,8 @@ def GetBlessing(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
-        yield from Routines.Yield.wait(500)
-        if UIManager.IsNPCDialogVisible():
-            UIManager.ClickDialogButton(message.Params[1])
-            yield from Routines.Yield.wait(200)
+        yield from Routines.Yield.wait(250)
+        yield from Routines.Yield.Player.SendAutomaticDialog(dialog_button)
 
         ConsoleLog(MODULE_NAME, "GetBlessing message processed and finished.", Console.MessageType.Info, False)
     finally:
@@ -1084,6 +1112,87 @@ def MerchantRules(index: int, message: SharedMessageStruct):
 
 # region UsePcon
 
+_PARTY_WIDE_MORALE_MODELS = {
+    int(ModelID.Four_Leaf_Clover.value),
+    int(ModelID.Honeycomb.value),
+    int(ModelID.Oath_Of_Purity.value),
+    int(ModelID.Rainbow_Candy_Cane.value),
+    int(ModelID.Elixir_Of_Valor.value),
+    int(ModelID.Powerstone_Of_Courage.value),
+}
+_SELF_MORALE_MODELS = {
+    int(ModelID.Pumpkin_Cookie.value),
+    int(ModelID.Peppermint_Candy_Cane.value),
+    int(ModelID.Refined_Jelly.value),
+    int(ModelID.Seal_Of_The_Dragon_Empire.value),
+    int(ModelID.Shining_Blade_Ration.value),
+    int(ModelID.Wintergreen_Candy_Cane.value),
+}
+_MORALE_PCON_TARGET_BY_MODEL = {
+    int(ModelID.Four_Leaf_Clover.value): 100,
+    int(ModelID.Honeycomb.value): 110,
+    int(ModelID.Oath_Of_Purity.value): 100,
+    int(ModelID.Rainbow_Candy_Cane.value): 110,
+    int(ModelID.Elixir_Of_Valor.value): 110,
+    int(ModelID.Powerstone_Of_Courage.value): 110,
+    int(ModelID.Pumpkin_Cookie.value): 110,
+    int(ModelID.Peppermint_Candy_Cane.value): 100,
+    int(ModelID.Refined_Jelly.value): 100,
+    int(ModelID.Seal_Of_The_Dragon_Empire.value): 110,
+    int(ModelID.Shining_Blade_Ration.value): 100,
+    int(ModelID.Wintergreen_Candy_Cane.value): 100,
+}
+
+
+def _shared_effect_ids_for_receiver() -> set[int]:
+    receiver_email = str(Player.GetAccountEmail() or "")
+    if not receiver_email:
+        return set()
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(receiver_email)
+    if account is None:
+        return set()
+    buffs = getattr(getattr(getattr(account, "AgentData", None), "Buffs", None), "Buffs", [])
+    return {
+        int(getattr(buff, "SkillId", 0) or 0)
+        for buff in buffs
+        if int(getattr(buff, "SkillId", 0) or 0) > 0
+    }
+
+
+def _shared_receiver_morale() -> int | None:
+    receiver_email = str(Player.GetAccountEmail() or "")
+    if not receiver_email:
+        return None
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(receiver_email)
+    if account is None:
+        return None
+    morale = int(getattr(getattr(account, "AgentData", None), "Morale", 0) or 0)
+    if morale <= 0:
+        return None
+    return morale
+
+
+def _shared_party_min_morale_for_pcon() -> int | None:
+    try:
+        entries = GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []
+    except Exception:
+        return None
+    valid_morale = [int(morale) for _, morale in entries if int(morale or 0) > 0]
+    if not valid_morale:
+        return None
+    return min(valid_morale)
+
+
+def _morale_target_for_models(model_ids: set[int]) -> int | None:
+    targets = [
+        int(_MORALE_PCON_TARGET_BY_MODEL[model_id])
+        for model_id in model_ids
+        if model_id in _MORALE_PCON_TARGET_BY_MODEL
+    ]
+    if not targets:
+        return None
+    return max(targets)
+
 
 def UsePcon(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info, False)
@@ -1104,17 +1213,43 @@ def UsePcon(index: int, message: SharedMessageStruct):
         return
     _pcon_last_exec_ms_by_signature[signature] = now_ms
 
-    # Halt if any of the effects is already active.
-    # Use live game-state check (Effects.HasEffect) rather than shared-memory
-    # (AccountHasEffect) because ShMem data can be stale (e.g. during map
-    # transitions), which previously caused consets to be consumed again even
-    # when the effect was still active on the character.
-    agent_id = Player.GetAgentID()
-    if (pcon_skill_id != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id)) or \
-       (pcon_skill_id2 != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id2)):
+    shared_effect_ids = _shared_effect_ids_for_receiver()
+    if (pcon_skill_id != 0 and pcon_skill_id in shared_effect_ids) or \
+       (pcon_skill_id2 != 0 and pcon_skill_id2 in shared_effect_ids):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
+    morale_model_ids = {model_id for model_id in (pcon_model_id, pcon_model_id2) if model_id > 0}
+    morale_target = _morale_target_for_models(morale_model_ids)
+    if morale_model_ids & _PARTY_WIDE_MORALE_MODELS:
+        shared_party_min_morale = _shared_party_min_morale_for_pcon()
+        if morale_target is not None and shared_party_min_morale is not None and shared_party_min_morale >= morale_target:
+            ConsoleLog(
+                MODULE_NAME,
+                (
+                    f"Skipping party-wide morale PCon {tuple(sorted(morale_model_ids))}: "
+                    f"shared_party_min_morale={shared_party_min_morale} target={morale_target}"
+                ),
+                Console.MessageType.Info,
+                False,
+            )
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+    elif morale_model_ids & _SELF_MORALE_MODELS:
+        player_morale = _shared_receiver_morale()
+        if morale_target is not None and player_morale is not None and player_morale >= morale_target:
+            ConsoleLog(
+                MODULE_NAME,
+                (
+                    f"Skipping self morale PCon {tuple(sorted(morale_model_ids))}: "
+                    f"player_morale={player_morale} target={morale_target}"
+                ),
+                Console.MessageType.Info,
+                False,
+            )
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
 
     # Check inventory to determine which PCon to use
     if GLOBAL_CACHE.Inventory.GetModelCount(pcon_model_id) > 0:
@@ -1132,6 +1267,19 @@ def UsePcon(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
+    if morale_target is not None:
+        try:
+            from Py4GWCoreLib.routines_src.behaviourtrees_src.upkeepers import BTUpkeepers
+
+            BTUpkeepers._log_party_morale_consume_event(
+                MODULE_NAME,
+                morale_target,
+                pcon_model_to_use,
+                item_id=item_id,
+            )
+        except Exception:
+            pass
+
     GLOBAL_CACHE.Inventory.UseItem(item_id)
     ConsoleLog(
         MODULE_NAME, f"Using PCon model {pcon_model_to_use} with item_id {item_id}.", Console.MessageType.Info, False
@@ -1148,46 +1296,10 @@ def UsePcon(index: int, message: SharedMessageStruct):
 def UseSummoningStone(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
-    # Never use summoning stones in The Norn Fighting Tournament.
-    if Map.GetMapID() == 700:
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
     # Guard against summon spam:
     # - Summoning Sickness already active
     # - summon ally already alive nearby/party-side
-    summoning_sickness_effect_id = 2886
-    has_summoning_sickness = False
-    try:
-        has_summoning_sickness = bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id))
-    except Exception:
-        has_summoning_sickness = False
-
-    summon_creature_model_ids = {
-        513,         # Fire Imp
-        8028,        # Legionnaire
-        9055, 9076,  # Tengu Support Flare - Warrior
-        9056, 9077,  # Tengu Support Flare - Ranger
-        9058, 9079,  # Tengu Support Flare - Monk
-        9060, 9081,  # Tengu Support Flare - Mesmer
-        9062, 9083,  # Tengu Support Flare - Ritualist
-        9065, 9086,  # Tengu Support Flare - Assassin
-        9067, 9088,  # Tengu Support Flare - Elementalist
-        9069, 9090,  # Tengu Support Flare - Necromancer
-    }
-    has_alive_summon = False
-    try:
-        others = GLOBAL_CACHE.Party.GetOthers()
-        for other in others:
-            if Agent.IsAlive(other):
-                model_id = Agent.GetModelID(other)
-                if model_id in summon_creature_model_ids:
-                    has_alive_summon = True
-                    break
-    except Exception:
-        has_alive_summon = False
-
-    if has_summoning_sickness or has_alive_summon:
+    if has_summoning_sickness(Player.GetAgentID()) or has_active_party_summon(GLOBAL_CACHE.Party.GetOthers()):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -1263,6 +1375,7 @@ def PressKey(index: int, message: SharedMessageStruct):
 def DonateToGuild(index: int, message: SharedMessageStruct):
     MODULE = "DonateFaction"
     CHUNK = 5000
+    STARTING_THRESHOLD = 10_000
 
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -1274,6 +1387,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
 
     map_id = Map.GetMapID()
     TITLE_CAP = 10_000_000
+    MATERIAL_EXCHANGE_DIALOG = 0x800101
     TOTAL_CUMULATIVE = 0
     if map_id == 77:  # House zu Heltzer
         faction = 0  # Kurzick
@@ -1310,9 +1424,19 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
     yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
     yield from Routines.Yield.wait(400)
 
-    if TOTAL_CUMULATIVE <= TITLE_CAP:  # donate faction points if title is not maxed
+    if CURRENT_FACTION < STARTING_THRESHOLD:
+        ConsoleLog(
+            MODULE,
+            f"Skipping donation/conversion: current faction {CURRENT_FACTION:,} below {STARTING_THRESHOLD:,}.",
+            Console.MessageType.Info,
+        )
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    chunks = CURRENT_FACTION // CHUNK
+
+    if TOTAL_CUMULATIVE < TITLE_CAP:  # donate faction points if title is not maxed
         # --- Donation loop ---
-        chunks = CURRENT_FACTION // CHUNK
         for _ in range(chunks):
             if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
@@ -1323,16 +1447,13 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
             yield from Routines.Yield.wait(300)
     else:  # swap faction points for mats if title is maxed
         swapped = 0
-        chunks = CURRENT_FACTION // CHUNK
         while swapped < chunks:
             if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
                 yield from Routines.Yield.wait(250)
                 if not UIManager.IsNPCDialogVisible():
                     break
-            UIManager.ClickDialogButton(1)  # exchange
-            yield from Routines.Yield.wait(250)
-            UIManager.ClickDialogButton(2)  # confirm
+            Player.SendDialog(MATERIAL_EXCHANGE_DIALOG)
             yield from Routines.Yield.wait(300)
             swapped += 1
 
@@ -1476,6 +1597,7 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "Starting PickUpLoot routine", Console.MessageType.Info, False)
 
     SnapshotHeroAIOptions(message.ReceiverEmail)
+    claimed_item_id = 0
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
@@ -1483,13 +1605,25 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
             if len(loot_array) == 0:
                 break
-            item_id = loot_array.pop(0)
-            if item_id is None or item_id == 0:
-                continue
+            item_id = 0
+            for candidate_item_id in loot_array:
+                if candidate_item_id is None or candidate_item_id == 0:
+                    continue
+                owner_id = Agent.GetItemAgentOwnerID(candidate_item_id)
+                if owner_id == 0 and post_loot_lock(candidate_item_id) < 0:
+                    continue
+                item_id = candidate_item_id
+                claimed_item_id = candidate_item_id if owner_id == 0 else 0
+                break
+            if item_id == 0:
+                break
 
             exit_reason = _get_loot_exit_reason()
             if exit_reason:
                 LootConfig().AddItemIDToBlacklist(item_id)
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 if exit_reason == "map_invalid":
                     ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
                 elif exit_reason == "inventory_full":
@@ -1498,6 +1632,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 return
 
             if not Agent.IsValid(item_id):
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 yield from Routines.Yield.wait(100)
                 continue
 
@@ -1505,6 +1642,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=10000)
             if not follow_success:
                 LootConfig().AddItemIDToBlacklist(item_id)
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 ConsoleLog(
                     "PickUp Loot",
                     "Failed to follow path to loot item, halting.",
@@ -1516,6 +1656,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             yield from Routines.Yield.wait(100)
             exit_reason = _get_loot_exit_reason()
             if exit_reason:
+                if claimed_item_id:
+                    clear_loot_lock(claimed_item_id)
+                    claimed_item_id = 0
                 RestoreHeroAISnapshot(message.ReceiverEmail)
                 return
             yield from Routines.Yield.Player.InteractAgent(item_id)
@@ -1528,6 +1671,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 delta = current_time - start_time
                 if delta > timeout:
                     LootConfig().AddItemIDToBlacklist(item_id)
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
+                        claimed_item_id = 0
                     ConsoleLog(
                         "PickUp Loot",
                         "Timeout reached while picking up loot, halting.",
@@ -1539,6 +1685,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 exit_reason = _get_loot_exit_reason()
                 if exit_reason:
                     LootConfig().AddItemIDToBlacklist(item_id)
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
+                        claimed_item_id = 0
                     if exit_reason == "map_invalid":
                         ConsoleLog(
                             "PickUp Loot",
@@ -1556,12 +1705,17 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
 
                 loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
                 if item_id not in loot_array or len(loot_array) == 0:
+                    if claimed_item_id:
+                        clear_loot_lock(claimed_item_id)
+                        claimed_item_id = 0
                     yield from Routines.Yield.wait(100)
                     break
                 yield from Routines.Yield.wait(100)
 
         ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info, False)
     finally:
+        if claimed_item_id:
+            clear_loot_lock(claimed_item_id)
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 #endregion
@@ -1590,6 +1744,31 @@ def MessageEnableHeroAI(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "EnableHeroAI message processed and finished.", Console.MessageType.Info, False)
     yield
     
+# endregion
+
+
+# region ConsoleMessage
+def ConsoleMessage(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    sender_name = str(message.SenderEmail or "").strip()
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is not None:
+        resolved_name = str(getattr(sender_data.AgentData, "CharacterName", "") or "").strip()
+        if resolved_name:
+            sender_name = resolved_name
+
+    console_message = str(GLOBAL_CACHE.ShMem.GetAllAccounts()._c_wchar_array_to_str(message.ExtraData[0]) or "").strip()
+
+    if not sender_name:
+        sender_name = "HeroAI"
+    if not console_message:
+        console_message = "message received"
+
+    ConsoleLog(sender_name, console_message, Console.MessageType.Info, True)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    yield
+
 # endregion
 
 # region SetWindowGeometry
@@ -2372,50 +2551,53 @@ def WithdrawGold(index: int, message: SharedMessageStruct):
 
 # region InventoryQuery
 def InventoryQuery(index: int, message: SharedMessageStruct):
-    """Generic inventory count query.
-
-    Sub-commands (extra0):
-        report_inventory_count
-            Counts all items whose model ID falls in the inclusive range
-            [Params[0], Params[1]] and writes the total to an INI file.
-            extra1 = ini_path
-            extra2 = ini_section
-            extra3 = ini_key
-
-    Note: only contiguous model-ID ranges are currently supported via Params.
-    Non-contiguous ID sets would require a comma-separated encoding in ExtraData,
-    which is limited to 64 characters per slot (~12 IDs). Extend this handler
-    if a real non-contiguous use case arises.
+    """Cross-account inventory count. extra0 modes:
+       report_inventory_count: count Params[0..1] range, reply to sender.
+       inventory_count_reply:  cache Params[2] under (sender, min, max).
     """
-    def _extra_data(msg: SharedMessageStruct) -> tuple[str, str, str, str]:
-        values: list[str] = []
-        for raw in msg.ExtraData:
-            try:
-                values.append(_c_wchar_array_to_str(raw))
-            except Exception:
-                values.append("")
-        while len(values) < 4:
-            values.append("")
-        return values[0], values[1], values[2], values[3]
-    
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-    extra0, extra1, extra2, extra3 = _extra_data(message)
+    extra0, _extra1, _extra2, _extra3 = _extra_data(message)
     mode = extra0.strip().lower()
 
     try:
         if mode == "report_inventory_count":
-            range_start = int(message.Params[0])
-            range_end   = int(message.Params[1])
-            ini_path    = str(extra1 or "").strip()
-            ini_section = str(extra2 or "").strip()
-            ini_key     = str(extra3 or "").strip()
-            if ini_path and ini_section and ini_key and range_start > 0 and range_end >= range_start:
-                import os as _os
-                if not _os.path.isabs(ini_path):
-                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
-                count = sum(int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
-                            for mid in range(range_start, range_end + 1))
-                IniHandler(ini_path).write_key(ini_section, ini_key, str(count))
+            try:
+                range_start = int(message.Params[0])
+                range_end   = int(message.Params[1])
+            except (TypeError, ValueError):
+                range_start = range_end = 0
+            if range_start > 0 and range_end >= range_start:
+                try:
+                    count = sum(
+                        int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
+                        for mid in range(range_start, range_end + 1)
+                    )
+                except Exception as exc:
+                    ConsoleLog(MODULE_NAME, f"[InventoryQuery] GetModelCount failed for range {range_start}..{range_end}: {exc}", Console.MessageType.Error)
+                    count = -1
+                sender = str(message.SenderEmail or "").strip()
+                my_email_local = str(message.ReceiverEmail or "").strip()
+                # ExtraData[1] = own email -- escapes SendMessage dedup on same-count replies.
+                if sender:
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        my_email_local,
+                        sender,
+                        SharedCommandType.InventoryQuery,
+                        (float(range_start), float(range_end), float(count), 0.0),
+                        ("inventory_count_reply", my_email_local, "", ""),
+                    )
+
+        elif mode == "inventory_count_reply":
+            try:
+                range_start = int(message.Params[0])
+                range_end   = int(message.Params[1])
+                count       = int(message.Params[2])
+            except (TypeError, ValueError):
+                range_start = range_end = 0
+                count = -1
+            if range_start > 0 and range_end >= range_start:
+                key = (str(message.SenderEmail or ""), range_start, range_end)
+                _inventory_cache()[key] = count
     finally:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     yield
@@ -2510,6 +2692,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
+        case SharedCommandType.ConsoleMessage:
+            GLOBAL_CACHE.Coroutines.append(ConsoleMessage(index, message))
         case SharedCommandType.PressKey:
             GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
         case SharedCommandType.DonateToGuild:

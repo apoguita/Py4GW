@@ -16,7 +16,12 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
 from HeroAI.cache_data import CacheData
-from HeroAI.follow.follower_runtime import FollowExecutionState, execute_follower_follow
+from HeroAI.follow.follower_runtime import (
+    FollowExecutionState,
+    execute_follower_follow,
+    get_follow_destination_distance,
+    is_follow_recovery_active,
+)
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui_base import HeroAI_BaseUI
@@ -36,6 +41,9 @@ build_contract_map_signature: tuple[int, int, int, int] | None = None
 def LootingNode(cached_data: CacheData)-> BehaviorTree.NodeState:
     options = cached_data.account_options
     if not options or not options.Looting:
+        return BehaviorTree.NodeState.FAILURE
+
+    if is_follow_recovery_active(cached_data, follow_execution_state):
         return BehaviorTree.NodeState.FAILURE
     
     if cached_data.data.in_aggro:
@@ -87,6 +95,9 @@ def HandleOutOfCombat(cached_data: CacheData):
         return False
     
     if cached_data.data.in_aggro:
+        return False
+
+    if is_follow_recovery_active(cached_data, follow_execution_state):
         return False
 
     player_agent_id = Player.GetAgentID()
@@ -271,8 +282,8 @@ GlobalGuardNode = BehaviorTree.SequenceNode(
         BehaviorTree.ConditionNode(
             name="DistanceSafe",
             condition_fn=lambda:
-                HeroAI_FloatingWindows.DistanceToDestination(cached_data)
-                < Range.SafeCompass.value
+                get_follow_destination_distance(cached_data) < Range.SafeCompass.value
+                or is_follow_recovery_active(cached_data, follow_execution_state)
         ),
 
         BehaviorTree.ConditionNode(
@@ -289,7 +300,10 @@ CastingBlockNode = BehaviorTree.ConditionNode(
     condition_fn=lambda:
         BehaviorTree.NodeState.RUNNING
         if (
-            cached_data.combat_handler.InCastingRoutine()
+            (
+                cached_data.combat_handler.InCastingRoutine()
+                and not is_follow_recovery_active(cached_data, follow_execution_state)
+            )
             or Agent.IsCasting(Player.GetAgentID())
         )
         else BehaviorTree.NodeState.SUCCESS
@@ -298,6 +312,10 @@ CastingBlockNode = BehaviorTree.ConditionNode(
     
     
 def movement_interrupt() -> BehaviorTree.NodeState:
+    # During a smart unstuck detour, BT.Move must be ticked at full HeroAI
+    # BT rate so it can steer the engine target continuously 
+    if follow_execution_state.stuck.mode != "idle":
+        return BehaviorTree.NodeState.FAILURE  # let Follow run every tick during detour
     if Agent.IsMoving(Player.GetAgentID()):
         return BehaviorTree.NodeState.SUCCESS   # block lower-priority automation for this tick
     return BehaviorTree.NodeState.FAILURE      # allow next branch
@@ -339,15 +357,15 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
                     action_fn=lambda: user_interrupt(),
                 ),
 
-                BehaviorTree.ActionNode(
-                    name="MovementInterrupt",
-                    action_fn=lambda: movement_interrupt(),
-                ),
-
                 # Follow
                 BehaviorTree.ActionNode(
                     name="Follow",
                     action_fn=lambda: Follow(cached_data),
+                ),
+
+                BehaviorTree.ActionNode(
+                    name="MovementInterrupt",
+                    action_fn=lambda: movement_interrupt(),
                 ),
 
                 # Combat
@@ -394,6 +412,7 @@ def tooltip():
     PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Multibox Logic: Synchronizes actions across multiple game clients")
     PyImGui.bullet_text("Advanced AI: Replaces standard hero behavior with custom combat routines")
+    PyImGui.bullet_text("Intelligent interrupt logic, hex removal, enemy tracking, and more")
     PyImGui.bullet_text("Formation Control: Dynamic follower distancing and tactical positioning")
     PyImGui.bullet_text("Automation Suite: Integrated auto-looting, salvaging, and cutscene skipping")
     PyImGui.bullet_text("Behavior Trees: Complex decision-making for combat and out-of-combat states")
@@ -407,7 +426,7 @@ def tooltip():
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Apo")
     PyImGui.bullet_text("Contributors: Mark, frenkey, Dharmantrix, aC, Greg-76, ")
-    PyImGui.bullet_text("Wick-Divinus, LLYANL, Zilvereyes, valkogw")
+    PyImGui.bullet_text("Sloppynacho, Wick-Divinus, LLYANL, Zilvereyes, valkogw")
 
     PyImGui.end_tooltip()
 

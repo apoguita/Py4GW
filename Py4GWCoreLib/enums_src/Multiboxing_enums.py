@@ -42,6 +42,7 @@ class SharedCommandType(IntEnum):
     LoadSkillTemplate = auto()
     SkipCutscene = auto()
     SendDialog = auto()
+    SendManualDialog = auto()
     TravelToGuildHall = auto()
     
     SetActiveQuest = auto()
@@ -66,6 +67,8 @@ class SharedCommandType(IntEnum):
     LootEx = auto() # privately Handled Command, by frenkey
     Pycons = auto()
     BroadcastChatCommand = auto() 
+    ConsoleMessage = auto()
+    SetHeadlessLooting = auto()
     #endregion
 
     

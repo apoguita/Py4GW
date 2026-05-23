@@ -20,7 +20,6 @@ from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_interaction import (
     add_interact_quest_npc_state,
     add_key_press_state,
     add_loot_chest_state,
-    add_skip_cutscene_state,
     add_use_item_state,
 )
 
@@ -350,15 +349,6 @@ def handle_interact_nearest_npc(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
-def handle_skip_cutscene(ctx: StepContext) -> None:
-    wait_ms = int(ctx.step.get("wait_ms", ctx.step.get("timeout_ms", 10000)))
-    poll_ms = max(50, int(ctx.step.get("poll_ms", 250)))
-    pre_skip_delay_ms = max(0, int(ctx.step.get("pre_skip_delay_ms", ctx.step.get("delay_ms", 3000))))
-
-    add_skip_cutscene_state(ctx.bot, wait_ms=wait_ms, poll_ms=poll_ms, pre_skip_delay_ms=pre_skip_delay_ms)
-    wait_after_step(ctx.bot, ctx.step)
-
-
 def handle_key_press(ctx: StepContext) -> None:
     key_name = str(ctx.step["key"]).upper()
     if not add_key_press_state(
@@ -457,12 +447,6 @@ modular_step(
     allowed_params=("max_dist", "multibox", "name", "nearest"),
     node_class_name="LootChestNode",
 )(handle_loot_chest)
-modular_step(
-    step_type="skip_cutscene",
-    category="interaction",
-    allowed_params=("delay_ms", "poll_ms", "pre_skip_delay_ms", "timeout_ms", "wait_ms"),
-    node_class_name="SkipCutsceneNode",
-)(handle_skip_cutscene)
 modular_step(
     step_type="use_item",
     category="interaction",

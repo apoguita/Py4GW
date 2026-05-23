@@ -1,0 +1,27 @@
+{
+  "name": "A Gate too Far",
+  "steps": [
+    {"type": "auto_path", "name": "To Olaf Olafson", "points": [[-15236, 8653]]},
+    {"type": "dialogs", "id": ["0x81", "0x86"], "npc": "OLAF_OLAFSON", "name": "Dialog - Olaf Olafson"},
+    {"type": "wait_for_map_load", "map_id": 655},
+    {"type": "auto_path", "name": "Path", "points": [[-6251, 6310], [-4971, 7878], [-6273, 6457]]},
+    {"type": "wait", "ms": 12000},
+    {"type": "auto_path", "name": "Path", "points": [[-7593, 7340], [-6445, 6617]]},
+    {"type": "wait", "ms": 12000},
+    {"type": "auto_path", "name": "Path", "points": [[-8254, 5089], [-6316, 6433]]},
+    {"type": "wait", "ms": 12000},
+    {"type": "auto_path", "name": "Path", "points": [[-5259, 3959], [-6269, 6352]]},
+    {"type": "wait", "ms": 12000},
+    {"type": "interact_npc", "name": "Take Raven from Shrine of the Raven Spirit", "npc": "SHRINE_OF_THE_RAVEN_SPIRIT"},
+    {"type": "wait", "ms": 30300},
+    {"type": "auto_path", "name": "To Exit", "points": [[-6354, 1149], [-18283, 9595]]},
+    {"type": "exit_map", "name": "Leave A Gate Too Far (level 1)", "point": [-19801, 9620], "target_map_id": 656},
+    {"type": "interact_npc", "name": "Take Raven from Olaf Olafson", "npc": "OLAF_OLAFSON"},
+    {"type": "auto_path", "name": "To Exit", "points": [[15085, 9549], [11311, 11893], [8222, 12208], [6034, 16187], [4236, 17188]]},
+    {"type": "exit_map", "name": "Leave A Gate Too Far (level 2)", "point": [3416, 17728], "target_map_id": 657},
+    {"type": "interact_npc", "name": "Take Raven from Olaf Olafson", "npc": "OLAF_OLAFSON"},
+    {"type": "auto_path", "name": "To Target Asura Undergate", "points": [[4897, 13358], [6625, 8526], [7209, 6096]]},
+    {"type": "path_to_target", "name": "Target Asura Undergate", "enemy": "ASURA_UNDERGATE"},
+    {"type": "wait_for_map_load", "map_id": 645}
+  ]
+}

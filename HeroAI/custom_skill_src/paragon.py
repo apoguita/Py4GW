@@ -177,6 +177,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCaster.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         #region COMMAND
@@ -490,6 +491,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -497,6 +499,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -505,6 +508,7 @@ class ParagonSkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.HasCondition = True
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -513,6 +517,7 @@ class ParagonSkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsMoving = False
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -522,6 +527,7 @@ class ParagonSkills:
         skill.Nature = SkillNature.Interrupt.value
         skill.Conditions.IsCasting = True
         skill.Conditions.HasCondition = True
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -530,6 +536,7 @@ class ParagonSkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsMoving = True
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -537,6 +544,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -545,6 +553,7 @@ class ParagonSkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.HasBleeding = True
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -553,6 +562,7 @@ class ParagonSkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.LessLife = 0.5
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -560,6 +570,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -567,6 +578,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -574,6 +586,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -581,6 +594,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -589,6 +603,7 @@ class ParagonSkills:
         skill.TargetAllegiance = Skilltarget.EnemyCaster.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.HasCondition = True
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -596,6 +611,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -603,6 +619,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -610,6 +627,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -617,6 +635,7 @@ class ParagonSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Spear"
         skill_data[skill.SkillID] = skill
 
         #region NO_ATTRIBUTE

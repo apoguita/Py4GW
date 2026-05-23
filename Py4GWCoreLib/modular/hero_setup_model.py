@@ -85,6 +85,8 @@ HERO_CATALOG = [
     (35, "Mercenary Hero 8"),
     (36, "Miku"),
     (37, "Zei Ri"),
+    (38, "Devona"),
+    (39, "Ghost of Althea"),
 ]
 
 HERO_OPTIONS = (

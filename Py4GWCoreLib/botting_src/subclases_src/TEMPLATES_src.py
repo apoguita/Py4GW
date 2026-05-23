@@ -127,6 +127,16 @@ class _TEMPLATES:
         self.parent.Multibox.SetAccountIsolation(False) #multibox mode must stay shared
         properties.Enable("auto_loot") #wait for loot
         properties.Enable("auto_inventory_management") #manage inventory
+
+    def Multibox_Aggressive_No_Inventory(self):
+        properties = self.parent.Properties
+        properties.Enable("pause_on_danger") #engage in combat
+        properties.Disable("halt_on_death")
+        properties.Set("movement_timeout",value=-1)
+        properties.Enable("hero_ai") #hero combat
+        self.parent.States.AddCustomState(lambda: self._ForceHeroAIOptions(True), "Force HeroAI Options ON")
+        self.parent.Multibox.SetAccountIsolation(False) #multibox mode must stay shared
+        properties.Enable("auto_loot") #wait for loot
         
 
 #region Routines

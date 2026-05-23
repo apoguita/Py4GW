@@ -45,7 +45,11 @@ show_hero_follow_grid = False
 show_distance_on_followers = False
 show_broadcast_follow_positions = False
 show_broadcast_follow_threshold_rings = False
+show_followers_unstuck_overlay = False
+show_stuck_avoidance_debug = False
 show_flagging_window = False
+
+smart_unstuck_debug_snapshot: dict | None = None
 
 capture_flag_all = False
 capture_hero_flag = False

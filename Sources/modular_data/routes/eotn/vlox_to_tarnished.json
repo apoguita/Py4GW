@@ -1,0 +1,13 @@
+{
+  "name": "Vlox's Falls to Tarnished Haven",
+  "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 624},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[16356, 14638], [15737, 13131]]},
+    {"type": "exit_map", "name": "Leave Vlox's Falls", "point": [15471, 12385], "target_map_id": 485},
+    {"type": "auto_path", "name": "Arbor Bay to Alcazia Tangle", "points": [[13332, 10849], [9207, 7159], [5716, 3650], [2240, 1816], [1385, 400], [-1866, -1750], [-2633, -2353], [-3011, -4905], [-4797, -6259], [-7678, -6762], [-10550, -7143], [-12773, -9580], [-15232, -12603], [-16008, -14516], [-17457, -14900], [-17390, -18140], [-19796, -19468]]},
+    {"type": "exit_map", "name": "Leave Arbor Bay", "point": [-20455, -19872], "target_map_id": 572},
+    {"type": "auto_path", "name": "Alcazia Tangle to Tarnished Haven", "points": [[23025, 13777], [21148, 14764], [18471, 13653], [13930, 11237], [13921, 8353], [16721, 8155], [17776, 7048], [19784, 8485], [21026, 7583], [20337, 3354], [19155, -394], [16802, -3632], [18186, -7187], [18793, -10097]]},
+    {"type": "exit_map", "name": "Leave Alcazia Tangle", "point": [19072, -10799], "target_map_id": 641}
+  ]
+}
