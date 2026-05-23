@@ -941,7 +941,7 @@ bot = BottingTree.Create(bot_name=BOT_NAME, multi_account=True, auto_loot=True, 
 # Name entries cause GetNameByID on every enemy → TextParser crash on dying agents.
 try:
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL_Init
-    for _n in ('chained soul', 'tortured spirit', 'obsidian behemoth', "spirit of nature's renewal"):
+    for _n in ('chained soul', 'tortured spirit', 'obsidian behemoth', "spirit of nature's renewal", 'banished dream rider'):
         _EBL_Init().remove_name(_n)
 except Exception:
     pass
@@ -983,8 +983,8 @@ def _build_behemoth_guard_service() -> _BT:
 
         if not _behemoth_guard_active:
             if state['fighting']:
-                _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-                _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+                _blacklist_add_model(_OBSIDIAN_BEHEMOTH_MODEL_ID)
+                _blacklist_add_model(_SPIRIT_NATURES_RENEWAL_MODEL_ID)
                 state['fighting'] = False
             return _BT.NodeState.RUNNING
 
@@ -1010,13 +1010,13 @@ def _build_behemoth_guard_service() -> _BT:
                 break
 
         if nearby and not state['fighting']:
-            _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-            _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+            _blacklist_remove_model(_OBSIDIAN_BEHEMOTH_MODEL_ID)
+            _blacklist_remove_model(_SPIRIT_NATURES_RENEWAL_MODEL_ID)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Enemy in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
             state['fighting'] = True
         elif not nearby and state['fighting']:
-            _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-            _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+            _blacklist_add_model(_OBSIDIAN_BEHEMOTH_MODEL_ID)
+            _blacklist_add_model(_SPIRIT_NATURES_RENEWAL_MODEL_ID)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Fight done — blacklist ON, resuming.', Py4GW.Console.MessageType.Info)
             state['fighting'] = False
 
@@ -1031,6 +1031,8 @@ def _blacklist_add_entry(name: str = '', model_id: int = 0) -> None:
         bl.add_name(name)
     if model_id > 0:
         bl.add(model_id)
+
+
 def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
 
@@ -1039,6 +1041,29 @@ def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
         bl.remove_name(name)
     if model_id > 0:
         bl.remove(model_id)
+
+
+def _blacklist_add_model(model_id: int) -> None:
+    if int(model_id) > 0:
+        _blacklist_add_entry(model_id=int(model_id))
+
+
+def _blacklist_remove_model(model_id: int) -> None:
+    if int(model_id) > 0:
+        _blacklist_remove_entry(model_id=int(model_id))
+
+
+def _is_agent_blacklisted_by_model(agent_id: int) -> bool:
+    """Model-ID blacklist only — avoids GetNameByID (TextParser crash on dying agents)."""
+    if not agent_id:
+        return False
+    try:
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+
+        model_id = int(Agent.GetModelID(agent_id))
+        return model_id in _EBL().get_all()
+    except Exception:
+        return False
 
 
 def _is_agent_blacklisted(agent_id: int) -> bool:
@@ -1056,8 +1081,8 @@ def _behemoth_guard_start() -> _BT:
     """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
-        _blacklist_add_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-        _blacklist_add_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+        _blacklist_add_model(_OBSIDIAN_BEHEMOTH_MODEL_ID)
+        _blacklist_add_model(_SPIRIT_NATURES_RENEWAL_MODEL_ID)
         _behemoth_guard_active = True
         ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Behemoth + Spirit blacklisted.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
@@ -1067,8 +1092,8 @@ def _behemoth_guard_stop() -> _BT:
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
         _behemoth_guard_active = False
-        _blacklist_remove_entry(_OBSIDIAN_BEHEMOTH_NAME, _OBSIDIAN_BEHEMOTH_MODEL_ID)
-        _blacklist_remove_entry(_SPIRIT_NATURES_RENEWAL_NAME, _SPIRIT_NATURES_RENEWAL_MODEL_ID)
+        _blacklist_remove_model(_OBSIDIAN_BEHEMOTH_MODEL_ID)
+        _blacklist_remove_model(_SPIRIT_NATURES_RENEWAL_MODEL_ID)
         ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped and blacklist cleared.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
     return _BT(_BT.ActionNode(name='BehemothGuardStop', action_fn=_tick))
@@ -1204,7 +1229,7 @@ def _wait_quest_completed(
         timeout_ms=timeout_ms,
     ))
 def _blacklist_add_dream_rider() -> None:
-    _blacklist_add_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
+    _blacklist_add_model(_BANISHED_DREAM_RIDER_MODEL_ID)
 def _clear_follower_flags() -> _BT:
     """No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero)."""
 
@@ -1721,113 +1746,47 @@ def _build_buy_uw_scrolls_tree(node: _BT.Node) -> _BT:
     )
 
 
-_mb_timeout_ms = 120_000
+def _resolve_uw_entry_map_id() -> int:
+    key = EnterSettings.EntryPoint or DEFAULT_UW_ENTRYPOINT_KEY
+    return int(UW_ENTRYPOINTS.get(key, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY])[1])
 
 
-def _is_local_party_leader() -> bool:
-    leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
-    local_id = int(Player.GetAgentID() or 0)
-    if leader_id <= 0 or local_id <= 0:
-        return True
-    return local_id == leader_id
+def _build_travel_to_entry_same_district_tree(_node: _BT.Node) -> _BT:
+    """Same travel block as ApoBT.DonateFaction(..., multi_account=True) / VQ Mount Quinkai Redux."""
+    from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+    from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
+
+    return ApoBT.Sequence(
+        name='TravelToEntrySameDistrict',
+        children=[
+            ApoBT.LeaveParty(),
+            ApoBT.Travel(
+                target_map_id=_resolve_uw_entry_map_id(),
+                random_travel=True,
+                region_pool='eu',
+                log=True,
+            ),
+            RoutinesBT.Multibox.SummonAllAccounts(
+                timeout_ms=15_000,
+                poll_interval_ms=100,
+                log=True,
+            ),
+            ApoBT.Wait(duration_ms=1000, log=True),
+        ],
+    )
 
 
-def _follower_wait_guild_hall_or_leader_map(_node: _BT.Node) -> _BT.NodeState:
-    """Followers block multibox setup until travel/summon finishes (map load safe)."""
-    if _is_local_party_leader():
-        return _BT.NodeState.SUCCESS
-    try:
-        if Map.IsMapLoading() or not Map.IsMapReady():
-            return _BT.NodeState.RUNNING
-    except Exception:
-        return _BT.NodeState.RUNNING
-    if Map.IsGuildHall():
-        return _BT.NodeState.SUCCESS
-    leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
-    if leader_id > 0:
-        local_map_id = int(Map.GetMapID() or 0)
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData(include_isolated=True):
-            agent_id = int(getattr(getattr(account, 'AgentData', None), 'AgentID', 0) or 0)
-            if agent_id != leader_id:
-                continue
-            map_obj = getattr(getattr(account, 'AgentData', None), 'Map', None)
-            leader_map_id = int(getattr(account, 'MapID', 0) or getattr(map_obj, 'MapID', 0) or 0)
-            if leader_map_id > 0 and local_map_id == leader_map_id:
-                return _BT.NodeState.SUCCESS
-    return _BT.NodeState.RUNNING
+def _build_gh_party_setup_tree(_node: _BT.Node) -> _BT:
+    """Same GH party setup as VQ Mount Quinkai Redux InitializeBot (TravelGH + CreateParty)."""
+    from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
 
-
-def _leader_only_subtree_tick(build_tree_fn):
-    """Run a BT subtree only on party leader; followers wait for GH / leader map."""
-    _state: dict = {'tree': None}
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        if not _is_local_party_leader():
-            return _follower_wait_guild_hall_or_leader_map(node)
-        if _state['tree'] is None:
-            _state['tree'] = build_tree_fn(node)
-        _state['tree'].blackboard = node.blackboard
-        result = _state['tree'].tick()
-        if result != _BT.NodeState.RUNNING:
-            _state['tree'] = None
-        return result
-
-    return _tick
-
-
-def _leader_only_action_tick(inner_tick_fn):
-    """Wrap a tick-factory (e.g. summon) so only the party leader runs it."""
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        if not _is_local_party_leader():
-            return _follower_wait_guild_hall_or_leader_map(node)
-        return inner_tick_fn(node)
-
-    return _tick
-
-
-def _make_summon_all_gh_tick():
-    """Tick-factory for SummonAllAccountsGH.
-
-    Runs BT.Shared.SummonAllAccounts and treats FAILURE (timeout) as SUCCESS so
-    the outer Sequence is never blocked by accounts that never arrive.
-    """
-    _subtree: list[_BT | None] = [None]
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        BT = Routines.BT
-        if _subtree[0] is None:
-            _subtree[0] = BT.Shared.SummonAllAccounts(timeout_ms=_mb_timeout_ms)
-        _subtree[0].blackboard = node.blackboard
-        result = _subtree[0].tick()
-        if result == _BT.NodeState.RUNNING:
-            return _BT.NodeState.RUNNING
-        # SUCCESS or FAILURE (timeout) → always continue
-        _subtree[0] = None
-        return _BT.NodeState.SUCCESS
-
-    return _tick
-
-
-def _make_invite_all_tick():
-    """Tick-factory for InviteAllAccounts.
-
-    Same timeout-tolerant wrapper as _make_summon_all_gh_tick.
-    """
-    _subtree: list[_BT | None] = [None]
-
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        BT = Routines.BT
-        if _subtree[0] is None:
-            _subtree[0] = BT.Shared.InviteAllAccounts(timeout_ms=_mb_timeout_ms)
-        _subtree[0].blackboard = node.blackboard
-        result = _subtree[0].tick()
-        if result == _BT.NodeState.RUNNING:
-            return _BT.NodeState.RUNNING
-        _subtree[0] = None
-        return _BT.NodeState.SUCCESS
-
-    return _tick
+    return ApoBT.Sequence(
+        name='TravelGHAndCreateParty',
+        children=[
+            ApoBT.TravelGH(),
+            ApoBT.CreateParty(multibox_invite=True, log=True),
+        ],
+    )
 
 
 # ── Quest trees (chronological) ──────────────────────────────────────────────
@@ -1836,10 +1795,11 @@ def _enter_underworld_tree() -> _BT:
     """
     Step 1: Multibox party setup at Guild Hall, then entry point and UW scroll.
 
-    Sequence:
-      1. KickAllAccounts, then TravelGH and SummonAllAccounts (same GH map).
-      2. InviteAllAccounts, optional Scroll Trader buy, enable required widgets.
-      3. Travel to configured entry outpost; set hard/normal mode; leader uses UW scroll locally.
+    Sequence (ApoBottingLib / VQ Mount Quinkai Redux pattern):
+      1. LeaveParty + random EU travel + SummonAllAccounts to entry outpost.
+      2. TravelGH + CreateParty(multibox_invite=True).
+      3. Optional Scroll Trader buy, enable required widgets.
+      4. Travel to configured entry outpost; set hard/normal mode; use UW scroll.
     """
     BT = Routines.BT
 
@@ -1895,29 +1855,15 @@ def _enter_underworld_tree() -> _BT:
         ))
 
     return BT.Composite.Sequence(
-        _log('KickAllAccounts'),
-        _BT(_BT.ActionNode(
-            name='KickAllAccounts',
-            action_fn=_leader_only_subtree_tick(
-                lambda node: BT.Shared.KickAllAccounts(timeout_ms=_mb_timeout_ms),
-            ),
+        _log('TravelToEntrySameDistrict'),
+        _BT(_BT.SubtreeNode(
+            name='TravelToEntrySameDistrict',
+            subtree_fn=_build_travel_to_entry_same_district_tree,
         )),
-        _log('TravelGH'),
-        _BT(_BT.ActionNode(
-            name='TravelGH',
-            action_fn=_leader_only_subtree_tick(
-                lambda node: BT.Map.TravelGH(timeout=30_000),
-            ),
-        )),
-        _log('SummonAllAccountsGH'),
-        _BT(_BT.ActionNode(
-            name='SummonAllAccountsGH',
-            action_fn=_leader_only_action_tick(_make_summon_all_gh_tick()),
-        )),
-        _log('InviteAllAccounts'),
-        _BT(_BT.ActionNode(
-            name='InviteAllAccounts',
-            action_fn=_leader_only_action_tick(_make_invite_all_tick()),
+        _log('TravelGHAndCreateParty'),
+        _BT(_BT.SubtreeNode(
+            name='TravelGHAndCreateParty',
+            subtree_fn=_build_gh_party_setup_tree,
         )),
         _log('BuyUWScrolls'),
         _BT(_BT.SubtreeNode(
@@ -2066,7 +2012,7 @@ def _deamon_assassin_tree() -> _BT:
 
     return BT.Composite.Sequence(
         _dialog_until_quest_active(
-            x=-8337, y=-5342,
+            x=-8260.00, y=-5238.00,
             dialog_id=0x806801,
             quest_id=int(UWQuestID.DemonAssassin),
             label='DeamonAssassin',
@@ -2083,11 +2029,11 @@ def _restore_planes_tree() -> _BT:
     from Py4GWCoreLib import AgentArray, Agent
 
     def _blacklist_add(node: _BT.Node) -> _BT.NodeState:
-        _blacklist_add_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
+        _blacklist_add_model(_BANISHED_DREAM_RIDER_MODEL_ID)
         return _BT.NodeState.SUCCESS
 
     def _blacklist_remove(node: _BT.Node) -> _BT.NodeState:
-        _blacklist_remove_entry('banished dream rider', _BANISHED_DREAM_RIDER_MODEL_ID)
+        _blacklist_remove_model(_BANISHED_DREAM_RIDER_MODEL_ID)
         return _BT.NodeState.SUCCESS
 
     def _wait_mindblade_spawn(
@@ -3037,18 +2983,40 @@ def _skip_background_upkeep(blackboard: dict) -> bool:
 
 
 
+def _build_uw_priority_model_map() -> dict[int, int]:
+    """Map model_id -> priority index without runtime GetNameByID."""
+    from Py4GWCoreLib.model_data import ModelData
+
+    name_prio = {name.strip().lower(): idx for idx, name in enumerate(UW_TARGET_PRIORITY)}
+    model_map: dict[int, int] = {}
+    for model_id, data in ModelData.items():
+        model_name = str(data.get('name', '') or '').strip().lower()
+        prio = name_prio.get(model_name)
+        if prio is None:
+            continue
+        mid = int(model_id)
+        if mid not in model_map or prio < model_map[mid]:
+            model_map[mid] = prio
+    return model_map
+
+
 def _build_priority_target_service() -> _BT:
     """Background service: call the highest-priority UW enemy in range as party target.
 
     Port of UnderworldV2 ``BuildPriorityTargetService`` / ``CallPriorityTarget``.
     Uses HeroAI ``CallTarget`` on the party leader via ``_party_call_or_change_target``.
-    Skips blacklisted enemies (model ID or name via EnemyBlacklist).
+    Matches enemies by model ID only (no GetNameByID — TextParser crash on dying agents).
     """
-    priority_map: dict[str, int] = {
-        name.strip().lower(): idx for idx, name in enumerate(UW_TARGET_PRIORITY)
-    }
+    priority_by_model = _build_uw_priority_model_map()
     sentinel_priority = len(UW_TARGET_PRIORITY)
     state: dict = {'last_call_ms': 0.0}
+
+    def _agent_priority(agent_id: int) -> int:
+        try:
+            model_id = int(Agent.GetModelID(agent_id))
+        except Exception:
+            return -1
+        return priority_by_model.get(model_id, -1)
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib.AgentArray import AgentArray as _AgentArray
@@ -3061,6 +3029,15 @@ def _build_priority_target_service() -> _BT:
         except Exception:
             return _BT.NodeState.RUNNING
 
+        try:
+            leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+            local_id = int(Player.GetAgentID() or 0)
+        except Exception:
+            leader_id = 0
+            local_id = 0
+        if leader_id > 0 and local_id > 0 and local_id != leader_id:
+            return _BT.NodeState.RUNNING
+
         player_pos = Player.GetXY()
         if not player_pos:
             return _BT.NodeState.RUNNING
@@ -3070,22 +3047,19 @@ def _build_priority_target_service() -> _BT:
         for agent_id in _AgentArray.GetEnemyArray():
             if not Agent.IsAlive(agent_id):
                 continue
-            if _is_agent_blacklisted(agent_id):
+            if _is_agent_blacklisted_by_model(agent_id):
                 continue
             dist = Utils.Distance(player_pos, Agent.GetXY(agent_id))
             if dist > _UW_PRIORITY_TARGET_RANGE:
                 continue
-            agent_name = (Agent.GetNameByID(agent_id) or '').strip().lower()
-            if not agent_name:
-                continue
-            prio = priority_map.get(agent_name, -1)
+            prio = _agent_priority(agent_id)
             if prio == -1:
                 continue
             if prio < best_priority:
                 best_priority = prio
                 best_agent_id = agent_id
 
-        if best_agent_id == 0 or _is_agent_blacklisted(best_agent_id):
+        if best_agent_id == 0 or _is_agent_blacklisted_by_model(best_agent_id):
             return _BT.NodeState.RUNNING
 
         now_ms = time.monotonic() * 1000.0
@@ -3094,9 +3068,10 @@ def _build_priority_target_service() -> _BT:
         except Exception:
             current_target_id = 0
 
-        if current_target_id != 0 and not _is_agent_blacklisted(current_target_id):
-            current_name = (Agent.GetNameByID(current_target_id) or '').strip().lower()
-            current_prio = priority_map.get(current_name, sentinel_priority)
+        if current_target_id != 0 and not _is_agent_blacklisted_by_model(current_target_id):
+            current_prio = _agent_priority(current_target_id)
+            if current_prio == -1:
+                current_prio = sentinel_priority
             if best_priority >= current_prio and (now_ms - state['last_call_ms']) < _UW_PRIORITY_TARGET_COOLDOWN_MS:
                 return _BT.NodeState.RUNNING
 
