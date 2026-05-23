@@ -86,7 +86,7 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent, AgentArray, Range, SpiritModelID
     from Py4GWCoreLib.Item import (
         KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS,
         SUMMONING_SICKNESS_EFFECT_ID as CORE_SUMMONING_SICKNESS_EFFECT_ID,
@@ -145,6 +145,42 @@ try:
     MAIN_SELECTED_CHILD_MAX_HEIGHT = 420.0
     EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT = True
     EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT = True
+    RESURRECTION_SCROLL_KEY = "resurrection_scroll"
+    RESURRECTION_SCROLL_MODEL_ID = int(ModelID.Scroll_Of_Resurrection.value)
+    MIN_RESURRECTION_SCROLL_WAIT_SEC = 5
+    DEFAULT_RESURRECTION_SCROLL_WAIT_SEC = 12
+    MAX_RESURRECTION_SCROLL_WAIT_SEC = 60
+    MIN_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC = 1
+    DEFAULT_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC = 2
+    MAX_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC = 10
+    RESURRECTION_SCROLL_POST_USE_COOLDOWN_MS = 30000
+    RESURRECTION_SCROLL_MODE_CAREFUL = 0
+    RESURRECTION_SCROLL_MODE_KNOWN_RES_CHECK = 1
+    RESURRECTION_SCROLL_MODE_FAST = 2
+    DEFAULT_RESURRECTION_SCROLL_MODE = RESURRECTION_SCROLL_MODE_CAREFUL
+    RESURRECTION_SCROLL_MODE_OPTIONS = ["Careful", "Known Res Check", "Fast"]
+    RESURRECTION_SKILL_NAMES = (
+        "Resurrection_Signet",
+        "Sunspear_Rebirth_Signet",
+        "Signet_of_Return",
+        "Death_Pact_Signet",
+        "Resurrection_Chant",
+        "Resurrect",
+        "Rebirth",
+        "Restore_Life",
+        "Renew_Life",
+        "Light_of_Dwayna",
+        "Vengeance",
+        "Flesh_of_My_Flesh",
+        "Lively_Was_Naomei",
+        "Restoration",
+        "Unyielding_Aura",
+        "We_Shall_Return",
+        "We_Shall_Return!",
+        "By_Ural's_Hammer",
+        "By_Ural's_Hammer!",
+        "By_Urals_Hammer",
+    )
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -577,6 +613,14 @@ try:
             "text": (1.00, 0.92, 0.24, 1.00),
             "meta": (0.96, 0.82, 0.36, 1.00),
         },
+        "settings_resurrection_scroll": {
+            "header": (0.58, 0.16, 0.11, 0.88),
+            "header_hovered": (0.66, 0.24, 0.17, 0.94),
+            "header_active": (0.74, 0.31, 0.22, 1.00),
+            "header_text": (0.98, 0.95, 0.92, 1.00),
+            "text": (0.98, 0.90, 0.78, 1.00),
+            "meta": (0.86, 0.74, 0.62, 1.00),
+        },
         "settings_mbdp_legacy": {
             "header": (0.92, 0.30, 0.30, 0.78),
             "header_hovered": (0.96, 0.40, 0.40, 0.88),
@@ -927,6 +971,53 @@ try:
             "short": "MB/DP means Morale Boost / Death Penalty.",
             "long": "This section controls items that raise morale or remove death penalty for you or your party.",
             "why": "The short name is kept because it is compact, but the feature is about morale and DP recovery items.",
+        },
+        "resurrection_scroll_enabled": {
+            "short": "Auto-use Scroll of Resurrection as a guarded fallback.",
+            "long": (
+                "When enabled, Pycons may use one Scroll of Resurrection in PvE after a nearby party death only when "
+                "known alive party members do not appear able to resurrect normally."
+            ),
+            "why": "Scrolls are costly and party-wide, so this stays off by default and only runs after strict safety checks.",
+        },
+        "resurrection_scroll_mode": {
+            "short": "Choose how careful Pycons is before spending a scroll.",
+            "long": (
+                "Careful blocks on unknown party or skillbar data. Known Res Check skips only when a known alive "
+                "party member has a resurrection skill. Fast uses the scroll after the wait when someone nearby is "
+                "dead."
+            ),
+            "why": (
+                "More aggressive modes recover faster, but they can spend scrolls when a normal resurrection might "
+                "still have happened."
+            ),
+        },
+        "resurrection_scroll_wait_sec": {
+            "short": "Seconds to wait before spending a scroll.",
+            "long": (
+                "Controls how long Pycons waits after first seeing a dead party member within earshot before using a "
+                "Scroll of Resurrection. The timer resets when the dead-party-member set changes."
+            ),
+            "why": "The wait gives players, heroes, and normal resurrection skills time to handle the death first.",
+        },
+        "resurrection_scroll_short_frozen_soil_wait": {
+            "short": "Use a shorter wait when visible Frozen Soil blocks normal resurrection.",
+            "long": (
+                "When enabled, Pycons can use the shorter Frozen Soil wait only if it sees a living Frozen Soil spirit "
+                "and every known alive resurrection caster appears to be inside that spirit's range."
+            ),
+            "why": "Frozen Soil blocks normal resurrection skills, but Scroll of Resurrection still works.",
+        },
+        "resurrection_scroll_frozen_soil_wait_sec": {
+            "short": "Seconds to wait when visible Frozen Soil blocks normal resurrection.",
+            "long": (
+                "Controls the shortened wait used only when visible Frozen Soil appears to block all known normal "
+                "resurrection options. If Pycons cannot prove that, it uses the normal wait or does nothing."
+            ),
+            "why": (
+                "A short delay avoids wasting a scroll on uncertain Frozen Soil guesses while still reacting faster "
+                "when the spirit is clearly relevant."
+            ),
         },
         "team_consume_opt_in": {
             "short": "Opt in to team broadcasts.",
@@ -1529,6 +1620,8 @@ try:
         "mbdp_receiver_require_enabled",
         "mbdp_strict_party_plus10",
         "mbdp_prefer_seal_for_recharge",
+        "resurrection_scroll_enabled",
+        "resurrection_scroll_short_frozen_soil_wait",
     }
     PROFILE_SCALAR_KEYS = [
         "interval_ms",
@@ -1579,6 +1672,11 @@ try:
         "mbdp_party_heavy_dp_threshold",
         "mbdp_powerstone_dp_threshold",
         "mbdp_prefer_seal_for_recharge",
+        "resurrection_scroll_enabled",
+        "resurrection_scroll_mode",
+        "resurrection_scroll_wait_sec",
+        "resurrection_scroll_short_frozen_soil_wait",
+        "resurrection_scroll_frozen_soil_wait_sec",
     ]
 
     def _default_pycons_sync_category_selection() -> dict[str, bool]:
@@ -1746,6 +1844,11 @@ try:
             "mbdp_party_heavy_dp_threshold": int(MBDP_DEFAULTS["mbdp_party_heavy_dp_threshold"]),
             "mbdp_powerstone_dp_threshold": int(MBDP_DEFAULTS["mbdp_powerstone_dp_threshold"]),
             "mbdp_prefer_seal_for_recharge": bool(MBDP_DEFAULTS["mbdp_prefer_seal_for_recharge"]),
+            "resurrection_scroll_enabled": False,
+            "resurrection_scroll_mode": int(DEFAULT_RESURRECTION_SCROLL_MODE),
+            "resurrection_scroll_wait_sec": int(DEFAULT_RESURRECTION_SCROLL_WAIT_SEC),
+            "resurrection_scroll_short_frozen_soil_wait": True,
+            "resurrection_scroll_frozen_soil_wait_sec": int(DEFAULT_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC),
         }
         default_value = defaults.get(key, False if key in PROFILE_BOOL_KEYS else 0)
         return bool(default_value) if key in PROFILE_BOOL_KEYS else int(default_value)
@@ -1832,6 +1935,32 @@ try:
             min(
                 MAX_PARTY_ITEM_INTERVAL_MS,
                 int(payload.get("movement_party_items_fast_threshold_ms", DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS)),
+            ),
+        )
+        payload["resurrection_scroll_mode"] = max(
+            RESURRECTION_SCROLL_MODE_CAREFUL,
+            min(
+                RESURRECTION_SCROLL_MODE_FAST,
+                int(payload.get("resurrection_scroll_mode", DEFAULT_RESURRECTION_SCROLL_MODE)),
+            ),
+        )
+        payload["resurrection_scroll_wait_sec"] = max(
+            MIN_RESURRECTION_SCROLL_WAIT_SEC,
+            min(
+                MAX_RESURRECTION_SCROLL_WAIT_SEC,
+                int(payload.get("resurrection_scroll_wait_sec", DEFAULT_RESURRECTION_SCROLL_WAIT_SEC)),
+            ),
+        )
+        payload["resurrection_scroll_frozen_soil_wait_sec"] = max(
+            MIN_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+            min(
+                MAX_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                int(
+                    payload.get(
+                        "resurrection_scroll_frozen_soil_wait_sec",
+                        DEFAULT_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                    )
+                ),
             ),
         )
         payload["force_team_morale_value"] = max(-60, min(10, int(payload.get("force_team_morale_value", MBDP_DEFAULTS["force_team_morale_value"]))))
@@ -3934,6 +4063,51 @@ try:
             self.movement_alcohol_fast_only = ini_handler.read_bool(INI_SECTION, "movement_alcohol_fast_only", False)
             self.movement_party_items_speed_only = ini_handler.read_bool(INI_SECTION, "movement_party_items_speed_only", False)
             self.movement_sweets_fast_only = ini_handler.read_bool(INI_SECTION, "movement_sweets_fast_only", False)
+            self.resurrection_scroll_enabled = ini_handler.read_bool(INI_SECTION, "resurrection_scroll_enabled", False)
+            self.resurrection_scroll_mode = max(
+                RESURRECTION_SCROLL_MODE_CAREFUL,
+                min(
+                    RESURRECTION_SCROLL_MODE_FAST,
+                    int(
+                        ini_handler.read_int(
+                            INI_SECTION,
+                            "resurrection_scroll_mode",
+                            DEFAULT_RESURRECTION_SCROLL_MODE,
+                        )
+                    ),
+                ),
+            )
+            self.resurrection_scroll_wait_sec = max(
+                MIN_RESURRECTION_SCROLL_WAIT_SEC,
+                min(
+                    MAX_RESURRECTION_SCROLL_WAIT_SEC,
+                    int(
+                        ini_handler.read_int(
+                            INI_SECTION,
+                            "resurrection_scroll_wait_sec",
+                            DEFAULT_RESURRECTION_SCROLL_WAIT_SEC,
+                        )
+                    ),
+                ),
+            )
+            self.resurrection_scroll_short_frozen_soil_wait = ini_handler.read_bool(
+                INI_SECTION,
+                "resurrection_scroll_short_frozen_soil_wait",
+                True,
+            )
+            self.resurrection_scroll_frozen_soil_wait_sec = max(
+                MIN_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                min(
+                    MAX_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                    int(
+                        ini_handler.read_int(
+                            INI_SECTION,
+                            "resurrection_scroll_frozen_soil_wait_sec",
+                            DEFAULT_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                        )
+                    ),
+                ),
+            )
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
             self.alcohol_use_explorable = ini_handler.read_bool(INI_SECTION, "alcohol_use_explorable", True)
@@ -3972,6 +4146,11 @@ try:
             self.settings_ui_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_ui_alcohol_open", False)
             self.settings_ui_movement_safety_open = ini_handler.read_bool(INI_SECTION, "settings_ui_movement_safety_open", False)
             self.settings_ui_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_ui_mbdp_open", False)
+            self.settings_ui_resurrection_scroll_open = ini_handler.read_bool(
+                INI_SECTION,
+                "settings_ui_resurrection_scroll_open",
+                False,
+            )
             self.settings_ui_presets_open = ini_handler.read_bool(INI_SECTION, "settings_ui_presets_open", False)
             self.settings_ui_restock_open = ini_handler.read_bool(INI_SECTION, "settings_ui_restock_open", False)
 
@@ -4152,6 +4331,38 @@ try:
             set_key("movement_alcohol_fast_only", bool(self.movement_alcohol_fast_only))
             set_key("movement_party_items_speed_only", bool(self.movement_party_items_speed_only))
             set_key("movement_sweets_fast_only", bool(self.movement_sweets_fast_only))
+            set_key("resurrection_scroll_enabled", bool(self.resurrection_scroll_enabled))
+            set_key(
+                "resurrection_scroll_mode",
+                int(
+                    max(
+                        RESURRECTION_SCROLL_MODE_CAREFUL,
+                        min(RESURRECTION_SCROLL_MODE_FAST, int(self.resurrection_scroll_mode)),
+                    )
+                ),
+            )
+            set_key(
+                "resurrection_scroll_wait_sec",
+                int(
+                    max(
+                        MIN_RESURRECTION_SCROLL_WAIT_SEC,
+                        min(MAX_RESURRECTION_SCROLL_WAIT_SEC, int(self.resurrection_scroll_wait_sec)),
+                    )
+                ),
+            )
+            set_key("resurrection_scroll_short_frozen_soil_wait", bool(self.resurrection_scroll_short_frozen_soil_wait))
+            set_key(
+                "resurrection_scroll_frozen_soil_wait_sec",
+                int(
+                    max(
+                        MIN_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                        min(
+                            MAX_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                            int(self.resurrection_scroll_frozen_soil_wait_sec),
+                        ),
+                    )
+                ),
+            )
             set_key("alcohol_target_level", int(self.alcohol_target_level))
             set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
             set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
@@ -4185,6 +4396,7 @@ try:
             set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
             set_key("settings_ui_movement_safety_open", bool(self.settings_ui_movement_safety_open))
             set_key("settings_ui_mbdp_open", bool(self.settings_ui_mbdp_open))
+            set_key("settings_ui_resurrection_scroll_open", bool(self.settings_ui_resurrection_scroll_open))
             set_key("settings_ui_presets_open", bool(self.settings_ui_presets_open))
             set_key("settings_ui_restock_open", bool(self.settings_ui_restock_open))
             set_key("experimental_team_flag_sync", bool(self.experimental_team_flag_sync))
@@ -4319,6 +4531,12 @@ try:
     _last_broadcast_ms = {}
     _conset_remote_fallback_state = {}
     _team_flags_cache = {}
+    _resurrection_skill_ids_cache = None
+    _resurrection_skill_match_cache = {}
+    _res_scroll_dead_signature = ""
+    _res_scroll_dead_since_ms = 0
+    _res_scroll_last_attempt_ms = 0
+    _res_scroll_status = "Disabled"
     _last_mbdp_party_ms = 0
     _movement_last_xy = None
     _movement_last_ms = 0
@@ -7974,6 +8192,874 @@ try:
         except Exception:
             return []
 
+    # -------------------------
+    # Scroll of Resurrection fallback
+    # -------------------------
+    def _map_is_pvp() -> bool:
+        try:
+            return bool(Map.IsPVP())
+        except Exception:
+            return True
+
+    def _current_party_id() -> int:
+        try:
+            return int(Party.GetPartyID() or 0)
+        except Exception:
+            return 0
+
+    def _distance_sq_xy(a, b) -> float | None:
+        try:
+            ax, ay = float(a[0]), float(a[1])
+            bx, by = float(b[0]), float(b[1])
+            dx = ax - bx
+            dy = ay - by
+            return float(dx * dx + dy * dy)
+        except Exception:
+            return None
+
+    def _within_distance_xy(a, b, distance: float) -> bool:
+        dist_sq = _distance_sq_xy(a, b)
+        if dist_sq is None:
+            return False
+        try:
+            return bool(float(dist_sq) <= float(distance) * float(distance))
+        except Exception:
+            return False
+
+    def _safe_agent_xy(agent_id: int) -> tuple[float, float] | None:
+        try:
+            aid = int(agent_id or 0)
+            if aid <= 0 or not Agent.IsValid(aid):
+                return None
+            pos = Agent.GetXY(aid)
+            if isinstance(pos, (tuple, list)) and len(pos) >= 2:
+                return float(pos[0]), float(pos[1])
+            x = getattr(pos, "x", None)
+            y = getattr(pos, "y", None)
+            if x is not None and y is not None:
+                return float(x), float(y)
+        except Exception:
+            return None
+        return None
+
+    def _shared_map_signature(acc) -> tuple[int, int, int, int]:
+        try:
+            agent_map = getattr(getattr(acc, "AgentData", None), "Map", None)
+            return (
+                int(getattr(agent_map, "MapID", 0) or 0),
+                int(getattr(agent_map, "Region", 0) or 0),
+                int(getattr(agent_map, "District", 0) or 0),
+                int(getattr(agent_map, "Language", 0) or 0),
+            )
+        except Exception:
+            return 0, 0, 0, 0
+
+    def _shared_actor_xy(acc) -> tuple[float, float] | None:
+        try:
+            pos = getattr(getattr(acc, "AgentData", None), "Pos", None)
+            if pos is not None:
+                x = float(getattr(pos, "x", 0.0) or 0.0)
+                y = float(getattr(pos, "y", 0.0) or 0.0)
+                if x != 0.0 or y != 0.0:
+                    return x, y
+        except Exception:
+            pass
+        try:
+            return _safe_agent_xy(int(getattr(getattr(acc, "AgentData", None), "AgentID", 0) or 0))
+        except Exception:
+            return None
+
+    def _shared_actor_alive(acc) -> bool | None:
+        try:
+            agent_id = int(getattr(getattr(acc, "AgentData", None), "AgentID", 0) or 0)
+            if agent_id > 0 and Agent.IsValid(agent_id):
+                if Agent.IsAlive(agent_id):
+                    return True
+                if Agent.IsDead(agent_id):
+                    return False
+        except Exception:
+            pass
+
+        try:
+            agent_data = getattr(acc, "AgentData", None)
+            if agent_data is None:
+                return None
+            if bool(getattr(agent_data, "Is_Alive")):
+                return True
+            if bool(getattr(agent_data, "Is_Dead")) or bool(getattr(agent_data, "Is_DeadByTypeMap")):
+                return False
+            health = getattr(agent_data, "Health", None)
+            current = float(getattr(health, "Current", 0.0) or 0.0)
+            if current > 0.001:
+                return True
+            return False
+        except Exception:
+            return None
+
+    def _party_row_alive_state(row: dict, known_by_agent: dict[int, dict], dead_ids: set[int]) -> bool | None:
+        agent_id = int(row.get("agent_id", 0) or 0)
+        actor = known_by_agent.get(agent_id)
+        if actor is not None:
+            alive_value = actor.get("alive")
+            if alive_value is not None:
+                return bool(alive_value)
+        if agent_id in dead_ids:
+            return False
+        try:
+            if agent_id > 0 and Agent.IsValid(agent_id):
+                if Agent.IsAlive(agent_id):
+                    return True
+                if Agent.IsDead(agent_id):
+                    return False
+        except Exception:
+            pass
+        return None
+
+    def _extract_skill_id(skill_entry) -> int:
+        try:
+            raw = getattr(skill_entry, "Id", None)
+            if raw is None:
+                raw = getattr(skill_entry, "id", 0)
+            if hasattr(raw, "id"):
+                raw = getattr(raw, "id", 0)
+            return int(raw or 0)
+        except Exception:
+            return 0
+
+    def _extract_skill_recharge(skill_entry) -> float | None:
+        for attr in ("Recharge", "get_recharge", "recharge"):
+            try:
+                if hasattr(skill_entry, attr):
+                    return float(getattr(skill_entry, attr) or 0.0)
+            except Exception:
+                continue
+        return None
+
+    def _extract_skill_adrenaline(skill_entry) -> float | None:
+        for attr in ("Adrenaline", "adrenaline_a"):
+            try:
+                if hasattr(skill_entry, attr):
+                    return float(getattr(skill_entry, attr) or 0.0)
+            except Exception:
+                continue
+        return None
+
+    def _skillbar_entries_from_sequence(skills) -> tuple[list[dict], bool]:
+        entries = []
+        known = False
+        try:
+            skill_list = list(skills or [])
+        except Exception:
+            skill_list = []
+        for slot, skill_entry in enumerate(skill_list[:8], start=1):
+            skill_id = _extract_skill_id(skill_entry)
+            if skill_id <= 0:
+                continue
+            known = True
+            entries.append({
+                "slot": int(slot),
+                "skill_id": int(skill_id),
+                "recharge": _extract_skill_recharge(skill_entry),
+                "adrenaline": _extract_skill_adrenaline(skill_entry),
+            })
+        return entries, bool(known)
+
+    def _shared_skillbar_entries(acc) -> tuple[list[dict], bool]:
+        try:
+            skillbar = getattr(getattr(acc, "AgentData", None), "Skillbar", None)
+            return _skillbar_entries_from_sequence(getattr(skillbar, "Skills", []))
+        except Exception:
+            return [], False
+
+    def _local_skillbar_entries() -> tuple[list[dict], bool]:
+        entries = []
+        known = False
+        try:
+            for slot in range(1, 9):
+                skill_entry = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
+                skill_id = _extract_skill_id(skill_entry)
+                if skill_id <= 0:
+                    continue
+                known = True
+                entries.append({
+                    "slot": int(slot),
+                    "skill_id": int(skill_id),
+                    "recharge": _extract_skill_recharge(skill_entry),
+                    "adrenaline": _extract_skill_adrenaline(skill_entry),
+                })
+        except Exception:
+            return [], False
+        return entries, bool(known)
+
+    def _actor_energy_points_from_shared(acc) -> float | None:
+        try:
+            energy = getattr(getattr(acc, "AgentData", None), "Energy", None)
+            current = float(getattr(energy, "Current", 0.0) or 0.0)
+            maximum = float(getattr(energy, "Max", 0.0) or 0.0)
+            if maximum <= 0.0:
+                return None
+            if 0.0 <= current <= 1.5:
+                return float(current * maximum)
+            return float(current)
+        except Exception:
+            return None
+
+    def _actor_health_points_from_shared(acc) -> float | None:
+        try:
+            health = getattr(getattr(acc, "AgentData", None), "Health", None)
+            current = float(getattr(health, "Current", 0.0) or 0.0)
+            maximum = float(getattr(health, "Max", 0.0) or 0.0)
+            if maximum <= 0.0:
+                return None
+            if 0.0 <= current <= 1.5:
+                return float(current * maximum)
+            return float(current)
+        except Exception:
+            return None
+
+    def _local_energy_points() -> float | None:
+        try:
+            agent_id = int(Player.GetAgentID() or 0)
+            maximum = float(Agent.GetMaxEnergy(agent_id) or 0.0)
+            current = float(Agent.GetEnergy(agent_id) or 0.0)
+            if maximum <= 0.0:
+                return None
+            return float(current * maximum if 0.0 <= current <= 1.5 else current)
+        except Exception:
+            return None
+
+    def _local_health_points() -> float | None:
+        try:
+            agent_id = int(Player.GetAgentID() or 0)
+            maximum = float(Agent.GetMaxHealth(agent_id) or 0.0)
+            current = float(Agent.GetHealth(agent_id) or 0.0)
+            if maximum <= 0.0:
+                return None
+            return float(current * maximum if 0.0 <= current <= 1.5 else current)
+        except Exception:
+            return None
+
+    def _make_res_actor_from_account(acc) -> dict | None:
+        try:
+            agent_id = int(getattr(getattr(acc, "AgentData", None), "AgentID", 0) or 0)
+            if agent_id <= 0:
+                return None
+            entries, skills_known = _shared_skillbar_entries(acc)
+            if bool(getattr(acc, "IsAccount", False)) and agent_id == int(Player.GetAgentID() or 0):
+                local_entries, local_known = _local_skillbar_entries()
+                if local_known:
+                    entries, skills_known = local_entries, True
+            name = _compact_character_name(str(getattr(getattr(acc, "AgentData", None), "CharacterName", "") or ""))
+            if not name and bool(getattr(acc, "IsAccount", False)):
+                name = _compact_character_name(_acc_name(acc))
+            return {
+                "agent_id": int(agent_id),
+                "name": name or f"Agent {agent_id}",
+                "is_account": bool(getattr(acc, "IsAccount", False)),
+                "is_hero": bool(getattr(acc, "IsHero", False)),
+                "alive": _shared_actor_alive(acc),
+                "skills": list(entries),
+                "skills_known": bool(skills_known),
+                "xy": _shared_actor_xy(acc),
+                "energy": _actor_energy_points_from_shared(acc),
+                "health": _actor_health_points_from_shared(acc),
+                "casting_skill_id": int(getattr(getattr(getattr(acc, "AgentData", None), "Skillbar", None), "CastingSkillID", 0) or 0),
+            }
+        except Exception:
+            return None
+
+    def _make_local_res_actor() -> dict | None:
+        try:
+            agent_id = int(Player.GetAgentID() or 0)
+            if agent_id <= 0:
+                return None
+            entries, skills_known = _local_skillbar_entries()
+            casting_skill_id = 0
+            try:
+                casting_skill_id = int(GLOBAL_CACHE.SkillBar.GetCasting() or Agent.GetCastingSkillID(agent_id) or 0)
+            except Exception:
+                casting_skill_id = 0
+            return {
+                "agent_id": int(agent_id),
+                "name": _compact_character_name(str(Player.GetName() or "")) or "Local player",
+                "is_account": True,
+                "is_hero": False,
+                "alive": bool(Agent.IsAlive(agent_id)),
+                "skills": list(entries),
+                "skills_known": bool(skills_known),
+                "xy": _safe_agent_xy(agent_id) or _player_xy(),
+                "energy": _local_energy_points(),
+                "health": _local_health_points(),
+                "casting_skill_id": int(casting_skill_id),
+            }
+        except Exception:
+            return None
+
+    def _known_party_res_actors() -> dict[int, dict]:
+        actors: dict[int, dict] = {}
+        local_party_id = _current_party_id()
+        local_map_sig = _current_map_signature()
+        try:
+            active_slots = GLOBAL_CACHE.ShMem.GetAllActiveSlotsData() or []
+        except Exception:
+            active_slots = []
+
+        for acc in active_slots:
+            try:
+                if not acc or not bool(getattr(acc, "IsSlotActive", False)):
+                    continue
+                if bool(getattr(acc, "IsPet", False)) or bool(getattr(acc, "IsNPC", False)):
+                    continue
+                if not (bool(getattr(acc, "IsAccount", False)) or bool(getattr(acc, "IsHero", False))):
+                    continue
+                if local_party_id > 0 and int(getattr(getattr(acc, "AgentPartyData", None), "PartyID", 0) or 0) != local_party_id:
+                    continue
+                if local_map_sig != (0, 0, 0, 0) and _shared_map_signature(acc) != local_map_sig:
+                    continue
+                actor = _make_res_actor_from_account(acc)
+                if actor is None:
+                    continue
+                actors[int(actor["agent_id"])] = actor
+            except Exception:
+                continue
+
+        local_actor = _make_local_res_actor()
+        if local_actor is not None:
+            actors[int(local_actor["agent_id"])] = local_actor
+        return actors
+
+    def _resurrection_skill_ids() -> set[int]:
+        global _resurrection_skill_ids_cache
+        if _resurrection_skill_ids_cache is not None:
+            return set(_resurrection_skill_ids_cache)
+
+        resolved = set()
+        for skill_name in RESURRECTION_SKILL_NAMES:
+            for candidate in _skill_candidates(str(skill_name or "")):
+                try:
+                    skill_id = int(GLOBAL_CACHE.Skill.GetID(candidate) or 0)
+                except Exception:
+                    skill_id = 0
+                if skill_id > 0:
+                    resolved.add(int(skill_id))
+        _resurrection_skill_ids_cache = set(resolved)
+        return set(resolved)
+
+    def _skill_looks_like_party_resurrection(skill_id: int) -> bool:
+        global _resurrection_skill_match_cache
+        sid = int(skill_id or 0)
+        if sid <= 0:
+            return False
+        cached = _resurrection_skill_match_cache.get(sid)
+        if cached is not None:
+            return bool(cached)
+        if sid in _resurrection_skill_ids():
+            _resurrection_skill_match_cache[sid] = True
+            return True
+
+        text_parts = []
+        for fn_name in ("GetNameFromWiki", "GetName", "GetConciseDescription", "GetDescription"):
+            try:
+                fn = getattr(GLOBAL_CACHE.Skill, fn_name, None)
+                if callable(fn):
+                    value = str(fn(sid) or "")
+                    if value:
+                        text_parts.append(value)
+            except Exception:
+                continue
+        text = " ".join(text_parts).lower()
+        match = (
+            "resurrect" in text
+            and (
+                "party member" in text
+                or "party members" in text
+                or "dead ally" in text
+                or "dead party" in text
+            )
+        )
+        _resurrection_skill_match_cache[sid] = bool(match)
+        return bool(match)
+
+    def _actor_resurrection_skills(actor: dict) -> list[dict]:
+        out = []
+        for entry in list(actor.get("skills") or []):
+            skill_id = int(entry.get("skill_id", 0) or 0)
+            if skill_id <= 0:
+                continue
+            if _skill_looks_like_party_resurrection(skill_id):
+                out.append(entry)
+        return out
+
+    def _actor_can_pay_skill_cost(actor: dict, skill_entry: dict) -> bool | None:
+        skill_id = int(skill_entry.get("skill_id", 0) or 0)
+        if skill_id <= 0:
+            return False
+
+        try:
+            energy_cost = int(GLOBAL_CACHE.Skill.Data.GetEnergyCost(skill_id) or 0)
+        except Exception:
+            energy_cost = 0
+        if energy_cost > 0:
+            energy = actor.get("energy")
+            if energy is None:
+                return None
+            try:
+                if float(energy) < float(energy_cost):
+                    return False
+            except Exception:
+                return None
+
+        try:
+            health_cost = int(GLOBAL_CACHE.Skill.Data.GetHealthCost(skill_id) or 0)
+        except Exception:
+            health_cost = 0
+        if health_cost > 0:
+            health = actor.get("health")
+            if health is None:
+                return None
+            try:
+                if float(health) <= float(health_cost):
+                    return False
+            except Exception:
+                return None
+
+        try:
+            adrenaline_cost = int(GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id) or 0)
+        except Exception:
+            adrenaline_cost = 0
+        if adrenaline_cost > 0:
+            current_adrenaline = skill_entry.get("adrenaline")
+            if current_adrenaline is None:
+                return None
+            try:
+                if float(current_adrenaline) < float(adrenaline_cost):
+                    return False
+            except Exception:
+                return None
+
+        return True
+
+    def _res_skill_readiness(actor: dict, skill_entry: dict) -> str:
+        recharge = skill_entry.get("recharge")
+        if recharge is None:
+            return "unknown"
+        try:
+            if float(recharge) > 0.0:
+                return "not_ready"
+        except Exception:
+            return "unknown"
+        cost_ready = _actor_can_pay_skill_cost(actor, skill_entry)
+        if cost_ready is None:
+            return "unknown"
+        return "ready" if bool(cost_ready) else "not_ready"
+
+    def _visible_frozen_soil_spirits() -> list[dict]:
+        spirits = []
+        try:
+            spirit_ids = AgentArray.GetSpiritPetArray() or []
+        except Exception:
+            spirit_ids = []
+        frozen_soil_model_id = int(SpiritModelID.FROZEN_SOIL.value)
+        for spirit_id in spirit_ids:
+            try:
+                sid = int(spirit_id or 0)
+                if sid <= 0:
+                    continue
+                if not Agent.IsSpirit(sid):
+                    continue
+                if not Agent.IsAlive(sid) or not Agent.IsSpawned(sid):
+                    continue
+                if int(Agent.GetPlayerNumber(sid) or 0) != frozen_soil_model_id:
+                    continue
+                xy = _safe_agent_xy(sid)
+                if xy is None:
+                    continue
+                spirits.append({"agent_id": int(sid), "xy": xy})
+            except Exception:
+                continue
+        return spirits
+
+    def _actor_blocked_by_frozen_soil(actor: dict, frozen_soil_spirits: list[dict]) -> bool:
+        if not frozen_soil_spirits:
+            return False
+        actor_xy = actor.get("xy")
+        if actor_xy is None:
+            return False
+        for spirit in frozen_soil_spirits:
+            spirit_xy = spirit.get("xy")
+            if spirit_xy is None:
+                continue
+            if _within_distance_xy(actor_xy, spirit_xy, float(Range.Spirit.value)):
+                return True
+        return False
+
+    def _scroll_unknown_alive_reasons(known_by_agent: dict[int, dict], dead_ids: set[int]) -> list[str]:
+        reasons = []
+        party_rows, _party_counts = _get_party_member_rows()
+        if not party_rows:
+            return ["party roster unavailable"]
+
+        for row in party_rows:
+            member_type = str(row.get("member_type", "") or "")
+            label = str(row.get("name", "") or member_type or "party member")
+            agent_id = int(row.get("agent_id", 0) or 0)
+            if bool(row.get("is_human", False)) and agent_id not in known_by_agent:
+                reasons.append(f"{label}: Pycons account unavailable")
+                continue
+            alive_state = _party_row_alive_state(row, known_by_agent, dead_ids)
+            if alive_state is False:
+                continue
+            if alive_state is None:
+                reasons.append(f"{label}: alive state unknown")
+                continue
+            if member_type == "henchman":
+                reasons.append(f"{label}: henchman skillbar unavailable")
+                continue
+            actor = known_by_agent.get(agent_id)
+            if actor is None:
+                reasons.append(f"{label}: Pycons skillbar unavailable")
+                continue
+            if not bool(actor.get("skills_known", False)):
+                reasons.append(f"{label}: skillbar unavailable")
+
+        return reasons
+
+    def _resurrection_scroll_mode() -> int:
+        if cfg is None:
+            return int(DEFAULT_RESURRECTION_SCROLL_MODE)
+        try:
+            raw = int(getattr(cfg, "resurrection_scroll_mode", DEFAULT_RESURRECTION_SCROLL_MODE))
+        except Exception:
+            raw = int(DEFAULT_RESURRECTION_SCROLL_MODE)
+        return int(max(RESURRECTION_SCROLL_MODE_CAREFUL, min(RESURRECTION_SCROLL_MODE_FAST, raw)))
+
+    def _resurrection_scroll_mode_label(mode: int | None = None) -> str:
+        try:
+            idx = _resurrection_scroll_mode() if mode is None else int(mode)
+        except Exception:
+            idx = int(DEFAULT_RESURRECTION_SCROLL_MODE)
+        idx = max(RESURRECTION_SCROLL_MODE_CAREFUL, min(RESURRECTION_SCROLL_MODE_FAST, int(idx)))
+        try:
+            return str(RESURRECTION_SCROLL_MODE_OPTIONS[int(idx)])
+        except Exception:
+            return "Careful"
+
+    def _resurrection_scroll_mode_help(mode: int | None = None) -> str:
+        idx = _resurrection_scroll_mode() if mode is None else int(mode)
+        if int(idx) == int(RESURRECTION_SCROLL_MODE_FAST):
+            return "Fast: uses a scroll after the wait when someone nearby is dead."
+        if int(idx) == int(RESURRECTION_SCROLL_MODE_KNOWN_RES_CHECK):
+            return "Known Res Check: waits if a known alive party member has a resurrection skill."
+        return "Careful: waits unless Pycons can safely tell normal resurrection is not available."
+
+    def _frozen_soil_near_scroll_context(dead_ids: list[int], frozen_soil_spirits: list[dict]) -> bool:
+        if not frozen_soil_spirits:
+            return False
+        check_positions = []
+        local_xy = _player_xy()
+        if local_xy is not None:
+            check_positions.append(local_xy)
+        for dead_id in dead_ids:
+            dead_xy = _safe_agent_xy(int(dead_id))
+            if dead_xy is not None:
+                check_positions.append(dead_xy)
+        if not check_positions:
+            return False
+        for spirit in frozen_soil_spirits:
+            spirit_xy = spirit.get("xy")
+            if spirit_xy is None:
+                continue
+            for xy in check_positions:
+                if _within_distance_xy(xy, spirit_xy, float(Range.Spirit.value)):
+                    return True
+        return False
+
+    def _normal_resurrection_context(
+        known_by_agent: dict[int, dict],
+        frozen_soil_spirits: list[dict],
+        mode: int | None = None,
+    ) -> dict:
+        mode_value = _resurrection_scroll_mode() if mode is None else int(mode)
+        normal_available = False
+        frozen_soil_blocked_ready = False
+        known_res_actors = 0
+        not_ready_actors = 0
+        reasons = []
+
+        if int(mode_value) == int(RESURRECTION_SCROLL_MODE_FAST):
+            return {
+                "normal_available": False,
+                "frozen_soil_blocks_normal": False,
+                "known_res_actors": 0,
+                "not_ready_actors": 0,
+                "reasons": ["fast mode"],
+            }
+
+        for actor in known_by_agent.values():
+            if actor.get("alive") is not True:
+                continue
+            res_skills = _actor_resurrection_skills(actor)
+            if not res_skills:
+                continue
+            known_res_actors += 1
+
+            casting_skill_id = int(actor.get("casting_skill_id", 0) or 0)
+            if casting_skill_id > 0 and _skill_looks_like_party_resurrection(casting_skill_id):
+                normal_available = True
+                reasons.append(f"{actor.get('name', 'party member')}: already casting resurrection")
+                continue
+
+            if int(mode_value) == int(RESURRECTION_SCROLL_MODE_KNOWN_RES_CHECK):
+                if _actor_blocked_by_frozen_soil(actor, frozen_soil_spirits):
+                    frozen_soil_blocked_ready = True
+                    reasons.append(f"{actor.get('name', 'party member')}: resurrection blocked by visible Frozen Soil")
+                    continue
+                normal_available = True
+                reasons.append(f"{actor.get('name', 'party member')}: known resurrection skill")
+                continue
+
+            skill_states = [_res_skill_readiness(actor, skill_entry) for skill_entry in res_skills]
+            if _actor_blocked_by_frozen_soil(actor, frozen_soil_spirits):
+                if any(state in ("ready", "unknown") for state in skill_states):
+                    frozen_soil_blocked_ready = True
+                    reasons.append(f"{actor.get('name', 'party member')}: resurrection blocked by visible Frozen Soil")
+                else:
+                    not_ready_actors += 1
+                    reasons.append(f"{actor.get('name', 'party member')}: resurrection skill not ready")
+                continue
+
+            if any(state in ("ready", "unknown") for state in skill_states):
+                normal_available = True
+                reasons.append(f"{actor.get('name', 'party member')}: normal resurrection available or unknown")
+                continue
+
+            not_ready_actors += 1
+            reasons.append(f"{actor.get('name', 'party member')}: resurrection skill not ready")
+
+        return {
+            "normal_available": bool(normal_available),
+            "frozen_soil_blocks_normal": bool(frozen_soil_blocked_ready and not normal_available),
+            "known_res_actors": int(known_res_actors),
+            "not_ready_actors": int(not_ready_actors),
+            "reasons": list(reasons),
+        }
+
+    def _resurrection_scroll_wait_sec(frozen_soil_blocks_normal: bool) -> int:
+        normal_wait = int(
+            max(
+                MIN_RESURRECTION_SCROLL_WAIT_SEC,
+                min(
+                    MAX_RESURRECTION_SCROLL_WAIT_SEC,
+                    int(getattr(cfg, "resurrection_scroll_wait_sec", DEFAULT_RESURRECTION_SCROLL_WAIT_SEC)),
+                ),
+            )
+        )
+        if not bool(frozen_soil_blocks_normal):
+            return int(normal_wait)
+        if not bool(getattr(cfg, "resurrection_scroll_short_frozen_soil_wait", True)):
+            return int(normal_wait)
+        frozen_wait = int(
+            max(
+                MIN_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                min(
+                    MAX_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                    int(
+                        getattr(
+                            cfg,
+                            "resurrection_scroll_frozen_soil_wait_sec",
+                            DEFAULT_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                        )
+                    ),
+                ),
+            )
+        )
+        return int(min(normal_wait, frozen_wait))
+
+    def _res_scroll_set_status(status: str):
+        global _res_scroll_status
+        _res_scroll_status = str(status or "").strip() or "Idle"
+
+    def _res_scroll_reset(status: str = "Idle"):
+        global _res_scroll_dead_signature, _res_scroll_dead_since_ms
+        _res_scroll_dead_signature = ""
+        _res_scroll_dead_since_ms = 0
+        _res_scroll_set_status(status)
+
+    def _res_scroll_note_blocked(code: str, status: str):
+        _res_scroll_set_status(status)
+        wt = _warn_timer_for(f"res_scroll_{code}")
+        if wt.IsStopped() or wt.HasElapsed(8000):
+            wt.Start()
+            _record_blocked_action(f"res_scroll_{code}", f"Scroll of Resurrection: {status}")
+            _debug(f"Scroll of Resurrection skipped: {status}.", Console.MessageType.Debug)
+
+    def _res_scroll_dead_ids_in_earshot() -> list[int]:
+        try:
+            dead_ids = Routines.Agents.GetDeadAllyArray(float(Range.Earshot.value)) or []
+        except Exception:
+            return []
+        out = []
+        seen = set()
+        for agent_id in dead_ids:
+            try:
+                aid = int(agent_id or 0)
+            except Exception:
+                continue
+            if aid <= 0 or aid in seen:
+                continue
+            seen.add(aid)
+            out.append(aid)
+        return out
+
+    def _res_scroll_dead_signature_for(dead_ids: list[int]) -> str:
+        return ",".join(str(agent_id) for agent_id in sorted(int(x) for x in dead_ids if int(x or 0) > 0))
+
+    def _res_scroll_existing_res_lock(dead_ids: list[int]) -> bool:
+        try:
+            from Py4GWCoreLib.GlobalCache.WhiteboardLocks import is_resurrection_lock_blocked
+        except Exception:
+            return False
+        for dead_id in dead_ids:
+            try:
+                if is_resurrection_lock_blocked(int(dead_id)):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    def _res_scroll_local_action_ready() -> bool:
+        try:
+            agent_id = int(Player.GetAgentID() or 0)
+            if agent_id <= 0:
+                return False
+            if Agent.IsKnockedDown(agent_id):
+                return False
+            if Agent.IsCasting(agent_id):
+                return False
+            if int(GLOBAL_CACHE.SkillBar.GetCasting() or 0) != 0:
+                return False
+        except Exception:
+            return False
+        return True
+
+    def _res_scroll_coordinator_allowed() -> tuple[bool, str]:
+        same_party_accounts = _get_same_party_accounts()
+        if len(same_party_accounts) <= 1:
+            return True, ""
+        if not bool(getattr(cfg, "team_broadcast", False)):
+            return False, "multiple Pycons accounts present; waiting for a broadcast coordinator"
+        if not _coordinator_gate(same_party_accounts):
+            return False, "not the current Pycons coordinator"
+        return True, ""
+
+    def _tick_resurrection_scroll() -> bool:
+        global _res_scroll_dead_signature, _res_scroll_dead_since_ms, _res_scroll_last_attempt_ms
+
+        if cfg is None or not bool(getattr(cfg, "resurrection_scroll_enabled", False)):
+            _res_scroll_reset("Disabled")
+            return False
+        if not Routines.Checks.Map.MapValid():
+            _res_scroll_reset("Map invalid")
+            return False
+        if _should_block_consumption():
+            _res_scroll_reset("Blocked by core consumption safety")
+            return False
+        if not bool(_in_explorable()):
+            _res_scroll_reset("PvE explorable only")
+            return False
+        if _map_is_pvp():
+            _res_scroll_reset("PvP map")
+            return False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            _res_scroll_set_status("Waiting for aftercast")
+            return False
+        if not _res_scroll_local_action_ready():
+            _res_scroll_set_status("Waiting for local player action state")
+            return False
+        if not _movement_gate_allows("explorable"):
+            _record_movement_block("explorable", "Scroll of Resurrection")
+            _res_scroll_set_status("Waiting for movement")
+            return False
+
+        dead_ids = _res_scroll_dead_ids_in_earshot()
+        if not dead_ids:
+            _res_scroll_reset("Idle")
+            return False
+
+        coordinator_ok, coordinator_reason = _res_scroll_coordinator_allowed()
+        if not coordinator_ok:
+            _res_scroll_note_blocked("coordinator", coordinator_reason)
+            return False
+
+        now = int(_now_ms())
+        dead_signature = _res_scroll_dead_signature_for(dead_ids)
+        if dead_signature != _res_scroll_dead_signature:
+            _res_scroll_dead_signature = str(dead_signature)
+            _res_scroll_dead_since_ms = int(now)
+
+        item_id = _find_item_id_by_model_id(int(RESURRECTION_SCROLL_MODEL_ID))
+        if item_id <= 0:
+            _res_scroll_note_blocked("missing_item", "no Scroll of Resurrection in inventory")
+            return False
+
+        mode_value = _resurrection_scroll_mode()
+        known_by_agent = _known_party_res_actors()
+        if int(mode_value) == int(RESURRECTION_SCROLL_MODE_CAREFUL):
+            unknown_reasons = _scroll_unknown_alive_reasons(known_by_agent, set(dead_ids))
+            if unknown_reasons:
+                _res_scroll_note_blocked("unknown_party", unknown_reasons[0])
+                return False
+
+        if _res_scroll_existing_res_lock(dead_ids):
+            _res_scroll_set_status("Waiting for an existing resurrection attempt")
+            return False
+
+        frozen_soil_spirits = _visible_frozen_soil_spirits()
+        normal_ctx = _normal_resurrection_context(known_by_agent, frozen_soil_spirits, mode_value)
+        if bool(normal_ctx.get("normal_available", False)):
+            reason = (normal_ctx.get("reasons") or ["normal resurrection available"])[0]
+            _res_scroll_set_status(str(reason))
+            return False
+
+        frozen_soil_short_wait = bool(normal_ctx.get("frozen_soil_blocks_normal", False))
+        if int(mode_value) == int(RESURRECTION_SCROLL_MODE_FAST):
+            frozen_soil_short_wait = bool(_frozen_soil_near_scroll_context(dead_ids, frozen_soil_spirits))
+        wait_sec = _resurrection_scroll_wait_sec(bool(frozen_soil_short_wait))
+        elapsed_ms = max(0, int(now - int(_res_scroll_dead_since_ms or now)))
+        wait_ms = int(wait_sec) * 1000
+        if elapsed_ms < wait_ms:
+            if bool(frozen_soil_short_wait):
+                _res_scroll_set_status(f"Frozen Soil fallback wait: {int((wait_ms - elapsed_ms + 999) / 1000)}s")
+            else:
+                _res_scroll_set_status(
+                    f"{_resurrection_scroll_mode_label(mode_value)} wait: {int((wait_ms - elapsed_ms + 999) / 1000)}s"
+                )
+            return False
+
+        if _res_scroll_last_attempt_ms > 0 and (now - int(_res_scroll_last_attempt_ms)) < int(
+            RESURRECTION_SCROLL_POST_USE_COOLDOWN_MS
+        ):
+            _res_scroll_set_status("Post-use cooldown")
+            return False
+
+        _debug(
+            "Using Scroll of Resurrection: "
+            f"dead_nearby={len(dead_ids)} known_res_actors={int(normal_ctx.get('known_res_actors', 0) or 0)} "
+            f"mode={_resurrection_scroll_mode_label(mode_value)} frozen_soil={len(frozen_soil_spirits)} "
+            f"coordinator_only={len(_get_same_party_accounts()) > 1}",
+            Console.MessageType.Info,
+        )
+        if _use_item_id(int(item_id), RESURRECTION_SCROLL_KEY):
+            t = _timer_for(RESURRECTION_SCROLL_KEY)
+            t.Start()
+            aftercast_timer.Start()
+            _last_used_ms[RESURRECTION_SCROLL_KEY] = int(now)
+            _res_scroll_last_attempt_ms = int(now)
+            _res_scroll_reset("Used Scroll of Resurrection")
+            _refresh_inventory_cache(force=True)
+            return True
+        return False
+
     def _find_item_enabled_and_available(key: str):
         spec = MB_DP_BY_KEY.get(key)
         if not spec:
@@ -11157,6 +12243,93 @@ try:
 
                     cfg.mark_dirty()
 
+        resurrection_section_open = _styled_collapsing_header(
+            "Scroll of Resurrection settings##pycons_settings_resurrection_scroll_dropdown",
+            bool(getattr(cfg, "settings_ui_resurrection_scroll_open", False)),
+            "settings_resurrection_scroll",
+        )
+        if bool(getattr(cfg, "settings_ui_resurrection_scroll_open", False)) != bool(resurrection_section_open):
+            cfg.settings_ui_resurrection_scroll_open = bool(resurrection_section_open)
+            cfg.mark_dirty()
+        if resurrection_section_open:
+            changed, v = ui_checkbox(
+                "Auto-use Scroll of Resurrection##pycons_resurrection_scroll_enabled",
+                bool(getattr(cfg, "resurrection_scroll_enabled", False)),
+            )
+            if changed:
+                cfg.resurrection_scroll_enabled = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("resurrection_scroll_enabled")
+
+            _control_label("Scroll use mode:")
+            _same_line(10)
+            changed, mode_idx = ui_combo_fixed(
+                "##pycons_resurrection_scroll_mode",
+                _resurrection_scroll_mode(),
+                RESURRECTION_SCROLL_MODE_OPTIONS,
+                width=190.0,
+            )
+            if changed:
+                cfg.resurrection_scroll_mode = int(
+                    max(RESURRECTION_SCROLL_MODE_CAREFUL, min(RESURRECTION_SCROLL_MODE_FAST, int(mode_idx)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("resurrection_scroll_mode")
+            _text_meta_wrapped(
+                _resurrection_scroll_mode_help(
+                    int(getattr(cfg, "resurrection_scroll_mode", DEFAULT_RESURRECTION_SCROLL_MODE))
+                )
+            )
+
+            _control_label("Wait before using scroll (s):")
+            _same_line(10)
+            changed, wait_value = ui_input_int_fixed(
+                "##pycons_resurrection_scroll_wait_sec",
+                int(getattr(cfg, "resurrection_scroll_wait_sec", DEFAULT_RESURRECTION_SCROLL_WAIT_SEC)),
+                width=90.0,
+            )
+            if changed:
+                cfg.resurrection_scroll_wait_sec = int(
+                    max(MIN_RESURRECTION_SCROLL_WAIT_SEC, min(MAX_RESURRECTION_SCROLL_WAIT_SEC, int(wait_value)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("resurrection_scroll_wait_sec")
+
+            changed, v = ui_checkbox(
+                "Shorten wait under Frozen Soil##pycons_resurrection_scroll_short_frozen_soil_wait",
+                bool(getattr(cfg, "resurrection_scroll_short_frozen_soil_wait", True)),
+            )
+            if changed:
+                cfg.resurrection_scroll_short_frozen_soil_wait = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("resurrection_scroll_short_frozen_soil_wait")
+
+            _control_label("Frozen Soil wait (s):")
+            _same_line(10)
+            changed, frozen_wait_value = ui_input_int_fixed(
+                "##pycons_resurrection_scroll_frozen_soil_wait_sec",
+                int(
+                    getattr(
+                        cfg,
+                        "resurrection_scroll_frozen_soil_wait_sec",
+                        DEFAULT_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                    )
+                ),
+                width=90.0,
+            )
+            if changed:
+                cfg.resurrection_scroll_frozen_soil_wait_sec = int(
+                    max(
+                        MIN_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC,
+                        min(MAX_RESURRECTION_SCROLL_FROZEN_SOIL_WAIT_SEC, int(frozen_wait_value)),
+                    )
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("resurrection_scroll_frozen_soil_wait_sec")
+
+            _text_meta(f"Status: {str(_res_scroll_status or 'Idle')}")
+            PyImGui.separator()
+
         mbdp_section_open = _styled_collapsing_header(
             "Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown",
             bool(cfg.settings_ui_mbdp_open),
@@ -11966,6 +13139,8 @@ try:
         if tick_timer.HasElapsed(int(max(MIN_INTERVAL_MS, cfg.interval_ms))):
             tick_timer.Start()
             used = _tick_morale_dp()
+            if not used:
+                used = _tick_resurrection_scroll()
             if not used:
                 used = _tick_consume()
             if not used and not bool(getattr(cfg, "alcohol_fast_spending", False)):
