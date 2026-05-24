@@ -3833,7 +3833,7 @@ def Shadow_Form():
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12054, 10092)
-    bot.Move.XY(11646.67, 5173.43)
+    bot.Move.XY(11784, 6581)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -6415,15 +6415,14 @@ def RayofJudgment():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(16596, 20549, 240)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5836, -8676)
     bot.Move.XY(1451.48, -11371.12)
     bot.Move.XY(3837.11, -11483.70)
     bot.Move.XY(6579.26, -15095.15)
     bot.Move.XYAndExitMap(4201, -17019, 241)
-    bot.Move.XY(-3172.72, 9102.06)
-    bot.Move.XY(9288.86, 11533.50)
+    bot.Items.UseAllConsumables() #uncomment for harder areas
+    bot.Move.XY(8936, 11691)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8065,7 +8064,7 @@ def Siphon_Strength():
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-19877.70, 3994.01)
-    bot.Move.XY(-18904.16, 3510.10)
+    bot.Move.XY(-19831, 2587)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
