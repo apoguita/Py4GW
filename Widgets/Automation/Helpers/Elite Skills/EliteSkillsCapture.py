@@ -2786,7 +2786,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Grasping Was Kuurong",
         capture_function="GraspingWasKuurong",
-        start_map=427,
+        start_map=391,
         icon_filename="[789] - Grasping Was Kuurong.jpg"
     ),
     EliteSkill(
