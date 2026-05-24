@@ -462,6 +462,38 @@ try:
         except Exception:
             _same_line(spacing)
 
+    def _same_line_centered_on_previous_item(spacing=8.0, y_offset=1.0):
+        try:
+            item_min = PyImGui.get_item_rect_min()
+            item_max = PyImGui.get_item_rect_max()
+            item_y = float(item_min[1])
+            item_h = max(0.0, float(item_max[1]) - item_y)
+            line_h = float(PyImGui.get_text_line_height() or 0.0)
+        except Exception:
+            _same_line(spacing)
+            return None
+
+        _same_line(spacing)
+        try:
+            if item_h > 0.0 and line_h > 0.0:
+                cursor_x, _cursor_y = PyImGui.get_cursor_screen_pos()
+                text_y = item_y + max((item_h - line_h) * 0.5, 0.0) + float(y_offset)
+                PyImGui.set_cursor_screen_pos(float(cursor_x), float(text_y))
+                return float(text_y)
+        except Exception:
+            pass
+        return None
+
+    def _same_line_at_screen_y(spacing=8.0, screen_y=None):
+        _same_line(spacing)
+        if screen_y is None:
+            return
+        try:
+            cursor_x, _cursor_y = PyImGui.get_cursor_screen_pos()
+            PyImGui.set_cursor_screen_pos(float(cursor_x), float(screen_y))
+        except Exception:
+            pass
+
     def _collapsing_header_force(label: str, force_open, default_open: bool):
         # force_open: True/False/None
         if force_open is not None:
@@ -10348,10 +10380,172 @@ try:
         color_key = "meta" if bool(secondary) else "text"
         _text_with_color(str(text), palette[color_key])
 
+    def _rgba_tuple_to_draw_color(color: tuple[float, float, float, float]) -> int:
+        def _component(value: float) -> int:
+            return max(0, min(255, int(float(value) * 255)))
+
+        r = _component(color[0])
+        g = _component(color[1])
+        b = _component(color[2])
+        a = _component(color[3])
+        return (a << 24) | (b << 16) | (g << 8) | r
+
+    def _main_section_text_width(text: str) -> float:
+        try:
+            return float(PyImGui.calc_text_size(str(text))[0] or 0.0)
+        except Exception:
+            return float(len(str(text)) * 7)
+
+    def _set_main_section_enabled(
+        regular_specs: list | None = None,
+        alcohol_specs: list | None = None,
+        enabled: bool = False,
+    ):
+        for spec in list(regular_specs or []):
+            key = str(spec.get("key", "") or "")
+            if key:
+                _set_main_runtime_regular_enabled(key, bool(enabled))
+        for spec in list(alcohol_specs or []):
+            key = str(spec.get("key", "") or "")
+            if key:
+                _set_main_runtime_alcohol_enabled(key, bool(enabled))
+
+    def _main_section_header(
+        text: str,
+        section_key: str,
+        *,
+        id_suffix: str = "",
+        regular_specs: list | None = None,
+        alcohol_specs: list | None = None,
+    ):
+        palette = _section_palette(section_key)
+        try:
+            x, y = PyImGui.get_cursor_screen_pos()
+            avail_w = float(PyImGui.get_content_region_avail()[0] or 0.0)
+            line_h = float(PyImGui.get_text_line_height() or 18.0)
+            width = max(1.0, avail_w)
+            row_height = max(22.0, line_h + 6.0)
+            has_actions = bool(regular_specs or alcohol_specs) and not bool(getattr(_rt, "main_hide_mode", False))
+            title_width = _main_section_text_width(text)
+            select_text = "Select All"
+            disable_text = "Disable All"
+            action_width = _main_section_text_width(select_text) + _main_section_text_width(disable_text) + 40.0
+            if has_actions and title_width + action_width + 22.0 > width:
+                select_text = "All On"
+                disable_text = "All Off"
+                action_width = _main_section_text_width(select_text) + _main_section_text_width(disable_text) + 40.0
+            actions_below = bool(has_actions and title_width + action_width + 22.0 > width)
+            height = row_height * 2.0 if actions_below else row_height
+            fill = palette.get("header", SECTION_ACCENTS["general"]["header"])
+            text_color = palette.get("header_text", palette.get("text", SECTION_ACCENTS["general"]["text"]))
+            text_y = y + max((row_height - line_h) * 0.5, 0.0)
+
+            PyImGui.draw_list_add_rect_filled(
+                x,
+                y,
+                x + width,
+                y + height,
+                _rgba_tuple_to_draw_color(fill),
+                2.0,
+                0,
+            )
+
+            PyImGui.set_cursor_screen_pos(x + 8.0, text_y)
+            pushed_text_color = False
+            try:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text_color)
+                pushed_text_color = True
+                PyImGui.text(str(text))
+            finally:
+                if pushed_text_color:
+                    PyImGui.pop_style_color(1)
+
+            if has_actions:
+                if actions_below:
+                    PyImGui.set_cursor_screen_pos(x + 8.0, y + row_height + max((row_height - line_h) * 0.5, 0.0))
+                else:
+                    _same_line(10)
+                if PyImGui.small_button(f"{select_text}##pycons_main_{id_suffix}_section_select_all"):
+                    _set_main_section_enabled(regular_specs, alcohol_specs, True)
+                _tooltip_if_hovered(
+                    "Turn every selected item in this category ON. Saves as the default when main-window saving is on."
+                    if _main_runtime_persist_enabled()
+                    else "Turn every selected item in this category ON for this session."
+                )
+                _same_line(6)
+                if PyImGui.small_button(f"{disable_text}##pycons_main_{id_suffix}_section_disable_all"):
+                    _set_main_section_enabled(regular_specs, alcohol_specs, False)
+                _tooltip_if_hovered(
+                    "Turn every selected item in this category OFF. Saves as the default when main-window saving is on."
+                    if _main_runtime_persist_enabled()
+                    else "Turn every selected item in this category OFF for this session."
+                )
+
+            PyImGui.set_cursor_screen_pos(x, y + height)
+        except Exception:
+            _section_text(text, section_key)
+
     KEY_CONTROL_LABEL_COLOR = (0.68, 0.96, 0.66, 1.00)
 
     def _control_label(text: str):
         _text_with_color(str(text), KEY_CONTROL_LABEL_COLOR)
+
+    def _inline_text_for_next_item(
+        text: str,
+        *,
+        spacing: float = 10.0,
+        color: tuple[float, float, float, float] | None = None,
+        target_offset: float | None = None,
+        y_offset: float = 4.0,
+    ):
+        try:
+            x, y = PyImGui.get_cursor_screen_pos()
+            next_x = float(x) + (
+                float(target_offset)
+                if target_offset is not None
+                else _main_section_text_width(str(text)) + float(spacing)
+            )
+            PyImGui.set_cursor_screen_pos(float(x), float(y) + float(y_offset))
+            if color is None:
+                PyImGui.text(str(text))
+            else:
+                _text_with_color(str(text), color)
+            PyImGui.set_cursor_screen_pos(float(next_x), float(y))
+        except Exception:
+            if color is None:
+                PyImGui.text(str(text))
+            else:
+                _text_with_color(str(text), color)
+            _same_line(spacing)
+
+    def _control_label_for_next_item(
+        text: str,
+        *,
+        spacing: float = 10.0,
+        target_offset: float | None = None,
+        y_offset: float = 4.0,
+    ):
+        _inline_text_for_next_item(
+            str(text),
+            spacing=float(spacing),
+            color=KEY_CONTROL_LABEL_COLOR,
+            target_offset=target_offset,
+            y_offset=float(y_offset),
+        )
+
+    def _text_for_next_item(
+        text: str,
+        *,
+        spacing: float = 10.0,
+        target_offset: float | None = None,
+        y_offset: float = 4.0,
+    ):
+        _inline_text_for_next_item(
+            str(text),
+            spacing=float(spacing),
+            target_offset=target_offset,
+            y_offset=float(y_offset),
+        )
 
     def _draw_pycons_sync_section():
         active_accounts = _get_pycons_sync_accounts()
@@ -10541,11 +10735,11 @@ try:
 
         _text_secondary(str(getattr(_rt, "sync_summary_text", "") or "No other-accounts action run yet."))
 
-    def _draw_inline_stock_text(model_id: int, spacing: float = 10.0):
+    def _draw_inline_stock_text(model_id: int, spacing: float = 10.0, align_y=None):
         stock_text = _stock_text_for_model_id(int(model_id or 0))
         if not stock_text:
             return
-        _same_line(spacing)
+        _same_line_at_screen_y(spacing, align_y)
         _text_meta(stock_text)
 
     def _main_hide_token(kind: str, key: str) -> str:
@@ -10640,11 +10834,11 @@ try:
         enabled, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
             bool(enabled_now), key, label, f"{id_prefix}_main", icon_size=20.0
         )
-        _same_line(10)
+        row_text_y = _same_line_centered_on_previous_item(10)
         PyImGui.text(label)
         _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
-        _draw_inline_stock_text(model_id, spacing=10.0)
-        _same_line(12)
+        _draw_inline_stock_text(model_id, spacing=10.0, align_y=row_text_y)
+        _same_line_at_screen_y(12, row_text_y)
         if _badge_button("ON" if enabled else "OFF", enabled=bool(enabled), id_suffix=f"{id_prefix}_btn_{key}"):
             enabled = not enabled
         _tooltip_if_hovered(
@@ -10979,8 +11173,7 @@ try:
 
         PyImGui.separator()
 
-        _control_label("How often to check items (ms):")
-        _same_line(10)
+        _control_label_for_next_item("How often to check items (ms):")
         changed, val = ui_input_int("##pycons_interval", int(cfg.interval_ms))
         if changed:
             cfg.interval_ms = int(max(MIN_INTERVAL_MS, val))
@@ -10996,8 +11189,7 @@ try:
         # --- Alcohol, Party, and Sweets settings (collapsed dropdown for compactness) ---
         if _styled_collapsing_header("Alcohol/Party & Sweets Settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
             _section_text("Alcohol", "alcohol")
-            _control_label("Alcohol upkeep:")
-            _same_line(10)
+            _control_label_for_next_item("Alcohol upkeep:")
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_alcohol_toggle"):
                 cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
                 cfg.mark_dirty()
@@ -11019,8 +11211,7 @@ try:
                 cfg.alcohol_use_outpost = bool(v)
                 cfg.mark_dirty()
 
-            _control_label(f"Target: {int(cfg.alcohol_target_level)}/5")
-            _same_line(10)
+            _control_label_for_next_item(f"Target: {int(cfg.alcohol_target_level)}/5")
             if PyImGui.small_button("-##pycons_alc_tgt_minus"):
                 cfg.alcohol_target_level = int(max(0, int(cfg.alcohol_target_level) - 1))
                 cfg.mark_dirty()
@@ -11032,8 +11223,7 @@ try:
             lvl = _alcohol_current_level(_now_ms())
             _control_label(f"Now: {int(lvl)}/5")
 
-            _control_label("Preference:")
-            _same_line(10)
+            _control_label_for_next_item("Preference:")
             changed, pref_idx = ui_combo("##pycons_alc_pref_main", int(cfg.alcohol_preference), ALCOHOL_PREFERENCE_OPTIONS)
             if changed:
                 cfg.alcohol_preference = int(pref_idx)
@@ -11053,8 +11243,7 @@ try:
                 cfg.mark_dirty()
             _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_spending"))
             _same_line(10)
-            _control_label("Interval (ms):")
-            _same_line(6)
+            _control_label_for_next_item("Interval (ms):", spacing=6, y_offset=1.0)
             changed, fast_interval = ui_input_int_fixed(
                 "##pycons_alc_fast_interval_main",
                 int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS)),
@@ -11070,8 +11259,7 @@ try:
             PyImGui.separator()
 
             _section_text("Party Items", "party_items")
-            _control_label("Speed (ms):")
-            _same_line(10)
+            _control_label_for_next_item("Speed (ms):")
             changed, party_interval = ui_input_int_fixed(
                 "##pycons_party_item_interval_main",
                 int(getattr(cfg, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS)),
@@ -11096,8 +11284,7 @@ try:
                 cfg.mark_dirty()
             _tooltip_if_hovered(_tooltip_text_for("sweets_fast_spending"))
             _same_line(10)
-            _control_label("Interval (ms):")
-            _same_line(6)
+            _control_label_for_next_item("Interval (ms):", spacing=6, y_offset=1.0)
             changed, sweets_interval = ui_input_int_fixed(
                 "##pycons_sweets_fast_interval_main",
                 int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS)),
@@ -11279,7 +11466,12 @@ try:
                     flags=PyImGui.WindowFlags.NoFlag,
                 ):
                     if selected_explorable_conset or selected_explorable_other:
-                        _section_text("Explorable:", "explorable")
+                        _main_section_header(
+                            "Explorable:",
+                            "settings_select_explorable",
+                            id_suffix="explorable",
+                            regular_specs=list(selected_explorable_conset) + list(selected_explorable_other),
+                        )
                         if selected_explorable_conset:
                             _section_text("Conset:", "explorable", secondary=True)
                             for c in selected_explorable_conset:
@@ -11293,21 +11485,24 @@ try:
                         PyImGui.separator()
 
                     if selected_summoning:
-                        _section_text("Summoning Stones/Items:", "summoning")
+                        _main_section_header(
+                            "Summoning Stones/Items:",
+                            "settings_select_summoning",
+                            id_suffix="summoning",
+                            regular_specs=selected_summoning,
+                        )
                         for c in selected_summoning:
                             k = c["key"]
                             _draw_main_regular_row(k, c["label"], "pycons_summon", int(c.get("model_id", 0)))
                         PyImGui.separator()
 
-                    if selected_outpost:
-                        _section_text("In-town speed boosts:", "outpost")
-                        for c in selected_outpost:
-                            k = c["key"]
-                            _draw_main_regular_row(k, c["label"], "pycons", int(c.get("model_id", 0)))
-                        PyImGui.separator()
-
                     if selected_mbdp:
-                        _section_text("Morale Boost & Death Penalty:", "mbdp")
+                        _main_section_header(
+                            "Morale Boost & Death Penalty:",
+                            "settings_select_mbdp",
+                            id_suffix="mbdp",
+                            regular_specs=selected_mbdp,
+                        )
                         mbdp_by_key = {str(s.get("key", "")): s for s in MB_DP_ITEMS}
                         missing_party_keys = sorted([k for k in MBDP_PARTY_KEYS if k not in mbdp_by_key])
                         missing_self_keys = sorted([k for k in MBDP_SELF_KEYS if k not in mbdp_by_key])
@@ -11346,8 +11541,25 @@ try:
                                 _draw_main_regular_row(k, c["label"], "pycons_mbdp", int(c.get("model_id", 0)))
                         PyImGui.separator()
 
+                    if selected_outpost:
+                        _main_section_header(
+                            "In-town speed boosts:",
+                            "settings_select_outpost",
+                            id_suffix="outpost",
+                            regular_specs=selected_outpost,
+                        )
+                        for c in selected_outpost:
+                            k = c["key"]
+                            _draw_main_regular_row(k, c["label"], "pycons", int(c.get("model_id", 0)))
+                        PyImGui.separator()
+
                     if selected_alcohol:
-                        _section_text("Alcohol:", "alcohol")
+                        _main_section_header(
+                            "Alcohol:",
+                            "settings_select_alcohol",
+                            id_suffix="alcohol",
+                            alcohol_specs=selected_alcohol,
+                        )
                         for a in sorted(selected_alcohol, key=lambda x: x.get("label", "")):
                             k = a["key"]
                             _draw_main_alcohol_row(
@@ -11359,7 +11571,12 @@ try:
                         PyImGui.separator()
 
                     if selected_party_items:
-                        _section_text("Party Items:", "party_items")
+                        _main_section_header(
+                            "Party Items:",
+                            "settings_select_party_items",
+                            id_suffix="party_items",
+                            regular_specs=selected_party_items,
+                        )
                         for c in sorted(
                             selected_party_items,
                             key=lambda x: (
@@ -11436,10 +11653,10 @@ try:
         selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
             prev, k, label, "pycons_selected", icon_size=18.0, highlight_selected_box=True
         )
-        _same_line(10)
+        row_text_y = _same_line_centered_on_previous_item(10)
         PyImGui.text(label)
         _tooltip_if_hovered(_consumable_tooltip_with_label(k, label))
-        _draw_inline_stock_text(model_id, spacing=10.0)
+        _draw_inline_stock_text(model_id, spacing=10.0, align_y=row_text_y)
 
         _draw_min_interval_editor(k)
 
@@ -11459,10 +11676,10 @@ try:
         selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
             prev, k, label, "pycons_alcohol_selected", icon_size=18.0, highlight_selected_box=True
         )
-        _same_line(10)
+        row_text_y = _same_line_centered_on_previous_item(10)
         PyImGui.text(label)
         _tooltip_if_hovered(_consumable_tooltip_with_label(k, label))
-        _draw_inline_stock_text(model_id, spacing=10.0)
+        _draw_inline_stock_text(model_id, spacing=10.0, align_y=row_text_y)
 
         selected = bool(selected)
         if prev != selected:
@@ -11480,12 +11697,12 @@ try:
         selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
             prev, k, label, "pycons_party_selected", icon_size=18.0, highlight_selected_box=True
         )
-        _same_line(10)
+        row_text_y = _same_line_centered_on_previous_item(10)
         PyImGui.text(label)
-        _same_line(6)
+        _same_line_at_screen_y(6, row_text_y)
         _text_meta(f"({_party_points_text(int(spec.get('party_points', 0) or 0))})")
         _tooltip_if_hovered(_consumable_tooltip_with_label(k, label))
-        _draw_inline_stock_text(model_id, spacing=10.0)
+        _draw_inline_stock_text(model_id, spacing=10.0, align_y=row_text_y)
 
         _draw_min_interval_editor(k)
 
@@ -11524,7 +11741,7 @@ try:
         )
         if bool(restock_enabled) != bool(restock_enabled_now):
             _set_restock_item_enabled(key, bool(restock_enabled))
-        _same_line(10)
+        row_text_y = _same_line_centered_on_previous_item(10)
         PyImGui.text(label)
         _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
 
@@ -12144,8 +12361,7 @@ try:
                 _text_secondary("Main-window ON/OFF changes are temporary unless saving is enabled above.")
             PyImGui.dummy(0, 4)
             _section_text("Filter items:", "settings_select")
-            _control_label("Search:")
-            _same_line(10)
+            _control_label_for_next_item("Search:")
             changed, new_val = ui_input_text("##pycons_filter", filter_text[0], 64)
             if changed:
                 filter_text[0] = new_val
@@ -12442,8 +12658,7 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("resurrection_scroll_enabled")
 
-            _control_label("Scroll use mode:")
-            _same_line(10)
+            _control_label_for_next_item("Scroll use mode:")
             changed, mode_idx = ui_combo_fixed(
                 "##pycons_resurrection_scroll_mode",
                 _resurrection_scroll_mode(),
@@ -12462,8 +12677,7 @@ try:
                 )
             )
 
-            _control_label("Wait before using scroll (s):")
-            _same_line(10)
+            _control_label_for_next_item("Wait before using scroll (s):")
             changed, wait_value = ui_input_int_fixed(
                 "##pycons_resurrection_scroll_wait_sec",
                 int(getattr(cfg, "resurrection_scroll_wait_sec", DEFAULT_RESURRECTION_SCROLL_WAIT_SEC)),
@@ -12485,8 +12699,7 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("resurrection_scroll_short_frozen_soil_wait")
 
-            _control_label("Frozen Soil wait (s):")
-            _same_line(10)
+            _control_label_for_next_item("Frozen Soil wait (s):")
             changed, frozen_wait_value = ui_input_int_fixed(
                 "##pycons_resurrection_scroll_frozen_soil_wait_sec",
                 int(
@@ -12520,8 +12733,7 @@ try:
             cfg.settings_ui_mbdp_open = bool(mbdp_section_open)
             cfg.mark_dirty()
         if mbdp_section_open:
-            _control_label("Morale and DP upkeep:")
-            _same_line(10)
+            _control_label_for_next_item("Morale and DP upkeep:")
             if _badge_button("ON" if cfg.mbdp_enabled else "OFF", enabled=bool(cfg.mbdp_enabled), id_suffix="pycons_settings_mbdp_toggle"):
                 cfg.mbdp_enabled = not bool(cfg.mbdp_enabled)
                 cfg.mark_dirty()
@@ -12546,8 +12758,7 @@ try:
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_receiver_require_enabled")
 
-            _control_label("Members needed before party-wide MB/DP:")
-            _same_line(10)
+            _control_label_for_next_item("Members needed before party-wide MB/DP:")
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_members", int(cfg.mbdp_party_min_members))
             if changed:
                 cfg.mbdp_party_min_members = max(2, min(8, int(val)))
@@ -12555,8 +12766,7 @@ try:
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_members")
 
-            _control_label("Party-wide MB/DP cooldown (ms):")
-            _same_line(10)
+            _control_label_for_next_item("Party-wide MB/DP cooldown (ms):")
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_interval", int(cfg.mbdp_party_min_interval_ms), width=150.0)
             if changed:
                 cfg.mbdp_party_min_interval_ms = max(1000, int(val))
@@ -12572,11 +12782,10 @@ try:
             key_control_combo_width = 250.0
             key_control_label_color = KEY_CONTROL_LABEL_COLOR
 
-            _text_with_color(
+            _control_label_for_next_item(
                 f"Self target morale/DP ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):",
-                key_control_label_color,
+                target_offset=key_control_label_x,
             )
-            _same_line_at(key_control_label_x, 10)
             changed, val = ui_input_int_fixed(
                 "##pycons_mbdp_self_target",
                 int(cfg.mbdp_self_morale_target_effective),
@@ -12592,11 +12801,10 @@ try:
                 _pycons_start_apply_self_target_to_party()
             _show_setting_tooltip("mbdp_apply_self_target_to_party")
 
-            _text_with_color(
+            _control_label_for_next_item(
                 f"Party morale target ({_fmt_effective(cfg.mbdp_party_target_effective)}):",
-                key_control_label_color,
+                target_offset=key_control_label_x,
             )
-            _same_line_at(key_control_label_x, 10)
             changed, val = ui_input_int_fixed(
                 "##pycons_mbdp_party_target",
                 int(cfg.mbdp_party_target_effective),
@@ -12608,8 +12816,7 @@ try:
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_target_effective")
 
-            _text_with_color("Party-wide MB/DP priority:", key_control_label_color)
-            _same_line_at(key_control_label_x, 10)
+            _control_label_for_next_item("Party-wide MB/DP priority:", target_offset=key_control_label_x)
             current_priority = _mbdp_team_item_priority_index()
             changed, priority_idx = ui_combo_fixed_with_item_tooltips(
                 "##pycons_mbdp_team_item_priority",
@@ -12639,8 +12846,7 @@ try:
             selected_priority_idx = _mbdp_team_item_priority_index()
             _text_meta_wrapped(_team_item_priority_help_text(int(selected_priority_idx)))
             if int(selected_priority_idx) == int(TEAM_ITEM_PRIORITY_FORCE_INDEX):
-                _text_with_color("Team morale leader:", key_control_label_color)
-                _same_line_at(key_control_label_x, 10)
+                _control_label_for_next_item("Team morale leader:", target_offset=key_control_label_x)
                 team_morale_leader_active = _is_team_morale_leader_active()
                 if _badge_button(
                     "ON" if team_morale_leader_active else "OFF",
@@ -12678,8 +12884,7 @@ try:
                 )
                 _text_meta_wrapped(legacy_note)
 
-                PyImGui.text("Minimum useful self morale gain:")
-                _same_line(10)
+                _text_for_next_item("Minimum useful self morale gain:")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_self_gain", int(cfg.mbdp_self_min_morale_gain))
                 if changed:
                     cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
@@ -12697,8 +12902,7 @@ try:
                     _mark_mbdp_preset_custom()
                 _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
 
-                PyImGui.text(f"Your light DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
-                _same_line(10)
+                _text_for_next_item(f"Your light DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_self_minor", int(cfg.mbdp_self_dp_minor_threshold))
                 if changed:
                     cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
@@ -12706,10 +12910,9 @@ try:
                     _mark_mbdp_preset_custom()
                 _show_setting_tooltip("mbdp_self_dp_minor_threshold")
 
-                PyImGui.text(
+                _text_for_next_item(
                     f"Your stronger DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):"
                 )
-                _same_line(10)
                 changed, val = ui_input_int_fixed("##pycons_mbdp_self_major", int(cfg.mbdp_self_dp_major_threshold))
                 if changed:
                     cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
@@ -12733,8 +12936,7 @@ try:
                 )
                 _text_meta_wrapped(legacy_team_item_note)
 
-                PyImGui.text("Minimum party gain before +5 item:")
-                _same_line(10)
+                _text_for_next_item("Minimum party gain before +5 item:")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain5", int(cfg.mbdp_party_min_total_gain_5))
                 if changed:
                     cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
@@ -12742,8 +12944,7 @@ try:
                     _mark_mbdp_preset_custom()
                 _show_setting_tooltip("mbdp_party_min_total_gain_5")
 
-                PyImGui.text("Minimum party gain before +10 item:")
-                _same_line(10)
+                _text_for_next_item("Minimum party gain before +10 item:")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain10", int(cfg.mbdp_party_min_total_gain_10))
                 if changed:
                     cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
@@ -12753,8 +12954,7 @@ try:
 
                 PyImGui.separator()
 
-                PyImGui.text(f"Party light DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
-                _same_line(10)
+                _text_for_next_item(f"Party light DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_party_light", int(cfg.mbdp_party_light_dp_threshold))
                 if changed:
                     cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
@@ -12762,8 +12962,7 @@ try:
                     _mark_mbdp_preset_custom()
                 _show_setting_tooltip("mbdp_party_light_dp_threshold")
 
-                PyImGui.text(f"Party heavy DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
-                _same_line(10)
+                _text_for_next_item(f"Party heavy DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_party_heavy", int(cfg.mbdp_party_heavy_dp_threshold))
                 if changed:
                     cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
@@ -12771,8 +12970,7 @@ try:
                     _mark_mbdp_preset_custom()
                 _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
 
-                PyImGui.text(f"Powerstone emergency starts at ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
-                _same_line(10)
+                _text_for_next_item(f"Powerstone emergency starts at ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
                 changed, val = ui_input_int_fixed("##pycons_mbdp_party_powerstone", int(cfg.mbdp_powerstone_dp_threshold))
                 if changed:
                     cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
@@ -12793,8 +12991,7 @@ try:
             cfg.mark_dirty()
         if alcohol_section_open:
             _section_text("Alcohol", "alcohol")
-            _control_label("Alcohol upkeep:")
-            _same_line(10)
+            _control_label_for_next_item("Alcohol upkeep:")
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
                 cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
                 cfg.mark_dirty()
@@ -12819,16 +13016,14 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("alcohol_use_outpost")
 
-            _control_label("Target drunk level:")
-            _same_line(10)
+            _control_label_for_next_item("Target drunk level:")
             changed, vv = ui_input_int("##pycons_alcohol_target", int(cfg.alcohol_target_level))
             if changed:
                 cfg.alcohol_target_level = int(max(0, min(5, vv)))
                 cfg.mark_dirty()
             _show_setting_tooltip("alcohol_target_level")
 
-            _control_label("Preference:")
-            _same_line(10)
+            _control_label_for_next_item("Preference:")
             changed, pref_idx = ui_combo(
                 "##pycons_alc_pref_settings",
                 int(cfg.alcohol_preference),
@@ -12848,8 +13043,7 @@ try:
                 cfg.mark_dirty()
             _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_spending"))
             _same_line(10)
-            _control_label("Interval (ms):")
-            _same_line(6)
+            _control_label_for_next_item("Interval (ms):", spacing=6, y_offset=1.0)
             changed, fast_interval = ui_input_int_fixed(
                 "##pycons_settings_alc_fast_interval",
                 int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS)),
@@ -12865,8 +13059,7 @@ try:
             PyImGui.separator()
 
             _section_text("Party Items", "party_items")
-            _control_label("Speed (ms):")
-            _same_line(10)
+            _control_label_for_next_item("Speed (ms):")
             changed, party_interval = ui_input_int_fixed(
                 "##pycons_party_item_interval_ms",
                 int(getattr(cfg, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS)),
@@ -12891,8 +13084,7 @@ try:
                 cfg.mark_dirty()
             _tooltip_if_hovered(_tooltip_text_for("sweets_fast_spending"))
             _same_line(10)
-            _control_label("Interval (ms):")
-            _same_line(6)
+            _control_label_for_next_item("Interval (ms):", spacing=6, y_offset=1.0)
             changed, sweets_interval = ui_input_int_fixed(
                 "##pycons_settings_sweets_fast_interval",
                 int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS)),
@@ -12919,8 +13111,7 @@ try:
             _section_text("Movement Safety", "settings_movement_safety")
             _draw_movement_status_line()
 
-            _control_label("Movement window (ms):")
-            _same_line(10)
+            _control_label_for_next_item("Movement window (ms):")
             changed, movement_window = ui_input_int_fixed(
                 "##pycons_movement_safety_window_ms",
                 int(getattr(cfg, "movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)),
@@ -12993,8 +13184,7 @@ try:
                 "Party Items: fast speed only",
                 "movement_party_items_speed_only",
             )
-            _control_label("Party Items movement cutoff (ms):")
-            _same_line(10)
+            _control_label_for_next_item("Party Items movement cutoff (ms):")
             changed, party_fast_threshold = ui_input_int_fixed(
                 "##pycons_movement_party_items_fast_threshold_ms",
                 int(_movement_party_items_fast_threshold_ms()),
@@ -13040,8 +13230,7 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("restock_keep_target_on_deselect")
 
-            _control_label("How often to check Xunlai restock (ms):")
-            _same_line(10)
+            _control_label_for_next_item("How often to check Xunlai restock (ms):")
             changed, v = ui_input_int_fixed("##pycons_restock_interval_ms", int(cfg.restock_interval_ms), width=120.0)
             if changed:
                 cfg.restock_interval_ms = int(max(MIN_RESTOCK_INTERVAL_MS, int(v)))
@@ -13054,8 +13243,7 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("restock_mode")
 
-            _control_label("Most items to move at once:")
-            _same_line(10)
+            _control_label_for_next_item("Most items to move at once:")
             changed, cap_val = ui_input_int_fixed("##pycons_restock_move_cap", int(cfg.restock_move_cap_per_cycle), width=120.0)
             if changed:
                 cfg.restock_move_cap_per_cycle = int(
@@ -13210,8 +13398,7 @@ try:
             _show_setting_tooltip("restock_disable_all_selected")
             _end_disabled(mode)
 
-            _control_label("Set inventory target for all selected items:")
-            _same_line(10)
+            _control_label_for_next_item("Set inventory target for all selected items:")
             changed_bulk, bulk_val = ui_input_int_fixed(
                 "##pycons_restock_bulk_target",
                 int(restock_bulk_target[0]),
