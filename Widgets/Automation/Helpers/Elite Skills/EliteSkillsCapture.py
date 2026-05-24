@@ -8433,7 +8433,7 @@ def Ravenous_Gaze():
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16919, -7990)
-    bot.Move.XY(10437, -5898)
+    bot.Move.XY(9744, -6408)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
