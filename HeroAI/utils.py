@@ -18,6 +18,10 @@ def _agent_skill_key(agent_id, skill_id, *_, **__):
     return (int(agent_id), int(skill_id))
 
 
+def IsValidEnergyValue(energy: float) -> bool:
+    return 0.0 <= float(energy) <= 1.0
+
+
 @frame_cache(category="utils", source_lib="SameMapAsAccount", key=_account_key)
 def SameMapAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
@@ -87,9 +91,11 @@ def GetEnergyValues(agent_id, live_cached_data : Optional[CacheData] = None):
             and acc.IsSlotActive
             and acc.AgentPartyData.PartyID == cached_data.party.party_id
         ):
-            return acc.AgentData.Energy.Current
+            energy = float(acc.AgentData.Energy.Current)
+            if IsValidEnergyValue(energy):
+                return energy
 
-    return 1.0
+    return -1.0
 
 @frame_cache(category="utils", source_lib="CheckForEffect", key=_agent_skill_key)
 def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None) -> bool:

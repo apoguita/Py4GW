@@ -335,20 +335,21 @@ def draw_health_bar(width: float, height: float, max_health: float, current_heal
 def draw_energy_bar(width: float, height: float, max_energy: float, current_energy: float, regen: float) -> bool:
     style = ImGui.get_style()
     pips = Utils.calculate_energy_pips(max_energy, regen)
+    has_valid_energy = 0.0 <= current_energy <= 1.0
+    clamped_energy = max(0.0, min(1.0, current_energy)) if has_valid_energy else 0.0
 
     draw_textures = style.Theme in ImGui.Textured_Themes
 
     if not draw_textures:
         style.PlotHistogram.push_color((30, 94, 153, 255))
         style.FrameRounding.push_style_var(0)
-        ImGui.progress_bar(current_energy, width, height)
+        ImGui.progress_bar(clamped_energy, width, height)
         style.FrameRounding.pop_style_var()
         style.PlotHistogram.pop_color()
     else:
         ImGui.dummy(width, height)
 
-    fraction = (max(0.0, min(1.0, current_energy))
-                if max_energy > 0 else 0.0)
+    fraction = clamped_energy if max_energy > 0 else 0.0
     
     item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
 
@@ -374,13 +375,13 @@ def draw_energy_bar(width: float, height: float, max_energy: float, current_ener
             progress_rect[2:],
         )
 
-        if current_energy * max_energy != max_energy:
+        if has_valid_energy and current_energy * max_energy != max_energy:
             ThemeTextures.EnergyBarCursor.value.get_texture().draw_in_drawlist(
                 cursor_rect[:2],
                 cursor_rect[2:],
             )
 
-    display_label = str(int(current_energy * max_energy))
+    display_label = str(int(current_energy * max_energy)) if has_valid_energy else "--"
     textsize = PyImGui.calc_text_size(display_label)
     text_rect = (item_rect[0] + ((width - textsize[0]) / 2), item_rect[1] +
                  ((height - textsize[1]) / 2) + 3, textsize[0], textsize[1])

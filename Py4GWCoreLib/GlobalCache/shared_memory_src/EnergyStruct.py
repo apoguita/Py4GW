@@ -17,8 +17,8 @@ class EnergyStruct(Structure):
     Pips: int
 
     def reset(self) -> None:
-        """Reset all fields to zero."""
-        self.Current = 0.0
+        """Reset fields, marking the current energy reading as invalid."""
+        self.Current = -1.0
         self.Max = 0
         self.Regen = 0.0
         self.Pips = 0
@@ -28,7 +28,7 @@ class EnergyStruct(Structure):
         from ...py4gwcorelib_src.Utils import Utils
         
         energy = Agent.GetEnergy(agent_id)
-        self.Current = energy if energy > 0 else 1.0
+        self.Current = energy if 0.0 <= energy <= 1.0 else -1.0
         max_energy = Agent.GetMaxEnergy(agent_id)
         self.Max = max_energy if max_energy > 0 else 10
         self.Regen = Agent.GetEnergyRegen(agent_id)
