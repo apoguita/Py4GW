@@ -71,7 +71,7 @@ def Sequence(name: str,
         A sequence tree containing the optional travel node first, then
         `map_prep` when provided, followed by the provided `children`.
     """
-    resolved_children = list(children) if children is not None else [BehaviorTree.SucceederNode()]
+    resolved_children = list(children) if children is not None else [Succeeder()]
 
     travel_child = [Travel(target_map_id=map_id_or_name if isinstance(map_id_or_name, int) else 0,
                            target_map_name=map_id_or_name if isinstance(map_id_or_name, str) else "",
@@ -81,8 +81,10 @@ def Sequence(name: str,
                           )] if map_id_or_name else []
 
     prep_child = [BehaviorTree(Node(map_prep))] if map_prep is not None else []
+    
+    data_child = [BehaviorTree.ActionNode(StoreProfessionNames(), name="StoreProfessionNames")]
 
-    resolved_children = travel_child + prep_child + resolved_children
+    resolved_children = travel_child + prep_child + data_child + resolved_children
     
     return BehaviorTree(
         BehaviorTree.SequenceNode(
@@ -108,7 +110,7 @@ def Repeater(
         Number of times to repeat the child sequence.
     children
         Child nodes run in order for each repetition. If omitted, a single
-        `SucceederNode` is used so the wrapper still produces a valid repeater.
+        `Succeeder` is used so the wrapper still produces a valid repeater.
     """
     sequence = Sequence(
         name=f'{name}Cycle',
@@ -122,6 +124,40 @@ def Repeater(
         )
     )
 
+def Subtree(name: str, subtree_fn: Callable[[BehaviorTree.Node], BehaviorTree]) -> BehaviorTree:
+    """
+    Build a subtree wrapper that resolves its child at runtime.
+
+    Parameters
+    ----------
+    name
+        Name assigned to the subtree node.
+    subtree_fn
+        Function that takes the subtree node as an argument and returns the
+        child tree or node to run.
+
+    Returns
+    -------
+    BehaviorTree
+        A subtree that runs the tree or node returned by `subtree_fn`.
+    """
+    return BehaviorTree(
+        BehaviorTree.SubtreeNode(
+            name=name,
+            subtree_fn=subtree_fn,
+        )
+    )
+
+
+def Succeeder(name: str = "Succeeder") -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.SucceederNode(name=name)
+    )
+    
+def Failer(name: str = "Failer") -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.FailerNode(name=name)
+    )
 
 def GetNodeByProfession(
     WarriorNode: BehaviorTree | BehaviorTree.Node | None = None,
@@ -157,7 +193,7 @@ def GetNodeByProfession(
     Notes
     -----
     If the current profession has no supplied node, the helper returns a
-    `FailerNode`.
+    `Failer`.
     """
     def _profession_specific_node(node: BehaviorTree.Node) -> BehaviorTree:
         primary_profession = str(node.blackboard.get("player_primary_profession_name", "Warrior") or "Warrior")
@@ -176,7 +212,7 @@ def GetNodeByProfession(
         selected_node = profession_nodes.get(primary_profession)
 
         if selected_node is None:
-            return BehaviorTree(BehaviorTree.FailerNode(name=f"GetNodeByProfession<{primary_profession}>"))
+            return Failer(name=f"GetNodeByProfession<{primary_profession}>")
 
         return BehaviorTree(Node(selected_node))
 
@@ -184,13 +220,41 @@ def GetNodeByProfession(
             name="GetNodeByProfession",
             children=[
                 StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
+                Subtree(
                     name="GetNodeByProfessionSubtree",
                     subtree_fn=_profession_specific_node,
                 ),
             ],
         )
 
+def SkipNodeByProfession(profession_name: str, NodeToRun: BehaviorTree) -> BehaviorTree:
+    return Subtree(
+        name=f"Skip {profession_name} Profession Specific Quests",
+        subtree_fn=lambda node: Sequence(
+            name=f"{profession_name} Profession Skip Decision",
+            children=[
+                StoreProfessionNames(),
+                NodeToRun
+                if node.blackboard.get("player_primary_profession_name") != profession_name
+                else Succeeder(name=f"Skip{profession_name}ProfessionSpecificQuests")
+            ],
+        ),
+    )
+    
+def ExecuteIfProfession(profession_name: str, NodeToRun: BehaviorTree) -> BehaviorTree:
+    return Subtree(
+        name=f"ExecuteIf {profession_name} Profession Specific Quests",
+        subtree_fn=lambda node: Sequence(
+            name=f"{profession_name} Profession Execution Decision",
+            children=[
+                StoreProfessionNames(),
+                NodeToRun
+                if node.blackboard.get("player_primary_profession_name") == profession_name
+                else Succeeder(name=f"SkipNon{profession_name}ProfessionSpecificQuests")
+            ],
+        ),
+    )
+    
 
 def GetValuesByProfession(
     profession_values: Mapping[str, object],
@@ -246,6 +310,92 @@ def GetValuesByProfession(
                 ),
             ],
         )
+
+
+def BuyMaterialsByProfession(
+    profession_materials: Mapping[str, list[tuple[int, int]]],
+    *,
+    rare_trader: bool = False,
+    fallback_profession: str = "Warrior",
+    log: bool = False,
+    aftercast_ms: int = 125,
+) -> BehaviorTree:
+    def _buy_for_profession(node: BehaviorTree.Node) -> BehaviorTree:
+        materials = cast(list[tuple[int, int]], node.blackboard["profession_buy_materials"])
+        return BuyMaterialsFromList(
+            materials=materials,
+            rare_trader=rare_trader,
+            log=log,
+            aftercast_ms=aftercast_ms,
+        )
+
+    return Sequence(
+        name="BuyMaterialsByProfession",
+        children=[
+            GetValuesByProfession(
+                profession_values=profession_materials,
+                target_key="profession_buy_materials",
+                fallback_profession=fallback_profession,
+            ),
+            Subtree(
+                name="BuyMaterialsByProfessionSubtree",
+                subtree_fn=_buy_for_profession,
+            ),
+        ],
+    )
+
+
+def CraftItemsByProfession(
+    profession_craft_steps: Mapping[str, list[tuple[int, int, list[int], list[int]]]],
+    *,
+    fallback_profession: str = "Warrior",
+    equip_items: bool = True,
+    craft_aftercast_ms: int = 350,
+    equip_aftercast_ms: int = 250,
+    equip_log: bool = False,
+) -> BehaviorTree:
+    def _craft_for_profession(node: BehaviorTree.Node) -> BehaviorTree:
+        craft_steps = cast(list[tuple[int, int, list[int], list[int]]], node.blackboard["profession_craft_steps"])
+        children: list[BehaviorTree | BehaviorTree.Node] = []
+
+        for item_id, cost, trade_model_ids, quantity_list in craft_steps:
+            children.append(
+                CraftItem(
+                    output_model_id=item_id,
+                    cost=cost,
+                    trade_model_ids=trade_model_ids,
+                    quantity_list=quantity_list,
+                    aftercast_ms=craft_aftercast_ms,
+                )
+            )
+            if equip_items:
+                children.append(
+                    EquipItemByModelID(
+                        item_id,
+                        aftercast_ms=equip_aftercast_ms,
+                        log=equip_log,
+                    )
+                )
+
+        return Sequence(
+            name="CraftItemsByProfessionSequence",
+            children=children,
+        )
+
+    return Sequence(
+        name="CraftItemsByProfession",
+        children=[
+            GetValuesByProfession(
+                profession_values=profession_craft_steps,
+                target_key="profession_craft_steps",
+                fallback_profession=fallback_profession,
+            ),
+            Subtree(
+                name="CraftItemsByProfessionSubtree",
+                subtree_fn=_craft_for_profession,
+            ),
+        ],
+    )
 #region LOGGING
 
 def LogMessage(message: str, 
@@ -743,7 +893,7 @@ def TakeFactionBlessing(
                 log=log,
                 multi_account=multi_account,
             )
-        return BehaviorTree(BehaviorTree.SucceederNode(name=f'Skip{faction_name.title()}BlessingBribe'))
+        return Succeeder(name=f'Skip{faction_name.title()}BlessingBribe')
 
     return Sequence(
         name=f'Take {faction_name.title()} Blessing',
@@ -757,12 +907,7 @@ def TakeFactionBlessing(
             ),
             MoveAndInteract(pos=pos, log=log),
             Wait(pre_dialog_wait_ms, log=log),
-            BehaviorTree(
-                BehaviorTree.SubtreeNode(
-                    name=f'MaybeBribe{faction_name.title()}Priest',
-                    subtree_fn=_maybe_bribe,
-                )
-            ),
+            Subtree(name=f'MaybeBribe{faction_name.title()}Priest',subtree_fn=_maybe_bribe,),
             InteractTargetAndSendDialog(
                 dialog_id=blessing_dialog_id,
                 log=log,
@@ -926,7 +1071,7 @@ def WaitUntilCharacterSelect(timeout_ms: int = 45000) -> BehaviorTree:
     return RoutinesBT.Player.WaitUntilCharacterSelect(timeout_ms=timeout_ms,)
 
 #region Movement
-def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float = 150.0,flag_heroes_to_waypoint: bool = False,log: bool = False,) -> BehaviorTree:
+def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float = 200.0,flag_heroes_to_waypoint: bool = False,log: bool = False,) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "Move",
         lambda resolved_pause: RoutinesBT.Movement.MovePath(
@@ -1002,7 +1147,7 @@ def VanquishNode(
         )
 
     if not resolved_children:
-        return BehaviorTree(BehaviorTree.SucceederNode(name=f'{name}Empty'))
+        return Succeeder(name=f'{name}Empty')
 
     return Sequence(
         name=name,
@@ -1764,11 +1909,7 @@ def CreateParty(
         children.append(RoutinesBT.Party.LoadParty(henchman_ids=henchman_ids))
 
     if not children:
-        return BehaviorTree(
-            BehaviorTree.SucceederNode(
-                name="CreatePartyEmpty",
-            )
-        )
+        return Succeeder(name="CreatePartyEmpty",)
 
     return RoutinesBT.Composite.Sequence(
         *children,
@@ -2025,7 +2166,7 @@ def HandleAutoQuest(
             children=[
                 BehaviorTree.ActionNode(name="HandleAutoQuestPreChecks", action_fn=_pre_checks),
                 _mid_checks(),
-                BehaviorTree.SubtreeNode(
+                Subtree(
                     name="HandleAutoQuestMoveDialogSubtree",
                     subtree_fn=lambda node: _move_dialog_node(),
                 ),
@@ -2250,8 +2391,8 @@ def HandleQuest(
                  )
              )
 
-    def _move_subtree() -> BehaviorTree.Node:
-        return BehaviorTree.SubtreeNode(
+    def _move_subtree() -> BehaviorTree:
+        return Subtree(
             name="HandleQuestMoveSubtree",
             subtree_fn=lambda node: (
                 _move_node()
@@ -2265,8 +2406,8 @@ def HandleQuest(
             ),
         )
 
-    def _move_dialog_subtree() -> BehaviorTree.Node:
-        return BehaviorTree.SubtreeNode(
+    def _move_dialog_subtree() -> BehaviorTree:
+        return Subtree(
             name="HandleQuestMoveDialogSubtree",
             subtree_fn=lambda node: _move_dialog_node(),
         )

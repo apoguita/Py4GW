@@ -962,31 +962,33 @@ class CombatClass:
 
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
+            player_energy = self.GetEnergyValues(Player.GetAgentID())
+            has_valid_player_energy = player_energy >= 0.0
             
             """ check all UniqueProperty skills """
             if (self.skills[slot].skill_id == self.energy_drain or 
                 self.skills[slot].skill_id == self.energy_tap or
                 self.skills[slot].skill_id == self.ether_lord 
                 ):
-                return self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                return has_valid_player_energy and player_energy < Conditions.LessEnergy
 
             if (self.skills[slot].skill_id == self.ether_feast):
                 return Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
         
             if (self.skills[slot].skill_id == self.essence_strike):
-                energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and (Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0)
 
             if (self.skills[slot].skill_id == self.glowing_signet):
-                energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and self.HasEffect(vTarget, self.burning)
 
             if (self.skills[slot].skill_id == self.clamor_of_souls):
-                energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and Agent.IsHoldingItem(Player.GetAgentID())
 
             if (self.skills[slot].skill_id == self.waste_not_want_not):
-                energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and not Agent.IsCasting(vTarget) and not Routines.Checks.Agents.IsAttacking(vTarget)
 
             if (self.skills[slot].skill_id == self.mend_body_and_soul):
@@ -1324,14 +1326,14 @@ class CombatClass:
             from .utils import GetEnergyValues
             if self.IsPartyMember(vTarget):
                 player_energy = GetEnergyValues(vTarget)
-                if player_energy < Conditions.LessEnergy:
+                if player_energy >= 0.0 and player_energy < Conditions.LessEnergy:
                     number_of_features += 1
             else:
                 number_of_features += 1 #henchmen, allies, pets or something else thats not reporting energy
 
         if Conditions.LessSelfEnergyPercentage > 0:
-            # Agent.GetEnergy returns a 0.0-1.0 fraction of max energy; threshold uses the same scale.
-            if Agent.GetEnergy(Player.GetAgentID()) <= Conditions.LessSelfEnergyPercentage:
+            player_energy = self.GetEnergyValues(Player.GetAgentID())
+            if player_energy >= 0.0 and player_energy <= Conditions.LessSelfEnergyPercentage:
                 number_of_features += 1
 
         if Conditions.Overcast != 0:
@@ -1520,7 +1522,11 @@ class CombatClass:
 
         # Check if there is enough energy
         current_hp = Agent.GetHealth(Player.GetAgentID())
-        current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
+        current_energy_fraction = self.GetEnergyValues(Player.GetAgentID())
+        if current_energy_fraction < 0.0:
+            self.in_casting_routine = False
+            return False, 0
+        current_energy = current_energy_fraction * Agent.GetMaxEnergy(Player.GetAgentID())
 
         energy_cost = Routines.Checks.Skills.GetEnergyCostWithEffects(skill_id, player_id)
 

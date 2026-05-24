@@ -1771,6 +1771,25 @@ def ConsoleMessage(index: int, message: SharedMessageStruct):
 
 # endregion
 
+# region SetActiveTitle
+def SetActiveTitle(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    title_id = int(message.Params[0] or 0)
+    if title_id > 0:
+        Player.SetActiveTitle(title_id)
+
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetActiveTitle message processed and finished.", Console.MessageType.Info, False)
+
+# endregion
+
 # region SetWindowGeometry
 def SetWindowGeometry(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -2694,6 +2713,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
         case SharedCommandType.ConsoleMessage:
             GLOBAL_CACHE.Coroutines.append(ConsoleMessage(index, message))
+        case SharedCommandType.SetActiveTitle:
+            GLOBAL_CACHE.Coroutines.append(SetActiveTitle(index, message))
         case SharedCommandType.PressKey:
             GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
         case SharedCommandType.DonateToGuild:

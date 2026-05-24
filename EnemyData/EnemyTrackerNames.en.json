@@ -9,16 +9,20 @@
     ],
     "enc:\\\\x0BD7\\\\x82CB\\\\x0528": [
       "Suit of 100 Armor",
-      "Agent 32"
+      "Agent 32",
+      "Agent 38"
     ],
     "enc:\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292": [
       "Suit of 60 Armor",
       "Agent 30",
-      "Agent 33"
+      "Agent 33",
+      "Agent 36",
+      "Agent 39"
     ],
     "enc:\\\\x0BD9\\\\xE564\\\\x5BF4": [
       "Suit of 80 Armor",
-      "Agent 31"
+      "Agent 31",
+      "Agent 37"
     ],
     "enc:\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30": [
       "Practice Target",
@@ -41,17 +45,23 @@
       "Guard of the Isles"
     ],
     "enc:\\\\x0D7F\\\\xB5A9\\\\x3373": [
-      "Adjacent"
+      "Adjacent",
+      "Agent 40",
+      "Agent 41"
     ],
     "enc:\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39": [
-      "In the Area"
+      "In the Area",
+      "Agent 47",
+      "Agent 48"
     ],
     "enc:\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670": [
       "Adjacent to Foe",
       "Agent 191"
     ],
     "enc:\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A": [
-      "Nearby"
+      "Nearby",
+      "Agent 43",
+      "Agent 44"
     ],
     "enc:\\\\x0D84\\\\xD392\\\\xA3B2\\\\x5FA9": [
       "Longbow Target"
@@ -68,7 +78,9 @@
     ],
     "enc:\\\\x0F98\\\\x84F2\\\\xC816\\\\x298E": [
       "Agent 325",
-      "Spirit of Quickening Zephyr"
+      "Spirit of Quickening Zephyr",
+      "Agent 123",
+      "Agent 121"
     ],
     "enc:\\\\x0F99\\\\x863D\\\\xD474\\\\x6ACA": [
       "Spirit of Nature's Renewal",
@@ -185,6 +197,31 @@
       "Agent 326",
       "Agent 327"
     ],
+    "enc:\\\\x14B3\\\\x8EFA\\\\xA8DC\\\\x6F7C": [
+      "Agent 25",
+      "Dark Flame Dryder"
+    ],
+    "enc:\\\\x14B5\\\\xBCBA\\\\x52B4": [
+      "Igneous Ettin"
+    ],
+    "enc:\\\\x14B6\\\\xE504\\\\xB1BE\\\\x4024": [
+      "Agent 173",
+      "Phantom"
+    ],
+    "enc:\\\\x14B7\\\\xCC03\\\\xCE3C\\\\x6BF7": [
+      "Agent 17",
+      "Agent 18",
+      "Agent 19",
+      "Agent 20",
+      "Agent 21",
+      "Mahgo Hydra"
+    ],
+    "enc:\\\\x14BC\\\\xD15E\\\\xFC71\\\\x2461": [
+      "Agent 22",
+      "Agent 23",
+      "Agent 24",
+      "Flesh Golem"
+    ],
     "enc:\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6": [
       "Shadow Mesmer"
     ],
@@ -228,6 +265,11 @@
       "Agent 262",
       "Agent 286"
     ],
+    "enc:\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA": [
+      "Agent 106",
+      "Bone Horror",
+      "Agent 185"
+    ],
     "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": [
       "Kayali the Brave",
       "Agent 126",
@@ -241,6 +283,100 @@
       "Agent 62",
       "Agent 38",
       "Agent 59"
+    ],
+    "enc:\\\\x4047\\\\xFEDF\\\\xA28A\\\\x45B7": [
+      "Agent 80",
+      "Lesser Oni",
+      "Agent 254",
+      "Agent 194"
+    ],
+    "enc:\\\\x404B\\\\xE144\\\\xF9A7\\\\x0FD6": [
+      "Yingko the Skull Claw"
+    ],
+    "enc:\\\\x404C\\\\xE4FF\\\\xCBE8\\\\x15A0": [
+      "Auri the Skull Wand"
+    ],
+    "enc:\\\\x404D\\\\x8ACA\\\\x9F15\\\\x0844": [
+      "Feng the Skull Symbol"
+    ],
+    "enc:\\\\x404F\\\\xEF97\\\\xE675\\\\x4C95": [
+      "Jin the Skull Bow",
+      "Agent 91"
+    ],
+    "enc:\\\\x4051\\\\xEC67\\\\x90F4\\\\x112A": [
+      "Crimson Skull Ether Fiend"
+    ],
+    "enc:\\\\x4054\\\\xBC7F\\\\xC1C5\\\\x60E2": [
+      "Crimson Skull Mesmer"
+    ],
+    "enc:\\\\x4055\\\\xADC8\\\\xF53A\\\\x0C87": [
+      "Crimson Skull Healer"
+    ],
+    "enc:\\\\x4058\\\\xF498\\\\xE50B\\\\x3C5D": [
+      "Crimson Skull Mender"
+    ],
+    "enc:\\\\x4059\\\\xA543\\\\x45F5": [
+      "Crimson Skull Hunter",
+      "Agent 83"
+    ],
+    "enc:\\\\x405C\\\\xCA7A\\\\xE3D8\\\\x4B21": [
+      "Crimson Skull Raider"
+    ],
+    "enc:\\\\x405D\\\\xC46A\\\\xCDB4\\\\x796A": [
+      "Crimson Skull Seer"
+    ],
+    "enc:\\\\x4060\\\\x92A3\\\\x2AB3": [
+      "Crimson Skull Ritualist"
+    ],
+    "enc:\\\\x4062\\\\xE1E0\\\\xAE93\\\\x20C6": [
+      "Mantid Drone"
+    ],
+    "enc:\\\\x4068\\\\x8F5A\\\\xF1AB\\\\x5523": [
+      "Mantid Monitor"
+    ],
+    "enc:\\\\x4072\\\\x83DB\\\\xBEEE\\\\x7BCF": [
+      "Naga Wizard"
+    ],
+    "enc:\\\\x4073\\\\xD1E6\\\\xBD8B\\\\x63D7": [
+      "Naga Raincaller"
+    ],
+    "enc:\\\\x4074\\\\xAD8B\\\\x9A40\\\\x0944": [
+      "Naga Spellblade"
+    ],
+    "enc:\\\\x4075\\\\x9F5A\\\\x2BDB": [
+      "Naga Scout"
+    ],
+    "enc:\\\\x4076\\\\xB611\\\\x2C12": [
+      "Naga Warrior"
+    ],
+    "enc:\\\\x4077\\\\xF2BC\\\\xA29D\\\\x23A8": [
+      "Naga Welp"
+    ],
+    "enc:\\\\x4078\\\\xC551\\\\x9FD0\\\\x65C0": [
+      "Naga Witch"
+    ],
+    "enc:\\\\x407A\\\\x8E81\\\\x5D9B": [
+      "Naga Sibyl"
+    ],
+    "enc:\\\\x407D\\\\xC87B\\\\xC4B1\\\\x4784": [
+      "Agent 49",
+      "Sensali Assassin",
+      "Agent 53"
+    ],
+    "enc:\\\\x407F\\\\x9B04\\\\xF423\\\\x4C70": [
+      "Sensali Blood"
+    ],
+    "enc:\\\\x4081\\\\xE5EB\\\\xD058\\\\x49D5": [
+      "Sensali Fighter"
+    ],
+    "enc:\\\\x4086\\\\xB7C7\\\\x8570\\\\x7898": [
+      "Kappa"
+    ],
+    "enc:\\\\x4088\\\\x9412\\\\xAF4C\\\\x68D3": [
+      "Kappa"
+    ],
+    "enc:\\\\x408C\\\\xF27A\\\\xECDF\\\\x777E": [
+      "Red Yeti"
     ],
     "enc:\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59": [
       "Rot Wallow",
@@ -337,7 +473,11 @@
       "Agent 119"
     ],
     "enc:\\\\x4161\\\\xA291\\\\xB856\\\\x0259": [
-      "Spirit of Famine"
+      "Spirit of Famine",
+      "Agent 331",
+      "Agent 121",
+      "Agent 325",
+      "Agent 323"
     ],
     "enc:\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC": [
       "Spirit of Shadowsong",
@@ -365,7 +505,9 @@
       "Agent 188",
       "Agent 93",
       "Agent 191",
-      "Agent 190"
+      "Agent 190",
+      "Agent 129",
+      "Agent 110"
     ],
     "enc:\\\\x4165\\\\xAA52\\\\x6E73": [
       "Agent 120",
@@ -389,6 +531,76 @@
       "Agent 211",
       "Agent 199",
       "Agent 73"
+    ],
+    "enc:\\\\x416E\\\\xC037\\\\xCF58\\\\x6CA4": [
+      "Agent 188",
+      "Spirit of Union",
+      "Agent 158"
+    ],
+    "enc:\\\\x4660\\\\xD3CD\\\\x901F\\\\x2E23": [
+      "Agent 235",
+      "Mantid"
+    ],
+    "enc:\\\\x4662\\\\xD3E4\\\\x9550\\\\x3C1D": [
+      "Huan",
+      "Agent 144"
+    ],
+    "enc:\\\\x4671\\\\xA555\\\\x86C5\\\\x205A": [
+      "Monk Student",
+      "Agent 99"
+    ],
+    "enc:\\\\x4673\\\\xEC59\\\\xE9EF\\\\x3CF8": [
+      "Warrior Student",
+      "Agent 132"
+    ],
+    "enc:\\\\x46A1\\\\x8660\\\\xD0A1\\\\x5305": [
+      "Hungry Kappa"
+    ],
+    "enc:\\\\x46A3\\\\xC800\\\\xD296\\\\x744B": [
+      "Agent 186",
+      "Wild Minion"
+    ],
+    "enc:\\\\x46AD\\\\x9B16\\\\xC043\\\\x4FF9": [
+      "Agent 89",
+      "Swift Honorclaw",
+      "Agent 109"
+    ],
+    "enc:\\\\x46F1\\\\xE730\\\\xB997\\\\x4F31": [
+      "Crop Thief"
+    ],
+    "enc:\\\\x46FE\\\\xC4D5\\\\xF4AC\\\\x536D": [
+      "Agent 41",
+      "Wild Yeti",
+      "Agent 43"
+    ],
+    "enc:\\\\x4709\\\\xF708\\\\x58C0": [
+      "Agent 163",
+      "Shackled Spirit",
+      "Agent 181"
+    ],
+    "enc:\\\\x5C88\\\\xF60F\\\\xC73B\\\\x5C63": [
+      "Huan"
+    ],
+    "enc:\\\\x5C89\\\\xC294\\\\x8878\\\\x2564": [
+      "Kam"
+    ],
+    "enc:\\\\x5C8A\\\\x8D41\\\\xA065\\\\x5E5A": [
+      "Miju"
+    ],
+    "enc:\\\\x5C8B\\\\xC5F3\\\\x9FF0\\\\x4A37": [
+      "Ako"
+    ],
+    "enc:\\\\x5CD6\\\\xC9CD\\\\xE1FB\\\\x36F9": [
+      "Talon Silverwing",
+      "Agent 105"
+    ],
+    "enc:\\\\x5D7C\\\\xE26C\\\\xE63B\\\\x5AD5": [
+      "Wulk Cragfist"
+    ],
+    "enc:\\\\x6F45\\\\xB354\\\\x8926\\\\x7211": [
+      "Agent 164",
+      "Queen Mantid",
+      "Agent 174"
     ],
     "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": [
       "Kournan Seer"
@@ -414,8 +626,20 @@
     "enc:\\\\x7D54\\\\xF46D\\\\xEC6C\\\\x721C": [
       "Kournan Phalanx"
     ],
+    "enc:\\\\x7F4D\\\\x99C9\\\\x2E86": [
+      "Tahkayun Tsi",
+      "Agent 121"
+    ],
+    "enc:\\\\x7F4F\\\\x83C7\\\\xBF14\\\\x0B60": [
+      "Ziinjuu Life Crawler"
+    ],
     "enc:\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534": [
       "Ruby Djinn"
+    ],
+    "enc:\\\\x8101\\\\x0571\\\\xB066\\\\xB1FE\\\\x6EF7": [
+      "Agent 19",
+      "Agent 20",
+      "Mantid Drone Hatchling"
     ],
     "enc:\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7": [
       "Sapphire Djinn"
@@ -524,7 +748,8 @@
       "Beast Sworn Heket"
     ],
     "enc:\\\\x8101\\\\x1B62\\\\xB276\\\\xD027\\\\x6A68": [
-      "Margonite Anur Mank"
+      "Margonite Anur Mank",
+      "Agent 58"
     ],
     "enc:\\\\x8101\\\\x1CCF\\\\xA335\\\\xE8A0\\\\x6C92": [
       "Kormab, Burning Heart"
@@ -540,6 +765,58 @@
     ],
     "enc:\\\\x8101\\\\x1CE5\\\\xA453\\\\x2ADD": [
       "Shezel Slowreaper"
+    ],
+    "enc:\\\\x8101\\\\x1F3E\\\\x82DD\\\\x981E\\\\x48E0": [
+      "Fury Titan"
+    ],
+    "enc:\\\\x8101\\\\x1F3F\\\\xFACD\\\\xEE60\\\\x334D": [
+      "Agent 332",
+      "Agent 333",
+      "Agent 336",
+      "Agent 348",
+      "Anguish Titan",
+      "Agent 185",
+      "Agent 326",
+      "Agent 346",
+      "Agent 347",
+      "Agent 350",
+      "Agent 351",
+      "Agent 352",
+      "Agent 353",
+      "Agent 187",
+      "Agent 335",
+      "Agent 337"
+    ],
+    "enc:\\\\x8101\\\\x204A\\\\xEC57\\\\xE6ED\\\\x10FB": [
+      "Despair Titan"
+    ],
+    "enc:\\\\x8101\\\\x3ACA\\\\xFD7E\\\\xC32B\\\\x229A": [
+      "Tortureweb Dryder",
+      "Agent 62"
+    ],
+    "enc:\\\\x8101\\\\x3ADF\\\\x872C\\\\xA61D\\\\x7047": [
+      "Greater Dream Rider",
+      "Agent 63"
+    ],
+    "enc:\\\\x8101\\\\x3AE0\\\\xD420\\\\xB4B8\\\\x68A8": [
+      "Agent 347",
+      "Greater Dream Rider",
+      "Agent 338",
+      "Agent 336"
+    ],
+    "enc:\\\\x8101\\\\x3AE4\\\\xFC44\\\\x9790\\\\x5620": [
+      "Agent 333",
+      "Rage Titan",
+      "Agent 114",
+      "Agent 335",
+      "Agent 322",
+      "Agent 329"
+    ],
+    "enc:\\\\x8101\\\\x3AE5\\\\xA9E6\\\\x7668": [
+      "Agent 336",
+      "Despair Titan",
+      "Agent 322",
+      "Agent 324"
     ],
     "enc:\\\\x8101\\\\x45D5\\\\xEC58\\\\x881D\\\\x5589": [
       "Agent 216",
@@ -641,33 +918,96 @@
     ],
     "enc:\\\\x8101\\\\x57E2\\\\xD745\\\\xE116\\\\x306B": [
       "Agent 49",
-      "Margonite Anur Kaya"
+      "Margonite Anur Kaya",
+      "Agent 61",
+      "Agent 48"
     ],
     "enc:\\\\x8101\\\\x57E3\\\\xA8BC\\\\xC6B2\\\\x242A": [
       "Agent 50",
       "Agent 51",
-      "Margonite Anur Dabi"
+      "Margonite Anur Dabi",
+      "Agent 55",
+      "Agent 53",
+      "Agent 54"
     ],
     "enc:\\\\x8101\\\\x57E4\\\\x8C28\\\\xE4D0\\\\x2D36": [
       "Agent 52",
       "Agent 53",
-      "Margonite Anur Su"
+      "Margonite Anur Su",
+      "Agent 56",
+      "Agent 54",
+      "Agent 55"
     ],
     "enc:\\\\x8101\\\\x57E5\\\\xAF06\\\\xAB4C\\\\x55BF": [
-      "Margonite Anur Ki"
+      "Margonite Anur Ki",
+      "Agent 326",
+      "Agent 324",
+      "Agent 328"
     ],
     "enc:\\\\x8101\\\\x57E6\\\\xEC50\\\\x0131": [
-      "Margonite Anur Vu"
+      "Margonite Anur Vu",
+      "Agent 57",
+      "Agent 55",
+      "Agent 56"
     ],
     "enc:\\\\x8101\\\\x57E7\\\\x8EDB\\\\xD612\\\\x63B6": [
       "Agent 54",
-      "Margonite Anur Tuk"
+      "Margonite Anur Tuk",
+      "Agent 58",
+      "Agent 56",
+      "Agent 57"
     ],
     "enc:\\\\x8101\\\\x57E8\\\\xF9DF\\\\x8A02\\\\x0113": [
-      "Margonite Anur Ruk"
+      "Margonite Anur Ruk",
+      "Agent 59",
+      "Agent 57",
+      "Agent 58"
     ],
     "enc:\\\\x8101\\\\x57E9\\\\x97F0\\\\x825A\\\\x1463": [
-      "Margonite Anur Rund"
+      "Margonite Anur Rund",
+      "Agent 60",
+      "Agent 58",
+      "Agent 59"
+    ],
+    "enc:\\\\x8101\\\\x57EF\\\\xCC41\\\\xA331\\\\x105A": [
+      "Misery Titan",
+      "Agent 114",
+      "Agent 322",
+      "Agent 327",
+      "Agent 330",
+      "Agent 324",
+      "Agent 337",
+      "Agent 341",
+      "Agent 349",
+      "Agent 53",
+      "Agent 56",
+      "Agent 323"
+    ],
+    "enc:\\\\x8101\\\\x57F0\\\\xD610\\\\xC6CF\\\\x323F": [
+      "Rage Titan",
+      "Agent 348",
+      "Agent 349",
+      "Agent 350",
+      "Agent 351",
+      "Agent 354",
+      "Agent 355",
+      "Agent 356",
+      "Agent 357",
+      "Agent 338",
+      "Agent 339",
+      "Agent 340",
+      "Agent 341"
+    ],
+    "enc:\\\\x8101\\\\x57F1\\\\xCF01\\\\xC618\\\\x6766": [
+      "Agent 345",
+      "Agent 351",
+      "Dementia Titan",
+      "Agent 340",
+      "Agent 356",
+      "Agent 368",
+      "Agent 369",
+      "Agent 329",
+      "Agent 330"
     ],
     "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": [
       "Elder Crocodile"
