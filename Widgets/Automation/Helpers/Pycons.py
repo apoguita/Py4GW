@@ -7208,41 +7208,89 @@ try:
         _last_broadcast_ms[key] = now
         _broadcast_use(model_id, 1, effect_id)
 
-    def _pick_alcohol(cur_level: int, target_level: int, pool_keys: list):
+    def _ordered_alcohol_candidates(cur_level: int, target_level: int, pool_keys: list) -> list[dict]:
         if not pool_keys:
-            return None
-        candidates = []
+            return []
+        candidates: list[tuple[int, str, dict]] = []
         for k in pool_keys:
             spec = ALCOHOL_BY_KEY.get(k)
             if not spec:
                 continue
             add = int(spec.get("drunk_add", 1) or 1)
-            candidates.append((add, spec.get("label", ""), spec))
+            candidates.append((add, str(spec.get("label", "") or ""), spec))
 
         if not candidates:
-            return None
+            return []
 
         mode = int(cfg.alcohol_preference)
 
         if mode == 0:
-            reaching = [c for c in candidates if min(5, cur_level + c[0]) >= target_level]
-            if reaching:
-                reaching.sort(key=lambda x: (x[0], x[1]))
-                return reaching[0][2]
-            candidates.sort(key=lambda x: (-x[0], x[1]))
-            return candidates[0][2]
+            reaching = []
+            fallback = []
+            for candidate in candidates:
+                if min(5, cur_level + candidate[0]) >= target_level:
+                    reaching.append(candidate)
+                else:
+                    fallback.append(candidate)
+            reaching.sort(key=lambda x: (x[0], x[1]))
+            fallback.sort(key=lambda x: (-x[0], x[1]))
+            return [c[2] for c in reaching + fallback]
 
         if mode == 1:
             candidates.sort(key=lambda x: (-x[0], x[1]))
-            return candidates[0][2]
+            return [c[2] for c in candidates]
 
         delta = max(0, target_level - cur_level)
-        non_over = [c for c in candidates if c[0] <= delta and c[0] > 0]
-        if non_over:
-            non_over.sort(key=lambda x: (x[0], x[1]))
-            return non_over[0][2]
-        candidates.sort(key=lambda x: (x[0], x[1]))
-        return candidates[0][2]
+        non_over = []
+        fallback = []
+        for candidate in candidates:
+            if candidate[0] <= delta and candidate[0] > 0:
+                non_over.append(candidate)
+            else:
+                fallback.append(candidate)
+        non_over.sort(key=lambda x: (x[0], x[1]))
+        fallback.sort(key=lambda x: (x[0], x[1]))
+        return [c[2] for c in non_over + fallback]
+
+    def _pick_alcohol(cur_level: int, target_level: int, pool_keys: list):
+        candidates = _ordered_alcohol_candidates(cur_level, target_level, pool_keys)
+        if not candidates:
+            return None
+        return candidates[0]
+
+    def _alcohol_label_summary(labels: list[str], limit: int = 4) -> str:
+        out = []
+        seen = set()
+        for label in labels:
+            clean = str(label or "").strip()
+            if not clean or clean in seen:
+                continue
+            seen.add(clean)
+            out.append(clean)
+        if len(out) <= int(limit):
+            return ", ".join(out)
+        return f"{', '.join(out[:int(limit)])}, +{len(out) - int(limit)} more"
+
+    def _record_no_usable_alcohol(missing_inventory: list[str], missing_model: list[str], failed_use: list[str]):
+        details = []
+        missing_inventory_text = _alcohol_label_summary(missing_inventory)
+        missing_model_text = _alcohol_label_summary(missing_model)
+        failed_use_text = _alcohol_label_summary(failed_use)
+        if missing_inventory_text:
+            details.append(f"not in inventory: {missing_inventory_text}")
+        if missing_model_text:
+            details.append(f"model_id=0: {missing_model_text}")
+        if failed_use_text:
+            details.append(f"use failed: {failed_use_text}")
+        reason = "no selected ON alcohol is usable"
+        if details:
+            reason = f"{reason} ({'; '.join(details)})"
+
+        wt = _warn_timer_for("alcohol_no_usable_candidate")
+        if wt.IsStopped() or wt.HasElapsed(15000):
+            wt.Start()
+            _record_blocked_action("alcohol_no_usable_candidate", f"Alcohol: {reason}")
+            _log(f"Skipping Alcohol: {reason}.", Console.MessageType.Debug)
 
     def _cooldown_for_key(key: str, spec: dict | None = None) -> int:
         v = int(cfg.min_interval_ms.get(key, 0) or 0)
@@ -10080,41 +10128,51 @@ try:
         if not (t.IsStopped() or t.HasElapsed(int(interval_ms))):
             return False
 
-        pick = _pick_alcohol(cur_level, target, pool_keys)
-        if not pick:
+        picks = _ordered_alcohol_candidates(cur_level, target, pool_keys)
+        if not picks:
             return False
 
-        model_id = int(pick.get("model_id", 0))
-        if model_id <= 0:
-            wt = _warn_timer_for("alcohol_modelid_missing_" + pick.get("key", "unknown"))
-            if wt.IsStopped() or wt.HasElapsed(15000):
-                wt.Start()
-                _record_blocked_action(
-                    "alcohol_modelid_missing_" + str(pick.get("key", "unknown")),
-                    f"{str(pick.get('label','(unknown)') or '(unknown)')}: model_id=0",
-                )
-                _debug(f"Alcohol '{pick.get('label','(unknown)')}' has model_id=0 in your build, skipping.", Console.MessageType.Warning)
-            return False
+        missing_inventory = []
+        missing_model = []
+        failed_use = []
+        for pick in picks:
+            model_id = int(pick.get("model_id", 0))
+            label = str(pick.get("label", "Alcohol") or "Alcohol")
+            if model_id <= 0:
+                missing_model.append(label)
+                wt = _warn_timer_for("alcohol_modelid_missing_" + pick.get("key", "unknown"))
+                if wt.IsStopped() or wt.HasElapsed(15000):
+                    wt.Start()
+                    _record_blocked_action(
+                        "alcohol_modelid_missing_" + str(pick.get("key", "unknown")),
+                        f"{str(pick.get('label','(unknown)') or '(unknown)')}: model_id=0",
+                    )
+                    _debug(f"Alcohol '{pick.get('label','(unknown)')}' has model_id=0 in your build, skipping.", Console.MessageType.Warning)
+                continue
 
-        item_id = _find_item_id_by_model_id(model_id)
-        if item_id <= 0:
-            return False
+            item_id = _find_item_id_by_model_id(model_id)
+            if item_id <= 0:
+                missing_inventory.append(label)
+                continue
 
-        if fast_spending:
-            _log(f"Fast drinking {pick.get('label','Alcohol')}.", Console.MessageType.Debug)
-        else:
-            _log(f"Drinking {pick.get('label','Alcohol')} (target {target}).", Console.MessageType.Debug)
-        if _use_item_id(item_id, pick.get("key", "alcohol")):
-            _alcohol_apply_drink(int(pick.get("drunk_add", 1) or 1), now)
-            t.Start()
-            aftercast_timer.Start()
-            try:
-                _broadcast_use(model_id, 1, 0)
-            except Exception:
-                pass
-            # Force refresh inventory cache to show accurate count after consumption
-            _refresh_inventory_cache(force=True)
-            return True
+            if fast_spending:
+                _log(f"Fast drinking {pick.get('label','Alcohol')}.", Console.MessageType.Debug)
+            else:
+                _log(f"Drinking {pick.get('label','Alcohol')} (target {target}).", Console.MessageType.Debug)
+            if _use_item_id(item_id, pick.get("key", "alcohol")):
+                _alcohol_apply_drink(int(pick.get("drunk_add", 1) or 1), now)
+                t.Start()
+                aftercast_timer.Start()
+                try:
+                    _broadcast_use(model_id, 1, 0)
+                except Exception:
+                    pass
+                # Force refresh inventory cache to show accurate count after consumption
+                _refresh_inventory_cache(force=True)
+                return True
+            failed_use.append(label)
+
+        _record_no_usable_alcohol(missing_inventory, missing_model, failed_use)
 
         return False
 
