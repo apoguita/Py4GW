@@ -652,6 +652,20 @@ class Player:
         
                
     @staticmethod
+    def CallTarget(agent_id):
+        """
+        Purpose: Broadcast a call-target alert to the party via direct cpp call.
+        Routes through PyPlayer::CallTarget -> GW::Agents::CallTarget(uint32_t)
+        -> AgentLiving* overload -> kSendCallTarget UI message. No keystroke.
+        Args:
+            agent_id (int): The ID of the agent to call.
+        Returns: None
+        """
+        def _do_action():
+            Player.player_instance().CallTarget(agent_id)
+        ActionQueueManager().AddAction("ACTION", _do_action)
+
+    @staticmethod
     def Interact(agent_id, call_target=False):
         """
         Purpose: Interact with an agent.
