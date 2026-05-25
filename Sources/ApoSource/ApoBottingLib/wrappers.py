@@ -1056,6 +1056,10 @@ def Wait(duration_ms: int, log: bool = False, emote: bool | str = False, announc
 def WaitUntilOnExplorable(timeout_ms: int = 15000) -> BehaviorTree:
     return RoutinesBT.Map.WaitUntilOnExplorable(timeout_ms=timeout_ms,)
 
+def WaitUntilOnOutpost(timeout_ms: int = 15000) -> BehaviorTree:
+    return RoutinesBT.Map.WaitUntilOnOutpost(timeout_ms=timeout_ms,)
+
+
 def WaitUntilOutOfCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000) -> BehaviorTree:
     return RoutinesBT.Agents.WaitUntilOutOfCombat(range=range,timeout_ms=timeout_ms)
 

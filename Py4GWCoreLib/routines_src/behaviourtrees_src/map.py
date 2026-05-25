@@ -182,6 +182,39 @@ class BTMap:
                 timeout_ms=timeout_ms,
             )
         )
+        
+    @staticmethod
+    def WaitUntilOnOutpost(timeout_ms: int = 15000, log: bool = False) -> BehaviorTree:
+        """
+        Build a tree that waits until the current map is a valid outpost instance.
+
+        Meta:
+          Expose: true
+          Audience: beginner
+          Display: Wait Until On Outpost
+          Purpose: Wait until the current map becomes a valid outpost map.
+          UserDescription: Use this when a step should pause until the party is fully inside an outpost.
+          Notes: Requires both a valid map context and outpost mode.
+        """
+        from ..Checks import Checks
+        state = {"logged_success": False}
+
+        def _wait_until_on_outpost() -> BehaviorTree.NodeState:
+            if Checks.Map.MapValid() and Checks.Map.IsOutpost():
+                if not state["logged_success"]:
+                    _log("WaitUntilOnOutpost", "Outpost map is ready.", log=log)
+                    state["logged_success"] = True
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name="WaitUntilOnOutpost",
+                condition_fn=_wait_until_on_outpost,
+                throttle_interval_ms=500,
+                timeout_ms=timeout_ms,
+            )
+        )
 
     @staticmethod
     def TravelToOutpost(
