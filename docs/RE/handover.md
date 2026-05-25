@@ -1,0 +1,535 @@
+# Reverse Engineering Handover
+
+Comprehensive library reference for Python↔C++↔Ghidra interface in the Py4GW project.
+Read this first before any RE work. AGENTS.md points here for tool paths and mappings.
+
+---
+
+## 1. Three-Layer Architecture
+
+| Layer | Location | Purpose | Interface |
+|-------|----------|---------|-----------|
+| **C++/GWCA** | `C:\Users\Apo\Py4GW\vendor\gwca\` | Original GWCA source, function discovery patterns | `Scanner::Find*`, hooks, structs |
+| **Python/Native** | `Py4GWCoreLib\native_src\` | Python port of GWCA primitives | `NativeFunction`, `PlayerMethods`, `Scanner` |
+| **Ghidra** | MCP bridge (2 programs loaded) | Static analysis of Gw.exe + Gw.wasm | `mcp__ghidra__*` tools over MCP |
+
+### C++/GWCA Source Layout
+
+```
+C:\Users\Apo\Py4GW\vendor\gwca\
+├── Source\               # Implementation files
+│   ├── AgentMgr.cpp      # InteractAgent, MoveTo, ChangeTarget, CallTarget
+│   ├── PlayerMgr.cpp     # Player operations
+│   ├── UIMgr.cpp         # UI message dispatch
+│   ├── ItemMgr.cpp       # Inventory/items
+│   ├── GameThreadMgr.cpp # Enqueue/execution loop
+│   └── ...
+├── Include\GWCA\
+│   ├── Managers\         # Public API headers
+│   │   ├── AgentMgr.h    # WorldActionId, CallTargetType, Agent APIs
+│   │   └── ...
+│   ├── GameEntities\     # Struct definitions (Agent, NPC, Item, etc.)
+│   ├── Constants\        # Enums (Allegiance, etc.)
+│   └── Utilities\
+│       └── Scanner.h     # Find, FindAssertion, ToFunctionStart, FunctionFromNearCall
+```
+
+### Python/Native Source Layout
+
+```
+Py4GWCoreLib\
+├── native_src\
+│   ├── methods\
+│   │   ├── PlayerMethods.py   # InteractAgent, Move, ChangeTarget, SendChat
+│   │   ├── MapMethods.py      # Travel, logout
+│   │   └── DatFileMethods.py  # Character data
+│   ├── internals\
+│   │   ├── native_function.py # NativeFunction class (byte-pattern → callable)
+│   │   ├── prototypes.py      # Function signatures (Void_U32, etc.)
+│   │   ├── native_symbol.py   # Symbol resolution helpers
+│   │   └── native_caller.py   # Dynamic call infrastructure
+│   ├── context\               # Native context struct accessors
+│   └── __init__.py
+├── Scanner.py                 # Python-facing Scanner (FindAssertion, FindInRange)
+├── Player.py                  # High-level Player wrapper
+├── Agent.py                   # Agent wrapper
+├── UIManager.py               # SendUIMessage, SendUIMessageRaw
+└── enums_src\UI_enums.py      # UIMessage, WorldActionId equivalents
+```
+
+### Ghidra Setup
+
+Two programs permanently loaded via MCP bridge:
+
+| Program | Path | Language | Base | Functions |
+|---------|------|----------|------|-----------|
+| **Gw.exe** (current) | `/Gw.exe(Symbols)` | x86:LE:32 | `0x00400000` | 18,017 |
+| **Gw.wasm** | `/Gw.wasm` | Wasm:LE:32 | `ram:80000000` | 18,004 |
+
+- EXE has NO debug symbols except MSVC CRT — functions are `FUN_xxxxxxxx`
+- WASM has FULL debug symbols — functions have semantic names like `CharCliPlayerOrderAlertSimple`
+- Address spaces: EXE uses flat image-base addressing (`0x00513670`); WASM uses `ram:` prefix (`ram:80c4bada`)
+
+Switch programs with: `mcp__ghidra__switch_program` (all Ghidra tools accept `program` parameter)
+
+---
+
+## 2. Bridging Techniques
+
+The core technique is **string anchoring**: C++ assert/LogMsg string literals survive identically in EXE and WASM because they come from the same source tree.
+
+### CPP → EXE (finding a GWCA function in the stripped EXE)
+
+```
+GWCA: Scanner::FindAssertion("GmCoreAction.cpp", "action < WORLD_ACTIONS", 0, 0)
+       → Scanner::ToFunctionStart(address)
+       → EXE: FUN_0050e5e0
+```
+
+Manual: search string → get xref → walk to function start.
+
+### WASM → EXE
+
+Find a string in the WASM function → search same string in EXE → xref → function.
+
+Example: `"CommandMoveToPoint (agent %d, point %f, %f): Hero not activated"` in `CharClient::CHeroMgr::OnCommandMoveToPoint` → EXE `FUN_00817cf0`.
+
+### EXE → WASM
+
+Find string in EXE function → search in WASM → xref → named WASM function.
+
+### Byte Pattern Scanning
+
+When no string exists, use opcode byte patterns:
+```python
+pattern = b"\x6A\x0C\xC7\x45\xF0\x23\x00\x00\x00"  # push 0xC; mov [ebp-0x10], 0x23
+mask    = "xxxxxxxxx"
+```
+
+Always verify pattern has exactly ONE match.
+
+Full procedure in: `docs/RE/CPP_WASM_MAPPING.md`
+
+---
+
+## 3. Key Function Catalog
+
+### Agent / Interaction Functions
+
+| GWCA/CPP Name | WASM Symbol | EXE Address | Technique |
+|---------------|-------------|-------------|-----------|
+| `DoWorldActon_Func` | `IUi::Game::CoreActionExecuteWorldAction(EWorldAction, uint, int)` | `0x0050e5e0` | assertion `"action < WORLD_ACTIONS"` |
+| `CallTarget_Func` | `CharCliPlayerOrderAlertSimple(ECharSimpleAlert, uint)` | `0x00917740` (thunk `0x008102d0`) | byte pattern (opcode 0x23) |
+| `ChangeTarget_Func` | `IAgentView::SetSelections(uint, uint)` | `0x007e0f60` | assertion `"!(autoAgentId && !ManagerFindAgent(autoAgentId))"` |
+| `MoveTo_Func` | `IUi::Game::Walk*` (typedef mismatch) | `0x00534fa0` | byte pattern `\x83\xc4\x0c\x85\xff\x74\x0b\x56\x6a\x03` |
+| `SendAgentDialog_Func` | (thunk) | `0x008105b0` | byte pattern + near-call at `+0x15` |
+| `SendGadgetDialog_Func` | (thunk) | `0x00810e00` | byte pattern + near-call at `+0x25` |
+
+### Interaction Sub-Functions (WASM names)
+
+| WASM Symbol | Address | Role |
+|-------------|---------|------|
+| `CharCliPlayerOrderInteract(uint, int)` | `ram:80c4d1f3` | Client-side interact handler (RemoveClientControl + send packet) |
+| `CharMsgSendOrderInteract(uint, int)` | `ram:80a157d2` | Network packet sender (opcode 0x39, 12 bytes) |
+| `CharCliPlayerOrderAttack(uint, int)` | EXE `0x007ed5f0` | Attack order + RemoveClientControl + send |
+| `CharCliPlayerOrderPickup(uint, int)` | EXE `0x007ed860` | Pickup order |
+| `CharCliPlayerOrderUse(uint, int)` | EXE `0x007ee070` | Use item order |
+| `CharCliPlayerOrderFollow(uint)` | EXE `0x007ed760` | Follow order |
+| `IUi::Game::ExecuteDefaultWorldAction(uint, int, uint)` | `ram:815e996e` | Official interaction dispatch (what UI uses) |
+| `IUi::Game::GetDefaultWorldAction(uint, int, uint)` | `ram:815f3fc8` | Action decision logic (sanitization) |
+| `IUi::Game::CoreActionGetDefaultWorldAction(uint)` | `ram:8125ff0a` | Simple agent-type-to-action mapping |
+
+### Agent Data
+
+| GWCA Name | WASM/Emscripten Name | EXE Address | Technique |
+|-----------|---------------------|-------------|-----------|
+| `AgentArrayPtr` | agent array base | `0x00bf05c4` | data pointer scan (array-indexing pattern) |
+| `PlayerAgentIdPtr` | player agent id | `0x00bfe7c0` | byte pattern between adjacent functions |
+
+### Data Functions Used Internally
+
+| EXE Address | Guess Name | Role |
+|-------------|------------|------|
+| `0x007b8ba0` | `AvValidate` | Validate agent exists in manager |
+| `0x007b84e0` | `AvGetType` | Get agent type (0xdb=dead, 0x200=gadget, 0x400=item) |
+| `0x007b6fe0` | `AvCharGetStatus` | Get character status flags (bit 0x10 = alive/available) |
+| `0x005152a0` | `ChatAllowAlert` | Can we call target? |
+| `thunk_FUN_007bdbb0` | `AvSelectGetAuto` | Get auto-selection target |
+| `0x007b89e0` | `SetPrimaryCombatTarget` | Set primary combat target |
+| `0x0047f0e0` | `CharCliAgentGetControlled` | Get controlled character pointer |
+| `0x007f3400` | `CharClient::CBase::RemoveClientControl` | Release client input control |
+| `FUN_005d9f70` | `AgentGetPoint` | Get agent world position |
+| `FUN_0052fa20` | `WalkToPoint` | Walk to point |
+
+---
+
+## 4. UI Message Dispatch Architecture
+
+Game interaction flows through the UI message system. Most game actions (interaction, targeting, inventory, party, chat, etc.) are dispatched as UI messages rather than direct function calls.
+
+### Message Ranges
+
+| Range | Type | Direction | Examples |
+|-------|------|-----------|----------|
+| `0x00–0x55` | Base frame messages | Internal frame lifecycle | `kInitFrame=0x9`, `kDestroyFrame=0xB`, `kKeyDown=0x20` |
+| `0x10000007–0x100001CC` | Notification/event messages | Server→Client (incoming) | `kEffectAdd`, `kMapLoaded`, `kAgentSkillActivated`, `kQuestAdded` |
+| `0x30000002–0x30000022` | Command/send messages | Client→Server (outgoing) | `kSendWorldAction`, `kSendChatMessage`, `kSendInteractNPC` |
+
+### Dispatch Mechanism
+
+The game uses a **hash table** — not a switch statement or array:
+
+```
+SendUIMessage(msg_id, wParam, lParam)
+    │
+    ├─→ FrameMsgSendRegistered(msg_id, wParam, lParam)     [for msg_id > 0x55]
+    │       └─→ IFrame::CMsg::DispatchRegistered(msg_id, ...)
+    │               └─→ THashTable<CHandler>::Find(&DAT_ram_005a0338, &msg_id)
+    │                       └─→ CHandler::Dispatch(wParam, lParam)
+    │
+    └─→ Ui_BroadcastRegisteredFrameMessage(msg_id)         [GWCA callback layer]
+            └─→ registered callbacks (GWCA OnUIMessage hook)
+```
+
+**Key facts:**
+- **Hash table** at `DAT_ram_005a0338` (`THashTable<IFrame::Msg::CHandler, THashKeyVal<uint>>`) — the handler registry
+- **Registration** flows through: `FrameMsgRegister(msg_id, flags)` → `IFrame::CMsg::Register(msg_id)` → `TBaseHashTable<IFrame::Msg::CHandler>::Add(handler, msg_id)`
+- **Sending** flows through: each caller calls `FrameMsgSendRegistered(CONSTANT_msg_id, ...)` with a hard-coded message ID
+- The hash table is zero-initialized at compile time and **populated at runtime** by init code — it cannot be dumped statically
+
+### How GWCA Hooks the System
+
+GWCA hooks two entry points:
+
+| Hooked Function | Pattern | Address |
+|-----------------|---------|---------|
+| `SendUIMessage_Func` | `\xB9\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x5D\xC3\x89\x45\x08` | `0x006102a5` → ToFunctionStart |
+| `SendFrameUIMessageById_Func` | `\x83\xfb\x56\x73\x14` (-0x34) | `0x00610130` |
+
+GWCA's `OnSendUIMessage` receives **every** message passing through the system. It logs them to `ui_payload_logs` and dispatches to `UIMessage_callbacks` (per-message callback registry at GWCA level).
+
+### Message Discovery Methods
+
+**Method A: Runtime logging (GWCA approach)**
+Hook `SendUIMessage_Func`, play through game states, log every message ID + wParam payload. GWCA already does this in `UIMgr.cpp:375`. The `ui_payload_logs` buffer records incoming (server→client) and outgoing (client→server) messages.
+
+**Method B: Static analysis (WASM)**
+Every message is sent by a named WASM function calling `FrameMsgSendRegistered(CONSTANT_ID, ...)`. Enumerate all callers, extract the constant `i32.const` first argument, cross-reference with the handler function name. Requires a Ghidra script (see Appendix).
+
+**Message IDs found via WASM that GWCA's enum doesn't name:**
+
+| Message ID | WASM Handler | Probable Meaning |
+|-----------|-------------|------------------|
+| `0x10000035` | `CharCliOnHardModeIsAllowed` | Hard mode permission state change |
+| `0x10000036` | `CharCliOnHenchmanAgent` | Henchman agent added/updated |
+| `0x100000c6` | `AccountCliOnPromotionWarning` | Account promotion notification |
+
+**GWCA entries needing identification** (~15 unknowns):
+`kInventoryRelated1/2/3` (0x1A8–0x1AA), `kItemRelated_1/3/4` (0x1AD–0x1B0), `kInventoryRelated_1/2` (0x1C2–0x1C3), `kMissionStatusRelated` (0x1C4), `kUnused_1c2` (0x1C5), `kTemplateRelated_1/2/3/4` (0x1C7–0x1CC), `kUnknownQuestRelated` (0x154).
+
+### Per-Type Interaction Messages (0x3000000D–0x30000011)
+
+```python
+kSendInteractNPC    = 0x3000000D  # wparam = UIPacket::kInteractAgent*
+kSendInteractGadget = 0x3000000E  # wparam = UIPacket::kInteractAgent*
+kSendInteractItem   = 0x3000000F  # wparam = UIPacket::kInteractAgent*
+kSendInteractEnemy  = 0x30000010  # wparam = UIPacket::kInteractAgent*
+kSendInteractPlayer = 0x30000011  # wparam = uint32_t agent_id
+```
+
+These route through: handler → `ExecuteDefaultWorldAction` → `GetDefaultWorldAction` → `CoreActionExecuteWorldAction`.
+This is the **official game UI path** with full validation.
+
+### Unified World Action Message (0x30000020)
+
+```python
+kSendWorldAction = 0x30000020  # wparam = UIPacket::kSendWorldAction*
+# Packet: { WorldActionId action_id, uint32_t agent_id, bool suppress_call_target }
+```
+
+Routes directly to: `CoreActionExecuteWorldAction`. Simpler path, fewer checks.
+This is what both GWCA and the Python code use.
+
+### WorldActionId Values
+
+```python
+InteractEnemy        = 0
+InteractPlayerOrOther = 1
+InteractNPC          = 2
+InteractItem         = 3
+InteractTrade        = 4
+InteractGadget       = 5
+```
+
+### Other Key Messages
+
+```python
+kSendChangeTarget = 0x3000000B  # { target_id, auto_target_id }
+kSendCallTarget   = 0x30000013  # { call_type, agent_id }
+kSendAgentDialog  = 0x30000014  # dialog_id
+kSendGadgetDialog = 0x30000015  # dialog_id
+kSendDialog       = 0x30000016  # dialog_id (internal)
+```
+
+### Complete GWCA UIMessage Catalog
+
+The authoritative enum is at `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Managers\UIMgr.h:294` (~120 entries). The Python port is at `Py4GWCoreLib\enums_src\UI_enums.py`.
+
+### UI Message Infrastructure Functions
+
+| Function | Address (EXE) | Role |
+|----------|---------------|------|
+| `SendUIMessage_Func` | via pattern `\xB9...\x5D\xC3\x89\x45\x08` | Main entry point: takes `(msg_id, wParam, lParam)` |
+| `SendFrameUIMessageById_Func` | `0x00610130` | Frame-targeted message dispatch (validates frame != 0, msg_id >= 0x56) |
+| `Ui_BroadcastRegisteredFrameMessage` | `0x00610290` | Fires all GWCA-registered callbacks for a message |
+| `Ui_DispatchFrameMessageToActiveNode` | — | Internal: routes message to active frame node's handler |
+| `FrameMsgSendRegistered` | WASM `ram:809b8869` | WASM-side: dispatches high-bit messages via hash table lookup |
+| `IFrame::CMsg::DispatchRegistered` | WASM `ram:80978e1a` | Core dispatch: `THashTable::Find(DAT_ram_005a0338, &msg_id)` |
+| `IFrame::CMsg::Register` | WASM `ram:80975458` | Registers a handler for a message ID |
+| `TBaseHashTable<CHandler>::Add` | WASM `ram:8097658b` | Inserts handler into hash table (used by Register) |
+
+### Appendix: Ghidra Script to Dump All Message IDs
+
+```java
+// Finds all callers of FrameMsgSendRegistered in WASM, extracts constant msg_id
+import ghidra.app.script.GhidraScript;
+import ghidra.program.model.listing.*;
+import ghidra.program.model.symbol.*;
+
+public class DumpMsgIds extends GhidraScript {
+    public void run() throws Exception {
+        Function target = null;
+        for (Function f : currentProgram.getFunctionManager().getFunctions(true)) {
+            if (f.getName().contains("FrameMsgSendRegistered")) {
+                target = f; break;
+            }
+        }
+        if (target == null) { println("Not found"); return; }
+        Set<String> seen = new HashSet<>();
+        for (Reference ref : currentProgram.getReferenceManager()
+                .getReferenceAddressesTo(target.getEntryPoint())) {
+            Function caller = currentProgram.getFunctionManager()
+                .getFunctionContaining(ref.getFromAddress());
+            if (caller == null || !seen.add(caller.getName())) continue;
+            Instruction prev = currentProgram.getListing()
+                .getInstructionBefore(ref.getFromAddress());
+            if (prev == null) continue;
+            byte[] b = new byte[5];
+            currentProgram.getMemory().getBytes(prev.getAddress(), b);
+            if ((b[0] & 0xff) != 0x41) continue; // not i32.const
+            long val = 0; int shift = 0;
+            for (int i = 1; i < 5; i++) {
+                int byteVal = b[i] & 0xff;
+                val |= (long)(byteVal & 0x7f) << shift;
+                shift += 7;
+                if ((byteVal & 0x80) == 0) break;
+            }
+            if (val >= 0x10000000 && val <= 0x3FFFFFFF)
+                println(String.format("0x%08X  <-  %s", val, caller.getName()));
+        }
+    }
+}
+```
+
+Run with: `mcp__ghidra__run_script_inline` (requires `GHIDRA_MCP_ALLOW_SCRIPTS=1`)
+
+### FrApi Function Mapping (Updated 2026-05-21)
+
+The Frame API functions (FrApi.cpp) in `UIMgr.cpp` map WASM symbols to EXE addresses.
+As of 2026-05-21, the following addresses were verified:
+
+| FrApi Function | WASM Symbol | WASM Address | EXE Address (05-21-2026) | Status |
+|---------------|-------------|-------------|--------------------------|--------|
+| FrameGetTitle | `FrameGetTitle` | `ram:809b0790` | `0x0062????` (TBD) | **Stub** — vtable `CNonclient::GetTitle()`, no struct field |
+| FrameGetCode | `FrameGetCode` | `ram:809af832` | `0x0062????` (TBD) | **Struct** — `frame->frame_id` |
+| FrameGetMinSize | `FrameGetMinSize` | `ram:809aa2b3` | `0x0062????` (TBD) | **Stub** — msg 0x15 via controller |
+| FrameGetClientBorder | `FrameGetClientBorder` | `ram:809a8164` | `0x0062????` (TBD) | **Stub** — msg 0x15 via controller |
+| FrameGetClipRect | `FrameGetClipRect` | `ram:809a830a` | `0x0062????` (TBD) | **Stub** — msg 0x15 dispatch |
+| FrameGetPosition | `FrameGetPosition` | `ram:809a886b` | `0x0062????` (TBD) | **Partial** — screen w/h/flags from struct, x/y stubbed |
+| FrameGetNativeSize | `FrameGetNativeSize` | `ram:809a8482` | `0x0062????` (TBD) | **Stub** — method call on CRect |
+| FrameSetOpacity | `FrameSetOpacity` | `ram:809b7f49` | `0x0062????` (TBD) | **Struct** — writes `frame+0x30` float (no fade anim) |
+| FrameShow | `FrameShow` | `ram:809a5e39` | `0x0062????` (TBD) | **Delegate** → `SetFrameVisible` (msg 0x36 skipped) |
+| GetOverlays | `IFrame::CRelation::GetOverlays` | `ram:80984909` | `0x0062d960` | **Hardcoded** — needs Scanner pattern |
+| GetPopups | `IFrame::CRelation::GetPopups` | `ram:80984be8` | `0x0062daa0` | **Hardcoded** — needs Scanner pattern |
+| GetChildFromNameHash | `IFrame::CRelation::GetChildFromNameHash` | `ram:80983fda` | `0x0062ccb0` | **Hardcoded** — needs Scanner pattern |
+
+**⚠️ Key finding:** Previous code used addresses in `0x0060eXXX` range (e.g., FrameGetTitle at `0x0060e810`).
+These addresses all land inside function `FUN_0060e290` (a layout/render function), NOT FrApi functions.
+The real FrApi functions are in the `0x0062XXXX` range, verified via the `"Engine\\Frame\\FrApi.cpp"` 
+assertion string at `0x00a4e36c` which has 100+ xrefs from functions at `0x0062a6e0` through `0x0062d010`.
+The remaining hardcoded addresses (`0x0062ccb0`, `0x0062d960`, `0x0062daa0`) are in the correct range 
+but should be replaced with `Scanner::Find` patterns for resilience across game updates.
+
+---
+
+## 5. InteractAgent Flow (Case Study)
+
+### What happens when you call `PlayerMethods.InteractAgent(agent_id, call_target=True)`
+
+1. **Python** ([PlayerMethods.py:87](file:///C:/Users/Apo/Py4GW_python_files/Py4GWCoreLib/native_src/methods/PlayerMethods.py:87)):
+   - Gets agent by ID, determines `WorldActionId` from type + allegiance
+   - Sends `kSendWorldAction` UI message with `[action_id, agent_id, call_target]`
+
+2. **EXE/WASM** (`CoreActionExecuteWorldAction` at `0x0050e5e0` / `ram:81260cda`):
+   - `AvValidate(agent_id)` — assert agent exists
+   - `ChatAllowAlert()` — assert call target is allowed
+   - For action=0 (Enemy):
+     - `CharCliPlayerOrderAttack(agent, suppress)`
+     - If auto-select matches target: `SetPrimaryCombatTarget(agent)`
+     - Check agent type/status → Follow or WalkToPoint
+     - If call_target: `CharCliPlayerOrderAlertSimple(3, agent)` (CallTarget)
+     - `CharCliPlayerOrderInteract(agent, suppress)`
+   - For action=2 (NPC): `CharCliPlayerOrderPickup(agent, suppress)`
+   - For action=5 (Gadget): `CharCliPlayerOrderUse(agent, suppress)`
+
+3. **Network**: `CharMsgSendOrderInteract` sends opcode 0x39 with `[agent_id, suppress]` (12 bytes)
+
+### What the official UI path adds (NOT taken by current code)
+
+`GetDefaultWorldAction` (`ram:815f3fc8`) checks:
+- Observer mode (`MissionCliIsObserver`)
+- Agent type mapping: 0x400→Item, 0x200→Gadget, 0xdb→dead special handling
+- Dead agent (0xdb): status bit 0x10 + relation-based action selection
+- Self-target prevention
+- Controlled character liveness
+
+### GWCA Source Match
+
+GWCA's `InteractAgent` at [AgentMgr.cpp:409](file:///C:/Users/Apo/Py4GW/vendor/gwca/Source/AgentMgr.cpp:409) uses the same `kSendWorldAction` approach. The Python code is a 1:1 port.
+
+---
+
+## 6. Workflow: Finding and Adding a New Function
+
+### Step 1: Find it in GWCA C++ (or WASM)
+
+```bash
+# Search GWCA sources for the function name
+grep -r "FunctionName" C:\Users\Apo\Py4GW\vendor\gwca\
+```
+
+Look for the `Scanner::Find*` call that resolves it. This gives you the technique (assertion, byte pattern, near-call).
+
+### Step 2: Locate in Ghidra
+
+```python
+# If you have a WASM name:
+mcp__ghidra__search_functions("CharCliPlayerOrderXxx", program="Gw.wasm")
+mcp__ghidra__decompile_function("ram:80xxxxxx", program="Gw.wasm")
+
+# If you have an assertion string:
+mcp__ghidra__search_strings("assertion text", program="Gw.exe")
+mcp__ghidra__get_xrefs_to("0x00xxxxxx")
+mcp__ghidra__decompile_function("0x00xxxxxx")
+```
+
+### Step 3: Cross-reference EXE ↔ WASM
+
+Use string anchoring (see CPP_WASM_MAPPING.md) or byte patterns.
+
+### Step 4: Add to Python
+
+In the appropriate file under `Py4GWCoreLib/native_src/methods/`:
+
+```python
+MyFunc = NativeFunction(
+    name="MyFunc",
+    pattern=b"\x...",
+    mask="xxxxx",
+    offset=0,
+    section=ScannerSection.TEXT,
+    prototype=Prototypes["Void_U32"],
+)
+```
+
+Or for direct address:
+```python
+MyFunc = NativeFunction.from_address(
+    name="MyFunc",
+    address=0x005XXXXX,
+    prototype=Prototypes["Void_U32"],
+)
+```
+
+### Step 5: Create high-level wrapper
+
+In the corresponding `Py4GWCoreLib/*.py` file, wrap the native call through `Game.enqueue()`.
+
+---
+
+## 7. Scanner API Reference
+
+### Python Scanner (`Py4GWCoreLib/Scanner.py`)
+
+```python
+Scanner.FindAssertion(file, expression, line, offset) → address or None
+Scanner.FindInRange(pattern, mask, offset, start, end) → address or None
+Scanner.ToFunctionStart(address) → function_entry
+Scanner.FunctionFromNearCall(address) → call_target
+Scanner.IsValidPtr(address) → bool
+```
+
+### GWCA C++ Scanner
+
+```cpp
+Scanner::Find(pattern, mask, offset)           → byte pattern scan
+Scanner::FindAssertion(file, expr, line, off)  → find assertion string
+Scanner::ToFunctionStart(addr)                 → walk back to function prologue
+Scanner::FunctionFromNearCall(addr)            → decode CALL at addr to target
+Scanner::IsValidPtr(addr, section)             → pointer validation
+*(uintptr_t*)addr                              → read 4-byte pointer (data globals)
+```
+
+---
+
+## 8. Common Ghidra MCP Tool Calls
+
+| Operation | Tool |
+|-----------|------|
+| Find function by name | `mcp__ghidra__search_functions` |
+| Decompile function | `mcp__ghidra__decompile_function` |
+| Find string in binary | `mcp__ghidra__search_strings` |
+| Get xrefs to address | `mcp__ghidra__get_xrefs_to` |
+| Search byte pattern | `mcp__ghidra__search_byte_patterns` |
+| List callees/callers | `mcp__ghidra__get_function_callees` / `get_function_callers` |
+| Disassemble function | `mcp__ghidra__disassemble_function` |
+| Get function at address | `mcp__ghidra__get_function_by_address` |
+| Switch active program | `mcp__ghidra__switch_program` |
+| Debugger attach to Gw.exe | `mcp__ghidra__debugger_attach` |
+
+Always pass `program="Gw.wasm"` or `program="Gw.exe"` explicitly when both programs are loaded.
+
+---
+
+## 9. Pitfalls and Gotchas
+
+- **Patterns rot**: byte patterns can match the wrong function after patches. Always verify behaviorally. The `MoveTo_Func` case is the canonical example — the pattern resolves but the function body doesn't match the typedef.
+- **Thunks vs bodies**: MSVC emits JMP thunks. `CallTarget_Func`'s thunk at `0x008102d0` is just `JMP 0x00917740`. **Hook/decompile the body, not the thunk.**
+- **Inlining differs**: Emscripten and MSVC make different inlining decisions. Expect ±1 callee differences.
+- **WASM address spaces**: code at `ram:8XXXXXXX` (high), strings/data at `ram:00XXXXXX` (low).
+- **EXE address ranges**: code at `0x00400000–0x00B00000`, `.rdata` strings at `0x00A00000+`, globals at `0x00BFXXXX`.
+- **Pattern uniqueness**: always confirm single match before trusting.
+- **Python 3.13.0 32-bit**: the runtime target. Don't switch interpreters casually.
+- **`Game.enqueue()`**: all native calls must be queued through the game loop, not called directly.
+
+---
+
+## 10. Document Index
+
+All files in `docs/RE/`:
+
+| File | Content |
+|------|---------|
+| `handover.md` | This file — library reference and interface guide |
+| `CPP_WASM_MAPPING.md` | Full procedure for CPP↔WASM↔EXE translation |
+| `gw_combat_ai_reverse_engineering.md` | Combat AI reverse engineering analysis |
+| `native_gw_ui_function_catalog.json` | Catalog of native GW UI functions with addresses |
+| `native_gw_window_creation_investigation.md` | Window creation/proc RE investigation |
+| `native_ui_title_and_encoded_string_reference.md` | Native UI title and encoding reference |
+| `rosetta_stone.txt` | GwA2 (AutoIt) to Py4GW function mapping |
+
+Other project docs remain in `docs/`:
+- `Py4GW_Conceptual_Model.md` — canonical architecture
+- `widget_manager_and_catalog.md` — widget discovery metadata
+- `MCP_bridge.md` — MCP bridge planning
+- Build, bot, AI, and UI-specific docs

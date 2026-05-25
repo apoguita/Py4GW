@@ -1148,6 +1148,101 @@
         }
       }
     },
+    "enc:\\\\x14B3\\\\x8EFA\\\\xA8DC\\\\x6F7C": {
+      "encoded_names": [
+        "\\\\x14B3\\\\x8EFA\\\\xA8DC\\\\x6F7C"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2843
+      ],
+      "observed_maps": {
+        "121": {
+          "base_id": 121,
+          "id": 121,
+          "instance_type": "Explorable",
+          "name": "Perdition Rock"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x14B5\\\\xBCBA\\\\x52B4": {
+      "encoded_names": [
+        "\\\\x14B5\\\\xBCBA\\\\x52B4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2844
+      ],
+      "observed_maps": {
+        "121": {
+          "base_id": 121,
+          "id": 121,
+          "instance_type": "Explorable",
+          "name": "Perdition Rock"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x14B6\\\\xE504\\\\xB1BE\\\\x4024": {
+      "encoded_names": [
+        "\\\\x14B6\\\\xE504\\\\xB1BE\\\\x4024"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2845
+      ],
+      "observed_maps": {
+        "121": {
+          "base_id": 121,
+          "id": 121,
+          "instance_type": "Explorable",
+          "name": "Perdition Rock"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x14B7\\\\xCC03\\\\xCE3C\\\\x6BF7": {
+      "encoded_names": [
+        "\\\\x14B7\\\\xCC03\\\\xCE3C\\\\x6BF7"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2847
+      ],
+      "observed_maps": {
+        "121": {
+          "base_id": 121,
+          "id": 121,
+          "instance_type": "Explorable",
+          "name": "Perdition Rock"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x14BC\\\\xD15E\\\\xFC71\\\\x2461": {
+      "encoded_names": [
+        "\\\\x14BC\\\\xD15E\\\\xFC71\\\\x2461"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2846
+      ],
+      "observed_maps": {
+        "121": {
+          "base_id": 121,
+          "id": 121,
+          "instance_type": "Explorable",
+          "name": "Perdition Rock"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6": {
       "encoded_names": [
         "\\\\x14CE\\\\xA4C5\\\\x8BD5\\\\x0CD6"
@@ -1738,6 +1833,25 @@
         }
       }
     },
+    "enc:\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA": {
+      "encoded_names": [
+        "\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3113
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": {
       "encoded_names": [
         "\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048"
@@ -1844,6 +1958,1025 @@
           "name": "Signet of Strength",
           "profession": "Warrior",
           "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x4047\\\\xFEDF\\\\xA28A\\\\x45B7": {
+      "encoded_names": [
+        "\\\\x4047\\\\xFEDF\\\\xA28A\\\\x45B7"
+      ],
+      "inferred_primary": "Assassin",
+      "inferred_secondary": "None",
+      "model_ids": [
+        3945
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1152": {
+          "id": 1152,
+          "name": "Demonic_Agility",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "780": {
+          "id": 780,
+          "name": "Fox Fangs",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "782": {
+          "id": 782,
+          "name": "Jagged Strike",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "815": {
+          "id": 815,
+          "name": "Scorpion Wire",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
+    "enc:\\\\x404B\\\\xE144\\\\xF9A7\\\\x0FD6": {
+      "encoded_names": [
+        "\\\\x404B\\\\xE144\\\\xF9A7\\\\x0FD6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3932
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x404C\\\\xE4FF\\\\xCBE8\\\\x15A0": {
+      "encoded_names": [
+        "\\\\x404C\\\\xE4FF\\\\xCBE8\\\\x15A0"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3933
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "221": {
+          "id": 221,
+          "name": "Conjure Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x404D\\\\x8ACA\\\\x9F15\\\\x0844": {
+      "encoded_names": [
+        "\\\\x404D\\\\x8ACA\\\\x9F15\\\\x0844"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        3934
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "1269": {
+          "id": 1269,
+          "name": "Signet of Rage",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x404F\\\\xEF97\\\\xE675\\\\x4C95": {
+      "encoded_names": [
+        "\\\\x404F\\\\xEF97\\\\xE675\\\\x4C95"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3936
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4051\\\\xEC67\\\\x90F4\\\\x112A": {
+      "encoded_names": [
+        "\\\\x4051\\\\xEC67\\\\x90F4\\\\x112A"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        3947
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {
+        "1052": {
+          "id": 1052,
+          "name": "Accumulated Pain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "76": {
+          "id": 76,
+          "name": "Imagined Burden",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x4054\\\\xBC7F\\\\xC1C5\\\\x60E2": {
+      "encoded_names": [
+        "\\\\x4054\\\\xBC7F\\\\xC1C5\\\\x60E2"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        3950
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1052": {
+          "id": 1052,
+          "name": "Accumulated Pain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x4055\\\\xADC8\\\\xF53A\\\\x0C87": {
+      "encoded_names": [
+        "\\\\x4055\\\\xADC8\\\\xF53A\\\\x0C87"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        3951
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {
+        "1269": {
+          "id": 1269,
+          "name": "Signet of Rage",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x4058\\\\xF498\\\\xE50B\\\\x3C5D": {
+      "encoded_names": [
+        "\\\\x4058\\\\xF498\\\\xE50B\\\\x3C5D"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        3954
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1269": {
+          "id": 1269,
+          "name": "Signet of Rage",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x4059\\\\xA543\\\\x45F5": {
+      "encoded_names": [
+        "\\\\x4059\\\\xA543\\\\x45F5"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        3955
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "403": {
+          "id": 403,
+          "name": "Called Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "433": {
+          "id": 433,
+          "name": "Kindle Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x405C\\\\xCA7A\\\\xE3D8\\\\x4B21": {
+      "encoded_names": [
+        "\\\\x405C\\\\xCA7A\\\\xE3D8\\\\x4B21"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        3958
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "403": {
+          "id": 403,
+          "name": "Called Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x405D\\\\xC46A\\\\xCDB4\\\\x796A": {
+      "encoded_names": [
+        "\\\\x405D\\\\xC46A\\\\xCDB4\\\\x796A"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3959
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {
+        "1237": {
+          "id": 1237,
+          "name": "Painful Bond",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1247": {
+          "id": 1247,
+          "name": "Pain",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x4060\\\\x92A3\\\\x2AB3": {
+      "encoded_names": [
+        "\\\\x4060\\\\x92A3\\\\x2AB3"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3962
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1247": {
+          "id": 1247,
+          "name": "Pain",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x4062\\\\xE1E0\\\\xAE93\\\\x20C6": {
+      "encoded_names": [
+        "\\\\x4062\\\\xE1E0\\\\xAE93\\\\x20C6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3965
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4068\\\\x8F5A\\\\xF1AB\\\\x5523": {
+      "encoded_names": [
+        "\\\\x4068\\\\x8F5A\\\\xF1AB\\\\x5523"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3975
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4072\\\\x83DB\\\\xBEEE\\\\x7BCF": {
+      "encoded_names": [
+        "\\\\x4072\\\\x83DB\\\\xBEEE\\\\x7BCF"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3988
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1097": {
+          "id": 1097,
+          "name": "Teinai's Prison",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "842": {
+          "id": 842,
+          "name": "Arc Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x4073\\\\xD1E6\\\\xBD8B\\\\x63D7": {
+      "encoded_names": [
+        "\\\\x4073\\\\xD1E6\\\\xBD8B\\\\x63D7"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3989
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "1097": {
+          "id": 1097,
+          "name": "Teinai's Prison",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "232": {
+          "id": 232,
+          "name": "Lightning Touch",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "842": {
+          "id": 842,
+          "name": "Arc Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x4074\\\\xAD8B\\\\x9A40\\\\x0944": {
+      "encoded_names": [
+        "\\\\x4074\\\\xAD8B\\\\x9A40\\\\x0944"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3990
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "842": {
+          "id": 842,
+          "name": "Arc Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x4075\\\\x9F5A\\\\x2BDB": {
+      "encoded_names": [
+        "\\\\x4075\\\\x9F5A\\\\x2BDB"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        3985
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "324": {
+          "id": 324,
+          "name": "Thrill of Victory",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "386": {
+          "id": 386,
+          "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x4076\\\\xB611\\\\x2C12": {
+      "encoded_names": [
+        "\\\\x4076\\\\xB611\\\\x2C12"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        3986
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "324": {
+          "id": 324,
+          "name": "Thrill of Victory",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "386": {
+          "id": 386,
+          "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x4077\\\\xF2BC\\\\xA29D\\\\x23A8": {
+      "encoded_names": [
+        "\\\\x4077\\\\xF2BC\\\\xA29D\\\\x23A8"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        3987
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "324": {
+          "id": 324,
+          "name": "Thrill of Victory",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x4078\\\\xC551\\\\x9FD0\\\\x65C0": {
+      "encoded_names": [
+        "\\\\x4078\\\\xC551\\\\x9FD0\\\\x65C0"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3991
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "910": {
+          "id": 910,
+          "name": "Spirit Rift",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "911": {
+          "id": 911,
+          "name": "Union",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x407A\\\\x8E81\\\\x5D9B": {
+      "encoded_names": [
+        "\\\\x407A\\\\x8E81\\\\x5D9B"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3993
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "910": {
+          "id": 910,
+          "name": "Spirit Rift",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x407D\\\\xC87B\\\\xC4B1\\\\x4784": {
+      "encoded_names": [
+        "\\\\x407D\\\\xC87B\\\\xC4B1\\\\x4784"
+      ],
+      "inferred_primary": "Assassin",
+      "inferred_secondary": "",
+      "model_ids": [
+        3994
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1038": {
+          "id": 1038,
+          "name": "Crippling Dagger",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "948": {
+          "id": 948,
+          "name": "Desperate Strike",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
+    "enc:\\\\x407F\\\\x9B04\\\\xF423\\\\x4C70": {
+      "encoded_names": [
+        "\\\\x407F\\\\x9B04\\\\xF423\\\\x4C70"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        3996
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1079": {
+          "id": 1079,
+          "name": "Enfeebling Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x4081\\\\xE5EB\\\\xD058\\\\x49D5": {
+      "encoded_names": [
+        "\\\\x4081\\\\xE5EB\\\\xD058\\\\x49D5"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3998
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4086\\\\xB7C7\\\\x8570\\\\x7898": {
+      "encoded_names": [
+        "\\\\x4086\\\\xB7C7\\\\x8570\\\\x7898"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4000
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {
+        "208": {
+          "id": 208,
+          "name": "Water Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "214": {
+          "id": 214,
+          "name": "Ice Spear",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x4088\\\\x9412\\\\xAF4C\\\\x68D3": {
+      "encoded_names": [
+        "\\\\x4088\\\\x9412\\\\xAF4C\\\\x68D3"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4002
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "214": {
+          "id": 214,
+          "name": "Ice Spear",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x408C\\\\xF27A\\\\xECDF\\\\x777E": {
+      "encoded_names": [
+        "\\\\x408C\\\\xF27A\\\\xECDF\\\\x777E"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4007
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1068": {
+          "id": 1068,
+          "name": "Bitter Chill",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "155": {
+          "id": 155,
+          "name": "Vile Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "935": {
+          "id": 935,
+          "name": "Rising Bile",
+          "profession": "Necromancer",
+          "profession_id": 4
         }
       }
     },
@@ -2665,6 +3798,18 @@
           "id": 200,
           "instance_type": "Explorable",
           "name": "Mount Qinkai"
+        },
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
         }
       },
       "observed_skills": {
@@ -2713,6 +3858,547 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x416E\\\\xC037\\\\xCF58\\\\x6CA4": {
+      "encoded_names": [
+        "\\\\x416E\\\\xC037\\\\xCF58\\\\x6CA4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4275
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        },
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4660\\\\xD3CD\\\\x901F\\\\x2E23": {
+      "encoded_names": [
+        "\\\\x4660\\\\xD3CD\\\\x901F\\\\x2E23"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3966,
+        3976
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4662\\\\xD3E4\\\\x9550\\\\x3C1D": {
+      "encoded_names": [
+        "\\\\x4662\\\\xD3E4\\\\x9550\\\\x3C1D"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3105
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "184": {
+          "id": 184,
+          "name": "Fire Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x4671\\\\xA555\\\\x86C5\\\\x205A": {
+      "encoded_names": [
+        "\\\\x4671\\\\xA555\\\\x86C5\\\\x205A"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        3096
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x4673\\\\xEC59\\\\xE9EF\\\\x3CF8": {
+      "encoded_names": [
+        "\\\\x4673\\\\xEC59\\\\xE9EF\\\\x3CF8"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        3097
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "996": {
+          "id": 996,
+          "name": "Standing Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x46A1\\\\x8660\\\\xD0A1\\\\x5305": {
+      "encoded_names": [
+        "\\\\x46A1\\\\x8660\\\\xD0A1\\\\x5305"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4000
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "208": {
+          "id": 208,
+          "name": "Water Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "214": {
+          "id": 214,
+          "name": "Ice Spear",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x46A3\\\\xC800\\\\xD296\\\\x744B": {
+      "encoded_names": [
+        "\\\\x46A3\\\\xC800\\\\xD296\\\\x744B"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3113
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x46AD\\\\x9B16\\\\xC043\\\\x4FF9": {
+      "encoded_names": [
+        "\\\\x46AD\\\\x9B16\\\\xC043\\\\x4FF9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3998
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x46F1\\\\xE730\\\\xB997\\\\x4F31": {
+      "encoded_names": [
+        "\\\\x46F1\\\\xE730\\\\xB997\\\\x4F31"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        3958
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "403": {
+          "id": 403,
+          "name": "Called Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x46FE\\\\xC4D5\\\\xF4AC\\\\x536D": {
+      "encoded_names": [
+        "\\\\x46FE\\\\xC4D5\\\\xF4AC\\\\x536D"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4003
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {
+        "359": {
+          "id": 359,
+          "name": "Heavy Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x4709\\\\xF708\\\\x58C0": {
+      "encoded_names": [
+        "\\\\x4709\\\\xF708\\\\x58C0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4262
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x5C88\\\\xF60F\\\\xC73B\\\\x5C63": {
+      "encoded_names": [
+        "\\\\x5C88\\\\xF60F\\\\xC73B\\\\x5C63"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3101
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "222": {
+          "id": 222,
+          "name": "Lightning Strike",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x5C89\\\\xC294\\\\x8878\\\\x2564": {
+      "encoded_names": [
+        "\\\\x5C89\\\\xC294\\\\x8878\\\\x2564"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3102
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "165": {
+          "id": 165,
+          "name": "Armor of Earth",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "171": {
+          "id": 171,
+          "name": "Stoning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "172": {
+          "id": 172,
+          "name": "Stone Daggers",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x5C8A\\\\x8D41\\\\xA065\\\\x5E5A": {
+      "encoded_names": [
+        "\\\\x5C8A\\\\x8D41\\\\xA065\\\\x5E5A"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3103
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "208": {
+          "id": 208,
+          "name": "Water Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "211": {
+          "id": 211,
+          "name": "Ice Spikes",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "214": {
+          "id": 214,
+          "name": "Ice Spear",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x5C8B\\\\xC5F3\\\\x9FF0\\\\x4A37": {
+      "encoded_names": [
+        "\\\\x5C8B\\\\xC5F3\\\\x9FF0\\\\x4A37"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        3104
+      ],
+      "observed_maps": {
+        "235": {
+          "base_id": 235,
+          "id": 235,
+          "instance_type": "Explorable",
+          "name": "Panjiang Peninsula"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "184": {
+          "id": 184,
+          "name": "Fire Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x5CD6\\\\xC9CD\\\\xE1FB\\\\x36F9": {
+      "encoded_names": [
+        "\\\\x5CD6\\\\xC9CD\\\\xE1FB\\\\x36F9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3277
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x5D7C\\\\xE26C\\\\xE63B\\\\x5AD5": {
+      "encoded_names": [
+        "\\\\x5D7C\\\\xE26C\\\\xE63B\\\\x5AD5"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4004
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1068": {
+          "id": 1068,
+          "name": "Bitter Chill",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "155": {
+          "id": 155,
+          "name": "Vile Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "935": {
+          "id": 935,
+          "name": "Rising Bile",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x6F45\\\\xB354\\\\x8926\\\\x7211": {
+      "encoded_names": [
+        "\\\\x6F45\\\\xB354\\\\x8926\\\\x7211"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        3979
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "959": {
+          "id": 959,
+          "name": "Ethereal Light",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
     },
     "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": {
       "encoded_names": [
@@ -3156,6 +4842,57 @@
         }
       }
     },
+    "enc:\\\\x7F4D\\\\x99C9\\\\x2E86": {
+      "encoded_names": [
+        "\\\\x7F4D\\\\x99C9\\\\x2E86"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3938
+      ],
+      "observed_maps": {
+        "236": {
+          "base_id": 236,
+          "id": 236,
+          "instance_type": "Explorable",
+          "name": "Kinya Province"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x7F4F\\\\x83C7\\\\xBF14\\\\x0B60": {
+      "encoded_names": [
+        "\\\\x7F4F\\\\x83C7\\\\xBF14\\\\x0B60"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        3940
+      ],
+      "observed_maps": {
+        "238": {
+          "base_id": 238,
+          "id": 238,
+          "instance_type": "Explorable",
+          "name": "Sunqua Vale"
+        }
+      },
+      "observed_skills": {
+        "1130": {
+          "id": 1130,
+          "name": "Spear of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "959": {
+          "id": 959,
+          "name": "Ethereal Light",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534": {
       "encoded_names": [
         "\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534"
@@ -3211,6 +4948,25 @@
           "profession_id": 6
         }
       }
+    },
+    "enc:\\\\x8101\\\\x0571\\\\xB066\\\\xB1FE\\\\x6EF7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0571\\\\xB066\\\\xB1FE\\\\x6EF7"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3973
+      ],
+      "observed_maps": {
+        "212": {
+          "base_id": 212,
+          "id": 212,
+          "instance_type": "Explorable",
+          "name": "Monastery Overlook"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7": {
       "encoded_names": [
@@ -4709,6 +6465,12 @@
           "name": "Read the Wind",
           "profession": "Ranger",
           "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
         }
       }
     },
@@ -4917,6 +6679,471 @@
           "name": "Ebon Dust Aura",
           "profession": "Dervish",
           "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1F3E\\\\x82DD\\\\x981E\\\\x48E0": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1F3E\\\\x82DD\\\\x981E\\\\x48E0"
+      ],
+      "inferred_primary": "Assassin",
+      "inferred_secondary": "",
+      "model_ids": [
+        5251
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1028": {
+          "id": 1028,
+          "name": "Way of Perfection",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "1636": {
+          "id": 1636,
+          "name": "Black Spider Strike",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "775": {
+          "id": 775,
+          "name": "Death Blossom",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "776": {
+          "id": 776,
+          "name": "Twisting Fangs",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "781": {
+          "id": 781,
+          "name": "Moebius Strike",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "950": {
+          "id": 950,
+          "name": "Shadowy Burden",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1F3F\\\\xFACD\\\\xEE60\\\\x334D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1F3F\\\\xFACD\\\\xEE60\\\\x334D"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "Monk",
+      "model_ids": [
+        5249
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1062": {
+          "id": 1062,
+          "name": "Arcane Larceny",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "1265": {
+          "id": 1265,
+          "name": "Wielder's Boon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1267": {
+          "id": 1267,
+          "name": "Vital Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1340": {
+          "id": 1340,
+          "name": "Symbolic Celerity",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "1346": {
+          "id": 1346,
+          "name": "Signet of Illusions",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "181": {
+          "id": 181,
+          "name": "Ether Renewal",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "21": {
+          "id": 21,
+          "name": "Inspired Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "2202": {
+          "id": 2202,
+          "name": "Mending Grip",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "243": {
+          "id": 243,
+          "name": "Strength of Honor",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "245": {
+          "id": 245,
+          "name": "Protective Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "283": {
+          "id": 283,
+          "name": "Dwayna's Kiss",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "289": {
+          "id": 289,
+          "name": "Vital Blessing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "307": {
+          "id": 307,
+          "name": "Reversal of Fortune",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "75": {
+          "id": 75,
+          "name": "Arcane Echo",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "81": {
+          "id": 81,
+          "name": "Arcane Thievery",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x204A\\\\xEC57\\\\xE6ED\\\\x10FB": {
+      "encoded_names": [
+        "\\\\x8101\\\\x204A\\\\xEC57\\\\xE6ED\\\\x10FB"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        5250
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "106": {
+          "id": 106,
+          "name": "Rotting Flesh",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1070": {
+          "id": 1070,
+          "name": "Defile Enchantments",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "112": {
+          "id": 112,
+          "name": "Desecrate Enchantments",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "151": {
+          "id": 151,
+          "name": "Feast of Corruption",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x3ACA\\\\xFD7E\\\\xC32B\\\\x229A": {
+      "encoded_names": [
+        "\\\\x8101\\\\x3ACA\\\\xFD7E\\\\xC32B\\\\x229A"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        5266
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "184": {
+          "id": 184,
+          "name": "Fire Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "187": {
+          "id": 187,
+          "name": "Meteor",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "190": {
+          "id": 190,
+          "name": "Mark of Rodgort",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "201": {
+          "id": 201,
+          "name": "Glyph of Concentration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "884": {
+          "id": 884,
+          "name": "Searing Flames",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x3ADF\\\\x872C\\\\xA61D\\\\x7047": {
+      "encoded_names": [
+        "\\\\x8101\\\\x3ADF\\\\x872C\\\\xA61D\\\\x7047"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5267
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x3AE0\\\\xD420\\\\xB4B8\\\\x68A8": {
+      "encoded_names": [
+        "\\\\x8101\\\\x3AE0\\\\xD420\\\\xB4B8\\\\x68A8"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        5268
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1349": {
+          "id": 1349,
+          "name": "Mirror of Disenchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "23": {
+          "id": 23,
+          "name": "Power Spike",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "5": {
+          "id": 5,
+          "name": "Power Block",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "57": {
+          "id": 57,
+          "name": "Cry of Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x3AE4\\\\xFC44\\\\x9790\\\\x5620": {
+      "encoded_names": [
+        "\\\\x8101\\\\x3AE4\\\\xFC44\\\\x9790\\\\x5620"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        5252
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "167": {
+          "id": 167,
+          "name": "Eruption",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "169": {
+          "id": 169,
+          "name": "Earth Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "170": {
+          "id": 170,
+          "name": "Earthquake",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "844": {
+          "id": 844,
+          "name": "Churning Earth",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "937": {
+          "id": 937,
+          "name": "Shockwave",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x3AE5\\\\xA9E6\\\\x7668": {
+      "encoded_names": [
+        "\\\\x8101\\\\x3AE5\\\\xA9E6\\\\x7668"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        5254
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "106": {
+          "id": 106,
+          "name": "Rotting Flesh",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1358": {
+          "id": 1358,
+          "name": "Ulcerous Lungs",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "151": {
+          "id": 151,
+          "name": "Feast of Corruption",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "93": {
+          "id": 93,
+          "name": "Well of Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
         }
       }
     },
@@ -6543,6 +8770,150 @@
           "name": "Wild Throw",
           "profession": "Paragon",
           "profession_id": 9
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57EF\\\\xCC41\\\\xA331\\\\x105A": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57EF\\\\xCC41\\\\xA331\\\\x105A"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        5246
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1137": {
+          "id": 1137,
+          "name": "Yeti Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "353": {
+          "id": 353,
+          "name": "Crude Swing",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "354": {
+          "id": 354,
+          "name": "Earth Shaker",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "994": {
+          "id": 994,
+          "name": "Renewing Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57F0\\\\xD610\\\\xC6CF\\\\x323F": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57F0\\\\xD610\\\\xC6CF\\\\x323F"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        5247
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "167": {
+          "id": 167,
+          "name": "Eruption",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "169": {
+          "id": 169,
+          "name": "Earth Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "170": {
+          "id": 170,
+          "name": "Earthquake",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "844": {
+          "id": 844,
+          "name": "Churning Earth",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "937": {
+          "id": 937,
+          "name": "Shockwave",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x57F1\\\\xCF01\\\\xC618\\\\x6766": {
+      "encoded_names": [
+        "\\\\x8101\\\\x57F1\\\\xCF01\\\\xC618\\\\x6766"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        5248
+      ],
+      "observed_maps": {
+        "474": {
+          "base_id": 474,
+          "id": 474,
+          "instance_type": "Explorable",
+          "name": "Gate of Anguish"
+        }
+      },
+      "observed_skills": {
+        "1495": {
+          "id": 1495,
+          "name": "Aura of Thorns",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1497": {
+          "id": 1497,
+          "name": "Dust Cloak",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1503": {
+          "id": 1503,
+          "name": "Mystic Vigor",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1516": {
+          "id": 1516,
+          "name": "Mystic Regeneration",
+          "profession": "Dervish",
+          "profession_id": 10
         }
       }
     },

@@ -16,6 +16,8 @@ class BottingTreeServicesMixin:
             'active': False,
             'step_name': '',
             'last_return_ms': 0.0,
+            'player_was_dead': False,
+            'player_dead_pos': None,
         }
 
         def _resolve_default_step_name() -> str:
@@ -32,7 +34,48 @@ class BottingTreeServicesMixin:
             state['active'] = False
             state['step_name'] = ''
             state['last_return_ms'] = 0.0
+            state['player_was_dead'] = False
+            state['player_dead_pos'] = None
             node.blackboard['party_wipe_recovery_active'] = False
+
+        def _detect_revive_teleport() -> bool:
+            from ..Agent import Agent
+            from ..Player import Player
+            from ..enums_src.GameData_enums import Range
+            from ..py4gwcorelib_src.Utils import Utils
+
+            player_id = Player.GetAgentID()
+            if not Agent.IsValid(player_id):
+                state['player_was_dead'] = False
+                state['player_dead_pos'] = None
+                return False
+
+            is_dead = bool(Agent.IsDead(player_id))
+            if is_dead:
+                current_pos = Agent.GetXY(player_id)
+                if not state['player_was_dead']:
+                    state['player_dead_pos'] = current_pos
+                    state['player_was_dead'] = True
+                    return False
+                death_pos = state.get('player_dead_pos')
+                if death_pos and Utils.Distance(death_pos, current_pos) > Range.Spellcast.value:
+                    state['player_dead_pos'] = None
+                    state['player_was_dead'] = False
+                    return True
+                state['player_was_dead'] = True
+                return False
+
+            if not state['player_was_dead']:
+                return False
+
+            state['player_was_dead'] = False
+            death_pos = state.get('player_dead_pos')
+            state['player_dead_pos'] = None
+            if not death_pos:
+                return False
+
+            current_pos = Agent.GetXY(player_id)
+            return Utils.Distance(death_pos, current_pos) > Range.Spellcast.value
 
         def _tick_party_wipe_service(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             from ..Map import Map
@@ -42,7 +85,12 @@ class BottingTreeServicesMixin:
             if bool(node.blackboard.get('party_wipe_recovery_suppressed', False)):
                 _reset_state(node)
                 return BehaviorTree.NodeState.RUNNING
-            is_wiped = bool(Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
+            revived_at_shrine = _detect_revive_teleport()
+            is_wiped = bool(
+                Routines.Checks.Party.IsPartyWiped()
+                or GLOBAL_CACHE.Party.IsPartyDefeated()
+                or revived_at_shrine
+            )
 
             if not state['active']:
                 if not is_wiped:
