@@ -524,6 +524,24 @@ class CombatClass:
         _, target_allegiance = Agent.GetAllegiance(target_id)
         return target_allegiance == "Enemy" and not self._is_blacklisted_enemy_target(target_id)
 
+    def _maybe_call_leader_selected_target(self, cached_data: CacheData | None) -> None:
+        if cached_data is None:
+            return
+
+        selected_target_id = int(Player.GetTargetID() or 0)
+        if not self._is_valid_call_target(selected_target_id):
+            return
+
+        if selected_target_id == self.auto_call_target_id and self.auto_call_target_called:
+            return
+
+        self.MaybeCallCombatTarget(
+            selected_target_id,
+            cached_data,
+            force=True,
+            source="leader_selected",
+        )
+
     def MaybeCallCombatTarget(
         self,
         target_id: int,
@@ -962,31 +980,33 @@ class CombatClass:
 
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
+            player_energy = self.GetEnergyValues(Player.GetAgentID())
+            has_valid_player_energy = player_energy >= 0.0
             
             """ check all UniqueProperty skills """
             if (self.skills[slot].skill_id == self.energy_drain or 
                 self.skills[slot].skill_id == self.energy_tap or
                 self.skills[slot].skill_id == self.ether_lord 
                 ):
-                return self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                return has_valid_player_energy and player_energy < Conditions.LessEnergy
 
             if (self.skills[slot].skill_id == self.ether_feast):
                 return Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
         
             if (self.skills[slot].skill_id == self.essence_strike):
-                energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and (Routines.Agents.GetNearestSpirit(Range.Spellcast.value) != 0)
 
             if (self.skills[slot].skill_id == self.glowing_signet):
-                energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and self.HasEffect(vTarget, self.burning)
 
             if (self.skills[slot].skill_id == self.clamor_of_souls):
-                energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and Agent.IsHoldingItem(Player.GetAgentID())
 
             if (self.skills[slot].skill_id == self.waste_not_want_not):
-                energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+                energy = has_valid_player_energy and player_energy < Conditions.LessEnergy
                 return energy and not Agent.IsCasting(vTarget) and not Routines.Checks.Agents.IsAttacking(vTarget)
 
             if (self.skills[slot].skill_id == self.mend_body_and_soul):
@@ -1324,14 +1344,14 @@ class CombatClass:
             from .utils import GetEnergyValues
             if self.IsPartyMember(vTarget):
                 player_energy = GetEnergyValues(vTarget)
-                if player_energy < Conditions.LessEnergy:
+                if player_energy >= 0.0 and player_energy < Conditions.LessEnergy:
                     number_of_features += 1
             else:
                 number_of_features += 1 #henchmen, allies, pets or something else thats not reporting energy
 
         if Conditions.LessSelfEnergyPercentage > 0:
-            # Agent.GetEnergy returns a 0.0-1.0 fraction of max energy; threshold uses the same scale.
-            if Agent.GetEnergy(Player.GetAgentID()) <= Conditions.LessSelfEnergyPercentage:
+            player_energy = self.GetEnergyValues(Player.GetAgentID())
+            if player_energy >= 0.0 and player_energy <= Conditions.LessSelfEnergyPercentage:
                 number_of_features += 1
 
         if Conditions.Overcast != 0:
@@ -1520,7 +1540,11 @@ class CombatClass:
 
         # Check if there is enough energy
         current_hp = Agent.GetHealth(Player.GetAgentID())
-        current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
+        current_energy_fraction = self.GetEnergyValues(Player.GetAgentID())
+        if current_energy_fraction < 0.0:
+            self.in_casting_routine = False
+            return False, 0
+        current_energy = current_energy_fraction * Agent.GetMaxEnergy(Player.GetAgentID())
 
         energy_cost = Routines.Checks.Skills.GetEnergyCostWithEffects(skill_id, player_id)
 
@@ -1781,27 +1805,47 @@ class CombatClass:
 
     def UseAlcoholIfAvailable(self) -> bool:
         """
-        Checks inventory for alcohol and uses the first available one.
-        Level 1 is sufficient; L3 items are used first for a bigger bonus when available.
+        Checks inventory for alcohol and consumes enough pieces to reach drunk level 2.
         Returns True if alcohol was used, False otherwise.
         """
         try:
-            # Check if already at target drunk level (>= 1 is enough)
+            target_drunk_level = 2
             drunk_level = self.GetDrunkLevel()
             Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
 
-            if drunk_level >= 1:
+            if drunk_level >= target_drunk_level:
                 Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
                 return False
-            
-            for alcohol_model_id in ALCOHOL_MODEL_IDS:
-                if GLOBAL_CACHE.Inventory.GetModelCount(alcohol_model_id) > 0:
+
+            drinks_needed = target_drunk_level - drunk_level
+            drinks_used = 0
+
+            while drinks_needed > 0:
+                item_used = False
+                if drinks_needed == 1:
+                    candidate_model_ids = ALCOHOL_L1_MODEL_IDS + ALCOHOL_L3_MODEL_IDS
+                else:
+                    candidate_model_ids = ALCOHOL_L3_MODEL_IDS + ALCOHOL_L1_MODEL_IDS
+
+                for alcohol_model_id in candidate_model_ids:
+                    if GLOBAL_CACHE.Inventory.GetModelCount(alcohol_model_id) <= 0:
+                        continue
                     item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(alcohol_model_id)
-                    if item_id:
-                        Py4GW.Console.Log("HeroAI", f"Using alcohol item_id {item_id}", Py4GW.Console.MessageType.Info)
-                        GLOBAL_CACHE.Inventory.UseItem(item_id)
-                        return True
-            
+                    if not item_id:
+                        continue
+                    Py4GW.Console.Log("HeroAI", f"Using alcohol item_id {item_id}", Py4GW.Console.MessageType.Info)
+                    GLOBAL_CACHE.Inventory.UseItem(item_id)
+                    drinks_used += 1
+                    drinks_needed -= 3 if alcohol_model_id in ALCOHOL_L3_MODEL_IDS else 1
+                    item_used = True
+                    break
+
+                if not item_used:
+                    break
+
+            if drinks_used > 0:
+                return True
+
             Py4GW.Console.Log("HeroAI", "No alcohol found in inventory", Py4GW.Console.MessageType.Debug)
         except Exception as e:
             Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
@@ -1894,6 +1938,9 @@ class CombatClass:
         """
         Execute the first castable skill in the prioritized skill order.
         """
+        if not ooc:
+            self._maybe_call_leader_selected_target(cached_data)
+
         slot, target_agent_id = self.FindCastableSkill(ooc=ooc)
         if slot < 0:
             self.ResetSkillPointer()

@@ -267,6 +267,82 @@ class BuildMgr:
             return True
         return self._matches_required_weapon(required_weapon)
 
+    def _meets_custom_skill_shared_conditions(self, skill_id: int) -> bool:
+        custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return True
+
+        conditions = custom_skill.Conditions
+
+        from Py4GWCoreLib import Agent, AgentArray, Player, Range, Routines
+
+        player_id = Player.GetAgentID()
+        player_x, player_y = Player.GetXY()
+
+        if conditions.CloseToAggro and not (self.IsInAggro() or self.IsCloseToAggro()):
+            return False
+
+        if conditions.LessSelfEnergyPercentage != 0:
+            if Agent.GetEnergy(player_id) > conditions.LessSelfEnergyPercentage:
+                return False
+
+        if conditions.Overcast != 0:
+            if Agent.GetOvercast(player_id) < conditions.Overcast:
+                return False
+
+        if conditions.RequiresSpiritInEarshot:
+            spirit_array = AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.Filter.ByDistance(
+                spirit_array,
+                (player_x, player_y),
+                Range.Earshot.value,
+            )
+            spirit_array = AgentArray.Filter.ByCondition(
+                spirit_array,
+                lambda agent_id: Agent.IsAlive(agent_id),
+            )
+            if not spirit_array:
+                return False
+
+        if conditions.EnemyCount != 0:
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(
+                player_x,
+                player_y,
+                conditions.EnemiesInRange,
+            )
+            if len(enemy_array or []) < conditions.EnemyCount:
+                return False
+
+        if conditions.AlliesInRange != 0:
+            ally_array = Routines.Agents.GetFilteredAllyArray(
+                player_x,
+                player_y,
+                conditions.AlliesInRangeArea,
+                other_ally=True,
+            )
+            if len(ally_array or []) < conditions.AlliesInRange:
+                return False
+
+        if conditions.SpiritsInRange != 0:
+            spirit_array = Routines.Agents.GetFilteredSpiritArray(
+                player_x,
+                player_y,
+                conditions.SpiritsInRangeArea,
+            )
+            if len(spirit_array or []) < conditions.SpiritsInRange:
+                return False
+
+        if conditions.MinionsInRange != 0:
+            minion_array = Routines.Agents.GetFilteredMinionArray(
+                player_x,
+                player_y,
+                conditions.MinionsInRangeArea,
+            )
+            if len(minion_array or []) < conditions.MinionsInRange:
+                return False
+
+        return True
+
     def _get_shared_skill_toggle(self, slot: int) -> bool:
         if not (1 <= int(slot) <= 8):
             return False
@@ -1629,6 +1705,8 @@ class BuildMgr:
             return False
         if not self._meets_custom_skill_weapon_requirement(skill_id):
             return False
+        if not self._meets_custom_skill_shared_conditions(skill_id):
+            return False
         if not Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot):
             return False
         if self.SpiritBuffExists(skill_id):
@@ -1658,6 +1736,8 @@ class BuildMgr:
         if not self.IsSharedSkillToggleEnabled(slot):
             return False
         if not self._meets_custom_skill_weapon_requirement(skill_id):
+            return False
+        if not self._meets_custom_skill_shared_conditions(skill_id):
             return False
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
             return False

@@ -18,6 +18,7 @@ _INIT_ERROR = None
 try:
     import Py4GW
     import os
+    import PyImGui
 
     from Py4GWCoreLib import (
         ConsoleLog,
@@ -57,6 +58,7 @@ try:
     _SCROLL_MODEL_ID = ModelID.Scroll_Of_Resurrection.value   # 26501
     _CHECK_INTERVAL_MS = 1500    # how often we poll for death
     _USE_COOLDOWN_MS   = 8000    # don't re-use within 8 s of last attempt
+    _AFTERCAST_MS      = 500     # short local item aftercast guard
 
     # Known resurrection skills: id -> lowercase name
     _RES_SKILLS = {
@@ -77,6 +79,8 @@ try:
     _check_timer   = ThrottledTimer(_CHECK_INTERVAL_MS)
     _cooldown_timer = Timer()
     _cooldown_timer.Start()
+    _aftercast_timer = Timer()
+    _aftercast_timer.Start()
     _on_cooldown   = False
 
     _status_text = ""
@@ -216,10 +220,18 @@ try:
             _status_text = "Player is dead"
             return
 
-        # Check if any party member is dead nearby
-        dead_ally_id = Routines.Agents.GetDeadAlly(Range.Earshot.value)
+        # Reserve the same shared resurrection target used by resurrection skills.
+        dead_ally_id = Routines.Agents.GetResurrectionTarget(
+            Range.Earshot.value,
+            reserve=True,
+            skill_id=0,
+            aftercast_delay=_USE_COOLDOWN_MS,
+        )
         if dead_ally_id == 0:
-            _status_text = "All alive"
+            if Routines.Agents.GetDeadAlly(Range.Earshot.value) != 0:
+                _status_text = "Dead party member locked by another account"
+            else:
+                _status_text = "All alive"
             _on_cooldown = False
             return
 
@@ -228,7 +240,12 @@ try:
             _status_text = "Dead party member — res skill available"
             return
 
-        # A party member is dead — check cooldown
+        # A party member is dead — check short item aftercast first.
+        if not _aftercast_timer.HasElapsed(_AFTERCAST_MS):
+            _status_text = "Dead party member — waiting aftercast"
+            return
+
+        # Then enforce the longer retry cooldown.
         if _on_cooldown and not _cooldown_timer.HasElapsed(_USE_COOLDOWN_MS):
             _status_text = "Dead party member — waiting cooldown"
             return
@@ -238,8 +255,10 @@ try:
             _status_text = "Dead party member — no scroll in inventory"
             return
 
-        ConsoleLog(MODULE_NAME, "Party member dead, using Scroll of Resurrection", Console.MessageType.Info)
+        Player.ChangeTarget(dead_ally_id)
+        ConsoleLog(MODULE_NAME, f"Party member dead, using Scroll of Resurrection on {dead_ally_id}", Console.MessageType.Info)
         GLOBAL_CACHE.Inventory.UseItem(item_id)
+        _aftercast_timer.Reset()
         _on_cooldown = True
         _cooldown_timer.Reset()
         _status_text = "Used scroll!"

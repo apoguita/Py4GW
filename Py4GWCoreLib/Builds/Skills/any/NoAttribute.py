@@ -250,23 +250,61 @@ class NoAttribute:
     #endregion
 
     #region E
-    def Ebon_Battle_Standard_of_Honor(self) -> BuildCoroutine:
-        ebsoh_id: int = Skill.GetID("Ebon_Battle_Standard_of_Honor")
+    def Ebon_Battle_Standard_of_Courage(self) -> BuildCoroutine:
+        ebosc_id: int = Skill.GetID("Ebon_Battle_Standard_of_Courage")
+        player_agent_id = Player.GetAgentID()
+        custom_skill = self.build.GetCustomSkill(ebosc_id)
+        conditions = custom_skill.Conditions if custom_skill is not None else None
 
-        if not self.build.IsSkillEquipped(ebsoh_id):
+        if not self.build.IsSkillEquipped(ebosc_id):
+            return False
+        if not self.build.CanCastSkillID(ebosc_id):
             return False
         if not self.build.IsInAggro():
             return False
+        if Routines.Checks.Agents.HasEffect(player_agent_id, ebosc_id):
+            return False
 
+        ally_array = Routines.Targeting.GetAllAlliesArray(Range.Spellcast.value)
+        ally_array = AgentArray.Filter.ByCondition(
+            ally_array,
+            lambda agent_id: Agent.IsAlive(agent_id),
+        )
+        if len(ally_array or []) < 3:
+            return False
+
+        if conditions is not None and int(conditions.EnemyCount or 0) > 0:
+            player_x, player_y = Player.GetXY()
+            enemy_range = float(conditions.EnemiesInRange or Range.Spellcast.value)
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, enemy_range)
+            if len(enemy_array or []) < int(conditions.EnemyCount):
+                return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=ebosc_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
+    def Ebon_Battle_Standard_of_Honor(self) -> BuildCoroutine:
+        ebsoh_id: int = Skill.GetID("Ebon_Battle_Standard_of_Honor")
         player_agent_id = Player.GetAgentID()
 
-        # last 2-second refresh window.
-        if not Routines.Checks.Agents.HasEffect(player_agent_id, ebsoh_id):
+        if not self.build.IsSkillEquipped(ebsoh_id):
             return False
-        remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
-            player_agent_id, ebsoh_id
+        if not self.build.CanCastSkillID(ebsoh_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+        if Routines.Checks.Agents.HasEffect(player_agent_id, ebsoh_id):
+            return False
+
+        ally_array = Routines.Targeting.GetAllAlliesArray(Range.Spellcast.value)
+        ally_array = AgentArray.Filter.ByCondition(
+            ally_array,
+            lambda agent_id: Agent.IsAlive(agent_id) and Routines.Checks.Agents.IsMartial(agent_id),
         )
-        if remaining_ms > 2000:
+        if len(ally_array or []) < 2:
             return False
 
         return (yield from self.build.CastSkillID(

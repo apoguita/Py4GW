@@ -1,3 +1,5 @@
+from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Player
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
@@ -10,7 +12,8 @@ Whirlwind_Attack_ID = Skill.GetID("Whirlwind_Attack")
 Executioners_Strike_ID = Skill.GetID("Executioners_Strike")
 Seven_Weapon_Stance_ID = Skill.GetID("Seven_Weapon_Stance")
 Endure_Pain_ID = Skill.GetID("Endure_Pain")
-
+Antidote_Signet_ID = Skill.GetID("Antidote_Signet")
+Blind_ID = Skill.GetID("Blind")
 
 class Seven_Weapon_Stance_Axe(BuildMgr):
     def __init__(self, match_only: bool = False):
@@ -21,11 +24,12 @@ class Seven_Weapon_Stance_Axe(BuildMgr):
             required_skills=[
                 Cyclone_Axe_ID,
                 Whirlwind_Attack_ID,
-                Executioners_Strike_ID,
                 Seven_Weapon_Stance_ID,
             ],
             optional_skills=[
+                Executioners_Strike_ID,
                 Endure_Pain_ID,
+                Antidote_Signet_ID,
             ],
         )
         if match_only:
@@ -43,6 +47,15 @@ class Seven_Weapon_Stance_Axe(BuildMgr):
             return False
 
         if (yield from self.skills.Warrior.Strength.Seven_Weapon_Stance()):
+            return True
+
+        if self.IsSkillEquipped(Antidote_Signet_ID) and (
+            yield from self.CastSkillID(
+                Antidote_Signet_ID,
+                extra_condition=lambda: GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), Blind_ID),
+                aftercast_delay=100,
+            )
+        ):
             return True
 
         if self.IsSkillEquipped(Endure_Pain_ID) and (yield from self.skills.Warrior.Strength.Endure_Pain()):

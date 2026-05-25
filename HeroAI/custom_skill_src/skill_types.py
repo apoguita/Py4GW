@@ -99,7 +99,7 @@ class CastConditions:
     @EnemiesInRangeArea.setter
     def EnemiesInRangeArea(self, value):
         self.EnemiesInRange = value
-            
+
 class CustomSkill:
     def __init__(self):
         self.SkillID = 0

@@ -81,6 +81,43 @@ class Leadership:
             log=False,
             aftercast_delay=250,
         ))
+
+    def Angelic_Protection(
+        self,
+        *,
+        health_threshold: float | None = None,
+    ) -> BuildCoroutine:
+        from Py4GWCoreLib.Agent import Agent
+
+        angelic_protection_id: int = Skill.GetID("Angelic_Protection")
+        angelic_protection = self.build.GetCustomSkill(angelic_protection_id)
+
+        if not self.build.IsSkillEquipped(angelic_protection_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        threshold: float = (
+            health_threshold
+            if health_threshold is not None
+            else float(angelic_protection.Conditions.LessLife or 0.75)
+        )
+        threshold = max(0.0, min(1.0, threshold))
+
+        target_agent_id = self.build.ResolvePreferredAllyTarget(
+            angelic_protection_id,
+            angelic_protection,
+            validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < threshold,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=angelic_protection_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
     #endregion
 
     #region M

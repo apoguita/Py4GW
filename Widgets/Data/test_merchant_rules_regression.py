@@ -7445,6 +7445,25 @@ def _test_preview_reason_display_normalizes_nested_protection_wording(module) ->
     )
 
 
+def _test_preview_item_label_prefers_specific_live_label_over_catalog(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.catalog_by_model_id[19122] = {"model_id": 19122, "name": "Salvage Kit", "item_type": "Salvage"}
+    entry = module.ExecutionPlanEntry(
+        action_type="deposit",
+        merchant_type=module.MERCHANT_TYPE_STORAGE,
+        label='Inscription: "Aptitude not Attitude"',
+        quantity=1,
+        state=module.PLAN_STATE_CONDITIONAL,
+        reason="Protected by Weapon Protections.",
+        model_id=19122,
+    )
+
+    _expect(
+        widget._format_preview_item_label(entry) == 'Inscription: "Aptitude not Attitude"',
+        "Preview labels should prefer the specific live item label over a misleading catalog name for the same model id.",
+    )
+
+
 def _test_detailed_preview_controls_direct_storage_deposit_reasons(module) -> None:
     widget = _prime_initialized_widget(module, _make_widget(module))
 
@@ -7931,6 +7950,11 @@ def _test_execute_storage_transfers_tracks_partial_moves(module) -> None:
             DepositItemToStorage=_partial_deposit,
             WithdrawItemFromStorage=lambda *_args, **_kwargs: False,
         )
+        widget._get_inventory_stack_quantities = lambda item_ids: {
+            int(item_id): max(0, int(quantities.get(int(item_id), 0)))
+            for item_id in item_ids
+            if int(item_id) == 330 and max(0, int(quantities.get(int(item_id), 0))) > 0
+        }
 
         def _wait_for_queue(*_args, **_kwargs):
             if False:
@@ -7945,6 +7969,7 @@ def _test_execute_storage_transfers_tracks_partial_moves(module) -> None:
             return int(quantities.get(int(item_id), 0))
 
         widget._wait_for_stack_quantity_target = _wait_for_target
+        widget._wait_for_inventory_source_stack_quantity_target = _wait_for_target
 
         outcome = _drain_generator_return(
             widget._execute_storage_transfers(
@@ -7964,6 +7989,68 @@ def _test_execute_storage_transfers_tracks_partial_moves(module) -> None:
         _expect(
             outcome.completed == 20 and outcome.timeout_failures == 5,
             "Storage transfer execution should count only the quantity that actually moved and report the shortfall separately.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+
+def _test_execute_storage_transfers_verifies_regular_deposit_by_inventory_scope(module) -> None:
+    widget = _make_widget(module)
+    in_inventory = {"present": True}
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    try:
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+            GetModelID=lambda item_id: 111 if int(item_id) == 330 else 0,
+            Properties=types.SimpleNamespace(GetQuantity=lambda item_id: 1 if int(item_id) == 330 else 0),
+            Type=types.SimpleNamespace(
+                IsMaterial=lambda _item_id: False,
+                IsRareMaterial=lambda _item_id: False,
+            ),
+        )
+
+        def _deposit_item_to_storage(item_id: int, **_kwargs) -> bool:
+            _expect(int(item_id) == 330, "Regular deposit should use the planned source item id.")
+            in_inventory["present"] = False
+            return True
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            DepositItemToStorage=_deposit_item_to_storage,
+            WithdrawItemFromStorage=lambda *_args, **_kwargs: False,
+        )
+        widget._get_inventory_stack_quantities = lambda item_ids: {
+            int(item_id): 1
+            for item_id in item_ids
+            if int(item_id) == 330 and bool(in_inventory["present"])
+        }
+
+        def _wait_for_queue(*_args, **_kwargs):
+            if False:
+                yield None
+            return True
+
+        widget._wait_for_action_queue_empty = _wait_for_queue
+
+        outcome = _drain_generator_return(
+            widget._execute_storage_transfers(
+                [
+                    module.PlannedStorageTransfer(
+                        direction=module.STORAGE_TRANSFER_DEPOSIT,
+                        key="item:330",
+                        label="Inscription",
+                        item_id=330,
+                        quantity=1,
+                        model_id=111,
+                    )
+                ],
+                phase_label="Xunlai Deposits",
+            )
+        )
+
+        _expect(
+            outcome.completed == 1 and outcome.timeout_failures == 0 and outcome.depleted == 0,
+            "Regular deposits should verify from inventory bags even when the moved item stays globally readable in storage.",
         )
     finally:
         module.GLOBAL_CACHE.Item = original_item
@@ -8288,6 +8375,67 @@ def _test_execute_now_runs_storage_deposits_as_final_phase(module) -> None:
 
         _expect(phase_calls == ["Storage deposits"], "Execute should run deposit cleanup in the dedicated final storage-deposit phase.")
         _expect(open_calls == ["open"], "Execute should open Xunlai once when planned deposits need storage access.")
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+
+def _test_execute_cleanup_now_rebuilds_live_plan_after_opening_xunlai(module) -> None:
+    widget = _make_widget(module)
+    open_state = {"open": False}
+    build_open_states: list[bool] = []
+    executed_item_ids: list[int] = []
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    try:
+        def _open_xunlai() -> None:
+            open_state["open"] = True
+
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: bool(open_state["open"]),
+            OpenXunlaiWindow=_open_xunlai,
+        )
+        widget._pause_inventory_plus = lambda: None
+
+        def _build_plan(**_kwargs):
+            build_open_states.append(bool(open_state["open"]))
+            item_id = 902 if open_state["open"] else 901
+            transfer = module.PlannedStorageTransfer(
+                direction=module.STORAGE_TRANSFER_DEPOSIT,
+                key=f"item:{item_id}",
+                label=f"Item {item_id}",
+                item_id=item_id,
+                quantity=1,
+                model_id=111,
+            )
+            return module.PlanResult(
+                storage_transfers=[transfer],
+                cleanup_transfers=[transfer],
+                has_actions=True,
+            )
+
+        def _capture_storage_transfers(transfers, *, phase_label="Storage transfers"):
+            executed_item_ids.extend(int(transfer.item_id) for transfer in transfers)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(
+                label=phase_label,
+                measure_label="items",
+                attempted=len(transfers),
+                completed=len(transfers),
+            )
+
+        widget._build_plan = _build_plan
+        widget._execute_storage_transfers = _capture_storage_transfers
+
+        _drain_generator_return(widget._execute_cleanup_now(auto_triggered=True))
+
+        _expect(
+            build_open_states == [False, True],
+            "Xunlai Deposits should rebuild the cleanup plan after opening storage.",
+        )
+        _expect(
+            executed_item_ids == [902],
+            "Xunlai Deposits should execute refreshed live transfer data instead of the pre-open item ids.",
+        )
     finally:
         module.GLOBAL_CACHE.Inventory = original_inventory
 
@@ -10292,6 +10440,10 @@ def main() -> int:
             ),
             ("preview_reason_display_hides_projected_suffix_without_mutating_plan", lambda: _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module)),
             ("preview_reason_display_normalizes_nested_protection_wording", lambda: _test_preview_reason_display_normalizes_nested_protection_wording(module)),
+            (
+                "preview_item_label_prefers_specific_live_label_over_catalog",
+                lambda: _test_preview_item_label_prefers_specific_live_label_over_catalog(module),
+            ),
             ("detailed_preview_shows_all_direct_reasons", lambda: _test_detailed_preview_shows_all_direct_reasons(module)),
             (
                 "projected_preview_here_availability_tracks_local_services_and_storage",
@@ -10303,6 +10455,10 @@ def main() -> int:
             ),
             ("build_plan_deposits_material_keep_remainder_to_storage", lambda: _test_build_plan_deposits_material_keep_remainder_to_storage(module)),
             ("execute_storage_transfers_tracks_partial_moves", lambda: _test_execute_storage_transfers_tracks_partial_moves(module)),
+            (
+                "execute_storage_transfers_verifies_regular_deposit_by_inventory_scope",
+                lambda: _test_execute_storage_transfers_verifies_regular_deposit_by_inventory_scope(module),
+            ),
             (
                 "execute_storage_transfers_deposits_material_storage_first_when_space_exists",
                 lambda: _test_execute_storage_transfers_deposits_material_storage_first_when_space_exists(module),
@@ -10332,6 +10488,10 @@ def main() -> int:
                 lambda: _test_execute_storage_transfers_unverified_material_move_skips_regular_fallback(module),
             ),
             ("execute_now_runs_storage_deposits_as_final_phase", lambda: _test_execute_now_runs_storage_deposits_as_final_phase(module)),
+            (
+                "execute_cleanup_now_rebuilds_live_plan_after_opening_xunlai",
+                lambda: _test_execute_cleanup_now_rebuilds_live_plan_after_opening_xunlai(module),
+            ),
             (
                 "execute_here_ignores_travel_and_reports_local_summary",
                 lambda: _test_execute_here_ignores_travel_and_reports_local_summary(module),

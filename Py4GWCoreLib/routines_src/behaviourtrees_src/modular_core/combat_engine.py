@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from Py4GWCoreLib import ActionQueueManager, GLOBAL_CACHE, Key, Keystroke, Player, SharedCommandType
+from Py4GWCoreLib import GLOBAL_CACHE, Player, SharedCommandType
 from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
 
 ENGINE_NONE = "none"
@@ -263,8 +263,10 @@ def set_auto_following(enabled: bool, preferred_engine: str | None = None, bot=N
 def set_party_target(target_agent_id: int, preferred_engine: str | None = None, bot=None) -> None:
     engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_HERO_AI:
-        # HeroAI follows GW's called target; emulate Ctrl+Space on current target.
-        ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+        # HeroAI follows GW's called target; explicitly set and call the requested target.
+        if int(target_agent_id or 0) > 0:
+            Player.ChangeTarget(target_agent_id)
+            Player.CallTarget(target_agent_id)
 
 
 def flag_all_accounts(x: float, y: float, preferred_engine: str | None = None, bot=None) -> int:

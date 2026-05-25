@@ -21,6 +21,7 @@ Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom"
 I_Am_Unstoppable_ID = Skill.GetID("I_Am_Unstoppable")
 Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
 Remove_Hex_ID = Skill.GetID("Remove_Hex")
+Edge_of_Extinction_ID = Skill.GetID("Edge_of_Extinction")
 
 
 @dataclass(slots=True)
@@ -54,6 +55,7 @@ class Soul_Twisting(BuildMgr):
                 I_Am_Unstoppable_ID,
                 Air_of_Superiority_ID,
                 Remove_Hex_ID,
+                Edge_of_Extinction_ID,
             ],
         )
         if match_only:
@@ -76,6 +78,7 @@ class Soul_Twisting(BuildMgr):
             I_Am_Unstoppable_ID,
             Air_of_Superiority_ID,
             Remove_Hex_ID,
+            Edge_of_Extinction_ID,
         ])
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
@@ -104,6 +107,9 @@ class Soul_Twisting(BuildMgr):
             and (snapshot.in_aggro or self.IsCloseToAggro())
             and (yield from self.skills.Any.PvE.Air_of_Superiority())
         ):
+            return True
+
+        if self.IsSkillEquipped(Edge_of_Extinction_ID) and (yield from self.skills.Ranger.BeastMastery.Edge_of_Extinction()):
             return True
 
         if snapshot.in_aggro and (yield from self.skills.Any.NoAttribute.I_Am_Unstoppable()):

@@ -71,7 +71,7 @@ def Sequence(name: str,
         A sequence tree containing the optional travel node first, then
         `map_prep` when provided, followed by the provided `children`.
     """
-    resolved_children = list(children) if children is not None else [BehaviorTree.SucceederNode()]
+    resolved_children = list(children) if children is not None else [Succeeder()]
 
     travel_child = [Travel(target_map_id=map_id_or_name if isinstance(map_id_or_name, int) else 0,
                            target_map_name=map_id_or_name if isinstance(map_id_or_name, str) else "",
@@ -81,8 +81,10 @@ def Sequence(name: str,
                           )] if map_id_or_name else []
 
     prep_child = [BehaviorTree(Node(map_prep))] if map_prep is not None else []
+    
+    data_child = [StoreProfessionNames()]
 
-    resolved_children = travel_child + prep_child + resolved_children
+    resolved_children = travel_child + prep_child + data_child + resolved_children
     
     return BehaviorTree(
         BehaviorTree.SequenceNode(
@@ -108,7 +110,7 @@ def Repeater(
         Number of times to repeat the child sequence.
     children
         Child nodes run in order for each repetition. If omitted, a single
-        `SucceederNode` is used so the wrapper still produces a valid repeater.
+        `Succeeder` is used so the wrapper still produces a valid repeater.
     """
     sequence = Sequence(
         name=f'{name}Cycle',
@@ -122,6 +124,40 @@ def Repeater(
         )
     )
 
+def Subtree(name: str, subtree_fn: Callable[[BehaviorTree.Node], BehaviorTree]) -> BehaviorTree:
+    """
+    Build a subtree wrapper that resolves its child at runtime.
+
+    Parameters
+    ----------
+    name
+        Name assigned to the subtree node.
+    subtree_fn
+        Function that takes the subtree node as an argument and returns the
+        child tree or node to run.
+
+    Returns
+    -------
+    BehaviorTree
+        A subtree that runs the tree or node returned by `subtree_fn`.
+    """
+    return BehaviorTree(
+        BehaviorTree.SubtreeNode(
+            name=name,
+            subtree_fn=subtree_fn,
+        )
+    )
+
+
+def Succeeder(name: str = "Succeeder") -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.SucceederNode(name=name)
+    )
+    
+def Failer(name: str = "Failer") -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.FailerNode(name=name)
+    )
 
 def GetNodeByProfession(
     WarriorNode: BehaviorTree | BehaviorTree.Node | None = None,
@@ -157,7 +193,7 @@ def GetNodeByProfession(
     Notes
     -----
     If the current profession has no supplied node, the helper returns a
-    `FailerNode`.
+    `Failer`.
     """
     def _profession_specific_node(node: BehaviorTree.Node) -> BehaviorTree:
         primary_profession = str(node.blackboard.get("player_primary_profession_name", "Warrior") or "Warrior")
@@ -176,7 +212,7 @@ def GetNodeByProfession(
         selected_node = profession_nodes.get(primary_profession)
 
         if selected_node is None:
-            return BehaviorTree(BehaviorTree.FailerNode(name=f"GetNodeByProfession<{primary_profession}>"))
+            return Failer(name=f"GetNodeByProfession<{primary_profession}>")
 
         return BehaviorTree(Node(selected_node))
 
@@ -184,13 +220,41 @@ def GetNodeByProfession(
             name="GetNodeByProfession",
             children=[
                 StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
+                Subtree(
                     name="GetNodeByProfessionSubtree",
                     subtree_fn=_profession_specific_node,
                 ),
             ],
         )
 
+def SkipNodeByProfession(profession_name: str, NodeToRun: BehaviorTree) -> BehaviorTree:
+    return Subtree(
+        name=f"Skip {profession_name} Profession Specific Quests",
+        subtree_fn=lambda node: Sequence(
+            name=f"{profession_name} Profession Skip Decision",
+            children=[
+                StoreProfessionNames(),
+                NodeToRun
+                if node.blackboard.get("player_primary_profession_name") != profession_name
+                else Succeeder(name=f"Skip{profession_name}ProfessionSpecificQuests")
+            ],
+        ),
+    )
+    
+def ExecuteIfProfession(profession_name: str, NodeToRun: BehaviorTree) -> BehaviorTree:
+    return Subtree(
+        name=f"ExecuteIf {profession_name} Profession Specific Quests",
+        subtree_fn=lambda node: Sequence(
+            name=f"{profession_name} Profession Execution Decision",
+            children=[
+                StoreProfessionNames(),
+                NodeToRun
+                if node.blackboard.get("player_primary_profession_name") == profession_name
+                else Succeeder(name=f"SkipNon{profession_name}ProfessionSpecificQuests")
+            ],
+        ),
+    )
+    
 
 def GetValuesByProfession(
     profession_values: Mapping[str, object],
@@ -246,6 +310,92 @@ def GetValuesByProfession(
                 ),
             ],
         )
+
+
+def BuyMaterialsByProfession(
+    profession_materials: Mapping[str, list[tuple[int, int]]],
+    *,
+    rare_trader: bool = False,
+    fallback_profession: str = "Warrior",
+    log: bool = False,
+    aftercast_ms: int = 125,
+) -> BehaviorTree:
+    def _buy_for_profession(node: BehaviorTree.Node) -> BehaviorTree:
+        materials = cast(list[tuple[int, int]], node.blackboard["profession_buy_materials"])
+        return BuyMaterialsFromList(
+            materials=materials,
+            rare_trader=rare_trader,
+            log=log,
+            aftercast_ms=aftercast_ms,
+        )
+
+    return Sequence(
+        name="BuyMaterialsByProfession",
+        children=[
+            GetValuesByProfession(
+                profession_values=profession_materials,
+                target_key="profession_buy_materials",
+                fallback_profession=fallback_profession,
+            ),
+            Subtree(
+                name="BuyMaterialsByProfessionSubtree",
+                subtree_fn=_buy_for_profession,
+            ),
+        ],
+    )
+
+
+def CraftItemsByProfession(
+    profession_craft_steps: Mapping[str, list[tuple[int, int, list[int], list[int]]]],
+    *,
+    fallback_profession: str = "Warrior",
+    equip_items: bool = True,
+    craft_aftercast_ms: int = 350,
+    equip_aftercast_ms: int = 250,
+    equip_log: bool = False,
+) -> BehaviorTree:
+    def _craft_for_profession(node: BehaviorTree.Node) -> BehaviorTree:
+        craft_steps = cast(list[tuple[int, int, list[int], list[int]]], node.blackboard["profession_craft_steps"])
+        children: list[BehaviorTree | BehaviorTree.Node] = []
+
+        for item_id, cost, trade_model_ids, quantity_list in craft_steps:
+            children.append(
+                CraftItem(
+                    output_model_id=item_id,
+                    cost=cost,
+                    trade_model_ids=trade_model_ids,
+                    quantity_list=quantity_list,
+                    aftercast_ms=craft_aftercast_ms,
+                )
+            )
+            if equip_items:
+                children.append(
+                    EquipItemByModelID(
+                        item_id,
+                        aftercast_ms=equip_aftercast_ms,
+                        log=equip_log,
+                    )
+                )
+
+        return Sequence(
+            name="CraftItemsByProfessionSequence",
+            children=children,
+        )
+
+    return Sequence(
+        name="CraftItemsByProfession",
+        children=[
+            GetValuesByProfession(
+                profession_values=profession_craft_steps,
+                target_key="profession_craft_steps",
+                fallback_profession=fallback_profession,
+            ),
+            Subtree(
+                name="CraftItemsByProfessionSubtree",
+                subtree_fn=_craft_for_profession,
+            ),
+        ],
+    )
 #region LOGGING
 
 def LogMessage(message: str, 
@@ -743,7 +893,7 @@ def TakeFactionBlessing(
                 log=log,
                 multi_account=multi_account,
             )
-        return BehaviorTree(BehaviorTree.SucceederNode(name=f'Skip{faction_name.title()}BlessingBribe'))
+        return Succeeder(name=f'Skip{faction_name.title()}BlessingBribe')
 
     return Sequence(
         name=f'Take {faction_name.title()} Blessing',
@@ -756,13 +906,9 @@ def TakeFactionBlessing(
                 )
             ),
             MoveAndInteract(pos=pos, log=log),
+            LogMessage(message=f"Obtaining {faction_name.title()} blessing"),
             Wait(pre_dialog_wait_ms, log=log),
-            BehaviorTree(
-                BehaviorTree.SubtreeNode(
-                    name=f'MaybeBribe{faction_name.title()}Priest',
-                    subtree_fn=_maybe_bribe,
-                )
-            ),
+            Subtree(name=f'MaybeBribe{faction_name.title()}Priest',subtree_fn=_maybe_bribe,),
             InteractTargetAndSendDialog(
                 dialog_id=blessing_dialog_id,
                 log=log,
@@ -788,29 +934,18 @@ def DonateFaction(
     faction_name = str(faction or 'luxon').strip().lower()
     if faction_name not in {'luxon', 'kurzick'}:
         raise ValueError("faction must be 'luxon' or 'kurzick'.")
-    children: list[BehaviorTree | BehaviorTree.Node] = []
-
-    if travel_map_id:
-        children.append(LeaveParty())
-        children.append(
-            Travel(
-                target_map_id=int(travel_map_id),
-                random_travel=random_travel,
-                region_pool=region_pool,
+    donate_children: list[BehaviorTree | BehaviorTree.Node] = []
+    if multi_account and summon_accounts:
+        donate_children.append(
+            RoutinesBT.Multibox.SummonAllAccounts(
+                timeout_ms=15000,
+                poll_interval_ms=poll_interval_ms,
                 log=log,
             )
         )
-        if multi_account and summon_accounts:
-            children.append(
-                RoutinesBT.Multibox.SummonAllAccounts(
-                    timeout_ms=15000,
-                    poll_interval_ms=poll_interval_ms,
-                    log=log,
-                )
-            )
-            children.append(Wait(duration_ms=1000, log=log))
+        donate_children.append(Wait(duration_ms=1000, log=log))
 
-    children.append(
+    donate_children.append(
         RoutinesBT.Multibox.DonateFaction(
             faction=faction_name,
             threshold=threshold,
@@ -821,10 +956,24 @@ def DonateFaction(
         )
     )
 
-    return Sequence(
-        name=f'Donate {faction_name.title()} Faction',
-        children=children,
+    donate_sequence = Sequence(
+        name=f'Donate{faction_name.title()}FactionSequence',
+        map_id_or_name=int(travel_map_id) if travel_map_id else 0,
+        random_travel=random_travel,
+        region_pool=region_pool,
+        children=donate_children,
     )
+
+    if travel_map_id:
+        return Sequence(
+            name=f'Donate {faction_name.title()} Faction',
+            children=[
+                LeaveParty(),
+                donate_sequence,
+            ],
+        )
+
+    return donate_sequence
 
    
 
@@ -917,7 +1066,9 @@ def WaitForMapLoad(map_id: int = 0, timeout_ms: int = 30000, map_name: str = "")
     return RoutinesBT.Map.WaitforMapLoad(map_id=map_id, timeout=timeout_ms, map_name=map_name,
                                          player_instance_uptime_ms=500,
                                          throttle_interval_ms=250,
-                                         post_arrival_wait_ms=0,)
+                                         post_arrival_wait_ms=0,
+                                         log=bool(map_id or map_name),
+    )
 
 def WaitForMapToChange(map_id: int, timeout_ms: int = 30000, map_name: str = "") -> BehaviorTree:
     return WaitForMapLoad(map_id=map_id, timeout_ms=timeout_ms, map_name=map_name)
@@ -926,7 +1077,7 @@ def WaitUntilCharacterSelect(timeout_ms: int = 45000) -> BehaviorTree:
     return RoutinesBT.Player.WaitUntilCharacterSelect(timeout_ms=timeout_ms,)
 
 #region Movement
-def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float = 150.0,flag_heroes_to_waypoint: bool = False,log: bool = False,) -> BehaviorTree:
+def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float = 200.0,flag_heroes_to_waypoint: bool = False,log: bool = False,) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "Move",
         lambda resolved_pause: RoutinesBT.Movement.MovePath(
@@ -953,6 +1104,7 @@ def MoveDirect(pos: PointOrPath, pause_on_combat: bool | None = None, flag_heroe
 
 def MoveAndExitMap(pos: PointOrPath, target_map_id: int = 0, target_map_name: str = "", flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
+            LogMessage("Exiting map..."),
             Move(pos=pos, tolerance=150.0, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
             WaitForMapLoad(map_id=target_map_id, map_name=target_map_name),
     )
@@ -1002,7 +1154,7 @@ def VanquishNode(
         )
 
     if not resolved_children:
-        return BehaviorTree(BehaviorTree.SucceederNode(name=f'{name}Empty'))
+        return Succeeder(name=f'{name}Empty')
 
     return Sequence(
         name=name,
@@ -1606,7 +1758,20 @@ def PressEsc() -> BehaviorTree:
 
 
 def LeaveParty() -> BehaviorTree:
+    def _log_disbanding_if_needed(_node: BehaviorTree.Node) -> BehaviorTree:
+        from Py4GWCoreLib import Party
+
+        if Party.IsPartyLoaded() and int(Party.GetPlayerCount() or 0) > 1:
+            return LogMessage(message="disbanding")
+        return BehaviorTree(
+            BehaviorTree.SucceederNode(name="SkipDisbandingLog")
+        )
+
     return RoutinesBT.Composite.Sequence(
+        BehaviorTree.SubtreeNode(
+            name="LogDisbandingIfNeeded",
+            subtree_fn=_log_disbanding_if_needed,
+        ),
         RoutinesBT.Multibox.KickAllAccounts(
             timeout_ms=15000,
             poll_interval_ms=100,
@@ -1642,6 +1807,7 @@ def Resign(
         )
 
     children: list[BehaviorTree | BehaviorTree.Node] = []
+    children.append(LogMessage(message="Resign initiated"))
     children.append(_set_wipe_recovery_suppressed(True))
     if multi_account:
         children.append(
@@ -1673,23 +1839,183 @@ def Resign(
             )
         )
     children.append(_set_wipe_recovery_suppressed(False))
+    children.append(LogMessage(message="Resign completed"))
 
     return Sequence(
         name="Resign",
         children=children,
     )
 
+def _flag_heroai_accounts_by_party_position(
+    party_positions: list[int] | None,
+    x: float,
+    y: float,
+    *,
+    flag_all: bool = False,
+    aftercast_ms: int = 125,
+) -> BehaviorTree:
+    resolved_positions = [int(pos) for pos in (party_positions or []) if int(pos) >= 0]
+
+    def _apply_flag(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        from Py4GWCoreLib import GLOBAL_CACHE, Agent, Party
+
+        party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+        leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+        facing_angle = float(Agent.GetRotationAngle(leader_id) if leader_id > 0 else 0.0)
+
+        if flag_all:
+            leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
+            if leader_options is not None:
+                leader_options.AllFlag.x = float(x)
+                leader_options.AllFlag.y = float(y)
+                leader_options.IsFlagged = True
+                leader_options.FlagFacingAngle = facing_angle
+            return BehaviorTree.NodeState.SUCCESS
+
+        target_positions = set(resolved_positions)
+        if not target_positions:
+            return BehaviorTree.NodeState.SUCCESS
+
+        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            if (
+                not account
+                or options is None
+                or not account.IsSlotActive
+                or account.IsHero
+                or int(account.AgentPartyData.PartyID or 0) != party_id
+            ):
+                continue
+
+            party_position = int(account.AgentPartyData.PartyPosition or -1)
+            if party_position not in target_positions:
+                continue
+
+            options.FlagPos.x = float(x)
+            options.FlagPos.y = float(y)
+            options.IsFlagged = True
+            options.FlagFacingAngle = facing_angle
+
+        return BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="FlagHeroAIAccounts",
+            action_fn=_apply_flag,
+            aftercast_ms=max(0, int(aftercast_ms)),
+        )
+    )
+
+
+def _unflag_heroai_accounts(*, aftercast_ms: int = 125) -> BehaviorTree:
+    def _clear_flags(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            if (
+                not account
+                or options is None
+                or not account.IsSlotActive
+                or int(account.AgentPartyData.PartyID or 0) != party_id
+            ):
+                continue
+
+            options.IsFlagged = False
+            options.FlagPos.x = 0.0
+            options.FlagPos.y = 0.0
+            options.AllFlag.x = 0.0
+            options.AllFlag.y = 0.0
+            options.FlagFacingAngle = 0.0
+
+        return BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="UnflagHeroAIAccounts",
+            action_fn=_clear_flags,
+            aftercast_ms=max(0, int(aftercast_ms)),
+        )
+    )
+
+
 def FlagHero(hero_position: int, x: float, y: float) -> BehaviorTree:
-    return RoutinesBT.Party.FlagHero(hero_position=hero_position, x=x, y=y,)
+    resolved_position = int(hero_position)
+
+    def _subtree(_node: BehaviorTree.Node) -> BehaviorTree:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        hero_count = int(GLOBAL_CACHE.Party.GetHeroCount() or 0)
+        if 0 < resolved_position <= hero_count:
+            return RoutinesBT.Party.FlagHero(hero_position=resolved_position, x=x, y=y)
+        return _flag_heroai_accounts_by_party_position([resolved_position], x, y)
+
+    return BehaviorTree(
+        BehaviorTree.SubtreeNode(
+            name="FlagHeroOrAccount",
+            subtree_fn=_subtree,
+        )
+    )
+
 
 def FlagAllHeroes(x: float, y: float) -> BehaviorTree:
-    return RoutinesBT.Party.FlagAllHeroes(x=x, y=y,)
+    return RoutinesBT.Composite.Sequence(
+        RoutinesBT.Party.FlagAllHeroes(x=x, y=y),
+        _flag_heroai_accounts_by_party_position(None, x, y, flag_all=True),
+        name="FlagAllHeroes",
+    )
+
 
 def FlagHeroesFromList(hero_positions: list[int | str] | None, x: float, y: float, flag_all: bool = False) -> BehaviorTree:
-    return RoutinesBT.Party.FlagHeroesFromList(hero_positions=hero_positions, x=x, y=y, flag_all=flag_all,)
+    if flag_all:
+        return FlagAllHeroes(x=x, y=y)
+
+    raw_positions = list(hero_positions or [])
+
+    def _subtree(_node: BehaviorTree.Node) -> BehaviorTree:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        hero_count = int(GLOBAL_CACHE.Party.GetHeroCount() or 0)
+        resolved_positions: list[int] = []
+        for value in raw_positions:
+            try:
+                resolved = int(value)
+            except Exception:
+                continue
+            if resolved > 0 and resolved not in resolved_positions:
+                resolved_positions.append(resolved)
+
+        hero_positions_only = [pos for pos in resolved_positions if pos <= hero_count]
+        account_positions_only = [pos for pos in resolved_positions if pos > hero_count]
+
+        children: list[BehaviorTree | BehaviorTree.Node] = [
+            RoutinesBT.Party.FlagHero(hero_position=pos, x=x, y=y)
+            for pos in hero_positions_only
+        ]
+        if account_positions_only:
+            children.append(_flag_heroai_accounts_by_party_position(account_positions_only, x, y))
+
+        if not children:
+            return BehaviorTree(BehaviorTree.SucceederNode(name="FlagHeroesFromListEmpty"))
+
+        return RoutinesBT.Composite.Sequence(
+            *children,
+            name="FlagHeroesFromList",
+        )
+
+    return BehaviorTree(
+        BehaviorTree.SubtreeNode(
+            name="FlagHeroesOrAccountsFromList",
+            subtree_fn=_subtree,
+        )
+    )
+
 
 def UnflagAllHeroes(log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
-    return RoutinesBT.Party.UnflagAllHeroes(log=log, aftercast_ms=aftercast_ms)
+    return RoutinesBT.Composite.Sequence(
+        RoutinesBT.Party.UnflagAllHeroes(log=log, aftercast_ms=aftercast_ms),
+        _unflag_heroai_accounts(aftercast_ms=aftercast_ms),
+        name="UnflagAllHeroes",
+    )
 
 def DropBundle(log: bool = False) -> BehaviorTree:
     return RoutinesBT.Party.DropBundle(log=log)
@@ -1744,31 +2070,87 @@ def CreateParty(
     hero_ids = list(hero_ids or [])
     henchman_ids = list(henchman_ids or [])
 
+    def _conditional_log_subtree(
+        name: str,
+        message: str,
+        predicate: Callable[[], bool],
+    ) -> BehaviorTree.Node:
+        def _subtree(_node: BehaviorTree.Node) -> BehaviorTree:
+            if predicate():
+                return LogMessage(message=message)
+            return BehaviorTree(BehaviorTree.SucceederNode(name=f"Skip{name}"))
+
+        return BehaviorTree.SubtreeNode(
+            name=name,
+            subtree_fn=_subtree,
+        )
+
+    def _conditional_tree_subtree(
+        name: str,
+        predicate: Callable[[], bool],
+        tree_factory: Callable[[], BehaviorTree | BehaviorTree.Node],
+    ) -> BehaviorTree.Node:
+        def _subtree(_node: BehaviorTree.Node) -> BehaviorTree:
+            if predicate():
+                return BehaviorTree(Node(tree_factory()))
+            return BehaviorTree(BehaviorTree.SucceederNode(name=f"Skip{name}"))
+
+        return BehaviorTree.SubtreeNode(
+            name=name,
+            subtree_fn=_subtree,
+        )
+
+    def _need_summon_accounts() -> bool:
+        from Py4GWCoreLib.routines_src.behaviourtrees_src.shared import _account_emails_not_on_same_map_as_local
+        return len(_account_emails_not_on_same_map_as_local()) > 0
+
+    def _need_invite_accounts() -> bool:
+        from Py4GWCoreLib.routines_src.behaviourtrees_src.shared import _account_emails_on_same_map_as_local
+        return len(_account_emails_on_same_map_as_local(include_self=True)) > 1
+
+    def _need_add_heroes() -> bool:
+        return len(hero_ids) > 0
+
+    def _need_add_henchmen() -> bool:
+        return len(henchman_ids) > 0
+
     children: list[BehaviorTree | BehaviorTree.Node] = [LeaveParty()]
     if multibox_invite:
-        children.append(RoutinesBT.Multibox.SummonAllAccounts(
-            timeout_ms=timeout_ms,
-            poll_interval_ms=poll_interval_ms,
-            log=log,
+        children.append(_conditional_log_subtree("LogSummoningAccountsIfNeeded", "summoning accounts", _need_summon_accounts))
+        children.append(_conditional_tree_subtree(
+            "SummonAllAccountsIfNeeded",
+            _need_summon_accounts,
+            lambda: RoutinesBT.Multibox.SummonAllAccounts(
+                timeout_ms=timeout_ms,
+                poll_interval_ms=poll_interval_ms,
+                log=log,
+            ),
         ))
-        children.append(RoutinesBT.Player.Wait(duration_ms=1000, log=log))
-        children.append(RoutinesBT.Multibox.InviteAllAccounts(
-            timeout_ms=timeout_ms,
-            poll_interval_ms=poll_interval_ms,
-            log=log,
-            aftercast_ms=aftercast_ms,
+        children.append(_conditional_tree_subtree(
+            "WaitAfterSummonIfNeeded",
+            _need_summon_accounts,
+            lambda: RoutinesBT.Player.Wait(duration_ms=1000, log=log),
+        ))
+        children.append(_conditional_log_subtree("LogInvitingAccountsIfNeeded", "invitng accoutns", _need_invite_accounts))
+        children.append(_conditional_tree_subtree(
+            "InviteAllAccountsIfNeeded",
+            _need_invite_accounts,
+            lambda: RoutinesBT.Multibox.InviteAllAccounts(
+                timeout_ms=timeout_ms,
+                poll_interval_ms=poll_interval_ms,
+                log=log,
+                aftercast_ms=aftercast_ms,
+            ),
         ))
     if hero_ids:
+        children.append(_conditional_log_subtree("LogAddingHeroesIfNeeded", "adding heroes", _need_add_heroes))
         children.append(RoutinesBT.Party.LoadParty(hero_ids=hero_ids))
     if henchman_ids:
+        children.append(_conditional_log_subtree("LogAddingHenchmenIfNeeded", "adding henchmen", _need_add_henchmen))
         children.append(RoutinesBT.Party.LoadParty(henchman_ids=henchman_ids))
 
     if not children:
-        return BehaviorTree(
-            BehaviorTree.SucceederNode(
-                name="CreatePartyEmpty",
-            )
-        )
+        return Succeeder(name="CreatePartyEmpty",)
 
     return RoutinesBT.Composite.Sequence(
         *children,
@@ -2025,7 +2407,7 @@ def HandleAutoQuest(
             children=[
                 BehaviorTree.ActionNode(name="HandleAutoQuestPreChecks", action_fn=_pre_checks),
                 _mid_checks(),
-                BehaviorTree.SubtreeNode(
+                Subtree(
                     name="HandleAutoQuestMoveDialogSubtree",
                     subtree_fn=lambda node: _move_dialog_node(),
                 ),
@@ -2250,8 +2632,8 @@ def HandleQuest(
                  )
              )
 
-    def _move_subtree() -> BehaviorTree.Node:
-        return BehaviorTree.SubtreeNode(
+    def _move_subtree() -> BehaviorTree:
+        return Subtree(
             name="HandleQuestMoveSubtree",
             subtree_fn=lambda node: (
                 _move_node()
@@ -2265,8 +2647,8 @@ def HandleQuest(
             ),
         )
 
-    def _move_dialog_subtree() -> BehaviorTree.Node:
-        return BehaviorTree.SubtreeNode(
+    def _move_dialog_subtree() -> BehaviorTree:
+        return Subtree(
             name="HandleQuestMoveDialogSubtree",
             subtree_fn=lambda node: _move_dialog_node(),
         )

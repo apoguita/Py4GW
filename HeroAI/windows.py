@@ -665,7 +665,8 @@ class HeroAI_Windows():
             account.AgentData.AgentID = self_id
             player_id = Player.GetAgentID()
             account.AgentData.Energy.Regen = Agent.GetEnergyRegen(player_id)
-            account.AgentData.Energy.Current = Agent.GetEnergy(player_id)
+            current_energy = Agent.GetEnergy(player_id)
+            account.AgentData.Energy.Current = current_energy if 0.0 <= current_energy <= 1.0 else -1.0
             account.AgentData.Energy.Max = Agent.GetMaxEnergy(player_id)
             account.AgentData.Energy.Pips = Utils.calculate_energy_pips(account.AgentData.Energy.Max, account.AgentData.Energy.Regen)
             account.IsSlotActive = True

@@ -979,6 +979,16 @@ class MapContext:
         return pathing_maps
 
     @staticmethod
+    def ClearPathingCache(map_id: int | None = None) -> None:
+        if map_id is None:
+            MapContext._pathing_maps_cache.clear()
+            MapContext._pathing_maps_cache_raw.clear()
+            return
+
+        MapContext._pathing_maps_cache.pop(map_id, None)
+        MapContext._pathing_maps_cache_raw.pop(map_id, None)
+
+    @staticmethod
     def GetTravelPortals() -> list[TravelPortal]:
         """Get travel portal positions from current map's runtime props."""
         mc = MapContext._cached_ctx

@@ -1,4 +1,4 @@
-from Py4GWCoreLib import ActionQueueManager, Agent, Key, Keystroke, Player
+from Py4GWCoreLib import Agent, Player
 
 
 def CallTarget(agent_id: int, interact: bool = False) -> bool:
@@ -9,8 +9,8 @@ def CallTarget(agent_id: int, interact: bool = False) -> bool:
     if target_allegiance != "Enemy":
         return False
 
-    Player.ChangeTarget(agent_id)
+    Player.CallTarget(agent_id)
     if interact:
+        Player.ChangeTarget(agent_id)
         Player.Interact(agent_id, True)
-    ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
     return True

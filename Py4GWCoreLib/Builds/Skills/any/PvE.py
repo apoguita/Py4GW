@@ -256,6 +256,33 @@ class PvE:
             aftercast_delay=250,
         ))
 
+    def Tryptophan_Signet(self) -> BuildCoroutine:
+        from Py4GWCoreLib import GLOBAL_CACHE, Routines
+
+        tryptophan_signet_id: int = Skill.GetID("Tryptophan_Signet")
+
+        if not self.build.IsSkillEquipped(tryptophan_signet_id):
+            return False
+        if not self.build.CanCastSkillID(tryptophan_signet_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(tryptophan_signet_id) or Range.Adjacent.value
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=aoe_range,
+            filter_radius=Range.Spellcast.value,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=tryptophan_signet_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Vampirism(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, AgentArray, Player, SpiritModelID
 

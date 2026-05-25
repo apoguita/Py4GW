@@ -14,6 +14,71 @@
 - `docs/Py4GW_Model_Features_Detail.txt` is a derived plain-text export for quick scanning, not a separate authority.
 - `docs/widget_manager_and_catalog.md` is the highest-value reference before changing widget discovery, widget metadata defaults, `WidgetHandler`, or `WidgetCatalog` behavior.
 
+## RE (Reverse Engineering) — `docs/RE/`
+
+- **Start with `docs/RE/handover.md`** — the comprehensive library reference. Covers the three-layer architecture (Python `native_src`, C++ GWCA, Ghidra), key function catalogs with EXE↔WASM↔CPP mappings, bridging techniques, UI message dispatch architecture, and workflows for adding new functions.
+- `docs/RE/CPP_WASM_MAPPING.md` — the full CPP↔WASM↔EXE translation procedure with worked examples and pitfall notes.
+- `docs/RE/rosetta_stone.txt` — GwA2 (AutoIt) to Py4GW function mapping reference.
+- `docs/RE/gw_combat_ai_reverse_engineering.md` — combat AI RE analysis.
+- `docs/RE/native_gw_ui_function_catalog.json` — catalog of native GW UI functions with addresses.
+- `docs/RE/native_gw_window_creation_investigation.md` — window proc creation RE.
+- `docs/RE/native_ui_title_and_encoded_string_reference.md` — UI title and encoding reference.
+
+### RE Tool Locations
+
+| Layer | Path | Key Files |
+|-------|------|-----------|
+| **C++ (GWCA)** | `C:\Users\Apo\Py4GW\vendor\gwca\Source\` | `AgentMgr.cpp`, `UIMgr.cpp`, `GameThreadMgr.cpp` |
+| **C++ (GWCA headers)** | `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\` | `Managers/AgentMgr.h`, `Utilities/Scanner.h` |
+| **Python native** | `Py4GWCoreLib\native_src\` | `methods/PlayerMethods.py`, `internals/native_function.py` |
+| **Python Scanner** | `Py4GWCoreLib\Scanner.py` | FindAssertion, FindInRange, ToFunctionStart |
+| **Ghidra EXE** | `/Gw.exe(Symbols)` via MCP | 18,017 functions, x86:LE:32, base `0x00400000` |
+| **Ghidra WASM** | `/Gw.wasm` via MCP | 18,004 functions, Wasm:LE:32, base `ram:80000000` |
+
+### Key Function Mappings (quick reference)
+
+| GWCA Name | WASM Symbol | EXE Address |
+|-----------|-------------|-------------|
+| `DoWorldActon_Func` | `CoreActionExecuteWorldAction` | `0x0050e5e0` |
+| `CallTarget_Func` | `CharCliPlayerOrderAlertSimple` | `0x00917740` |
+| `ChangeTarget_Func` | `IAgentView::SetSelections` | `0x007e0f60` |
+| `MoveTo_Func` | `IUi::Game::Walk*` | `0x00534fa0` |
+| `SendAgentDialog_Func` | (thunk) | `0x008105b0` |
+
+Full catalog with sub-function breakdowns in `docs/RE/handover.md`.
+
+### UI Message System
+
+The game uses a **hash table** (`THashTable<IFrame::Msg::CHandler>` at `DAT_ram_005a0338`) for message dispatch, not a switch statement. Messages fall into three ranges:
+- `0x00–0x55` — base frame lifecycle
+- `0x100000xx` — server→client notifications (~90 mapped, ~15 unknown, ~6 newly discovered via WASM)
+- `0x300000xx` — client→server commands (~30 mapped, all send-to-server actions)
+
+The authoritative UIMessage enum is at `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Managers\UIMgr.h:294` (~120 entries). To discover missing messages, either hook `SendUIMessage_Func` at runtime (GWCA already does this) or run a Ghidra script against WASM callers of `FrameMsgSendRegistered`. Full procedure including the script is in `docs/RE/handover.md` Section 4.
+
+### RE Tool Locations
+
+| Layer | Path | Key Files |
+|-------|------|-----------|
+| **C++ (GWCA)** | `C:\Users\Apo\Py4GW\vendor\gwca\Source\` | `AgentMgr.cpp`, `UIMgr.cpp`, `GameThreadMgr.cpp` |
+| **C++ (GWCA headers)** | `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\` | `Managers/AgentMgr.h`, `Utilities/Scanner.h` |
+| **Python native** | `Py4GWCoreLib\native_src\` | `methods/PlayerMethods.py`, `internals/native_function.py` |
+| **Python Scanner** | `Py4GWCoreLib\Scanner.py` | FindAssertion, FindInRange, ToFunctionStart |
+| **Ghidra EXE** | `/Gw.exe(Symbols)` via MCP | 18,017 functions, x86:LE:32, base `0x00400000` |
+| **Ghidra WASM** | `/Gw.wasm` via MCP | 18,004 functions, Wasm:LE:32, base `ram:80000000` |
+
+### Key Function Mappings (quick reference)
+
+| GWCA Name | WASM Symbol | EXE Address |
+|-----------|-------------|-------------|
+| `DoWorldActon_Func` | `CoreActionExecuteWorldAction` | `0x0050e5e0` |
+| `CallTarget_Func` | `CharCliPlayerOrderAlertSimple` | `0x00917740` |
+| `ChangeTarget_Func` | `IAgentView::SetSelections` | `0x007e0f60` |
+| `MoveTo_Func` | `IUi::Game::Walk*` | `0x00534fa0` |
+| `SendAgentDialog_Func` | (thunk) | `0x008105b0` |
+
+Full catalog with sub-function breakdowns in `docs/RE/handover.md`.
+
 ## Entry Points
 
 - `Py4GW_widget_manager.py` is the in-client widget bootstrap: it creates the manager INI key, runs widget discovery, and hands off to `Widgets/WidgetCatalog/Py4GW_widget_catalog.py`.

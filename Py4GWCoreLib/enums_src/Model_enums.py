@@ -967,6 +967,7 @@ class ModelID(IntEnum):
     Beetle_Juice_Tonic = 22192
     Behemoth_Hide = 1675
     Behemoth_Jaw = 465
+    Belt_Pouch_Reward = 33
     Belt_Pouch = 34
     Berserker_Horn = 27046
     Birthday_Cupcake = 22269

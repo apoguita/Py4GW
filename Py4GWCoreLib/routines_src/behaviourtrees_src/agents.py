@@ -942,13 +942,13 @@ class BTAgents:
                 state["paused_for_looting"] = False
 
                 if len(enemies) <= allowed_alive_enemies:
-                    if log:
-                        _log(
-                            "ClearEnemiesInArea",
-                            f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
-                            log=log,
-                            message_type=Console.MessageType.Success,
-                        )
+                    
+                    _log(
+                        "ClearEnemiesInArea",
+                        f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
+                        log=log,
+                        message_type=Console.MessageType.Success,
+                    )
                     state["last_target_id"] = 0
                     state["last_interact_ms"] = 0
                     return BehaviorTree.NodeState.SUCCESS

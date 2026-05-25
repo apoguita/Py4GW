@@ -686,6 +686,27 @@ class AutoPathing:
             self.pathing_map_cache[group_key] = navmesh
         yield
 
+    def clear_navmesh_cache(self, map_id: Optional[int] = None):
+        if map_id is None:
+            self.pathing_map_cache.clear()
+            self._last_group_key = None
+            return
+
+        group_key = self._get_group_key(map_id)
+        self.pathing_map_cache.pop(group_key, None)
+        if self._last_group_key == group_key:
+            self._last_group_key = None
+
+    def force_reload_navmesh(self):
+        map_id = Map.GetMapID()
+        if not map_id or not Map.IsMapReady():
+            yield
+            return
+
+        Map.Pathing.ClearPathingCache(map_id=map_id, include_live=True)
+        self.clear_navmesh_cache(map_id)
+        yield from self.load_pathing_maps()
+
 
     def get_navmesh(self) -> Optional[NavMesh]:
         map_id = Map.GetMapID()

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from ...Agent import Agent
+from ...GlobalCache import GLOBAL_CACHE
 from ...Map import Map
 from ...Party import Party
 from ...Player import Player
@@ -25,6 +27,35 @@ def _log(source: str, message: str, *, log: bool = False, message_type=Console.M
 
 def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
     ConsoleLog(source, message, message_type, log=True)
+
+
+def _apply_multibox_all_flag(x: float, y: float) -> None:
+    leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
+    if leader_options is None:
+        return
+    leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+    leader_options.AllFlag.x = float(x)
+    leader_options.AllFlag.y = float(y)
+    leader_options.IsFlagged = True
+    leader_options.FlagFacingAngle = float(Agent.GetRotationAngle(leader_id) if leader_id > 0 else 0.0)
+
+
+def _clear_multibox_all_flags() -> None:
+    party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+    for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+        if (
+            not account
+            or options is None
+            or not account.IsSlotActive
+            or int(account.AgentPartyData.PartyID or 0) != party_id
+        ):
+            continue
+        options.IsFlagged = False
+        options.FlagPos.x = 0.0
+        options.FlagPos.y = 0.0
+        options.AllFlag.x = 0.0
+        options.AllFlag.y = 0.0
+        options.FlagFacingAngle = 0.0
 
 
 class BTParty:
@@ -156,6 +187,7 @@ class BTParty:
 
         def _flag_all_heroes() -> BehaviorTree.NodeState:
             Party.Heroes.FlagAllHeroes(float(x), float(y))
+            _apply_multibox_all_flag(float(x), float(y))
             _log("BTParty.FlagAllHeroes", f"FlagAllHeroes x={x:.2f}, y={y:.2f}", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
@@ -240,6 +272,7 @@ class BTParty:
 
         def _unflag_all_heroes() -> BehaviorTree.NodeState:
             Party.Heroes.UnflagAllHeroes()
+            _clear_multibox_all_flags()
             _log("BTParty.UnflagAllHeroes", "UnflagAllHeroes dispatched.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 

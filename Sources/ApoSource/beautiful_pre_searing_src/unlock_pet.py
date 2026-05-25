@@ -8,6 +8,7 @@ from Py4GWCoreLib.native_src.internals.types import Vec2f
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Py4GWCoreLib.routines_src.behaviourtrees_src.constants import *
 
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from .globals import *
@@ -23,64 +24,27 @@ def UnlockPet() -> BehaviorTree:
     PET_MODEL_ID: int = 1345
     CHARM_PET_SKILL_ID: int = 411
 
-    tree = BehaviorTree.SequenceNode(
+    return BT.Sequence(
         name="Unlocking Ranger Secondary Profession",
+        map_id_or_name=ASHFORD_ABBEY_MAP_ID,
         children=[
-            LogMessage("Traveling to Ashford Abbey to unlock Ranger Pet and secondary profession"),
-
-            BT.Travel(ASHFORD_ABBEY_MAP_ID),
             LogMessage("Exiting to Lakeside County"),
-             
-            BT.Move(EXIT_TO_LAKESIDE_COUNTY_COORDS[0]),
-            BT.Move(EXIT_TO_LAKESIDE_COUNTY_COORDS[1]),
-            BT.WaitForMapLoad(LAKESIDE_COUNTY_MAP_ID),
-            
-            #LogMessage("Destroying summoning stones in bags"),
-            #BT.DestroyItems(model_ids=list([ModelID.Igneous_Summoning_Stone.value,]),),
-            
+            BT.MoveAndExitMap(EXIT_TO_LAKESIDE_COUNTY_COORDS, target_map_id=LAKESIDE_COUNTY_PRESEARING),
             LogMessage("Exiting to Regent Valley"),
-             
-            BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[0]),
-            BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[1]),
-            BT.MoveDirect([FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[2]]),
-            BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[3]),
-            BT.WaitForMapLoad(REGENT_VALLEY_MAP_ID),
-            
+            BT.MoveAndExitMap(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS, target_map_id=REGENT_VALLEY_PRESEARING),
             LogMessage("Going to Master Ranger Nente"),
             BT.Move(NEAR_MASTER_NENTE_COORDS),
             BT.MoveAndKill(Vec2f(-17157.31, 10246.58)),
-            
             LogMessage("Interacting with Master Ranger Nente"),
-            
-            BT.MoveAndAutoDialogByModelID(
-                modelID_or_encStr= MASTER_NENTE_ENC_STR,
-                button_number=0,
-            ),
-            
-            BT.AutoDialog(),
-            
-            BehaviorTree.SelectorNode(
-                name="Unlock Ranger Profession",
-                children=[
-                    BehaviorTree.ConditionNode(
-                        name="Is Ranger Primary Profession",
-                        condition_fn=is_ranger_primary,
-                    ),
-                    BT.EquipItemByModelID(STARTER_BOW_MODEL_ID),
-                ],
-            ),
-            
+            BT.HandleAutoQuest(pos=None,use_npc_model_or_enc_str= MASTER_NENTE_ENC_STR, buttons=[0, 0],),
+            BT.ExecuteIfProfession(profession_name="Ranger",NodeToRun=BT.EquipItemByModelID(STARTER_BOW_MODEL_ID),),
             LogMessage("Interacting with Melandru Statue to charm pet"),
             BT.Move(MELANDRU_STATUE_COORDS, pause_on_combat=False),
-            
-            
             BT.MoveAndTargetByModelID(PET_MODEL_ID),
-
             BT.CastSkillID(CHARM_PET_SKILL_ID),
             BT.Wait(15000),
-            
             LogMessage("Pet should be charmed, moving back to Master Ranger Nente"),
-
+            
             
             BT.Move(MELANDRU_STATUE_COORDS[1]),
             BT.Move(MELANDRU_STATUE_COORDS[0]),
@@ -98,7 +62,7 @@ def UnlockPet() -> BehaviorTree:
                         name="Is Ranger Primary Profession",
                         condition_fn=is_ranger_primary,
                     ),
-                    BT.AutoDialog(button_number=0),
+                    BT.AutoDialog(),
                 ],
             ),
             

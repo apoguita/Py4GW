@@ -1100,8 +1100,8 @@ class MonkSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Martyr")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Condi_Cleanse.value
+        skill.TargetAllegiance = Skilltarget.OtherAlly.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.HasCondition = True
         skill_data[skill.SkillID] = skill
 

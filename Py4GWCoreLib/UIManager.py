@@ -366,6 +366,35 @@ class UIManager:
         return int(PyUIManager.UIManager.get_frame_context(frame_id) or 0)
 
     @staticmethod
+    def GetFrameNameHash(frame_id: int) -> int:
+        """Return the frame hash/name-hash already exposed on UIFrame."""
+        try:
+            return int(PyUIManager.UIFrame(frame_id).frame_hash or 0)
+        except Exception:
+            return 0
+
+    @staticmethod
+    def GetFrameLabel(frame_id: int) -> str:
+        try:
+            return str(PyUIManager.UIManager.get_frame_label_by_frame_id(frame_id) or "")
+        except Exception:
+            return ""
+
+    @staticmethod
+    def GetTextLabelEncoded(frame_id: int) -> str:
+        try:
+            return str(PyUIManager.UIManager.get_text_label_encoded_by_frame_id(frame_id) or "")
+        except Exception:
+            return ""
+
+    @staticmethod
+    def GetTextLabelDecoded(frame_id: int) -> str:
+        try:
+            return str(PyUIManager.UIManager.get_text_label_decoded_by_frame_id(frame_id) or "")
+        except Exception:
+            return ""
+
+    @staticmethod
     def GetFirstChildFrameID(parent_frame_id: int) -> int:
         return int(PyUIManager.UIManager.get_first_child_frame_id(parent_frame_id) or 0)
 
@@ -380,6 +409,107 @@ class UIManager:
     @staticmethod
     def GetPrevChildFrameID(frame_id: int) -> int:
         return int(PyUIManager.UIManager.get_prev_child_frame_id(frame_id) or 0)
+
+    @staticmethod
+    def GetRelatedFrameID(frame_id: int, relation_kind: int, start_after: int = 0) -> int:
+        """
+        Traverses the frame tree using the native sibling/child relation walker.
+
+        relation_kind values:
+            0 = FirstChild  (get first child of frame_id)
+            1 = LastChild   (get last child of frame_id)
+            2 = NextSibling (get next sibling of frame_id)
+            3 = PrevSibling (get previous sibling of frame_id)
+
+        start_after: Optional frame_id for advanced native iteration.
+
+        Returns the related frame_id, or 0 if none.
+        """
+        return int(PyUIManager.UIManager.get_related_frame_id(frame_id, relation_kind, start_after) or 0)
+
+    @staticmethod
+    def GetFrameLayer(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_frame_layer_by_frame_id(frame_id) or 0)
+
+    @staticmethod
+    def SetFrameLayer(frame_id: int, layer: int) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_layer_by_frame_id(frame_id, layer))
+
+    @staticmethod
+    def IsAncestorOf(frame_id: int, ancestor_id: int) -> bool:
+        return bool(PyUIManager.UIManager.is_ancestor_of_by_frame_id(frame_id, ancestor_id))
+
+    @staticmethod
+    def GetFrameCode(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_frame_code_by_frame_id(frame_id) or 0)
+
+    @staticmethod
+    def GetFrameMinSize(frame_id: int) -> tuple:
+        return PyUIManager.UIManager.get_frame_min_size_by_frame_id(frame_id)
+
+    @staticmethod
+    def GetFrameClientBorder(frame_id: int) -> tuple:
+        return PyUIManager.UIManager.get_frame_client_border_by_frame_id(frame_id)
+
+    @staticmethod
+    def GetFrameClipRect(frame_id: int) -> tuple:
+        return PyUIManager.UIManager.get_frame_clip_rect_by_frame_id(frame_id)
+
+    @staticmethod
+    def GetFramePositionEx(frame_id: int) -> tuple:
+        return PyUIManager.UIManager.get_frame_position_ex_by_frame_id(frame_id)
+
+    @staticmethod
+    def GetFrameTitleText(frame_id: int) -> str:
+        return PyUIManager.UIManager.get_frame_title_by_frame_id(frame_id)
+
+    @staticmethod
+    def GetFrameNativeSize(frame_id: int) -> tuple:
+        return PyUIManager.UIManager.get_frame_native_size_by_frame_id(frame_id)
+
+    @staticmethod
+    def SetVisible(frame_id: int, is_visible: bool) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_visible_by_frame_id(frame_id, is_visible))
+
+    @staticmethod
+    def SetDisabled(frame_id: int, is_disabled: bool) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_disabled_by_frame_id(frame_id, is_disabled))
+
+    @staticmethod
+    def GetStateBit(frame_id: int, bit: int) -> bool:
+        return bool(PyUIManager.UIManager.get_frame_state_bit_by_frame_id(frame_id, bit))
+
+    @staticmethod
+    def SetOpacity(frame_id: int, opacity: float, fade_time: float = 0.0) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_opacity_by_frame_id(frame_id, opacity, fade_time))
+
+    @staticmethod
+    def ShowFrame(frame_id: int, show: bool) -> bool:
+        return bool(PyUIManager.UIManager.show_frame_by_frame_id(frame_id, show))
+
+    @staticmethod
+    def GetParentFrameIdDirect(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_parent_frame_id_direct(frame_id) or 0)
+
+    @staticmethod
+    def GetOpacity(frame_id: int) -> float:
+        return float(PyUIManager.UIManager.get_frame_opacity_by_frame_id(frame_id))
+
+    @staticmethod
+    def GetUserParam(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_frame_user_param_by_frame_id(frame_id) or 0)
+
+    @staticmethod
+    def GetChildFrameIdFromNameHash(parent_frame_id: int, name_hash: int) -> int:
+        return int(PyUIManager.UIManager.get_child_frame_id_from_name_hash(parent_frame_id, name_hash) or 0)
+
+    @staticmethod
+    def GetOverlayFrameIDs() -> list:
+        return list(PyUIManager.UIManager.get_overlay_frame_ids())
+
+    @staticmethod
+    def GetPopupFrameIDs() -> list:
+        return list(PyUIManager.UIManager.get_popup_frame_ids())
 
     @staticmethod
     def GetItemFrameID(parent_frame_id: int, index: int) -> int:
