@@ -151,6 +151,12 @@
     "enc:\\\\x8101\\\\x05D9\\\\xF9DC\\\\x61C7": [
       "Sapphire Djinn"
     ],
+    "enc:\\\\x8101\\\\x05DA\\\\xCA83\\\\x978C\\\\x488A": [
+      "Blue Tongue Heket"
+    ],
+    "enc:\\\\x8101\\\\x0625\\\\xA3E5\\\\x8DB8\\\\x4F8E": [
+      "Blood Cowl Heket"
+    ],
     "enc:\\\\x8101\\\\x0678\\\\x8EA8\\\\xAD51\\\\x78BA": [
       "Diamond Djinn"
     ],
@@ -159,6 +165,24 @@
     ],
     "enc:\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906": [
       "Earthen Abomination"
+    ],
+    "enc:\\\\x8101\\\\x0849\\\\xEF33\\\\x95FE\\\\x4CE1": [
+      "Stoneaxe Heket"
+    ],
+    "enc:\\\\x8101\\\\x0886\\\\xE7D1\\\\xC5F4\\\\x193F": [
+      "Beast Sworn Heket"
+    ],
+    "enc:\\\\x8101\\\\x08B6\\\\xC33A\\\\xCD9A\\\\x7727": [
+      "Mirage Iboga"
+    ],
+    "enc:\\\\x8101\\\\x08B7\\\\xC7C2\\\\xBC18\\\\x01F8": [
+      "Storm Jacaranda"
+    ],
+    "enc:\\\\x8101\\\\x08B8\\\\xF25C\\\\x98B1\\\\x0D32": [
+      "Enchanted Brambles"
+    ],
+    "enc:\\\\x8101\\\\x08B9\\\\xEA3C\\\\xCF2C\\\\x55E0": [
+      "Whistling Thornbrush"
     ],
     "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": [
       "Skree Griffin"
@@ -180,6 +204,9 @@
     ],
     "enc:\\\\x8101\\\\x09C9\\\\xFDC3\\\\xD720\\\\x7612": [
       "Margonite Sorcerer"
+    ],
+    "enc:\\\\x8101\\\\x09CA\\\\xB515\\\\xC93D\\\\x1FD3": [
+      "Margonite Ascendant"
     ],
     "enc:\\\\x8101\\\\x09CB\\\\x9756\\\\xE318\\\\x3604": [
       "Margonite Cleric"
@@ -286,6 +313,18 @@
     ],
     "enc:\\\\x8101\\\\x5150\\\\xA134\\\\xC3B2\\\\x5A26": [
       "Hajok Earthguardian"
+    ],
+    "enc:\\\\x8101\\\\x5156\\\\xEEE6\\\\xECDE\\\\x2EBC": [
+      "Yamesh Mindclouder"
+    ],
+    "enc:\\\\x8101\\\\x5158\\\\xA7ED\\\\x9813\\\\x15A2": [
+      "Jarimiya the Unmerciful"
+    ],
+    "enc:\\\\x8101\\\\x5159\\\\xCBE8\\\\xC09A\\\\x673B": [
+      "Chumab the Prideful"
+    ],
+    "enc:\\\\x8101\\\\x515B\\\\xBA7C\\\\xACA8\\\\x1A33": [
+      "Bohdalz the Furious"
     ],
     "enc:\\\\x8101\\\\x51F0\\\\xA80A\\\\xECC2\\\\x2B31": [
       "Tain the Corrupter"
