@@ -45,6 +45,7 @@ class SharedCommandType(IntEnum):
     SendManualDialog = auto()
     TravelToGuildHall = auto()
     
+    SetActiveTitle = auto()
     SetActiveQuest = auto()
     AbandonQuest = auto()
 

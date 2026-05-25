@@ -524,6 +524,24 @@ class CombatClass:
         _, target_allegiance = Agent.GetAllegiance(target_id)
         return target_allegiance == "Enemy" and not self._is_blacklisted_enemy_target(target_id)
 
+    def _maybe_call_leader_selected_target(self, cached_data: CacheData | None) -> None:
+        if cached_data is None:
+            return
+
+        selected_target_id = int(Player.GetTargetID() or 0)
+        if not self._is_valid_call_target(selected_target_id):
+            return
+
+        if selected_target_id == self.auto_call_target_id and self.auto_call_target_called:
+            return
+
+        self.MaybeCallCombatTarget(
+            selected_target_id,
+            cached_data,
+            force=True,
+            source="leader_selected",
+        )
+
     def MaybeCallCombatTarget(
         self,
         target_id: int,
@@ -1787,27 +1805,47 @@ class CombatClass:
 
     def UseAlcoholIfAvailable(self) -> bool:
         """
-        Checks inventory for alcohol and uses the first available one.
-        Level 1 is sufficient; L3 items are used first for a bigger bonus when available.
+        Checks inventory for alcohol and consumes enough pieces to reach drunk level 2.
         Returns True if alcohol was used, False otherwise.
         """
         try:
-            # Check if already at target drunk level (>= 1 is enough)
+            target_drunk_level = 2
             drunk_level = self.GetDrunkLevel()
             Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
 
-            if drunk_level >= 1:
+            if drunk_level >= target_drunk_level:
                 Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
                 return False
-            
-            for alcohol_model_id in ALCOHOL_MODEL_IDS:
-                if GLOBAL_CACHE.Inventory.GetModelCount(alcohol_model_id) > 0:
+
+            drinks_needed = target_drunk_level - drunk_level
+            drinks_used = 0
+
+            while drinks_needed > 0:
+                item_used = False
+                if drinks_needed == 1:
+                    candidate_model_ids = ALCOHOL_L1_MODEL_IDS + ALCOHOL_L3_MODEL_IDS
+                else:
+                    candidate_model_ids = ALCOHOL_L3_MODEL_IDS + ALCOHOL_L1_MODEL_IDS
+
+                for alcohol_model_id in candidate_model_ids:
+                    if GLOBAL_CACHE.Inventory.GetModelCount(alcohol_model_id) <= 0:
+                        continue
                     item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(alcohol_model_id)
-                    if item_id:
-                        Py4GW.Console.Log("HeroAI", f"Using alcohol item_id {item_id}", Py4GW.Console.MessageType.Info)
-                        GLOBAL_CACHE.Inventory.UseItem(item_id)
-                        return True
-            
+                    if not item_id:
+                        continue
+                    Py4GW.Console.Log("HeroAI", f"Using alcohol item_id {item_id}", Py4GW.Console.MessageType.Info)
+                    GLOBAL_CACHE.Inventory.UseItem(item_id)
+                    drinks_used += 1
+                    drinks_needed -= 3 if alcohol_model_id in ALCOHOL_L3_MODEL_IDS else 1
+                    item_used = True
+                    break
+
+                if not item_used:
+                    break
+
+            if drinks_used > 0:
+                return True
+
             Py4GW.Console.Log("HeroAI", "No alcohol found in inventory", Py4GW.Console.MessageType.Debug)
         except Exception as e:
             Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
@@ -1900,6 +1938,9 @@ class CombatClass:
         """
         Execute the first castable skill in the prioritized skill order.
         """
+        if not ooc:
+            self._maybe_call_leader_selected_target(cached_data)
+
         slot, target_agent_id = self.FindCastableSkill(ooc=ooc)
         if slot < 0:
             self.ResetSkillPointer()

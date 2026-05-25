@@ -62,7 +62,7 @@ def UnlockPet() -> BehaviorTree:
                         name="Is Ranger Primary Profession",
                         condition_fn=is_ranger_primary,
                     ),
-                    BT.AutoDialog(button_number=0),
+                    BT.AutoDialog(),
                 ],
             ),
             

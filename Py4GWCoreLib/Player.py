@@ -679,8 +679,19 @@ class Player:
 
         ActionQueueManager().AddAction("ACTION",_do_action)
         
-        #ActionQueueManager().AddAction("ACTION",
-        #PlayerMethods.InteractAgent,agent_id, call_target)
+
+    @staticmethod
+    def CallTarget(agent_id):
+        """
+        Purpose: Call the player's current target.
+        Args:
+            agent_id (int): The ID of the agent to call.
+        Returns: None
+        """
+        def _do_action():
+            Player.player_instance().CallTarget(agent_id)
+            
+        ActionQueueManager().AddAction("ACTION",_do_action)
 
     @staticmethod
     def Move(x:float, y:float, zPlane:int=0):

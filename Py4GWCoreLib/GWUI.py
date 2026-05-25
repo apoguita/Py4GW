@@ -318,7 +318,14 @@ class GWUI:
 
     @staticmethod
     def GetFrameLabelByFrameId(frame_id: int) -> str:
-        return str(PyUIManager.UIManager.get_frame_label_by_frame_id(frame_id) or "")
+        """Returns the decoded title label for a frame.
+        Returns empty string '' for frames with no title, or on error.
+        (Prior to 2026-05 fix, this would crash the client on untitled frames.)
+        """
+        try:
+            return str(PyUIManager.UIManager.get_frame_label_by_frame_id(frame_id) or "")
+        except Exception:
+            return ""
 
     @staticmethod
     def GetTextLabelEncodedByFrameId(frame_id: int) -> str:

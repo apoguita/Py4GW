@@ -554,6 +554,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.EnemyCount = 1
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill.Conditions.AlliesInRange = 3
         skill.Conditions.AlliesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill

@@ -44,6 +44,52 @@ def _account_map_tuple(account) -> tuple[int, int, int, int]:
     )
 
 
+def _accounts_are_on_same_map(account_a, account_b) -> bool:
+    return _account_map_tuple(account_a) == _account_map_tuple(account_b)
+
+
+def _accounts_are_not_on_same_map(account_a, account_b) -> bool:
+    return not _accounts_are_on_same_map(account_a, account_b)
+
+
+def _account_emails_on_same_map_as_local(*, include_self: bool = True) -> list[str]:
+    sender_email = str(Player.GetAccountEmail() or "")
+    if not sender_email:
+        return []
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
+    if sender_data is None:
+        return []
+
+    emails: list[str] = []
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        receiver_email = str(getattr(account, "AccountEmail", "") or "")
+        if not receiver_email:
+            continue
+        if not include_self and receiver_email == sender_email:
+            continue
+        if _accounts_are_on_same_map(sender_data, account):
+            emails.append(receiver_email)
+    return emails
+
+
+def _account_emails_not_on_same_map_as_local() -> list[str]:
+    sender_email = str(Player.GetAccountEmail() or "")
+    if not sender_email:
+        return []
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
+    if sender_data is None:
+        return []
+
+    emails: list[str] = []
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        receiver_email = str(getattr(account, "AccountEmail", "") or "")
+        if not receiver_email or receiver_email == sender_email:
+            continue
+        if _accounts_are_not_on_same_map(sender_data, account):
+            emails.append(receiver_email)
+    return emails
+
+
 def _message_ref_is_active(
     sender_email: str,
     receiver_email: str,
@@ -83,6 +129,18 @@ def _local_party_player_agent_ids() -> set[int]:
         if agent_id > 0:
             agent_ids.add(agent_id)
     return agent_ids
+
+
+def _local_party_player_names() -> set[str]:
+    names: set[str] = set()
+    for player in Party.GetPlayers() or []:
+        login_number = int(getattr(player, "login_number", 0) or 0)
+        if login_number <= 0:
+            continue
+        player_name = str(Party.Players.GetPlayerNameByLoginNumber(login_number) or "").strip()
+        if player_name:
+            names.add(player_name)
+    return names
 
 
 def _account_is_in_local_party(account) -> bool:
@@ -740,7 +798,7 @@ class BTShared:
         state: dict[str, object] = {
             "initialized": False,
             "sender_email": "",
-            "recipient_emails": [],
+            "recipients": [],
             "current_index": 0,
             "current_receiver_email": "",
             "next_dispatch_ms": 0,
@@ -765,7 +823,13 @@ class BTShared:
 
                 state["initialized"] = True
                 state["sender_email"] = sender_email
-                state["recipient_emails"] = recipient_emails
+                state["recipients"] = [
+                    {
+                        "receiver_email": str(getattr(account, "AccountEmail", "") or ""),
+                        "character_name": _account_character_name(account),
+                    }
+                    for account in recipients
+                ]
                 state["current_index"] = 0
                 state["current_receiver_email"] = ""
                 state["next_dispatch_ms"] = 0
@@ -778,15 +842,15 @@ class BTShared:
                     return BehaviorTree.NodeState.SUCCESS
 
             sender_email = str(state["sender_email"] or "")
-            recipient_emails = list(state["recipient_emails"])
+            recipients = list(state["recipients"])
             current_index = int(state["current_index"])
             current_receiver_email = str(state["current_receiver_email"] or "")
+            local_party_names = _local_party_player_names()
 
             if current_receiver_email:
-                receiver_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(current_receiver_email)
-                if receiver_data is None:
-                    return BehaviorTree.NodeState.RUNNING
-                if not _account_is_in_local_party(receiver_data):
+                current_recipient = recipients[current_index] if current_index < len(recipients) else {}
+                current_character_name = str(current_recipient.get("character_name", "") or "")
+                if not current_character_name or current_character_name not in local_party_names:
                     return BehaviorTree.NodeState.RUNNING
 
                 _log(
@@ -801,10 +865,10 @@ class BTShared:
                 return BehaviorTree.NodeState.RUNNING
 
             current_index = int(state["current_index"])
-            if current_index >= len(recipient_emails):
+            if current_index >= len(recipients):
                 _log(
                     "BTShared.InviteAllAccounts",
-                    f"All invited accounts joined sequentially: count={len(recipient_emails)}.",
+                    f"All invited accounts joined sequentially: count={len(recipients)}.",
                     log=log,
                 )
                 return BehaviorTree.NodeState.SUCCESS
@@ -813,20 +877,15 @@ class BTShared:
             if next_dispatch_ms > 0 and int(Utils.GetBaseTimestamp()) < next_dispatch_ms:
                 return BehaviorTree.NodeState.RUNNING
 
-            receiver_email = str(recipient_emails[current_index] or "")
-            receiver_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(receiver_email)
-            if receiver_data is None:
-                _fail_log("BTShared.InviteAllAccounts", f"Failed to invite account: target '{receiver_email}' was not found.")
-                return BehaviorTree.NodeState.FAILURE
-            if _account_is_in_local_party(receiver_data):
+            recipient = recipients[current_index] if current_index < len(recipients) else {}
+            receiver_email = str(recipient.get("receiver_email", "") or "")
+            character_name = str(recipient.get("character_name", "") or "")
+            if not receiver_email:
                 state["current_index"] = current_index + 1
                 return BehaviorTree.NodeState.RUNNING
-
-            character_name = str(
-                getattr(receiver_data, "CharacterName", "")
-                or getattr(getattr(receiver_data, "AgentData", None), "CharacterName", "")
-                or ""
-            )
+            if character_name in local_party_names:
+                state["current_index"] = current_index + 1
+                return BehaviorTree.NodeState.RUNNING
             if not character_name:
                 _fail_log("BTShared.InviteAllAccounts", f"Failed to invite account: target '{receiver_email}' has no character name.")
                 return BehaviorTree.NodeState.FAILURE
@@ -862,7 +921,7 @@ class BTShared:
         def _reset_with_state() -> None:
             state["initialized"] = False
             state["sender_email"] = ""
-            state["recipient_emails"] = []
+            state["recipients"] = []
             state["current_index"] = 0
             state["current_receiver_email"] = ""
             state["next_dispatch_ms"] = 0
@@ -876,7 +935,7 @@ class BTShared:
         timeout_ms: int = 15000,
         poll_interval_ms: int = 100,
         log: bool = False,
-        aftercast_ms: int = 250,
+        aftercast_ms: int = 0,
     ) -> BehaviorTree:
         """
         Build a BT kick flow for all other local-party accounts, one at a time.
@@ -891,7 +950,7 @@ class BTShared:
         """
         state: dict[str, object] = {
             "initialized": False,
-            "recipient_emails": [],
+            "recipients": [],
             "current_index": 0,
             "current_receiver_email": "",
             "next_dispatch_ms": 0,
@@ -912,21 +971,29 @@ class BTShared:
 
                 recipients.sort(key=_invite_priority)
                 state["initialized"] = True
-                state["recipient_emails"] = [str(getattr(account, "AccountEmail", "") or "") for account in recipients]
+                state["recipients"] = [
+                    {
+                        "receiver_email": str(getattr(account, "AccountEmail", "") or ""),
+                        "character_name": _account_character_name(account),
+                    }
+                    for account in recipients
+                ]
                 state["current_index"] = 0
                 state["current_receiver_email"] = ""
                 state["next_dispatch_ms"] = 0
 
-                if not state["recipient_emails"]:
+                if not state["recipients"]:
                     return BehaviorTree.NodeState.SUCCESS
 
-            recipient_emails = list(state["recipient_emails"])
+            recipients = list(state["recipients"])
             current_index = int(state["current_index"])
             current_receiver_email = str(state["current_receiver_email"] or "")
+            local_party_names = _local_party_player_names()
 
             if current_receiver_email:
-                receiver_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(current_receiver_email)
-                if receiver_data is not None and _account_is_in_local_party(receiver_data):
+                current_recipient = recipients[current_index] if current_index < len(recipients) else {}
+                current_character_name = str(current_recipient.get("character_name", "") or "")
+                if current_character_name and current_character_name in local_party_names:
                     return BehaviorTree.NodeState.RUNNING
 
                 _log(
@@ -939,31 +1006,30 @@ class BTShared:
                 state["next_dispatch_ms"] = int(Utils.GetBaseTimestamp()) + max(0, int(aftercast_ms))
                 return BehaviorTree.NodeState.RUNNING
 
-            if current_index >= len(recipient_emails):
+            if current_index >= len(recipients):
                 _log(
                     "BTShared.KickAllAccounts",
-                    f"All follower accounts were kicked sequentially: count={len(recipient_emails)}.",
+                    f"All follower accounts were kicked sequentially: count={len(recipients)}.",
                     log=log,
                 )
                 return BehaviorTree.NodeState.SUCCESS
 
-            next_dispatch_ms = int(state["next_dispatch_ms"])
+            next_dispatch_ms = int(state["next_dispatch_ms"] or 0)
             if next_dispatch_ms > 0 and int(Utils.GetBaseTimestamp()) < next_dispatch_ms:
                 return BehaviorTree.NodeState.RUNNING
 
-            receiver_email = str(recipient_emails[current_index] or "")
-            receiver_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(receiver_email)
-            if receiver_data is None:
+            recipient = recipients[current_index] if current_index < len(recipients) else {}
+            receiver_email = str(recipient.get("receiver_email", "") or "")
+            character_name = str(recipient.get("character_name", "") or "")
+            if not receiver_email:
                 state["current_index"] = current_index + 1
                 return BehaviorTree.NodeState.RUNNING
-            if not _account_is_in_local_party(receiver_data):
-                state["current_index"] = current_index + 1
-                return BehaviorTree.NodeState.RUNNING
-
-            character_name = _account_character_name(receiver_data)
             if not character_name:
                 _fail_log("BTShared.KickAllAccounts", f"Failed to kick account: target '{receiver_email}' has no character name.")
                 return BehaviorTree.NodeState.FAILURE
+            if character_name not in local_party_names:
+                state["current_index"] = current_index + 1
+                return BehaviorTree.NodeState.RUNNING
 
             GLOBAL_CACHE.Party.Players.KickPlayer(character_name)
             state["current_receiver_email"] = receiver_email
@@ -987,7 +1053,7 @@ class BTShared:
 
         def _reset_kick_state() -> None:
             state["initialized"] = False
-            state["recipient_emails"] = []
+            state["recipients"] = []
             state["current_index"] = 0
             state["current_receiver_email"] = ""
             state["next_dispatch_ms"] = 0

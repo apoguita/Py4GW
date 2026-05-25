@@ -409,6 +409,7 @@ class BTMovement:
                 Notes: Records the last issued move point so repeated nudges can avoid exact duplicates.
             """
             from ...Party import Party
+            from .party import _apply_multibox_all_flag
             move_x: float = target_x
             move_y: float = target_y
             last_move_point: Point2D | None = state["last_move_point"]
@@ -418,8 +419,10 @@ class BTMovement:
                     move_x += random.uniform(-10.0, 10.0)
                     move_y += random.uniform(-10.0, 10.0)
             Player.Move(move_x, move_y)
-            if flag_heroes_to_waypoint and Map.IsExplorable() and Party.IsPartyLeader() and int(Party.GetHeroCount() or 0) > 0:
-                Party.Heroes.FlagAllHeroes(float(target_x), float(target_y))
+            if flag_heroes_to_waypoint and Map.IsExplorable() and Party.IsPartyLeader():
+                if int(Party.GetHeroCount() or 0) > 0:
+                    Party.Heroes.FlagAllHeroes(float(target_x), float(target_y))
+                _apply_multibox_all_flag(float(target_x), float(target_y))
             state["last_move_point"] = (move_x, move_y)
             from ...Py4GWcorelib import Utils
             state["last_move_command_ms"] = Utils.GetBaseTimestamp()

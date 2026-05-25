@@ -48,10 +48,10 @@ class Martyr(BuildMgr):
             required_skills=[
                 Martyr_ID,
                 Dwaynas_Kiss_ID,
-                Seed_of_Life_ID,
                 Draw_Conditions_ID,
             ],
             optional_skills=[
+                Seed_of_Life_ID,
                 Vigorous_Spirit_ID,
                 Remove_Hex_ID,
                 Cure_Hex_ID,
