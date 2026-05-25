@@ -7221,6 +7221,12 @@ class MerchantRulesWidget:
         named_match = re.fullmatch(r"(.+?)\s\((\d+)\)", stored_label)
         if named_match is not None and max(0, _safe_int(named_match.group(2), 0)) == model_id:
             label_without_model = str(named_match.group(1) or "").strip()
+        plain_label_without_model = _strip_item_display_markup(label_without_model).strip()
+        if plain_label_without_model:
+            generic_label = f"Model {model_id}".casefold()
+            catalog_label = catalog_name.casefold()
+            if plain_label_without_model.casefold() not in {generic_label, catalog_label}:
+                return plain_label_without_model
 
         if not catalog_name:
             generic_label = f"Model {model_id}".casefold()
@@ -16072,7 +16078,11 @@ class MerchantRulesWidget:
             if quantity <= 0:
                 continue
 
-            current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            current_quantity = (
+                self._get_inventory_source_stack_quantity(item_id)
+                if transfer.direction == STORAGE_TRANSFER_DEPOSIT
+                else max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            )
             if current_quantity <= 0:
                 self._debug_log(
                     f"{phase_label} transfer skipped: direction={transfer.direction} label={transfer_label} "
@@ -16132,7 +16142,7 @@ class MerchantRulesWidget:
                         yield from Routines.Yield.wait(60)
                         continue
 
-                    current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+                    current_quantity = self._get_inventory_source_stack_quantity(item_id)
                     post_material_depleted_quantity = max(0, requested_quantity - current_quantity)
                     requested_quantity = min(requested_quantity, current_quantity)
                     if requested_quantity <= 0:
@@ -16154,7 +16164,11 @@ class MerchantRulesWidget:
                 continue
 
             queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=2000, step_ms=50)
-            final_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            final_quantity = (
+                self._get_inventory_source_stack_quantity(item_id)
+                if transfer.direction == STORAGE_TRANSFER_DEPOSIT
+                else max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            )
             moved_quantity = 0
             if transfer.direction == STORAGE_TRANSFER_WITHDRAW and transfer_model_id > 0:
                 final_inventory_model_count = yield from self._wait_for_inventory_model_count_at_least(
@@ -16164,6 +16178,14 @@ class MerchantRulesWidget:
                     step_ms=50,
                 )
                 moved_quantity = max(0, int(final_inventory_model_count) - before_inventory_model_count)
+            elif transfer.direction == STORAGE_TRANSFER_DEPOSIT and queue_cleared:
+                expected_quantity = max(0, current_quantity - requested_quantity)
+                final_quantity = yield from self._wait_for_inventory_source_stack_quantity_target(
+                    item_id,
+                    expected_quantity,
+                    timeout_ms=2000,
+                    step_ms=50,
+                )
             elif queue_cleared:
                 expected_quantity = max(0, current_quantity - requested_quantity)
                 final_quantity = yield from self._wait_for_stack_quantity_target(
@@ -18616,7 +18638,8 @@ class MerchantRulesWidget:
 
             cleanup_outcome = ExecutionPhaseOutcome(label="Xunlai Deposits", measure_label="items")
             cleanup_started_at = time.perf_counter()
-            if plan.cleanup_transfers:
+            cleanup_transfers = list(plan.cleanup_transfers)
+            if cleanup_transfers:
                 storage_ready = self._is_storage_open()
                 if not storage_ready and local_only and not storage_available_here:
                     cleanup_outcome.load_failures += 1
@@ -18624,11 +18647,20 @@ class MerchantRulesWidget:
                 elif not storage_ready:
                     storage_ready = yield from self._ensure_storage_open(purpose="planned Xunlai deposits")
                 if storage_ready:
+                    yield from Routines.Yield.wait(150)
+                    self._invalidate_supported_context_cache()
+                    refreshed_cleanup_plan = self._build_plan(cleanup_only=True)
+                    cleanup_transfers = list(refreshed_cleanup_plan.cleanup_transfers)
+                    self._debug_log(
+                        f"Storage deposits refreshed live cleanup plan: transfers={len(cleanup_transfers)} "
+                        f"planned_items={sum(max(0, int(transfer.quantity)) for transfer in cleanup_transfers)}"
+                    )
+                if storage_ready and cleanup_transfers:
                     cleanup_outcome = yield from self._execute_storage_transfers(
-                        plan.cleanup_transfers,
+                        cleanup_transfers,
                         phase_label="Storage deposits",
                     )
-                else:
+                elif not storage_ready:
                     cleanup_outcome.load_failures += 1
                     ConsoleLog(
                         MODULE_NAME,
@@ -18697,11 +18729,19 @@ class MerchantRulesWidget:
 
             cleanup_outcome = ExecutionPhaseOutcome(label="Xunlai Deposits", measure_label="items")
             if storage_ready:
+                yield from Routines.Yield.wait(150)
+                self._invalidate_supported_context_cache()
+                plan = self._build_plan(cleanup_only=True)
+                self._debug_log(
+                    f"Xunlai Deposits: refreshed live cleanup plan: transfers={len(plan.cleanup_transfers)} "
+                    f"planned_items={sum(max(0, int(transfer.quantity)) for transfer in plan.cleanup_transfers)}"
+                )
+            if storage_ready and plan.cleanup_transfers:
                 cleanup_outcome = yield from self._execute_storage_transfers(
                     plan.cleanup_transfers,
                     phase_label="Xunlai Deposits",
                 )
-            else:
+            elif not storage_ready:
                 cleanup_outcome.load_failures += 1
                 ConsoleLog(
                     MODULE_NAME,
