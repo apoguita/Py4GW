@@ -335,16 +335,16 @@ SECONDARY_BUILDS = {
         Profession.DERVISH:      "OAqkAyiMpoGT18a+NLnnNm5mbAA",    # Rt/D
     },
     Profession.PARAGON: {
-        Profession.WARRIOR:      "OQGkUFliJjy0uoNJP2OmJ2NWN2AA",   # P/W
-        Profession.RANGER:       "OQKkkFliJjy0uoNJP2OmJ2NWN2AA",   # P/R
-        Profession.MONK:         "OQOk0EliJjy0uoNJP2OmJ2NWN2AA",   # P/Mo
-        Profession.NECROMANCER:  "OQSkcEliJjy0uoNJP2OmJ2NWN2AA",   # P/N
-        Profession.MESMER:       "OQWkMEliJjy0uoNJP2OmJ2NWN2AA",   # P/Me
-        Profession.ELEMENTALIST: "OQakoEliJjy0uoNJP2OmJ2NWN2AA",   # P/E
-        Profession.ASSASSIN:     "OQek8FliJjy0uoNJP2OmJ2NWN2AA",   # P/A
-        Profession.RITUALIST:    "OQCjUKmMKT7i2k8Y7YmY3Y1YDAA",   # P/Rt
-        Profession.PARAGON:      "OQCjUOmMKT7i2k8Y7YmY3Y1YDAA",   # P
-        Profession.DERVISH:      "OQqkUKmMKvG0uoNJP2OmJ2NWN2AA",   # P/D
+        Profession.WARRIOR:      "OQGkUFlopiyUNGQ4OmF2AQPm72ZN",   # P/W
+        Profession.RANGER:       "OQKkkFlopiyUNGQ4OmF2AQPm72ZN",   # P/R
+        Profession.MONK:         "OQOk8ElopiyUNGQ4OmF2AQPm72ZN",   # P/Mo
+        Profession.NECROMANCER:  "OQSkcElopiyUNGQ4OmF2AQPm72ZN",   # P/N
+        Profession.MESMER:       "OQWkMElopiyUNGQ4OmF2AQPm72ZN",   # P/Me
+        Profession.ELEMENTALIST: "OQaksElopiyUNGQ4OmF2AQPm72ZN",   # P/E
+        Profession.ASSASSIN:     "OQek8FlopiyUNGQ4OmF2AQPm72ZN",   # P/A
+        Profession.RITUALIST:    "OQikAGlopiyUNGQ4OmF2AQPm72ZN",   # P/Rt
+        Profession.PARAGON:      "OQCjUimKKT1YAh7YWYDA9Yubn1A",   # P
+        Profession.DERVISH:      "OQqkUimKKnGUNGQ4OmF2AQPm72ZN",   # P/D
     },
     Profession.DERVISH: { 
         Profession.WARRIOR:      "OgGkUFp5Kzmk513m4VMJB2+F71AA",   # D/W
@@ -2786,7 +2786,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Grasping Was Kuurong",
         capture_function="GraspingWasKuurong",
-        start_map=427,
+        start_map=391,
         icon_filename="[789] - Grasping Was Kuurong.jpg"
     ),
     EliteSkill(
@@ -3452,6 +3452,7 @@ def Energy_Surge():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Wait.ForTime(3000)  # Wait for hero team setup to complete
     bot.Move.XYAndExitMap(-833, 4980, 419)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-20867.55, -9056.55)
     bot.Move.XY(-19999.87, -4514.18)
@@ -3480,6 +3481,7 @@ def Pious_Renewal():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(DunkoroHeroTeam, "Dunkoro Hero Team")
     bot.Wait.ForTime(3000)  # Wait for hero team setup to complete
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(-1508.00, 16739.00, 0x81)
     bot.Move.XYAndDialog(-1508.00, 16739.00, 0x84)
@@ -3517,6 +3519,7 @@ def Blood_is_Power():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Wait.ForTime(3000)  # Wait for hero team setup to complete
     bot.Move.XYAndExitMap(-6066, -1583, 392)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-1695, -374)
     bot.Move.XY(1297, 2931)
@@ -3541,12 +3544,12 @@ def VowOfStrengthLocals():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(22884, 7641, 0x84)
     bot.Wait.ForMapLoad(target_map_id=447)
     bot.Wait.ForTime(100)
     bot.Move.XY(14435, 1664)
-    bot.Move.XY(14871, 2611)
     bot.Move.XY(9758.36, -1667.53)
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
@@ -3570,6 +3573,7 @@ def Ineptitude():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(19072, -10584, 572)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(18975.00, -7661.00, 0x84)
     bot.Move.XY(13678.05, -7953.19)
@@ -3597,6 +3601,7 @@ def Migraine():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-9738.66, -21663.27)
     bot.Move.XYAndExitMap(-9605, -19938, 558)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11074.98, -14619.83)
     bot.Move.XY(-11022.09, -10608.68)
@@ -3624,6 +3629,7 @@ def Spoil_Victor():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-4247.07, 3886.89)
     bot.Move.XYAndExitMap(-4663, 4805, 209)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-19692, -6351)
     bot.Move.XY(-23447, -4835)
@@ -3649,6 +3655,7 @@ def Signet_of_Spirits():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-8152, -8703, 210)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10536, 17699)
     bot.Move.XY(3726, 7910)
@@ -3674,6 +3681,7 @@ def Spiteful_Spirit():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(7565, -45115, 26)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-18688, 12186)
     bot.Wait.UntilOutOfCombat()
@@ -3710,6 +3718,7 @@ def Mist_Form():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(7565, -45115, 26)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-18688, 12186)
     bot.Wait.UntilOutOfCombat()
@@ -3746,6 +3755,7 @@ def Signet_of_Judgement():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(7565, -45115, 26)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-18688, 12186)
     bot.Wait.UntilOutOfCombat()
@@ -3782,6 +3792,7 @@ def Illusionary_Weaponry():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(7565, -45115, 26)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-18688, 12186)
     bot.Wait.UntilOutOfCombat()
@@ -3819,9 +3830,10 @@ def Shadow_Form():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(11664.37, -18732.13)
     bot.Move.XYAndExitMap(11637, -20480, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12054, 10092)
-    bot.Move.XY(11646.67, 5173.43)
+    bot.Move.XY(11784, 6581)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -3844,6 +3856,7 @@ def Shadow_Form_WoC():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(11664.37, -18732.13)
     bot.Move.XYAndExitMap(11637, -20480, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12054, 10092)
     bot.Move.XY(12438.57, -2243.74)
@@ -3872,6 +3885,7 @@ def BroadHeadArrow():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(11664.37, -18732.13)
     bot.Move.XYAndExitMap(11637, -20480, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12054, 10092)
     bot.Move.XY(12438.57, -2243.74)
@@ -3899,6 +3913,7 @@ def SoulTwisting():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-11511, -4836)
     bot.Move.XYAndExitMap(-14412, -8139, 205)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(18907.74, 13014.72)
     bot.Wait.UntilOutOfCombat()
@@ -3923,6 +3938,7 @@ def PrimalRage():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-11511, -4836)
     bot.Move.XYAndExitMap(-14412, -8139, 205)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(18907.74, 13014.72)
     bot.Move.XY(16910.72, 11775.83)
@@ -3947,6 +3963,7 @@ def ShadowPrison():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4284, -615, 437)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(18745.25, 10039.62)
     bot.Move.XY(16146.25, 5758.00)
@@ -3974,6 +3991,7 @@ def SoldiersFury():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-14638, 2927, 437)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10841.79, 4156.87)
     bot.Wait.ForTime(8000)
@@ -4003,6 +4021,7 @@ def ObsidianFlesh():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-14638, 2927, 437)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10867.00, 4322.00)
     bot.Wait.ForTime(5000)
@@ -4032,6 +4051,7 @@ def Eviscerate():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-27552, 16937, 482)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12886.46, -15018.20)
     bot.Move.XY(9134.72, -13706.59)
@@ -4061,6 +4081,7 @@ def GreaterConflagration():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=start_map)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2573, 134)
     bot.Move.XY(3009, -4916)
@@ -4104,6 +4125,7 @@ def AuraOfTheLich():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=start_map)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2573, 134)
     bot.Move.XY(3009, -4916)
@@ -4151,6 +4173,7 @@ def Panic():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=start_map)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2573, 134)
     bot.Move.XY(3009, -4916)
@@ -4198,6 +4221,7 @@ def MindBurn():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=start_map)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2573, 134)
     bot.Move.XY(3009, -4916)
@@ -4246,6 +4270,7 @@ def AssassinsPromise():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(18003.32, 16753.06)
     bot.Move.XYAndExitMap(20243, 16910, 501)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-21519, -7404)
     bot.Move.XY(-19032.91, -10978.03)
@@ -4273,6 +4298,7 @@ def UnyieldingAura():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7392, -2618, 95)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
     bot.Move.XY(-5052.62, 2948.76)
@@ -4314,6 +4340,7 @@ def VictoryIsMine():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7392, -2618, 95)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
     bot.Move.XY(-5052.62, 2948.76)
@@ -4355,6 +4382,7 @@ def PoisonArrow():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7392, -2618, 95)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
     bot.Move.XY(-5052.62, 2948.76)
@@ -4396,6 +4424,7 @@ def PlagueSignet():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(16363, 13124, 569)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12400, 9817)
     bot.Move.XY(8632, 6437)
@@ -4422,6 +4451,7 @@ def GlimmeringMark():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7392, -2618, 95)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
     bot.Move.XY(-5052.62, 2948.76)
@@ -4464,6 +4494,7 @@ def SpellBreaker():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6038, -41402, 91)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1526.63, -39178.76)
     bot.Move.XY(592.26, -43048.45)
@@ -4507,6 +4538,7 @@ def MantraOfRecall():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6038, -41402, 91)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1526.63, -39178.76)
     bot.Move.XY(592.26, -43048.45)
@@ -4550,6 +4582,7 @@ def MindShock():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6038, -41402, 91)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1526.63, -39178.76)
     bot.Move.XY(592.26, -43048.45)
@@ -4593,6 +4626,7 @@ def Life_Transfer():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-12507, -23517, 94)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(7408, 15741)
     bot.Wait.UntilOutOfCombat()
@@ -4631,6 +4665,7 @@ def Thunderclap():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-12507, -23517, 94)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(7408, 15741)
     bot.Wait.UntilOutOfCombat()
@@ -4669,6 +4704,7 @@ def VowOfSilence():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4817, 5097, 444)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(22749, -5468)
@@ -4694,6 +4730,7 @@ def GlimmerOfLight():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(26133, 17180, 386)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(3337, -12769)
     bot.Wait.UntilOutOfCombat()
@@ -4717,6 +4754,7 @@ def Onslaught():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(13591, 19148, 513)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(13883, 2057)
     bot.Move.XY(8414, -1814)
@@ -4746,6 +4784,7 @@ def EbonDustAura():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-820, 5147, 419)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1457, -14317)
     bot.Wait.UntilOutOfCombat()
@@ -4770,6 +4809,7 @@ def AvatarOfBalthazar():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-225, 4336, 436)
     bot.Move.XYAndExitMap(5342, 7723, 369)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6895, 9930)
     bot.Move.XY(-3407, 6775)
@@ -4797,6 +4837,7 @@ def AvatarOfMelandru():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-15535, -3754, 371)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10797, -1490)
     bot.Move.XY(-7581, -255)
@@ -4823,6 +4864,7 @@ def AvatarOfDwayna():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3805, -4766, 379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4402, 17178)
     bot.Move.XY(-4890, 7205)
@@ -4850,6 +4892,7 @@ def AvatarOfLyssa():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4094, 5856, 373)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-16524, -8868)
     bot.Move.XY(-9692, -7130)
@@ -4876,6 +4919,7 @@ def AvatarOfGrenth():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4431, 5107, 380)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16110, -13455)
     bot.Move.XY(12158, -9198)
@@ -4901,6 +4945,7 @@ def XinraesWeapon():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(18267, -6197)
     bot.Move.XYAndExitMap(19693, -7411, 466)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-8329, -10361)
     bot.Move.XY(-6013, -5332)
@@ -4930,6 +4975,7 @@ def Incoming():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-5134, -5006, 399)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XYAndDialog(6243.00, 10755.00, 0x81EB01)
@@ -4958,6 +5004,7 @@ def FocusedAnger():
     bot.Move.XY(-13625.08, -11257.90)
     bot.Move.XYAndDialog(-13641.00, -10375.00, 0x84)
     bot.Wait.ForMapToChange(377)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-7615, -5029)
     bot.Move.XY(-8597, -2378)
@@ -4985,6 +5032,7 @@ def MarkOfProtection():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-20530, -300, 113)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(11978, -12945)
     bot.Wait.UntilOutOfCombat()
@@ -5008,6 +5056,7 @@ def PreparedShot():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(1250, 800, 499)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6931.01, 5348.25) #Johon the Oxflinger
     bot.Wait.UntilOutOfCombat()
@@ -5100,12 +5149,12 @@ def SoulTaker():
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necromancer Build")
-    ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.States.AddCustomState(WithdrawProofOfTriumph, "Withdraw Proof of Triumph")
     bot.Move.XYAndExitMap(3807, -8332, 121)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8100, -4094)
     bot.Move.XY(15507, -2022)
@@ -5130,12 +5179,12 @@ def OverTheLimit():
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Elementalist Build")
-    ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.States.AddCustomState(WithdrawProofOfTriumph, "Withdraw Proof of Triumph")
     bot.Move.XYAndExitMap(3807, -8332, 121)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8100, -4094)
     bot.Move.XY(15507, -2022)
@@ -5234,13 +5283,13 @@ def VowOfRevolution():
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Dervish Build")
-    ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Items.Withdraw(38031, 1)
     bot.Move.XYAndExitMap(-5108, -6684, 439)
     bot.Items.UseAllConsumables()
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-7311.32, -4854.25)
     bot.Move.XY(-14444, 3610)
@@ -5265,7 +5314,6 @@ def SevenWeaponStance():
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Dervish Build")
-    ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
@@ -5297,7 +5345,6 @@ def WeaponsOfThreeForges():
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ritualist Build")
-    ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
@@ -5329,7 +5376,6 @@ def ShadowTheft():
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Assassin Build")
-    ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
@@ -5365,6 +5411,7 @@ def AnthemofGuidance():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-19999, 20176, 419)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(21678, -15544)
     bot.Move.XY(10490, -14547)
@@ -5389,6 +5436,7 @@ def CripplingAnthem():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-13955, 18251, 375)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11625,16880)
     bot.Move.XY(-6742,14805)    
@@ -5420,6 +5468,7 @@ def AngelicBond():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndDialog(1341.00, -20346.00, 0x81)
     bot.Move.XYAndDialog(1341.00, -20346.00, 0x84)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1205,-14695)
     bot.Move.XY(2156,-9851)
@@ -5453,6 +5502,7 @@ def AnthemofFury():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7826, 13976, 465)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-2677,-10998)
     bot.Move.XY(-1780,-7409)   
@@ -5481,6 +5531,7 @@ def DefensiveAnthem():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-420, 3921, 436)
     bot.Move.XYAndExitMap(5233, 7646, 369)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4337,4183)
     bot.Move.XY(-7636,516)
@@ -5506,6 +5557,7 @@ def ItsJustaFleshWound():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-3265, 11584, 446)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-2498,5680)
     bot.Move.XY(-4497,5079)
@@ -5531,6 +5583,7 @@ def ThePowerIsYours():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(1814, -1774, 439)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-23,7080)
     bot.Wait.UntilOutOfCombat()
@@ -5554,6 +5607,7 @@ def SongofPurification():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-18733, 13488, 402)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-16092,7570)
     bot.Wait.UntilOutOfCombat()
@@ -5579,6 +5633,7 @@ def SongofRestoration():
     bot.Move.XYAndExitMap(-2081, 14485, 399)
     bot.Move.XYAndDialog(-4552.00, 15863.00, 0x81)
     bot.Move.XYAndDialog(-4552.00, 15863.00, 0x84)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10332,-11807)
     bot.Move.XY(-16846,-5635)
@@ -5606,6 +5661,7 @@ def CruelSpear():
     bot.Move.XYAndDialog(-13955.00, -12776.00, 0x84)
     bot.Wait.ForTime(10000)
     bot.Wait.ForMapLoad(427)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-9584,-7325)
     bot.Wait.ForTime(30000)
@@ -5633,6 +5689,7 @@ def StunningStrike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(8150, 18933, 468)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(4636, 14852)
@@ -5657,6 +5714,7 @@ def CauterySignet():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3274, -4412, 379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6308,13198)
     bot.Move.XY(-7341,5275)
@@ -5684,6 +5742,7 @@ def ArcaneZeal():
     bot.Move.XYAndDialog(-1052.00, 10003.00, 0x82B801)
     bot.Travel_To_Random_District(target_map_id=559) #Gate of the Nightfallen Lands
     bot.Move.XYAndExitMap(-16114,18564, 465) #Nightfallen lands exit
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3338,-3747)#remove if from Nightfallen Lands
     bot.Move.XY(-4238,5991)#remove if from Nightfallen Lands
@@ -5711,6 +5770,7 @@ def GrenthsGrasp():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-15545, -4092, 371)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4241,-6589)
     bot.Wait.UntilOutOfCombat()
@@ -5734,6 +5794,7 @@ def ReapersSweep():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(22989,14206,373)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(18459,421)
     bot.Wait.UntilOutOfCombat()
@@ -5757,6 +5818,7 @@ def VowofStrength():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-13963,18264,375)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(-14487,14623)
@@ -5783,6 +5845,7 @@ def WieldersZeal():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-13963,18264,375)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(-14487,14623)
@@ -5809,12 +5872,13 @@ def SimpleThievery():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-13963, 18264, 375)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(-14487, 14623)
     bot.Move.XY(-16605, 1454)
     bot.Move.XY(-10991, -11117)
-    bot.Move.XY(-8026, -9243)
+    bot.Move.XY(-9148, -9792)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -5838,6 +5902,7 @@ def WoundingStrike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4654,-2531,397)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(17786,844)
     bot.Wait.UntilOutOfCombat()
@@ -5861,6 +5926,7 @@ def ZealousVow():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(4856,3125,377)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(15259,14877)
     bot.Wait.UntilOutOfCombat()
@@ -5884,6 +5950,7 @@ def BlessedLight():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(5672, -4404)
     bot.Move.XYAndExitMap(6809, -7548, 198)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6044.61, 10084.75)
     bot.Move.XY(10710, 3833) #Healing Light 867
@@ -5912,6 +5979,7 @@ def HealingLight():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(5672, -4404)
     bot.Move.XYAndExitMap(6809, -7548, 198)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6044.61, 10084.75)
     bot.Move.XY(10271, 4880) 
@@ -5937,6 +6005,7 @@ def BoonSignet():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-7243.40, -8111.62)
     bot.Move.XYAndExitMap(-8040, -8675, 210)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12619.55, 21320.75)
     bot.Move.XY(8350.78, 13316.25)
@@ -5962,6 +6031,7 @@ def HealersBoon():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-18733, 13488, 402)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-16092, 7570)
     bot.Move.XY(-18859.48, -543.13)
@@ -5989,6 +6059,7 @@ def PeaceandHarmony():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5797, -41362, 91)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6758, -32813)
     bot.Move.XY(5448, -29156)
@@ -6015,6 +6086,7 @@ def WithdrawHexes():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-5840, 14320, 200)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-7252, -2700)
     bot.Move.XY(-8604, 8056)
@@ -6039,6 +6111,7 @@ def HealingBurst():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(18153, 1880, 128)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16632, -2766)
     bot.Wait.UntilOutOfCombat()
@@ -6063,6 +6136,7 @@ def HealingHands():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(3695, -9914)
     bot.Move.XYAndExitMap(3772, -8096, 121)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(4435.06, 2104.76)
     bot.Wait.UntilOutOfCombat()
@@ -6099,6 +6173,7 @@ def LightofDeliverance():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5721, -5353, 371)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3106, 9981)
     bot.Wait.UntilOutOfCombat()
@@ -6122,6 +6197,7 @@ def WordofHealing():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(16596, 20549, 240)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5836, -8676)
     bot.Move.XY(-4659, -17086)
@@ -6149,6 +6225,7 @@ def AirofEnchantment():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(17214, 10919, 203)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(436, -14129)
     bot.Wait.UntilOutOfCombat()
@@ -6172,6 +6249,7 @@ def AuraofFaith():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-12507, -23517, 94)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(7408, 15741)
     bot.Wait.UntilOutOfCombat()
@@ -6208,6 +6286,7 @@ def DivertHexes():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-3104, 11454, 446)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(590.94, 8003.54)
     bot.Move.XY(1281.14, 7621.92)
@@ -6236,6 +6315,7 @@ def LifeSheath():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(11581, -18462)
     bot.Move.XYAndExitMap(11729, -20248, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1667, 8179)
     bot.Wait.UntilOutOfCombat()
@@ -6260,6 +6340,7 @@ def ShieldOfRegeneration():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(11581, -18462)
     bot.Move.XYAndExitMap(-15205, 13205, 647)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5878, 4262)
     bot.Wait.UntilOutOfCombat()
@@ -6283,6 +6364,7 @@ def ZealousBenediction():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-3, 12656, 399)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6079, 4930)
     bot.Move.XY(-7671, -3974)
@@ -6309,6 +6391,7 @@ def DefendersZeal():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(7784, 18756, 468)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8744, -3500)
     bot.Wait.UntilOutOfCombat()
@@ -6338,8 +6421,8 @@ def RayofJudgment():
     bot.Move.XY(3837.11, -11483.70)
     bot.Move.XY(6579.26, -15095.15)
     bot.Move.XYAndExitMap(4201, -17019, 241)
-    bot.Move.XY(-3172.72, 9102.06)
-    bot.Move.XY(9288.86, 11533.50)
+    bot.Items.UseAllConsumables() #uncomment for harder areas
+    bot.Move.XY(8936, 11691)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -6361,6 +6444,7 @@ def WordOfCensure():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(10898, 14691, 239)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6662, 14738)
     bot.Move.XY(3888, 12848)
@@ -6389,6 +6473,7 @@ def EmpathicRemoval():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7622, 1811, 201)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10570, 9687)
     bot.Wait.UntilOutOfCombat()
@@ -6412,6 +6497,7 @@ def Martyr():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-2263, -4568, 441)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1187.66, 7907.58)
     bot.Move.XY(-2401.63, 7256.86)
@@ -6437,6 +6523,7 @@ def SignetOfRemoval():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-16327, -16374, 384)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2931, 4745)
     bot.Move.XY(-1370, 647)
@@ -6462,6 +6549,7 @@ def BalthazarsPendulum():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5833, 4322, 377)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-13138.58, 15124.79)
     bot.Move.XY(-10693, 13246)
@@ -6489,6 +6577,7 @@ def ReapersMark():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5833, 4322, 377)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-13138.58, 15124.79)
     bot.Move.XY(-10693, 13246)
@@ -6515,6 +6604,7 @@ def Charge():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3290,2443,227)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(11281,8015)
     bot.Move.XY(10870,7251)
@@ -6539,6 +6629,7 @@ def Coward():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(16913,-2081,200)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(14346,-7711)
     bot.Wait.UntilOutOfCombat()
@@ -6562,6 +6653,7 @@ def YoureAllAlone():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-13898,18185,375)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-14670,15191)
     bot.Move.XY(-14442,10506)
@@ -6594,6 +6686,7 @@ def AuspiciousParry():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=start_map)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(-15350.00, -4400.00, 0x84)
     bot.Move.XYAndDialog(-15350.00, -4400.00, 0x85)
@@ -6625,6 +6718,7 @@ def Backbreaker():
     bot.Move.XYAndDialog(-8394.00, -23641.00, 0x834001)
     bot.Move.XYAndExitMap(-9566,-20185,558)
     bot.Wait.ForTime(10000)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-9510,-19617)
     bot.Move.XY(-7413,-18104)
@@ -6667,6 +6761,7 @@ def BattleRage():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-26066,2719,211)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(17237,-8492)
     bot.Wait.UntilOutOfCombat()
@@ -6690,6 +6785,7 @@ def BullsCharge():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3814,-8534,121)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8603,1382)
     bot.Move.XY(6755,3414)
@@ -6727,6 +6823,7 @@ def ChargingStrike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(53,8080,419)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-7215, 14308)
     bot.Move.XY(-9600.94, 14110.81)
@@ -6752,6 +6849,7 @@ def Cleave():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-11172,-18231,202)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-1743,-17222)
     bot.Wait.UntilOutOfCombat()
@@ -6776,6 +6874,7 @@ def CripplingSlash():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(15215,-6445,548)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10809,-7205)
     bot.Move.XY(8277,-7408)
@@ -6807,6 +6906,7 @@ def Decapitate():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(4699,4435,384)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-17608,-14656)
     bot.Move.XY(-11839,-12101)
@@ -6836,6 +6936,7 @@ def DefyPain():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-5062, -31650) #Anti Evenia stuck
     bot.Move.XYAndExitMap(-7469,-31762,98)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(13171,13137)
     bot.Move.XY(8538,10771)
@@ -6876,6 +6977,7 @@ def DevastatingHammer():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(8971,-26294,203)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-545,14262)
     bot.Wait.UntilOutOfCombat()
@@ -6900,6 +7002,7 @@ def DragonSlash():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3473,7390,247)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(15726,-6563)
     bot.Move.XY(17996,2023)
@@ -6927,6 +7030,7 @@ def DwarvenBattleStance():
     bot.Move.XYAndDialog(-24800.00, 11856.00, 0x833C01)
     bot.Travel_To_Random_District(target_map_id=624)
     bot.Move.XYAndExitMap(19682,19464,604)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-7303,-10429)
     bot.Wait.UntilOutOfCombat()
@@ -6951,6 +7055,7 @@ def EnragedSmash():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-12174,8693,232)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-149,18990)
     bot.Wait.UntilOutOfCombat()
@@ -6975,6 +7080,7 @@ def ForcefulBlow():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6229,7476,244)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10145,-15669)
     bot.Move.XY(3550,-13376)
@@ -7003,6 +7109,7 @@ def Headbutt():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(4547,853,380)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10606,-13642)
     bot.Wait.UntilOutOfCombat()
@@ -7027,6 +7134,7 @@ def HundredBlades():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(11716,-20069,256)
+    bot.Items.UseAllConsumables() 
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4082,3681)
     bot.Wait.UntilOutOfCombat()
@@ -7051,6 +7159,7 @@ def MagehunterStrike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3336,-4469,379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-1995,7148)
     bot.Wait.UntilOutOfCombat()
@@ -7075,6 +7184,7 @@ def MagehuntersSmash():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(4718,-4659,399)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-20058,12400)
     bot.Move.XY(-18445,7220)
@@ -7102,6 +7212,7 @@ def QuiveringBlade():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(11511,15279,239)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(14588,-1653)
     bot.Wait.UntilOutOfCombat()
@@ -7127,6 +7238,7 @@ def RageoftheNtouka():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-411, 3939, 436)
     bot.Move.XYAndExitMap(5096, 3792, 380)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3911,8256)
     bot.Wait.UntilOutOfCombat()
@@ -7151,6 +7263,7 @@ def Shove():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(10685,-1122,210)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6166,8228)
     bot.Wait.UntilOutOfCombat()
@@ -7175,6 +7288,7 @@ def SkullCrack():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(13656, 19140, 513)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(14398, 9923)
     bot.Move.XY(14181, 2399)
@@ -7206,6 +7320,7 @@ def SoldiersStance():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(1699, 4941, 437)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4282.58, -13169.55)
     bot.Wait.ForTime(5000)
@@ -7235,6 +7350,7 @@ def SteadyStance():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4941,702,406)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4537, -11043)
     bot.Wait.UntilOutOfCombat()
@@ -7258,6 +7374,7 @@ def TripleChop():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(16579,19653,240)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-1680,1957)
     bot.Wait.UntilOutOfCombat()
@@ -7282,6 +7399,7 @@ def WarriorsEndurance():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Map.EnterChallenge(delay=1000, target_map_id=117)
     bot.Wait.ForMapToChange(target_map_id=117) # Thirsty River Mission
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-857, 8546) #Sand Giant 1
     bot.Move.XY(-2320, 5881)
@@ -7332,6 +7450,7 @@ def WhirlingAxe():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3492,7460,247)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(9205,-8560)
     bot.Wait.UntilOutOfCombat()
@@ -7355,6 +7474,7 @@ def LifeBarrier():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7469,-31762,98)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(13171,13137)
     bot.Move.XY(8538,10771)
@@ -7395,6 +7515,7 @@ def Way_of_the_Assassin():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(441, 861)
     bot.Move.XYAndExitMap(3676, -4703, 379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(11129, 7553)
     bot.Wait.UntilOutOfCombat()
@@ -7418,6 +7539,7 @@ def Dark_Apostasy():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-4459, 5455, 209)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-20168, -3708)
     bot.Wait.UntilOutOfCombat()
@@ -7441,6 +7563,7 @@ def Locusts_Fury():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7585, 1955, 201)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3771, 10839)
     bot.Wait.UntilOutOfCombat()
@@ -7464,6 +7587,7 @@ def Palm_Strike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(16512, 20762, 240)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5661.56, -8976.21)
     bot.Move.XY(-2649.35, -11041.71)
@@ -7493,6 +7617,7 @@ def Seeping_Wound():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5490, -12398, 31)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10625, -2757)
     bot.Move.XY(-11491.36, -3626.96)
@@ -7517,6 +7642,7 @@ def Flashing_Blades():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-14594, -3987, 197)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8270, -635)
     bot.Move.XY(9518.52, 2496.50)
@@ -7544,6 +7670,7 @@ def Foxs_Promise():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-1367, 5938, 395)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6784.16, -14382.22)
     bot.Move.XY(-2183.42, -5759.83)
@@ -7571,6 +7698,7 @@ def Psychic_Instability():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3200, 2499, target_map_id=227)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(4599.85, 3940.26)
     bot.Move.XY(3039.05, 5503.06)
@@ -7605,6 +7733,7 @@ def Shadow_Shroud():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3200, 2499, target_map_id=227)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(4599.85, 3940.26)
     bot.Move.XY(3039.05, 5503.06)
@@ -7639,6 +7768,7 @@ def Shattering_Assault():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-3006.40, 13672.54)
     bot.Move.XYAndExitMap(-3042, 11398, target_map_id=446)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-2385.10, 5693.95)
     bot.Move.XY(-5785.96, 4816.62)
@@ -7672,6 +7802,7 @@ def AuraofDisplacement():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XY(8196.40, -1113.54)
     bot.Move.XYAndExitMap(10660, -1027, 210) #Ferndale
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-9358.26, 12733.01)
     bot.Move.XY(-1456.50, 19115.00)
@@ -7697,6 +7828,7 @@ def MarkofInsecurity():
     bot.Travel_To_Random_District(target_map_id=start_map) #Gate of the Nightfallen Lands
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XYAndExitMap(-16693, 19103, 465) #Nightfallen Jahai
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5746, 3318)
     bot.Move.XY(-7538, 825)
@@ -7722,6 +7854,7 @@ def HiddenCaltrops():
     bot.Travel_To_Random_District(target_map_id=start_map) #Kodorur Crossroads
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XYAndExitMap(5018, 5107, 384) #Floodplain of Mahnkelon
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-13221, -11714)
     bot.Wait.UntilOutOfCombat()
@@ -7746,6 +7879,7 @@ def AssaultEnchantments():
     bot.Travel_To_Random_District(target_map_id=start_map) #Gate of Torment
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XYAndExitMap(-7820, 14363, 465) #Floodplain of Mahnkelon
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-2950, -7871)
     bot.Move.XY(4153, -9215)
@@ -7773,6 +7907,7 @@ def ShadowMeld():
     bot.Travel_To_Random_District(target_map_id=start_map) #Nundu Bay
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XYAndExitMap(-15570, -3834, 371) #Floodplain of Mahnkelon
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-13815, 3355)
     bot.Wait.UntilOutOfCombat()
@@ -7797,6 +7932,7 @@ def WastrelsCollapse():
     bot.Travel_To_Random_District(target_map_id=start_map) #Yahnur Market
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XYAndExitMap(-5262, 635, 406) #Vehtendi Valley
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6604, -11438)
     bot.Wait.UntilOutOfCombat()
@@ -7821,6 +7957,7 @@ def GoldenSkullStrike():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(18267, -6197)
     bot.Move.XYAndExitMap(19693, -7411, 466)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-8329, -10361)
     bot.Move.XY(-6013, -5332)
@@ -7847,6 +7984,7 @@ def Temple_Strike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-14020, -19884, 203)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(9787, 5444)
     bot.Move.XY(7366.23, 4905.62)
@@ -7873,6 +8011,7 @@ def Moebius_Strike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(18474, 1840, 128)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(9, 10587)
     bot.Wait.UntilOutOfCombat()
@@ -7897,6 +8036,7 @@ def Shroud_of_Silence():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-9625, 3076, 233)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(24307.18, 1386.19)
     bot.Move.XY(10995.01, 4251.18)
@@ -7921,9 +8061,10 @@ def Siphon_Strength():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-16320, 13637, 199)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-19877.70, 3994.01)
-    bot.Move.XY(-18904.16, 3510.10)
+    bot.Move.XY(-19831, 2587)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -7945,6 +8086,7 @@ def Way_of_the_Empty_Palm():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3473, 7390, 247)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(15726, -6563)
     bot.Move.XY(17996, 2023)
@@ -7970,6 +8112,7 @@ def Beguiling_Haze():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(32538, 10966, 205)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10599, -7793)
     bot.Move.XY(11896, -819)
@@ -7995,6 +8138,7 @@ def Animate_Flesh_Golem():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5363, -12211, 31)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(5179, 2952)
     bot.Move.XY(3615, 7450)
@@ -8020,6 +8164,7 @@ def Contagion():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-15149, 8672, 384)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-17954, 4393)
     bot.Wait.UntilOutOfCombat()
@@ -8043,6 +8188,7 @@ def Corrupt_Enchantment():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6041, -1493, 392)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11689, -11432)
     bot.Wait.UntilOutOfCombat()
@@ -8066,6 +8212,7 @@ def Tease():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6041, -1493, 392)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-10388, -7828)
     bot.Wait.UntilOutOfCombat()
@@ -8089,6 +8236,7 @@ def Master_of_Magic():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6041, -1493, 392)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6279, -8739)
     bot.Move.XY(-7868, -9560)
@@ -8113,6 +8261,7 @@ def Invoke_Lightning():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6041, -1493, 392)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-13509, -17579)
     bot.Wait.UntilOutOfCombat()
@@ -8136,6 +8285,7 @@ def Cultists_Fervor():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6654, 7301, 202)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10855, -978)
     bot.Wait.UntilOutOfCombat()
@@ -8159,6 +8309,7 @@ def Tainted_Flesh():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(32765, 10871, 205)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3359, -4976)
     bot.Wait.UntilOutOfCombat()
@@ -8183,6 +8334,7 @@ def Depravity():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-1401, 1675)
     bot.Move.XYAndExitMap(4805, 943, 380)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1550, -11990)
     bot.Wait.UntilOutOfCombat()
@@ -8206,6 +8358,7 @@ def Discord():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(18483, 11343, 199)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(18504, 332)
     bot.Wait.UntilOutOfCombat()
@@ -8229,6 +8382,7 @@ def Icy_Veins():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6840, 14641, 195)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11535, -8301)
     bot.Wait.UntilOutOfCombat()
@@ -8252,6 +8406,7 @@ def Crippling_Anguish():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6840, 14641, 195)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6719, -8760)
     bot.Wait.UntilOutOfCombat()
@@ -8275,9 +8430,10 @@ def Ravenous_Gaze():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-5400, 5435, 369)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16919, -7990)
-    bot.Move.XY(10437, -5898)
+    bot.Move.XY(9744, -6408)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8300,6 +8456,7 @@ def Signet_of_Suffering():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3146, 5326, 443)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(26837, -9576)
     bot.Wait.UntilOutOfCombat()
@@ -8323,6 +8480,7 @@ def Lingering_Curse():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6741, 8137, 244)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1670, -16662)
     bot.Wait.UntilOutOfCombat()
@@ -8347,6 +8505,7 @@ def Soul_Bind():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(11722, -18582)
     bot.Move.XYAndExitMap(11699, -20253, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-268, -3164)
     bot.Wait.UntilOutOfCombat()
@@ -8370,6 +8529,7 @@ def Vampiric_Spirit():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6741, 8137, 244)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1670, -16662)
     bot.Move.XY(-504.80, -16517.78)
@@ -8407,6 +8567,7 @@ def Shockwave():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6741, 8137, 244)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1670, -16662)
     bot.Move.XY(-261, -16661) 
@@ -8432,6 +8593,7 @@ def Grenths_Balance():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5113, 3280, 377)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-13774, 15792)
     bot.Move.XY(-10455, 13159)
@@ -8465,6 +8627,7 @@ def Jagged_Bones():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Move.XY(14682, 22900)
     bot.Move.XYAndExitMap(17000, 22872, 546)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-9431, -20124)
     bot.Move.XY(-8441, -13685)
@@ -8494,6 +8657,7 @@ def Offering_of_Blood():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=22)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11206.22, -8611.91)
     bot.Move.XY(-9682.32, -7021.72)
@@ -8523,6 +8687,7 @@ def Order_of_the_Vampire():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Map.EnterChallenge(delay=1000, target_map_id=117)
     bot.Wait.ForMapToChange(target_map_id=117) # Thirsty River Mission
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-857, 8546) #Sand Giant 1
     bot.Move.XY(-2320, 5881)
@@ -8565,6 +8730,7 @@ def Toxic_Chill():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(5067, 1018, 404)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(659, 1838) 
     bot.Wait.UntilOutOfCombat()
@@ -8588,6 +8754,7 @@ def Wail_of_Doom():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-9625, 3076, 233)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8310, -7070) 
     bot.Move.XY(10629, -7757)
@@ -8612,6 +8779,7 @@ def Weaken_Knees():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-7622, 1811, 201)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(7851, -7812)
     bot.Wait.ForTime(25000) 
@@ -8619,7 +8787,7 @@ def Weaken_Knees():
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
-    bot.States.AddCustomState(lambda: ClickSkillFrame(764), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ClickSkillFrame(822), "Click Skill Frame")
     bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield  
@@ -8636,6 +8804,7 @@ def Archers_Signet():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-7622, 1811, 201)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(7851, -7812)
     bot.Wait.ForTime(25000) 
@@ -8660,6 +8829,7 @@ def GlassArrows():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(24085, 7289, 205)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-15388, 268)
     bot.Wait.UntilOutOfCombat()
@@ -8683,6 +8853,7 @@ def Attuned_Was_Songkai():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6866, 14696, 195)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2686, -9323)
     bot.Wait.UntilOutOfCombat()
@@ -8706,6 +8877,7 @@ def Clamor_of_Souls():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-6866, 14696, 195)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2686, -9323)
     bot.Wait.UntilOutOfCombat()
@@ -8729,6 +8901,7 @@ def Caretakers_Charge():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(11591, -1382, 472)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(1670, 10780)
     bot.Wait.UntilOutOfCombat()
@@ -8752,6 +8925,7 @@ def Consume_Soul():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-5411, 13654, 200)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-14256, -2242)
     bot.Wait.UntilOutOfCombat()
@@ -8775,6 +8949,7 @@ def Barrage():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-11143, -23655, 195)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-8262, 18124)
     bot.Move.XY(-4299, 12125)
@@ -8799,6 +8974,7 @@ def Burning_Arrow():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-5984, 5358, 371)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(17803, -13310)
     bot.Move.XY(11578, -14143)
@@ -8825,6 +9001,7 @@ def Crippling_Shot():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XY(18003.32, 16753.06)
     bot.Move.XYAndExitMap(20243, 16910, 501)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5781, -9354)
     bot.Move.XY(1762, -8654)
@@ -8850,6 +9027,7 @@ def Enraged_Lunge():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(7316, -17027, 265)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(18687, 7650)
     bot.Move.XY(14559, 2226)
@@ -8877,6 +9055,7 @@ def Equinox():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XY(11722, -18582)
     bot.Move.XYAndExitMap(11699, -20253, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(11908, 8425)
     bot.Move.XY(11332, -6134)
@@ -8902,6 +9081,7 @@ def Escape():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(4392, 26052, 199)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8539, -7857)
     bot.Move.XY(1276, -8157)
@@ -8926,6 +9106,7 @@ def Experts_Dexterity():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(5023, 4589, 402)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(3202, -15474)
     bot.Move.XY(4546, -17479)
@@ -8951,6 +9132,7 @@ def Famine():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-9662, 3084, 233)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16446, 261)
     bot.Move.XY(15194, 299)
@@ -8983,6 +9165,7 @@ def Ferocious_Strike():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(3473, 7682, 247)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(13205, -8400)
     bot.Move.XY(13860, -7537)
@@ -9009,6 +9192,7 @@ def HealAsOne():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-7023, -10645, 201)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12634, 20424)
     bot.Move.XY(8857, 16480)
@@ -9033,6 +9217,7 @@ def InfuriatingHeat():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(3481, -4573, 379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4903, -328)
     bot.Wait.UntilOutOfCombat()
@@ -9056,6 +9241,7 @@ def Lacerate():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(6566, 8093, 379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2950, -8661)
     bot.Wait.UntilOutOfCombat()
@@ -9079,6 +9265,7 @@ def MagebaneShot():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-2395, -4922, 441)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(12200, 5685)
     bot.Wait.ForTime(10000)
@@ -9106,6 +9293,7 @@ def MarksmansWager():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Map.EnterChallenge(delay=1000, target_map_id=117)
     bot.Wait.ForMapToChange(target_map_id=117) # Thirsty River Mission
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-857, 8546) #Sand Giant 1
     bot.Move.XY(-2320, 5881)
@@ -9155,6 +9343,7 @@ def MelandrusArrows():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-18019, 9252, 98)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-7491, 2192)
     bot.Wait.UntilOutOfCombat()
@@ -9191,6 +9380,7 @@ def MelandrusShot():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(6731, -7517, 198)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(3171, 5960)
     bot.Wait.UntilOutOfCombat()
@@ -9211,6 +9401,7 @@ def OathShot():
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ranger Build")
     bot.Move.XYAndExitMap(-12507, -23517, 94)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(7408, 15741)
     bot.Wait.UntilOutOfCombat()
@@ -9247,6 +9438,7 @@ def QuickShot():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-15203, 8909, 384)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-14169, 8080)
     bot.Move.XY(-4754, 12871)
@@ -9272,6 +9464,7 @@ def Quicksand():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-2395, -4922, 441)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-2115, 4646)
     bot.Wait.ForTime(6500)
@@ -9299,6 +9492,7 @@ def RampageAsOne():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-411, 3939, 436)
     bot.Move.XYAndExitMap(5342, 7723, 369) #Jahai Bluffs
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5746, 2526)
     bot.Move.XY(-14111, -1747)
@@ -9324,6 +9518,7 @@ def ScavengersFocus():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-5130, -6691, 439)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11018, -3520)
     bot.Move.XY(-13397, -9813)
@@ -9348,6 +9543,7 @@ def SmokeTrap():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-2395, -4922, 441)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(9908, 3523)
     bot.Move.XY(9534, 327)
@@ -9372,6 +9568,7 @@ def SpikeTrap():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-26272, 2836, 211)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(22084, 1779)
     bot.Move.XY(13742, 902)
@@ -9398,6 +9595,7 @@ def StrikeAsOne():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(26345, 16978, 386)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(9456, -11034)
     bot.Move.XY(9938, 4974)
@@ -9422,6 +9620,7 @@ def TrappersFocus():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-5778, 13986, 200)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-17887, -10440)
     bot.Wait.UntilOutOfCombat()
@@ -9447,6 +9646,7 @@ def DestructiveWasGlaive():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-411, 3939, 436)
     bot.Move.XYAndExitMap(5096, 3792, 380)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(1295, 8044)
@@ -9472,6 +9672,7 @@ def GraspingWasKuurong():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(6193, 17595, 198)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(5647, -6283)
@@ -9496,6 +9697,7 @@ def OfferingOfSpirit():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-16837, -13647, 472)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(12048, -18141)
@@ -9520,6 +9722,7 @@ def Preservation():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(8538, -19837, 144)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(-5850, -17503)
@@ -9544,6 +9747,7 @@ def ReclaimEssence():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3078, 5274, 443)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(7213, -5869)
@@ -9568,6 +9772,7 @@ def RitualLord():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-13995, -20044, 203)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     #bot.Move.XY(0, 0)
@@ -9594,6 +9799,7 @@ def SignetOfGhostlyMight():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XY(-3006.40, 13672.54)
     bot.Move.XYAndExitMap(-3042, 11398, target_map_id=446)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(-2385.10, 5693.95)
@@ -9626,6 +9832,7 @@ def SpiritChanneling():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-17865, 16700, 197)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(4786, -14399)
@@ -9651,6 +9858,7 @@ def SpiritLightWeapon():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7023, -10645, 201)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(12634, 20424)
@@ -9676,6 +9884,7 @@ def SpiritsStrength():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-139, 12822, 399)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(-6174, 5134)
@@ -9701,6 +9910,7 @@ def TranquilWasTanasen():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5939, -12643, 31)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(8321, -7866)
@@ -9726,6 +9936,7 @@ def VengefulWasKhanhei():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(27438, 5576, 209)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(24420, -2651)
@@ -9750,6 +9961,7 @@ def Wanderlust():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(2770, -15781, 269)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(2916, -12704)
@@ -9777,6 +9989,7 @@ def WeaponOfFury():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3481, -4573, 379)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(2849, 13066)
@@ -9802,6 +10015,7 @@ def WeaponOfQuickening():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-26272, 2836, 211)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(22084, 1779)
