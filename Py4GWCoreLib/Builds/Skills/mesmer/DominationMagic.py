@@ -150,6 +150,38 @@ class DominationMagic:
     #endregion
 
     #region P
+    @coordinates_whiteboard_skill_target(Skill.GetID("Psychic_Instability"))
+    def Psychic_Instability(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, GLOBAL_CACHE
+
+        psychic_instability_id: int = Skill.GetID("Psychic_Instability")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(psychic_instability_id) or Range.Adjacent.value
+
+        if not self.build.IsSkillEquipped(psychic_instability_id):
+            return False
+
+        # PI interrupts any skill or spell being cast, not only spells.
+        # The interrupt fires and knocks down the target plus all adjacent foes.
+        # Cast condition is hard – no fallback to non-casting targets.
+        # Among all casting enemies in spellcast range, prefer the one with the
+        # most adjacent enemies to maximise the knockdown area.
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
+
+        # Require at least one casting enemy – do not cast into the void.
+        if not target_agent_id or not Agent.IsCasting(target_agent_id):
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=psychic_instability_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     @coordinates_whiteboard_skill_target(Skill.GetID("Panic"))
     def Panic(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
@@ -220,6 +252,42 @@ class DominationMagic:
             self.build,
             skill_id=shatter_hex_id,
             target_agent_id=target_agent_id,
+            aftercast_delay=250,
+        ))
+    #endregion
+
+    #region W
+    @coordinates_whiteboard_skill_target(Skill.GetID("Wastrels_Demise"))
+    def Wastrels_Demise(self, *, target_agent_id: int) -> BuildCoroutine:
+        wastrels_demise_id: int = Skill.GetID("Wastrels_Demise")
+
+        if not self.build.IsSkillEquipped(wastrels_demise_id):
+            return False
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=wastrels_demise_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
+    @coordinates_whiteboard_skill_target(Skill.GetID("Wastrels_Worry"))
+    def Wastrels_Worry(self, *, target_agent_id: int) -> BuildCoroutine:
+        wastrels_worry_id: int = Skill.GetID("Wastrels_Worry")
+
+        if not self.build.IsSkillEquipped(wastrels_worry_id):
+            return False
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=wastrels_worry_id,
+            target_agent_id=target_agent_id,
+            log=False,
             aftercast_delay=250,
         ))
     #endregion
