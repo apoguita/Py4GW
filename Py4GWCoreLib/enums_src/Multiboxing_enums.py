@@ -70,7 +70,6 @@ class SharedCommandType(IntEnum):
     BroadcastChatCommand = auto()
     ConsoleMessage = auto()
     SetHeadlessLooting = auto()
-    SetActiveTitle = auto()
     #endregion
 
     
