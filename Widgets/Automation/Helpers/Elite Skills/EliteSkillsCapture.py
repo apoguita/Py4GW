@@ -4276,7 +4276,7 @@ def AssassinsPromise():
     bot.Move.XY(-19032.91, -10978.03)
     bot.Move.XY(-20351.51, -11994.78)
     bot.Move.XY(-21815.37, -12821.15)
-    bot.Move.XY(-23521.56, -11545.54)
+    bot.Move.XY(-22919.58, -12014.80)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -9132,7 +9132,7 @@ def Famine():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-9662, 3084, 233)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16446, 261)
     bot.Move.XY(15194, 299)
@@ -9240,7 +9240,8 @@ def Lacerate():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(6566, 8093, 379)
+    bot.Move.XY(5487, 6623) #Anti-Stuck on Sign
+    bot.Move.XYAndExitMap(6566, 8093, 244)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2950, -8661)
