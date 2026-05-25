@@ -82,7 +82,7 @@ def Sequence(name: str,
 
     prep_child = [BehaviorTree(Node(map_prep))] if map_prep is not None else []
     
-    data_child = [BehaviorTree.ActionNode(StoreProfessionNames(), name="StoreProfessionNames")]
+    data_child = [StoreProfessionNames()]
 
     resolved_children = travel_child + prep_child + data_child + resolved_children
     
