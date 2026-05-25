@@ -16,6 +16,7 @@ module_name = "Set title on map load"
 class config:
     def __init__(self):
         self.title_applied = False
+        self.last_map_id = 0
 
 widget_config = config()
 
@@ -142,14 +143,19 @@ def main():
     
     if not is_map_valid:
         widget_config.title_applied = False
+        widget_config.last_map_id = 0
         return
     
     if not is_explorable:
         widget_config.title_applied = False
+        widget_config.last_map_id = 0
         return
     
     map_name = Map.GetMapName()
     map_id = Map.GetMapID()
+    if int(map_id or 0) != int(widget_config.last_map_id or 0):
+        widget_config.last_map_id = int(map_id or 0)
+        widget_config.title_applied = False
 
     if not widget_config.title_applied:
         # Quest-based overrides take priority over map-name matching

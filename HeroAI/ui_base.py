@@ -1698,6 +1698,25 @@ class HeroAI_BaseUI:
             pass
 
     @staticmethod
+    def _print_follow_debug_dump() -> None:
+        try:
+            publisher = getattr(GLOBAL_CACHE.ShMem, "follow_publisher", None)
+            if publisher is None or not hasattr(publisher, "build_debug_dump_lines"):
+                ConsoleLog("HeroAI", "follow.debug unavailable: publisher missing")
+                return
+
+            for line in publisher.build_debug_dump_lines():
+                ConsoleLog("HeroAI", line)
+
+            snapshot = hero_globals.smart_unstuck_debug_snapshot
+            if snapshot:
+                ConsoleLog("HeroAI", f"smart_unstuck_snapshot={snapshot}")
+            else:
+                ConsoleLog("HeroAI", "smart_unstuck_snapshot=None")
+        except Exception as exc:
+            ConsoleLog("HeroAI", f"follow.debug dump failed: {exc}")
+
+    @staticmethod
     def _apply_follow_thresholds_to_party(cached_data: CacheData) -> None:
         leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
         leader_all_flag_active = (
@@ -1953,6 +1972,9 @@ class HeroAI_BaseUI:
 
             PyImGui.separator()
             PyImGui.text("Follow Publish")
+
+            if PyImGui.button("Print Follow Debug"):
+                HeroAI_BaseUI._print_follow_debug_dump()
 
             new_show_broadcast_follow_positions = PyImGui.checkbox("Draw Followers FollowPos (3D)", hero_globals.show_broadcast_follow_positions)
             if new_show_broadcast_follow_positions != hero_globals.show_broadcast_follow_positions:

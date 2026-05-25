@@ -588,7 +588,7 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.EnemyCount = 3
-        skill.Conditions.EnemiesInRange = Range.Area.value
+        skill.Conditions.EnemiesInRange = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -596,8 +596,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemyCount = 1
-        skill.Conditions.EnemiesInRange = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -605,8 +605,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemyCount = 3
-        skill.Conditions.EnemiesInRange = Range.Spellcast.value
+        skill.Conditions.EnemyCount = 2
+        skill.Conditions.EnemiesInRange = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -614,8 +614,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemyCount = 3
-        skill.Conditions.EnemiesInRange = Range.Area.value
+        skill.Conditions.EnemyCount = 2
+        skill.Conditions.EnemiesInRange = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -661,7 +661,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Tryptophan_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 

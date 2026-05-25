@@ -478,10 +478,28 @@ def Resign(index: int, message: SharedMessageStruct):
 
 # region PixelStack
 def PixelStack(index: int, message: SharedMessageStruct):
-    ConsoleLog(MODULE_NAME, f"Processing PixelStack message: {message}", Console.MessageType.Info)
+    ConsoleLog(
+        MODULE_NAME,
+        f"Processing PixelStack message from {message.SenderEmail} to ({message.Params[0]}, {message.Params[1]}).",
+        Console.MessageType.Info,
+    )
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    def _can_process_pixelstack() -> bool:
+        player_agent_id = Player.GetAgentID()
+        if not player_agent_id or Agent.IsDead(player_agent_id):
+            ConsoleLog(MODULE_NAME, "PixelStack aborted: player is dead.", Console.MessageType.Warning, log=True)
+            return False
+        if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
+            ConsoleLog(MODULE_NAME, "PixelStack aborted: map is invalid or not explorable.", Console.MessageType.Warning, log=True)
+            return False
+        return True
+
+    if not _can_process_pixelstack():
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -489,14 +507,20 @@ def PixelStack(index: int, message: SharedMessageStruct):
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
+        if not _can_process_pixelstack():
+            return
         Player.SendChatCommand("stuck")
         yield from Routines.Yield.wait(250)
+        if not _can_process_pixelstack():
+            return
         result = (yield from Routines.Yield.Movement.FollowPath(
             [(message.Params[0], message.Params[1])],
             tolerance=10,
             timeout=10000,
         ))
         yield from Routines.Yield.wait(100)
+        if not _can_process_pixelstack():
+            return
 
         if not result:
             ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning, log=True)
@@ -506,14 +530,20 @@ def PixelStack(index: int, message: SharedMessageStruct):
             Player.SendChatCommand("stuck")
             # Step 1: Always walk backwards
             ConsoleLog(MODULE_NAME, "Recovery: walking backwards.", Console.MessageType.Info)
+            if not _can_process_pixelstack():
+                return
             yield from Routines.Yield.Movement.WalkBackwards(1500)
             # Step 2: strafe left
             ConsoleLog(MODULE_NAME, "Recovery: strafing left.", Console.MessageType.Info)
+            if not _can_process_pixelstack():
+                return
             yield from Routines.Yield.Movement.StrafeLeft(1500)
             # Step 3: If no movement after strafing left, strafe right
             left_x, left_y = Player.GetXY()
             if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                 ConsoleLog(MODULE_NAME, "No movement detected, strafing right.", Console.MessageType.Info)
+                if not _can_process_pixelstack():
+                    return
                 yield from Routines.Yield.Movement.StrafeRight(3500)  # we need to get away from that wall
 
         else:
@@ -1530,19 +1560,22 @@ def OpenChest(index: int, message: SharedMessageStruct):
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account) -> bool:                    
-                    return (account.AgentPartyData.PartyID == party_id and
-                            account.MapID == map_id and
-                            account.MapRegion == map_region and
-                            account.MapDistrict == map_district and
-                            account.MapLanguage == map_language)
+                def on_same_map_and_party(account : AccountStruct) -> bool:                    
+                    on_same_map = (account.AgentPartyData.PartyID == party_id and
+                            account.AgentData.Map.MapID == map_id and
+                            account.AgentData.Map.Region == map_region and
+                            account.AgentData.Map.District == map_district and
+                            account.AgentData.Map.Language == map_language)
+                    
+                    return on_same_map
                 
-                all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
+                all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []                                    
+                queued_accounts = [account for account in all_accounts if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
                 chest_pos = Agent.GetXY(chest_id)
-                                
+                                                
                 sorted_by_party_index = sorted(
-                    [acc for acc in all_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
-                key=lambda acc: acc.AgentPartyData.PartyPosition ) if all_accounts else []
+                    [acc for acc in queued_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
+                key=lambda acc: acc.AgentPartyData.PartyPosition ) if queued_accounts else []
                 
                 if sorted_by_party_index:
                     next_account = sorted_by_party_index[0]
@@ -1768,6 +1801,25 @@ def ConsoleMessage(index: int, message: SharedMessageStruct):
     ConsoleLog(sender_name, console_message, Console.MessageType.Info, True)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     yield
+
+# endregion
+
+# region SetActiveTitle
+def SetActiveTitle(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    title_id = int(message.Params[0] or 0)
+    if title_id > 0:
+        Player.SetActiveTitle(title_id)
+
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetActiveTitle message processed and finished.", Console.MessageType.Info, False)
 
 # endregion
 
@@ -2411,6 +2463,24 @@ def TravelToGuildHall(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "TravelToGuildHall message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
+#region SetActiveTitle
+def SetActiveTitle(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    title_id = int(message.Params[0])
+
+    if title_id >= 0:
+        Player.SetActiveTitle(title_id)
+        yield from Routines.Yield.wait(100)
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetActiveTitle message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
 #region SetActiveQuest
 def SetActiveQuest(index : int, message : SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -2694,6 +2764,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
         case SharedCommandType.ConsoleMessage:
             GLOBAL_CACHE.Coroutines.append(ConsoleMessage(index, message))
+        case SharedCommandType.SetActiveTitle:
+            GLOBAL_CACHE.Coroutines.append(SetActiveTitle(index, message))
         case SharedCommandType.PressKey:
             GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
         case SharedCommandType.DonateToGuild:
@@ -2736,6 +2808,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(TravelToGuildHall(index, message))
         case SharedCommandType.UseSkillCombatPrep:
             GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
+        case SharedCommandType.SetActiveTitle:
+            GLOBAL_CACHE.Coroutines.append(SetActiveTitle(index, message))
         case SharedCommandType.SetActiveQuest:
             GLOBAL_CACHE.Coroutines.append(SetActiveQuest(index, message))
         case SharedCommandType.AbandonQuest:

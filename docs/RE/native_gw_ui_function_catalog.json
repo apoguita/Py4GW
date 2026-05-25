@@ -1,0 +1,162 @@
+[
+  {
+    "name": "Ui_DevTextDialogProc",
+    "family": "DevText",
+    "static_address": "0x00864170",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "unverified_dialog_proc_start",
+    "recovery_method": "Ghidra/static RE and Python string-xref plus ToFunctionStart for clone path",
+    "confidence": "python_proven_for_clone_path",
+    "notes": "Stable proven source proc for cold-created clone path through UIManager.CreateWindow. Constructor-time suppression attempts crashed."
+  },
+  {
+    "name": "Ui_DevTextChildContainerProc",
+    "family": "DevText",
+    "static_address": "0x008527A0",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Created as child 0 during DevText message 9."
+  },
+  {
+    "name": "Ui_BuildDevTextDialogChildren",
+    "family": "DevText",
+    "static_address": "0x004BF9E0",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Named helper associated with DevText child construction."
+  },
+  {
+    "name": "FUN_004BF910",
+    "family": "DevText",
+    "static_address": "0x004BF910",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "runtime_observed",
+    "notes": "Content-population helper used by DevText. Skipping it during constructor-time experiments crashed."
+  },
+  {
+    "name": "Ui_BuildDevTextStyleDescriptionText",
+    "family": "DevText",
+    "static_address": "0x00864340",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE and removed instrumentation experiment",
+    "confidence": "runtime_observed",
+    "notes": "Producer payload capture returned 15 pointer-like payload objects per open."
+  },
+  {
+    "name": "Ui_CreateEncodedTextFromStringId",
+    "family": "SharedText",
+    "static_address": "0x007A1540",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE and removed instrumentation experiment",
+    "confidence": "runtime_observed",
+    "notes": "DevText used string id 0x29 and produced 15 pointer-like payload objects per open."
+  },
+  {
+    "name": "Ui_CreateEncodedText",
+    "family": "SharedText",
+    "static_address": "0x007A1560",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Shared encoded text helper."
+  },
+  {
+    "name": "Ui_TextLabelControlProc",
+    "family": "SharedControl",
+    "static_address": "0x005F28D0",
+    "runtime_usable_address": "0x005F2900",
+    "runtime_entry_kind": "validated_alternate_entry",
+    "recovery_method": "runtime observation from child-create instrumentation and caller-chain/pattern validation",
+    "confidence": "runtime_observed",
+    "notes": "Observed runtime entry corresponded to static + 0x30. Do not generalize without separate proof."
+  },
+  {
+    "name": "Ui_MultiLineTextControlProc",
+    "family": "SharedControl",
+    "static_address": "0x005EA970",
+    "runtime_usable_address": "0x005EA9A0",
+    "runtime_entry_kind": "validated_alternate_entry",
+    "recovery_method": "runtime observation from child-create instrumentation and caller-chain/pattern validation",
+    "confidence": "runtime_observed",
+    "notes": "Observed runtime entry corresponded to static + 0x30. Message 9 allocates/init state; message 0x37 is a likely rebuild boundary."
+  },
+  {
+    "name": "Ui_RequestCreateChildFrame",
+    "family": "SharedScaffold",
+    "static_address": null,
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "validated_alternate_entry",
+    "recovery_method": "previous pattern/caller-chain validation",
+    "confidence": "runtime_observed",
+    "notes": "Known lesson case: usable runtime target was not the raw static start. Preserve the rule that new targets must be pattern-proven in Python."
+  },
+  {
+    "name": "Ui_DevSoundDialogProc",
+    "family": "DevSound",
+    "static_address": "0x00863700",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "unverified_dialog_proc_start",
+    "recovery_method": "Ghidra/static RE and Python string-xref plus ToFunctionStart",
+    "confidence": "runtime_observed",
+    "notes": "Direct cold-create path crashes client. Treat as comparison/reference specimen, not a trusted creation path."
+  },
+  {
+    "name": "Ui_BuildDevSoundDialogChildren",
+    "family": "DevSound",
+    "static_address": "0x00863500",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Fixed child set builder for DevSound."
+  },
+  {
+    "name": "Ui_BuildDevSoundDialogContents",
+    "family": "DevSound",
+    "static_address": "0x008639E0",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Invoked by DevSound message 9."
+  },
+  {
+    "name": "Ui_UpdateDevSoundValueLabels",
+    "family": "DevSound",
+    "static_address": "0x00863CE0",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Part of later value population path; likely more promising than constructor-time interference."
+  },
+  {
+    "name": "Ui_RefreshDevSoundDialogValues",
+    "family": "DevSound",
+    "static_address": "0x00863EE0",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "Separate updater path for DevSound values."
+  },
+  {
+    "name": "Ui_DevSoundSliderControlProc",
+    "family": "DevSound",
+    "static_address": "0x008599E0",
+    "runtime_usable_address": null,
+    "runtime_entry_kind": "ghidra_identified",
+    "recovery_method": "Ghidra/static RE",
+    "confidence": "ghidra_inferred",
+    "notes": "DevSound-specific control proc."
+  }
+]

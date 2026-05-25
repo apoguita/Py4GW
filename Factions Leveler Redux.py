@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import math
 from typing import Callable
+from typing import TypeAlias
 
 
 
@@ -31,13 +31,14 @@ INI_FILENAME = "BottingTreeTemplate.ini"
 initialized = False
 ini_key = ""
 botting_tree: BottingTree | None = None
+LOOTING_ACTIVE = False
 
 EMPTY_SKILLBARS: dict[str, str] = {
     "Warrior": "OQAREJAAAAAAAAAAAA",
-    "Ranger": "",
-    "Monk": "",
-    "Necromancer": "",
-    "Mesmer": "",
+    "Ranger": "OgARkJAAAAAAAAAAAA",
+    "Monk": "OwAAAAAAAAAAAAAA",
+    "Necromancer": "OABBUFAAAAAAAAAAAA",
+    "Mesmer": "OQBBIFAAAAAAAAAAAA",
     "Elementalist": "",
     "Ritualist": "",
     "Assassin": "",
@@ -47,7 +48,8 @@ LEVELING_SKILLBAR_MAP: dict[str, list[tuple[int | None, str]]] = {
     "Warrior": [
         (3, "OQAREpQoKlrBAAAAACA"),
         (5, "OQASEJJFCVpcNAAAAAQA"),
-        (10, "OQITELZZrQoc13AAA0ezCAA"),
+        (6, "OQASEJZFCVpcNA0W4AQA"),
+        (10, "OQITELZZrQoKlrBAA0ezCAA"),
         (20, "OQUBIskDcdG0DaAKUECA"),
         (None, "OQUCErwSOw1ZQPoBoQRIA"),
     ],
@@ -101,6 +103,7 @@ STARTER_CANE = 2652
 STARTER_ELEMENTAL_ROD = 2742
 STARTER_DAGGERS = 6387
 STARTER_RITUALIST_WAND = 6498
+MONASTERY_CREDIT = 5819
 
 STARTER_ARMOR_MODELS: dict[str, list[int]] = {
     "Assassin": [7251, 7249, 7250, 7252, 7248],
@@ -113,13 +116,11 @@ STARTER_ARMOR_MODELS: dict[str, list[int]] = {
     "Necromancer": [8863, 8861, 8862, 8864, 8860],
 }
 
-
 TRASH_ITEM_MODELS: list[int] = [
     STARTER_SWORD_MODEL_ID, #warrior Starter Sword
     STARTER_HAMMER_MODEL_ID, #warrior starter hammer
     STARTER_AXE_MODEL_ID, #warrior starter axe
     
-    5819,
     STARTER_DAGGERS,
     STARTER_ELEMENTAL_ROD,
     STARTER_CANE,
@@ -128,183 +129,126 @@ TRASH_ITEM_MODELS: list[int] = [
     STARTER_BOW_MODEL_ID,
     STARTER_RITUALIST_WAND,
     
-    30853,
-    24897,
+    #30853,
+    #24897,
 ]
 
 TRASH_ITEM_MODELS += [model_id for model_ids in STARTER_ARMOR_MODELS.values() for model_id in model_ids]
 
-MONASTERY_ARMOR_DATA: dict[str, list[tuple[int, list[int], list[int]]]] = {
+BuyList: TypeAlias = list[tuple[int, int]]
+CraftStep: TypeAlias = tuple[int, int, list[int], list[int]]
+CraftStepList: TypeAlias = list[CraftStep]
+
+
+MONASTERY_COMMON_BUY_BY_PROFESSION: dict[str, BuyList] = {
+    "Warrior": [(ModelID.Bolt_Of_Cloth.value, 1), (ModelID.Iron_Ingot.value, 2), (ModelID.Wood_Plank.value, 1)],
+    "Ranger": [(ModelID.Tanned_Hide_Square.value, 1), (ModelID.Wood_Plank.value, 1)],
+    "Monk": [(ModelID.Bolt_Of_Cloth.value, 1), (ModelID.Pile_Of_Glittering_Dust.value, 1), (ModelID.Wood_Plank.value, 1)],
+    "Necromancer": [(ModelID.Tanned_Hide_Square.value, 1), (ModelID.Pile_Of_Glittering_Dust.value, 1), (ModelID.Bone.value, 1)],
+    "Mesmer": [(ModelID.Bolt_Of_Cloth.value, 1), (ModelID.Pile_Of_Glittering_Dust.value, 1), (ModelID.Wood_Plank.value, 1)],
+    "Elementalist": [(ModelID.Bolt_Of_Cloth.value, 1), (ModelID.Pile_Of_Glittering_Dust.value, 1), (ModelID.Iron_Ingot.value, 1)],
+    "Assassin": [(ModelID.Bolt_Of_Cloth.value, 1), (ModelID.Iron_Ingot.value, 1)],
+    "Ritualist": [(ModelID.Bolt_Of_Cloth.value, 1), (ModelID.Bone.value, 1), (ModelID.Plant_Fiber.value, 1)],
+}
+
+
+TSUMEI_RARE_BUY_BY_PROFESSION: dict[str, BuyList] = {
+    "Warrior": [(ModelID.Steel_Ingot.value, 1)],
+    "Ranger": [],
+    "Monk": [],
+    "Necromancer": [],
+    "Mesmer": [],
+    "Elementalist": [],
+    "Assassin": [],
+    "Ritualist": [],
+}
+
+
+MONASTERY_ARMOR_CRAFT_BY_PROFESSION: dict[str, CraftStepList] = {
     "Warrior": [
-        (10156, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (10158, [ModelID.Bolt_Of_Cloth.value], [2]),
-        (10155, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (10030, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (10157, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (10156, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (10158, 20, [ModelID.Bolt_Of_Cloth.value], [2]),
+        (10155, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (10030, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (10157, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
     ],
     "Ranger": [
-        (10605, [ModelID.Tanned_Hide_Square.value], [3]),
-        (10607, [ModelID.Tanned_Hide_Square.value], [2]),
-        (10604, [ModelID.Tanned_Hide_Square.value], [1]),
-        (14655, [ModelID.Tanned_Hide_Square.value], [1]),
-        (10606, [ModelID.Tanned_Hide_Square.value], [1]),
+        (10605, 20, [ModelID.Tanned_Hide_Square.value], [3]),
+        (10607, 20, [ModelID.Tanned_Hide_Square.value], [2]),
+        (10604, 20, [ModelID.Tanned_Hide_Square.value], [1]),
+        (14655, 20, [ModelID.Tanned_Hide_Square.value], [1]),
+        (10606, 20, [ModelID.Tanned_Hide_Square.value], [1]),
     ],
     "Monk": [
-        (9611, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (9613, [ModelID.Bolt_Of_Cloth.value], [2]),
-        (9610, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (9590, [ModelID.Pile_Of_Glittering_Dust.value], [1]),
-        (9612, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (9611, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (9613, 20, [ModelID.Bolt_Of_Cloth.value], [2]),
+        (9610, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (9590, 20, [ModelID.Pile_Of_Glittering_Dust.value], [1]),
+        (9612, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
     ],
     "Assassin": [
-        (7185, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (7187, [ModelID.Bolt_Of_Cloth.value], [2]),
-        (7184, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (7116, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (7186, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (7185, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (7187, 20, [ModelID.Bolt_Of_Cloth.value], [2]),
+        (7184, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (7116, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (7186, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
     ],
     "Mesmer": [
-        (7538, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (7540, [ModelID.Bolt_Of_Cloth.value], [2]),
-        (7537, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (7517, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (7539, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (7538, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (7540, 20, [ModelID.Bolt_Of_Cloth.value], [2]),
+        (7537, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (7517, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (7539, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
     ],
     "Necromancer": [
-        (8749, [ModelID.Tanned_Hide_Square.value], [3]),
-        (8751, [ModelID.Tanned_Hide_Square.value], [2]),
-        (8748, [ModelID.Tanned_Hide_Square.value], [1]),
-        (8731, [ModelID.Pile_Of_Glittering_Dust.value], [1]),
-        (8750, [ModelID.Tanned_Hide_Square.value], [1]),
+        (8749, 20, [ModelID.Tanned_Hide_Square.value], [3]),
+        (8751, 20, [ModelID.Tanned_Hide_Square.value], [2]),
+        (8748, 20, [ModelID.Tanned_Hide_Square.value], [1]),
+        (8731, 20, [ModelID.Pile_Of_Glittering_Dust.value], [1]),
+        (8750, 20, [ModelID.Tanned_Hide_Square.value], [1]),
     ],
     "Ritualist": [
-        (11310, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (11313, [ModelID.Bolt_Of_Cloth.value], [2]),
-        (11309, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (11194, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (11311, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (11310, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (11313, 20, [ModelID.Bolt_Of_Cloth.value], [2]),
+        (11309, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (11194, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (11311, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
     ],
     "Elementalist": [
-        (9194, [ModelID.Bolt_Of_Cloth.value], [3]),
-        (9196, [ModelID.Bolt_Of_Cloth.value], [2]),
-        (9193, [ModelID.Bolt_Of_Cloth.value], [1]),
-        (9171, [ModelID.Pile_Of_Glittering_Dust.value], [1]),
-        (9195, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (9194, 20, [ModelID.Bolt_Of_Cloth.value], [3]),
+        (9196, 20, [ModelID.Bolt_Of_Cloth.value], [2]),
+        (9193, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
+        (9171, 20, [ModelID.Pile_Of_Glittering_Dust.value], [1]),
+        (9195, 20, [ModelID.Bolt_Of_Cloth.value], [1]),
     ],
 }
 
-TSUMEI_VILLAGE_WEAPON_COMMON_MATERIALS_DATA = {
-    "Warrior": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11664,
-                "common_materials": [
-                    (ModelID.Iron_Ingot.value, 8),
-                    (ModelID.Wood_Plank.value, 2),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-            "shield": {
-                "model_id": 11669,
-                "common_materials": [
-                    (ModelID.Iron_Ingot.value, 6),
-                ],
-                "rare_materials": [
-                    (ModelID.Steel_Ingot.value, 1),
-                ],
-                "cost": 200,
-            },
-        },
-    },
-    "Ranger": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11666,
-                "common_materials": [
-                    (ModelID.Wood_Plank.value, 10),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
-    "Monk": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11681,
-                "common_materials": [
-                    (ModelID.Wood_Plank.value, 5),
-                    (ModelID.Pile_Of_Glittering_Dust.value, 3),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
-    "Necromancer": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11675,
-                "common_materials": [
-                    (ModelID.Bone.value, 6),
-                    (ModelID.Pile_Of_Glittering_Dust.value, 2),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
-    "Mesmer": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11671,
-                "common_materials": [
-                    (ModelID.Wood_Plank.value, 6),
-                    (ModelID.Pile_Of_Glittering_Dust.value, 2),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
-    "Elementalist": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11678,
-                "common_materials": [
-                    (ModelID.Iron_Ingot.value, 8),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
-    "Assassin": {
-        "recipes": {
-            "weapon": {
-                "model_id": 11667,
-                "common_materials": [
-                    (ModelID.Iron_Ingot.value, 8),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
-    "Ritualist": {
-        "recipes": {
-            "weapon": {
-                "model_id": 15241,
-                "common_materials": [
-                    (ModelID.Bone.value, 4),
-                    (ModelID.Plant_Fiber.value, 4),
-                ],
-                "rare_materials": [],
-                "cost": 200,
-            },
-        },
-    },
+TSUMEI_WEAPON_CRAFT_BY_PROFESSION: dict[str, CraftStepList] = {
+    "Warrior": [
+        (11664, 200, [ModelID.Iron_Ingot.value, ModelID.Wood_Plank.value], [8, 2]),
+        (11669, 200, [ModelID.Iron_Ingot.value, ModelID.Steel_Ingot.value], [6, 1]),
+    ],
+    "Ranger": [
+        (11666, 200, [ModelID.Wood_Plank.value], [10]),
+    ],
+    "Monk": [
+        (11681, 200, [ModelID.Wood_Plank.value, ModelID.Pile_Of_Glittering_Dust.value], [5, 3]),
+    ],
+    "Necromancer": [
+        (11675, 200, [ModelID.Bone.value, ModelID.Pile_Of_Glittering_Dust.value], [6, 2]),
+    ],
+    "Mesmer": [
+        (11671, 200, [ModelID.Wood_Plank.value, ModelID.Pile_Of_Glittering_Dust.value], [6, 2]),
+    ],
+    "Elementalist": [
+        (11678, 200, [ModelID.Iron_Ingot.value], [8]),
+    ],
+    "Assassin": [
+        (11667, 200, [ModelID.Iron_Ingot.value], [8]),
+    ],
+    "Ritualist": [
+        (15241, 200, [ModelID.Bone.value, ModelID.Plant_Fiber.value], [4, 4]),
+    ],
 }
 
 HEADMASTER_ZHAN_COORDS = (-7039.83, 7325.59)
@@ -327,11 +271,19 @@ MASTER_COORDS_BY_PROFESSION = {
         "Necromancer": HEADMASTER_KUJU_COORDS,   
     }
 
+OTHER_MASTER_COORDS_BY_PROFESSION: dict[str, list[PointOrPath]] = {
+    profession: [
+        coords
+        for other_profession, coords in MASTER_COORDS_BY_PROFESSION.items()
+        if other_profession != profession
+    ]
+    for profession in MASTER_COORDS_BY_PROFESSION
+}
+
+
 #region helpers
 def _trace_step(name: str, tree: BehaviorTree) -> BehaviorTree:
-    #_trace_step("Prepare For Battle: Configure Aggressive", bot.Config.Aggressive(auto_loot=False)),
-    return BehaviorTree(
-        BehaviorTree.SequenceNode(
+    return BT.Sequence(
             name=f"Trace<{name}>",
             children=[
                 BT.LogMessage(f"BEGIN: {name}", module_name=MODULE_NAME, print_to_console=True, print_to_blackboard=False),
@@ -339,7 +291,15 @@ def _trace_step(name: str, tree: BehaviorTree) -> BehaviorTree:
                 BT.LogMessage(f"OK: {name}", module_name=MODULE_NAME, print_to_console=True, print_to_blackboard=False),
             ],
         )
-    )
+    
+    
+def Aggressive():
+    bot = ensure_botting_tree()
+    return bot.Config.Aggressive(auto_loot=LOOTING_ACTIVE)
+
+def Pacifist():
+    bot = ensure_botting_tree()
+    return bot.Config.Pacifist(auto_loot=LOOTING_ACTIVE)
 
 
 def _get_henchmen_for_current_map() -> list[int]:
@@ -361,15 +321,14 @@ def _get_henchmen_for_current_map() -> list[int]:
     return [2, 3, 5, 6, 7, 9, 10]
 
 
-def _add_henchmen_from_blackboard(node: BehaviorTree.Node) -> BehaviorTree:
-    return BT.CreateParty(henchman_ids=node.blackboard["current_map_henchmen"])
-
-
 def PrepareForBattle() -> BehaviorTree:
-    bot = ensure_botting_tree()
     restock_candy_apple_qty = 0# 10
     restock_war_supplies_qty = 0# 10
     restock_honeycomb_qty = 0# 20
+    
+    def _add_henchmen_from_blackboard(node: BehaviorTree.Node) -> BehaviorTree:
+        return BT.CreateParty(henchman_ids=node.blackboard["current_map_henchmen"])
+
     
     restock_list = [
         (ModelID.Candy_Apple.value, restock_candy_apple_qty), 
@@ -379,14 +338,11 @@ def PrepareForBattle() -> BehaviorTree:
     return BT.Sequence(
             name="Prepare For Battle",
             children=[
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.LoadSkillbarFromMap(LEVELING_SKILLBAR_MAP),
                 BT.LeaveParty(),
                 BT.SaveBlackboardValue("current_map_henchmen", _get_henchmen_for_current_map),
-                BehaviorTree.SubtreeNode(
-                    name="AddHenchmenForCurrentMap",
-                    subtree_fn=_add_henchmen_from_blackboard,
-                ),
+                BT.Subtree(name="AddHenchmenForCurrentMap",subtree_fn=_add_henchmen_from_blackboard,),
                 BT.RestockItemsFromList(restock_list,allow_missing=True,),
             ],
         )
@@ -403,38 +359,36 @@ def Exit_Monastery_Overlook() -> BehaviorTree:
         "Assassin": STARTER_DAGGERS,
         "Ritualist": STARTER_RITUALIST_WAND,
     }
+    LUDO_GREETING_COORDS = (-7048,5817)
 
     def _move_to_profession_coords(node: BehaviorTree.Node) -> BehaviorTree:
-        return BT.HandleAutoQuest(
-            pos=node.blackboard["profession_coords"],
-            buttons=[0, 0],
+        return BT.Sequence(
+            name="MoveToProfessionCoords",
+            children=[
+                BT.GetValuesByProfession( profession_values=MASTER_COORDS_BY_PROFESSION,target_key="profession_coords",),
+                BT.HandleAutoQuest( pos=node.blackboard["profession_coords"],buttons=[0, 0],)
+            ]
         )
-        
+          
     def _equip_starter_weapon_by_profession(node: BehaviorTree.Node) -> BehaviorTree:
-        return BT.EquipItemByModelID(node.blackboard["starter_weapon_model_id"])
+        return BT.Sequence(
+            name="EquipStarterWeaponByProfession",
+                children=[
+                    BT.GetValuesByProfession(
+                    profession_values=STARTER_WEAPON_MODEL_IDS,
+                    target_key="starter_weapon_model_id",
+                ),
+                BT.EquipItemByModelID(node.blackboard["starter_weapon_model_id"])
+            ]
+        )
 
-    LUDO_GREETING_COORDS = (-7048,5817)
     return BT.Sequence(
             name="Exit Monastery Overlook",
             children=[
                 BT.HandleAutoQuest(pos=LUDO_GREETING_COORDS, buttons=[0, 0, 1, 0, 0]),
                 BT.WaitForMapLoad(map_id=SHING_JEA_MONASTERY),
-                BT.GetValuesByProfession(
-                    profession_values=MASTER_COORDS_BY_PROFESSION,
-                    target_key="profession_coords",
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="MoveToProfessionCoords",
-                    subtree_fn=_move_to_profession_coords,
-                ),
-                BT.GetValuesByProfession(
-                    profession_values=STARTER_WEAPON_MODEL_IDS,
-                    target_key="starter_weapon_model_id",
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="EquipWeaponByProfession",
-                    subtree_fn=_equip_starter_weapon_by_profession,
-                ),
+                BT.Subtree(name="MoveToProfessionCoords",subtree_fn=_move_to_profession_coords,),
+                BT.Subtree( name="EquipWeaponByProfession", subtree_fn=_equip_starter_weapon_by_profession,),
             ],
         )
     
@@ -453,7 +407,13 @@ def Forming_A_Party() -> BehaviorTree:
             ],
         )
     
-#region profession specific quests
+def _take_quest_for_profession_from_master(node: BehaviorTree.Node, profession: str, COORDS:PointOrPath) -> BehaviorTree:
+    if node.blackboard.get("player_primary_profession_name") != profession:
+        return BT.HandleAutoQuest(pos=COORDS, buttons=[0, 0, 0])
+    return BT.HandleAutoQuest(pos=COORDS, buttons=[0, 0])
+    
+      
+#region warrior
 def WarriorPrimaryStarterQuestsPart1() -> BehaviorTree:
     bot = ensure_botting_tree()
     TO_TALON_SILVERWING_COORDS = [(17065.27, -7227.24),(15051.48, -1352.39)]
@@ -462,7 +422,7 @@ def WarriorPrimaryStarterQuestsPart1() -> BehaviorTree:
     def _approach_talon_silverwing(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Warrior",):
             return BT.Move(TO_TALON_SILVERWING_COORDS)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
+        return BT.Succeeder(name="SkipApproachTalonSilverwing")
     
     def _exit_to_tsumei_if_warrior(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Warrior":
@@ -471,62 +431,68 @@ def WarriorPrimaryStarterQuestsPart1() -> BehaviorTree:
                 children=[
                     BT.Travel(SHING_JEA_MONASTERY),
                     PrepareForBattle(),
-                    bot.Config.Pacifist(),
+                    Pacifist(),
                     BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
                     BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE),
                 ]
             )
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
-
-    
+        return BT.Succeeder(name="SkipExitToTsumei")
     
     return BT.Sequence(
             name="Warrior Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
-                    name="Approach Talon Silverwing",
-                    subtree_fn=_approach_talon_silverwing,
-                ),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree(name="Approach Talon Silverwing", subtree_fn=_approach_talon_silverwing,),
+                BT.Subtree(
                     name="Talon Silverwing Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        TALON_SILVERWING_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Warrior" else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node,"Warrior",TALON_SILVERWING_COORDS,),
                 ),
                 BT.EquipItemByModelID(STARTER_AXE_MODEL_ID),
                 BT.HandleAutoQuest(TALON_SILVERWING_COORDS),
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.ClearEnemiesInArea(TALON_SILVERWING_COORDS, Range.Spellcast.value),
                 BT.Wait(1000),
                 BT.HandleAutoQuest(TALON_SILVERWING_COORDS, require_quest_marker=True, buttons=[0, 0],),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei If Warrior",
-                    subtree_fn=_exit_to_tsumei_if_warrior,
-                ),
+                BT.Subtree(name="Exit To Tsumei If Warrior",subtree_fn=_exit_to_tsumei_if_warrior,),
             ],
         )
 
 def WarriorPrimaryStarterQuestsPart2() -> BehaviorTree:
     WENG_GAH_COORDS = (6678.91, 6318.28)
     KILLSPOT_COORDS = (10887.11, 12441.24)
-    return BT.Sequence(
-            name="Warrior Primary Starter Quests Part 2",
+    
+    def _get_to_panjian_if_warrior(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Warrior":
+            return BT.Succeeder(name="SkipGetToPanjian")
+        
+        return BT.Sequence(
+            name="Get To Panjian Peninsula",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
                 BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA),
+            ]
+        )
+
+    return BT.Sequence(
+            name="Warrior Primary Starter Quests Part 2",
+            children=[
+                BT.Subtree(
+                    name="Get To Panjian If Warrior",
+                    subtree_fn=_get_to_panjian_if_warrior,
+                ),
                 #track down Weng Gah
-                BT.HandleAutoQuest(WENG_GAH_COORDS, buttons=[0,0]),
+                BT.Subtree(
+                    name="Take Quest From Weng Gah If Warrior",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master( node, "Warrior",WENG_GAH_COORDS,),
+                ),
                 BT.MoveAndKill(KILLSPOT_COORDS),
                 BT.HandleAutoQuest(WENG_GAH_COORDS, buttons=[0,0]),
             ],
         )
 
+#region ranger
 def RangerPrimaryStarterQuestsPart1() -> BehaviorTree:
-    bot = ensure_botting_tree()
     RABBIT_PT1_COORDS = (9583.81, -5396.87)
     RABBIT_PT2_COORDS = (7113.02, -8898.87)
     RABBIT_PT3_COORDS = [(6339.18, -10887.55), (4371.29, -12062.85), (2083.06, -11528.21)]
@@ -537,25 +503,19 @@ def RangerPrimaryStarterQuestsPart1() -> BehaviorTree:
     def _approach_sujun(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Ranger",):
             return BT.Move(TO_SUJUN_COORDS)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachSujun"))
+        return BT.Succeeder(name="SkipApproachSujun")
     
     return BT.Sequence(
             name="Ranger Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BehaviorTree.SubtreeNode(
-                    name="Approach Sujun",
-                    subtree_fn=_approach_sujun,
-                ),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree( name="Approach Sujun",subtree_fn=_approach_sujun,),
+                BT.Subtree(
                     name="Sujun Intro",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        SUJUN_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Ranger" else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node,"Ranger", SUJUN_COORDS,),
                 ),
                 BT.HandleAutoQuest(pos=SUJUN_COORDS),
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.MoveAndInteractWithGadget(RABBIT_PT1_COORDS),
                 BT.ClearEnemiesInArea(RABBIT_PT1_COORDS, Range.Spellcast.value),
                 BT.Wait(5000, emote="dance", announce_delay=True),
@@ -579,15 +539,33 @@ def RangerPrimaryStarterQuestsPart2() -> BehaviorTree:
     ZHO_REWARD_COORDS = (8426.00, 1537.00)
     ZHO_ENC_STR = "\\x5CDF\\x8329\\xF25F\\x1B43"
     
-    return BT.Sequence(
-            name="Ranger Primary Starter Quests Part 2",
+    def _get_to_kynya_if_ranger(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Ranger":
+            return BT.Succeeder(name="SkipGetToKinya")
+        
+        return BT.Sequence(
+            name="Get To Kinya Province",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
-                #track down zho
                 BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
                 BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
+            ],
+        )
+        
+    def _cancel_skill_reward_window_if_not_ranger(node: BehaviorTree.Node) -> BehaviorTree:
+        if node.blackboard.get("player_primary_profession_name") != "Ranger":
+            return BT.CancelSkillRewardWindow()
+        return BT.Succeeder(name="SkipCancelSkillRewardWindow")
+
+    
+    return BT.Sequence(
+            name="Ranger Primary Starter Quests Part 2",
+            children=[
+                #track down zho
+                BT.Subtree(name="Get To Kinya Province If Ranger",subtree_fn=_get_to_kynya_if_ranger,),
                 BT.HandleAutoQuest(ZHO_COORDS, buttons=[0, 0],),
+                BT.Subtree( name="Cancel Skill Reward Window If Not Ranger",subtree_fn=_cancel_skill_reward_window_if_not_ranger,),
                 BT.HandleAutoQuest(ZHO_COORDS),
                 BT.Move(KILLSPOT_COORDS),
                 BT.SendChatCommand("dance"),
@@ -600,8 +578,8 @@ def RangerPrimaryStarterQuestsPart2() -> BehaviorTree:
             ],
         )
     
+#region monk
 def MonkPrimaryStarterQuestsPart1() -> BehaviorTree:
-    bot = ensure_botting_tree()
     TO_SISTER_TAI_COORDS = [(17065.27, -7227.24)]
     SISTER_TAI_COORDS = [(9445.05, 3657.00)]
     KILLSPOT_COORDS = (9969.57, 2771.42)
@@ -609,38 +587,28 @@ def MonkPrimaryStarterQuestsPart1() -> BehaviorTree:
     def _approach_sister_tai(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Monk",):
             return BT.Move(TO_SISTER_TAI_COORDS)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachSisterTai"))
+        return BT.Succeeder(name="SkipApproachSisterTai")
     
     def _exit_to_tsumei_if_monk(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Monk":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
+        return BT.Succeeder(name="SkipExitToTsumei")
     
     return BT.Sequence(
             name="Monk Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
-                    name="Approach Sister Tai",
-                    subtree_fn=_approach_sister_tai,
-                ),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree( name="Approach Sister Tai", subtree_fn=_approach_sister_tai,),
+                BT.Subtree(
                     name="Sister Tai Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        SISTER_TAI_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Monk" else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node,"Monk",SISTER_TAI_COORDS,),
                 ),
                 BT.HandleAutoQuest(pos=SISTER_TAI_COORDS[0],),
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.MoveAndKill(KILLSPOT_COORDS, Range.Spellcast.value),
-                bot.Config.Pacifist(),
+                Pacifist(),
                 BT.HandleAutoQuest(pos=SISTER_TAI_COORDS[0],buttons=[0, 0]),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei If Monk",
-                    subtree_fn=_exit_to_tsumei_if_monk,
-                ),
+                BT.Subtree(name="Exit To Tsumei If Monk",subtree_fn=_exit_to_tsumei_if_monk,),
             ],
         )
     
@@ -648,62 +616,65 @@ def MonkPrimaryStarterQuestsPart2() -> BehaviorTree:
     BROTHER_PE_WAN_COORDS = (4726.45, -2728.68)
     INGREDIENT1_COORDS = (6608.74, 4559.66)
     INGREDIENT2_COORDS = (9602.88, 12303.18)
-    return BT.Sequence(
-            name="Monk Primary Starter Quests Part 2",
+    
+    def _get_to_kynya_if_monk(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Monk":
+            return BT.Succeeder(name="SkipGetToKinya")
+        
+        return BT.Sequence(
+            name="Get To Kinya Province",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
                 BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
                 BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
+            ],
+        )
+        
+    return BT.Sequence(
+            name="Monk Primary Starter Quests Part 2",
+            children=[
+                BT.Subtree(name="Get To Kinya Province If Monk",subtree_fn=_get_to_kynya_if_monk,),
                 #track down brother pe wan
-                BT.HandleAutoQuest(BROTHER_PE_WAN_COORDS,buttons=[0, 0]),
+                BT.Subtree(
+                    name="Take Quest With Brother Pe Wan",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node, "Monk", BROTHER_PE_WAN_COORDS,),
+                ),
                 BT.MoveAndInteractWithGadget(INGREDIENT1_COORDS),
                 BT.MoveAndInteractWithGadget(INGREDIENT2_COORDS),
                 BT.HandleAutoQuest(BROTHER_PE_WAN_COORDS,buttons=[0, 0]),
             ],
         )
     
+#region necromancer
 def NecromancerPrimaryStarterQuestsPart1() -> BehaviorTree:
     TO_RENG_KU_COORDS = [(17065.27, -7227.24),(15051.48, -1352.39)]
     RENG_KU_COORDS = [(16265.57, 3143.39)]
     RENG_KU_REWARD_COORDS = (16268.68, 3136.99)
     KILLSPOT_COORDS = (20268.91, 8145.42)
-    bot = ensure_botting_tree()
 
     def _exit_to_tsumei_if_necromancer(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Necromancer":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
+        return BT.Succeeder(name="SkipExitToTsumei")
 
     return BT.Sequence(
             name="Necromancer Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
+                Pacifist(),
                 BT.Move(TO_RENG_KU_COORDS),
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
-                    name="Reng Ku Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        RENG_KU_COORDS,
-                        buttons=[0, 0],
-                    ),
-                ),
-                bot.Config.Aggressive(),
-                BT.MoveAndKill(KILLSPOT_COORDS),
-                BT.Repeater(
-                    name="KillRepeater",
-                    repeat_count=4,
+                BT.HandleAutoQuest(RENG_KU_COORDS,buttons=[0, 0],),
+                Aggressive(),
+                BT.MoveAndKill(KILLSPOT_COORDS, flag_heroes_to_waypoint=True),
+                BT.Repeater( name="KillRepeater",repeat_count=4,
                     children=[
                         BT.ClearEnemiesInArea(KILLSPOT_COORDS, Range.Spellcast.value),
                         BT.Wait(2000),
                     ],
                 ),
-                bot.Config.Pacifist(),
+                Pacifist(),
                 BT.HandleAutoQuest(RENG_KU_REWARD_COORDS, buttons=[0,0]),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei If Necromancer",
-                    subtree_fn=_exit_to_tsumei_if_necromancer,
-                ),
+                BT.Subtree(name="Exit To Tsumei If Necromancer",subtree_fn=_exit_to_tsumei_if_necromancer,),
             ],
         )
     
@@ -715,86 +686,98 @@ def NecromancerPrimaryStarterQuestsPart2() -> BehaviorTree:
                         (12615.04, -10692.58),
                         (9007.76, -9230.19)]
     
-    KILL_POINTS = [BT.MoveAndKill(coord, Range.Spellcast.value) for coord in KILLSPOTS_COORDS]
-    
-    return BT.Sequence(
-            name="Necromancer Primary Starter Quests Part 2",
+    def _get_to_panjian_if_necromancer(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Necromancer":
+            return BT.Succeeder(name="SkipGetToPanjian")
+        return BT.Sequence(
+            name="Get To Panjian Peninsula",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
                 BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA),
-                BT.HandleAutoQuest(SU_COORDS, buttons=[0, 0],),
+            ]
+        )
+    
+    return BT.Sequence(
+            name="Necromancer Primary Starter Quests Part 2",
+            children=[
+                BT.Subtree(name="Get To Panjian If Necromancer",subtree_fn=_get_to_panjian_if_necromancer,),
+                BT.Subtree(
+                    name="Take Quest From Su",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node,"Necromancer",SU_COORDS,),
+                ),
                 BT.HandleAutoQuest(SU_COORDS, buttons=[0,],),
-                *KILL_POINTS,
-                BT.HandleAutoQuest(pos=None, 
-                                   use_npc_model_or_enc_str=SU_ENC_STR, 
-                                   require_quest_marker=True, buttons=[0, 0],), 
+                *[BT.MoveAndKill(coord, Range.Spellcast.value, flag_heroes_to_waypoint=True) for coord in KILLSPOTS_COORDS],
+                BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=SU_ENC_STR, require_quest_marker=True, buttons=[0, 0],), 
             ],
         )
 
+#region mesmer
 def MesmerPrimaryStarterQuestsPart1() -> BehaviorTree:
-    bot = ensure_botting_tree()
     TO_MEI_LING_COORDS = [(17065.27, -7227.24),]
     MEI_LING_COORDS = [(6805.08, -1273.33)]
     KILLSPOT_COORDS = (-8735.46, 3582.86)
     OVER_THE_BRIDGE_COORDS = (-7333.20, 6846.77)
-    TO_TSSUMEI_VILLAGE_COORDS = [(6240.77, -5034.47), (-5.33, -10856.58)] + FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE
+    TO_TSUMEI_VILLAGE_COORDS = [(6240.77, -5034.47), (-5.33, -10856.58)] + FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE
     
     def _approach_mei_ling(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Mesmer",):
             return BT.Move(TO_MEI_LING_COORDS)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachMeiLing"))
+        return BT.Succeeder(name="SkipApproachMeiLing")
     
     def _exit_to_tsumei_if_mesmer(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Mesmer":
-            return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
+            return BT.MoveAndExitMap(TO_TSUMEI_VILLAGE_COORDS, target_map_id=TSUMEI_VILLAGE)
+        return BT.Succeeder(name="SkipExitToTsumei")
     
     return BT.Sequence(
             name="Mesmer Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
-                    name="Approach Mei Ling",
-                    subtree_fn=_approach_mei_ling,
-                ),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree(name="Approach Mei Ling",subtree_fn=_approach_mei_ling,),
+                BT.Subtree(
                     name="Mei Ling Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        MEI_LING_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Mesmer" else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master( node,"Mesmer",MEI_LING_COORDS,),
                 ),
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.Move(KILLSPOT_COORDS),
                 BT.MoveDirect(OVER_THE_BRIDGE_COORDS),
                 BT.HandleAutoQuest(MEI_LING_COORDS, buttons=[0, 0],),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei If Mesmer",
-                    subtree_fn=_exit_to_tsumei_if_mesmer,
-                ),
+                BT.Subtree(name="Exit To Tsumei If Mesmer",subtree_fn=_exit_to_tsumei_if_mesmer,),
             ],
         )
     
 def MesmerPrimaryStarterQuestsPart2() -> BehaviorTree:
-    KILLSPOT_COORDS = [(11957.96, 3480.97),(8015.62, -2143.84),(6868.74, -8670.04),(4061.85, -13737.38)]
+    KILLSPOT_COORDS = [(11957.96, 3480.97),(8015.62, -2143.84),]
+    KILLSPOT_END_COORDS = [(6868.74, -8670.04),(4061.85, -13737.38)]
     LO_SHA_COORDS = (5362.32, -13625.09)
     
     QUEST_KILL_SPOT1_COORDS = (9501.89, -10770.79)
     CHEST_LOCATION_COORDS = (11039.42, -13346.81)
     
+    def _exit_to_kinya_if_mesmer(node: BehaviorTree.Node) -> BehaviorTree:
+        if node.blackboard.get("player_primary_profession_name") == "Mesmer":
+            return BT.Sequence(
+                name="Get To Kinya Province",
+                map_id_or_name=TSUMEI_VILLAGE,
+                map_prep=PrepareForBattle(),
+                children=[
+                    BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
+                    BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
+                    BT.MoveAndKill(KILLSPOT_COORDS),
+                ],
+            )
+        return BT.Succeeder(name="SkipExitToKinya")
     
     return BT.Sequence(
             name="Mesmer Primary Starter Quests Part 2",
-            map_id_or_name=TSUMEI_VILLAGE,
-            map_prep=PrepareForBattle(),
             children=[
-                #track down Lo Sha
-                BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
-                BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
-                BT.MoveAndKill(KILLSPOT_COORDS),
-                BT.HandleAutoQuest(LO_SHA_COORDS, buttons=[0, 0],),
+                BT.Subtree(name="Exit To Kinya If Mesmer",subtree_fn=_exit_to_kinya_if_mesmer,),
+                BT.MoveAndKill(KILLSPOT_END_COORDS),
+                BT.Subtree(
+                    name="Take Quest With Lo Sha",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node, "Mesmer", LO_SHA_COORDS,),
+                ),
                 BT.MoveAndKill(QUEST_KILL_SPOT1_COORDS, Range.Spellcast.value),
                 BT.MoveAndKill(CHEST_LOCATION_COORDS, Range.Spellcast.value),
                 BT.MoveAndInteractWithGadget(CHEST_LOCATION_COORDS),
@@ -802,38 +785,30 @@ def MesmerPrimaryStarterQuestsPart2() -> BehaviorTree:
             ],
         )
     
+#region elementalist
 def ElementalistPrimaryStarterQuestsPart1() -> BehaviorTree:
-    bot = ensure_botting_tree()
     RONSU_COORDS = [(10981.46, -8381.28)]
     KILLSPOT_COORDS = (14418.98, -18023.70)
     BACK_TO_RONSU_COORDS = [(14614.99, -15139.23),(12895.58, -11721.12)] + RONSU_COORDS
     
-    
     def _exit_to_tsumei_if_elementalist(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Elementalist":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
-        
+        return BT.Succeeder(name="SkipExitToTsumei")
+    
     return BT.Sequence(
             name="Elementalist Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree(
                     name="Ronsu Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        RONSU_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Elementalist" else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master( node,"Elementalist", RONSU_COORDS, ),
                 ),
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.MoveAndKill(KILLSPOT_COORDS),
                 BT.MoveAndInteractWithGadget(KILLSPOT_COORDS),
                 BT.HandleAutoQuest(BACK_TO_RONSU_COORDS, buttons=[0, 0],),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei If Elementalist",
-                    subtree_fn=_exit_to_tsumei_if_elementalist,
-                ),
+                BT.Subtree(name="Exit To Tsumei If Elementalist",subtree_fn=_exit_to_tsumei_if_elementalist,),
             ],
         )
     
@@ -841,28 +816,42 @@ def ElementalistPrimaryStarterQuestsPart2() -> BehaviorTree:
     KAI_YING_COORDS = (15066.79, 7242.23)
     KAI_YING_ENC_STR = "\\x5CC4\\xCCE5\\xCAA0\\x450B"
     KILLSPOT_COORDS = (14787.48, 5764.21)
-    return BT.Sequence(
-            name="Elementalist Primary Starter Quests Part 2",
+    
+    def _get_to_panjian_if_elementalist(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Elementalist":
+            return BT.Succeeder(name="SkipGetToPanjian")
+        
+        return BT.Sequence(
+            name="Get To Panjian Peninsula",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
-                BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA),
-                #track down Kai Ying
-                BT.HandleAutoQuest(KAI_YING_COORDS, buttons=[0,0]),
+                BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA)
+            ]
+        )
+    
+    return BT.Sequence(
+            name="Elementalist Primary Starter Quests Part 2",
+            children=[
+                BT.Subtree( name="Get To Panjian If Elementalist",subtree_fn=_get_to_panjian_if_elementalist,),
+                BT.Subtree(
+                    name="Take Quest From Kai Ying If Elementalist",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master( node,"Elementalist",KAI_YING_COORDS,),
+                ),
                 BT.MoveAndKill(KILLSPOT_COORDS),
                 BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=KAI_YING_ENC_STR, buttons=[0, 0],require_quest_marker=True,),    
             ],
         )
 
+#region assassin
 def AssassinPrimaryStarterQuestsPart1() -> BehaviorTree:
-    bot = ensure_botting_tree()
     TO_JINZO_COORDS = [(17065.27, -7227.24),(15051.48, -1352.39),]
     JINZO_COORDS = (13882.44, 4427.73)
     
     def _approach_jinzo(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Assassin", "Necromancer"):
             return BT.Move(TO_JINZO_COORDS)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachJinzo"))
+        return BT.Succeeder(name="SkipApproachJinzo")
     
     def _exit_to_tsumei_if_assassin(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Assassin":
@@ -871,68 +860,76 @@ def AssassinPrimaryStarterQuestsPart1() -> BehaviorTree:
                 children=[
                     BT.Travel(SHING_JEA_MONASTERY),
                     PrepareForBattle(),
-                    bot.Config.Pacifist(),
+                    Pacifist(),
                     BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
                     BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE),
                 ]
             )
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
+        return BT.Succeeder(name="SkipExitToTsumei")
     
     return BT.Sequence(
             name="Assassin Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
-                    name="Approach Jinzo",
-                    subtree_fn=_approach_jinzo,
-                ),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree(name="Approach Jinzo",subtree_fn=_approach_jinzo, ),
+                BT.Subtree(
                     name="Jinzo Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        JINZO_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") in ("Assassin", "Necromancer") else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node, "Assassin",JINZO_COORDS,),
                 ),
                 BT.HandleAutoQuest(JINZO_COORDS,buttons=[0]),
-                bot.Config.Aggressive(),
-                BT.Repeater(
-                    name="KillRepeater",
-                    repeat_count=4,
+                BT.Wait(1000),
+                Aggressive(),
+                BT.Repeater(name="KillRepeater",repeat_count=4,
                     children=[
                         BT.ClearEnemiesInArea(JINZO_COORDS, Range.Spellcast.value),
                         BT.Wait(2000),
                     ],
                 ),
+                BT.Wait(1000),
                 BT.HandleAutoQuest(JINZO_COORDS, require_quest_marker=True, buttons=[0, 0],),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei Village",
-                    subtree_fn=_exit_to_tsumei_if_assassin,
-                ),
+                BT.Subtree(name="Exit To Tsumei Village",subtree_fn=_exit_to_tsumei_if_assassin,),
             ],
         )
     
 def AssassinPrimaryStarterQuestsPart2() -> BehaviorTree:
     PANAKU_COORDS = [(11957.96, 3480.97),(8015.62, -2143.84),(5694.44, -5869.79),(1767.95, -8105.97),(-324.27, -7779.27)]
+    PANAKU_END_COORDS = [(1767.95, -8105.97),(-324.27, -7779.27)]
     PANAKU_MODEL_ID = 3350
     FINISH_SCORT_AREA_COORDS = (-3304.27, 1351.91)
     KILLSPOT_COORDS = (-2671.26, 2907.70)
-    return BT.Sequence(
-            name="Assassin Primary Starter Quests Part 2",
+    
+    def _get_to_kynya_if_assassin(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Assassin":
+            return BT.Succeeder(name="SkipGetToKinya")
+        
+        return BT.Sequence(
+            name="Get To Kinya Province",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
                 BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
                 BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
-                #track down Panaku
-                BT.HandleAutoQuest(PANAKU_COORDS,buttons=[0, 0]),
-                BT.HandleAutoQuest(PANAKU_COORDS[4],buttons=[0]),
+                BT.Move(PANAKU_COORDS),
+            ],
+        )
+    
+    return BT.Sequence(
+            name="Assassin Primary Starter Quests Part 2",
+            children=[
+                BT.Subtree(name="Get To Kinya If Assassin",subtree_fn=_get_to_kynya_if_assassin,),
+                BT.Move(PANAKU_END_COORDS),
+                BT.Subtree(
+                    name="Take Quest With Panaku",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master( node,"Assassin",PANAKU_COORDS,),
+                ),
+                BT.HandleAutoQuest(PANAKU_END_COORDS[1],buttons=[0]),
                 BT.FollowModel(
                     PANAKU_MODEL_ID,
                     follow_range=Range.Area.value,
                     exit_by_area=(FINISH_SCORT_AREA_COORDS, Range.Spellcast.value),
                 ),
                 BT.MoveAndKill(KILLSPOT_COORDS, Range.Spellcast.value),
+                BT.Wait(1000),
                 BT.HandleAutoQuest(None,
                                    use_npc_model_or_enc_str=PANAKU_MODEL_ID, 
                                    require_quest_marker=True, 
@@ -940,44 +937,36 @@ def AssassinPrimaryStarterQuestsPart2() -> BehaviorTree:
             ],
         )
     
+#region ritualist
 def RitualistPrimaryStarterQuestsPart1() -> BehaviorTree:
-    bot = ensure_botting_tree()
     PROFESSOR_GAI_COORDS = (9037.29, -12521.27)
     KILLSPOT_COORDS = (8566.58, -13654.18)
     
     def _exit_to_tsumei_if_ritualist(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Ritualist", "Ranger"):
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
-        return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
+        return BT.Succeeder(name="SkipExitToTsumei")
     
     return BT.Sequence(
             name="Ritualist Primary Starter Quests Part 1",
             children=[
-                bot.Config.Pacifist(),
-                BehaviorTree.SubtreeNode(
+                Pacifist(),
+                BT.Subtree(
                     name="Professor Gai Intro Quest",
-                    subtree_fn=lambda node: BT.HandleAutoQuest(
-                        PROFESSOR_GAI_COORDS,
-                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Ritualist" else [0, 0, 0],
-                    ),
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master( node,"Ritualist",PROFESSOR_GAI_COORDS,),
                 ),
                 BT.HandleAutoQuest(PROFESSOR_GAI_COORDS,buttons=[0]),
-                bot.Config.Aggressive(),
+                Aggressive(),
                 BT.MoveAndKill(KILLSPOT_COORDS, Range.Spellcast.value),
-                BT.Repeater(
-                    name="KillRepeater",
-                    repeat_count=4,
+                BT.Repeater(name="KillRepeater",repeat_count=4,
                     children=[
                         BT.ClearEnemiesInArea(KILLSPOT_COORDS, Range.Spellcast.value),
-                        BT.Wait(500),
+                        BT.Wait(1000),
                     ],
                 ),
                 BT.HandleAutoQuest(PROFESSOR_GAI_COORDS, require_quest_marker=True, buttons=[0, 0],),
-                bot.Config.Pacifist(),
-                BehaviorTree.SubtreeNode(
-                    name="Exit To Tsumei If Ritualist",
-                    subtree_fn=_exit_to_tsumei_if_ritualist,
-                ),
+                Pacifist(),
+                BT.Subtree(name="Exit To Tsumei If Ritualist",subtree_fn=_exit_to_tsumei_if_ritualist,),
             ],
         )
 
@@ -999,13 +988,27 @@ def RitualistPrimaryStarterQuestsPart2() -> BehaviorTree:
                         ])
                     for coord in KILLSPOTS_COORDS]
     
-    return BT.Sequence(
-            name="Ritualist Primary Starter Quests Part 2",
+    def _get_to_panjian_if_ritualist(node: BehaviorTree.Node) -> BehaviorTree: 
+        if node.blackboard.get("player_primary_profession_name") != "Ritualist":
+            return BT.Succeeder(name="SkipGetToPanjian")
+        
+        return BT.Sequence(
+            name="Get To Panjian Peninsula",
             map_id_or_name=TSUMEI_VILLAGE,
             map_prep=PrepareForBattle(),
             children=[
-                BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA),
-                BT.HandleAutoQuest(ANG_THE_EPHIMERAL_COORDS, buttons=[0, 0],),
+                BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA)
+            ]
+        )
+    
+    return BT.Sequence(
+            name="Ritualist Primary Starter Quests Part 2",
+            children=[
+                BT.Subtree(name="Get To Panjian If Ritualist",subtree_fn=_get_to_panjian_if_ritualist,),
+                BT.Subtree(
+                    name="Take Quest From Ang The Ephimeral If Ritualist",
+                    subtree_fn=lambda node: _take_quest_for_profession_from_master(node,"Ritualist",ANG_THE_EPHIMERAL_COORDS,),
+                ),
                 BT.HandleAutoQuest(ANG_THE_EPHIMERAL_COORDS, buttons=[0,],),
                 *KILL_POINTS,
                 BT.HandleAutoQuest(pos=None, 
@@ -1039,21 +1042,17 @@ def Profession_Specific_QuestsPart2() -> BehaviorTree:
     )
     
 def An_Audience_WithMasterTogo() -> BehaviorTree:
-    bot = ensure_botting_tree()
-    
     return BT.Sequence(
             name="An Audience With Master Togo",
             map_id_or_name=SHING_JEA_MONASTERY,
             map_prep=PrepareForBattle(),
             children=[
-                bot.Config.Pacifist(),
+                Pacifist(),
                 BT.MoveAndExitMap((-3480, 9460), target_map_name="Linnok Courtyard",),
                 BT.HandleAutoQuest(pos=[(-159, 9174), (-92, 9217)]),
-                BT.Repeater(
-                    name="Take All Dialog Options",
-                    repeat_count=7,
+                BT.Repeater(name="Take All Dialog Options", repeat_count=7,
                     children=[
-                        BT.HandleAutoQuest(pos=[(-159, 9174), (-92, 9217)], buttons=[0, 0],),
+                        BT.HandleAutoQuest(pos=[(-92, 9217)], buttons=[0, 0],),
                     ],
                 ),
                 BT.MoveAndExitMap((-3762, 9471),target_map_id=SHING_JEA_MONASTERY,),
@@ -1061,150 +1060,22 @@ def An_Audience_WithMasterTogo() -> BehaviorTree:
         )
 
 
+#region xunlai
 def Unlock_Xunlai_Storage() -> BehaviorTree:
-    path_to_xunlai = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
-    xunlai_agent_coords = (-3825.09, 10386.81)
+    PATH_TO_XUNLAI = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
+    XUNLAI_AGENT_COORDS = (-3825.09, 10386.81)
     
     return BT.Sequence(
             name="Unlock Xunlai Storage",
             map_id_or_name=SHING_JEA_MONASTERY,
             map_prep=PrepareForBattle(),
             children=[
-                BT.MoveAndDialog(path_to_xunlai, 0x84),
-                BT.DialogAtXY(xunlai_agent_coords, 0x800001),
-                BT.DialogAtXY(xunlai_agent_coords, 0x800002),
+                BT.MoveAndDialog(PATH_TO_XUNLAI, 0x84),
+                BT.DialogAtXY(XUNLAI_AGENT_COORDS, 0x800001),
+                BT.DialogAtXY(XUNLAI_AGENT_COORDS, 0x800002),
             ],
         )
     
-def _build_early_armor_materials(
-    profession: str,
-    armor_data: list[tuple[int, list[int], list[int]]],
-) -> list[tuple[int, int]]:
-    totals_by_model: dict[int, int] = {}
-
-    for _, material_models, material_quantities in armor_data:
-        for model_id, quantity in zip(material_models, material_quantities):
-            totals_by_model[model_id] = totals_by_model.get(model_id, 0) + int(quantity)
-
-    profession_data = TSUMEI_VILLAGE_WEAPON_COMMON_MATERIALS_DATA.get(profession, {})
-    recipes = profession_data.get("recipes", {})
-
-    for recipe_data in recipes.values():
-        for model_id, quantity in recipe_data.get("common_materials", []):
-            totals_by_model[model_id] = totals_by_model.get(model_id, 0) + int(quantity)
-
-    return [
-        (model_id, max(1, math.ceil(total_quantity / 10)))
-        for model_id, total_quantity in totals_by_model.items()
-        if total_quantity > 0
-    ]
-
-
-def _build_tsumei_rare_materials(profession: str) -> list[tuple[int, int]]:
-    totals_by_model: dict[int, int] = {}
-    profession_data = TSUMEI_VILLAGE_WEAPON_COMMON_MATERIALS_DATA.get(profession, {})
-    recipes = profession_data.get("recipes", {})
-
-    for recipe_data in recipes.values():
-        for model_id, quantity in recipe_data.get("rare_materials", []):
-            totals_by_model[model_id] = totals_by_model.get(model_id, 0) + int(quantity)
-
-    return [(model_id, total_quantity) for model_id, total_quantity in totals_by_model.items() if total_quantity > 0]
-
-
-def _build_monastery_armor_routine(
-    material_merchant_coords: PointOrPath,
-    rare_material_merchant_coords: PointOrPath,
-    armor_crafter_coords: PointOrPath,
-    armor_data: list[tuple[int, list[int], list[int]]],
-    profession: str,
-) -> BehaviorTree:
-    craft_and_equip_steps: list[BehaviorTree | BehaviorTree.Node] = []
-
-    for item_id, mats, qtys in armor_data:
-        craft_and_equip_steps.append(
-            BT.CraftItem(
-                output_model_id=item_id,
-                cost=20,
-                trade_model_ids=mats,
-                quantity_list=qtys,
-            )
-        )
-        craft_and_equip_steps.append(BT.EquipItemByModelID(item_id))
-
-    return BT.Sequence(
-        name="Buy And Craft Profession Armor",
-        children=[
-            BT.MoveAndInteract(material_merchant_coords),
-            BT.BuyMaterialsFromList(_build_early_armor_materials(profession, armor_data), rare_trader=False),
-            BT.MoveAndInteract(rare_material_merchant_coords),
-            BT.BuyMaterialsFromList(_build_tsumei_rare_materials(profession), rare_trader=True),
-            BT.MoveAndInteract(armor_crafter_coords),
-            *craft_and_equip_steps,
-        ],
-    )
-
-
-def _build_monastery_armor_nodes(
-    material_merchant_coords: PointOrPath,
-    rare_material_merchant_coords: PointOrPath,
-    armor_crafter_coords: PointOrPath,
-) -> dict[str, BehaviorTree]:
-    return {
-        f"{profession}Node": _build_monastery_armor_routine(
-            material_merchant_coords,
-            rare_material_merchant_coords,
-            armor_crafter_coords,
-            armor_data,
-            profession,
-        )
-        for profession, armor_data in MONASTERY_ARMOR_DATA.items()
-    }
-
-
-def _build_tsumei_weapon_craft_routine(profession: str) -> BehaviorTree:
-    profession_data = TSUMEI_VILLAGE_WEAPON_COMMON_MATERIALS_DATA.get(profession, {})
-    recipes = profession_data.get("recipes", {})
-    craft_and_equip_steps: list[BehaviorTree | BehaviorTree.Node] = []
-
-    for recipe_data in recipes.values():
-        model_id = recipe_data.get("model_id")
-        if model_id is None:
-            continue
-
-        common_materials = [model for model, _ in recipe_data.get("common_materials", [])]
-        common_quantities = [quantity for _, quantity in recipe_data.get("common_materials", [])]
-        rare_materials = [model for model, _ in recipe_data.get("rare_materials", [])]
-        rare_quantities = [quantity for _, quantity in recipe_data.get("rare_materials", [])]
-
-        craft_and_equip_steps.append(
-            _trace_step(
-                f"Craft Weapon {model_id}",
-                BT.CraftItem(
-                    output_model_id=model_id,
-                    cost=recipe_data.get("cost", 0),
-                    trade_model_ids=common_materials + rare_materials,
-                    quantity_list=common_quantities + rare_quantities,
-                ),
-            )
-        )
-        craft_and_equip_steps.append(
-            BT.EquipItemByModelID(model_id),
-        )
-
-    return BT.Sequence(
-        name=f"Craft Tsumei Weapon<{profession}>",
-        children=craft_and_equip_steps,
-    )
-
-
-def _build_tsumei_weapon_nodes() -> dict[str, BehaviorTree]:
-    return {
-        f"{profession}Node": _build_tsumei_weapon_craft_routine(profession)
-        for profession in TSUMEI_VILLAGE_WEAPON_COMMON_MATERIALS_DATA
-    }
-
-
 def DestroyTrash() -> BehaviorTree:
     return BT.Sequence(
             name="Destroy Trash Items",
@@ -1214,6 +1085,7 @@ def DestroyTrash() -> BehaviorTree:
         )
 
 
+#region crafting
 def BuyAndCraftMonasteryArmor() -> BehaviorTree:
     MATERIAL_MERCHANT_COORDS = [(-10896.94, 10807.54), (-10942.73, 10783.19), (-10614.00, 10996.00),]
     RARE_MATERIAL_MERCHANT_COORDS = (-10589.20, 10745.83)
@@ -1226,28 +1098,29 @@ def BuyAndCraftMonasteryArmor() -> BehaviorTree:
             map_prep=PrepareForBattle(),
             children=[
                 BT.EqualizeGold(target_gold=1600),
-                BT.GetNodeByProfession(
-                    **_build_monastery_armor_nodes(
-                        MATERIAL_MERCHANT_COORDS,
-                        RARE_MATERIAL_MERCHANT_COORDS,
-                        ARMOR_CRAFTER_COORDS,
-                    )
+                BT.MoveAndInteract(MATERIAL_MERCHANT_COORDS),
+                BT.BuyMaterialsByProfession(
+                    profession_materials=MONASTERY_COMMON_BUY_BY_PROFESSION,
+                    rare_trader=False,
+                ),
+                BT.MoveAndInteract(RARE_MATERIAL_MERCHANT_COORDS),
+                BT.BuyMaterialsByProfession(
+                    profession_materials=TSUMEI_RARE_BUY_BY_PROFESSION,
+                    rare_trader=True,
+                ),
+                BT.MoveAndInteract(ARMOR_CRAFTER_COORDS),
+                BT.CraftItemsByProfession(
+                    profession_craft_steps=MONASTERY_ARMOR_CRAFT_BY_PROFESSION,
                 ),
                 DestroyTrash(),
                 BT.Travel(TSUMEI_VILLAGE),
                 BT.MoveAndInteract(WEAPON_CRAFTER_COORDS),
-                BT.GetNodeByProfession(**_build_tsumei_weapon_nodes()),
+                BT.CraftItemsByProfession(
+                    profession_craft_steps=TSUMEI_WEAPON_CRAFT_BY_PROFESSION,
+                ),
             ],
         )
 
-OTHER_MASTER_COORDS_BY_PROFESSION: dict[str, list[PointOrPath]] = {
-    profession: [
-        coords
-        for other_profession, coords in MASTER_COORDS_BY_PROFESSION.items()
-        if other_profession != profession
-    ]
-    for profession in MASTER_COORDS_BY_PROFESSION
-}
 
 
 def _talk_with_other_masters(node: BehaviorTree.Node) -> BehaviorTree:
@@ -1260,44 +1133,43 @@ def _talk_with_other_masters(node: BehaviorTree.Node) -> BehaviorTree:
             for index, coords in enumerate(master_coords)
         ],
     )
-    
-def _equip_empty_skillbar(node: BehaviorTree.Node) -> BehaviorTree:
-    empty_skillbar = node.blackboard["empty_skillbar"]
-    if empty_skillbar is None:
-        return BehaviorTree(
-            BehaviorTree.ActionNode(
-                name="NoEmptySkillbarToEquip",
-                action_fn=lambda: BehaviorTree.NodeState.SUCCESS,
-            )
-        )
-
-    return BT.LoadSkillbar(empty_skillbar)
 
 
+#region secondaries
 def Talk_With_Masters() -> BehaviorTree:
     NEING_THE_TANNER_COORDS = (-9762.71, 9685.96)
     CAPTAIN_ZINGHU_COORDS = (-9786.34, 8348.70)
+
+    def _equip_empty_skillbar(node: BehaviorTree.Node) -> BehaviorTree:
+        def _load_empty_skillbar_from_blackboard(inner_node: BehaviorTree.Node) -> BehaviorTree:
+            empty_skillbar = inner_node.blackboard["empty_skillbar"]
+            if empty_skillbar is None:
+                return BT.Succeeder(name="NoEmptySkillbarToEquip")
+
+            return BT.LoadSkillbar(empty_skillbar)
+
+        return BT.Sequence(
+            name="Equip Empty Skillbar",
+            children=[
+                BT.GetValuesByProfession(
+                    profession_values=EMPTY_SKILLBARS,
+                    target_key="empty_skillbar",
+                ),
+                BT.Subtree(
+                    name="Load Empty Skillbar",
+                    subtree_fn=_load_empty_skillbar_from_blackboard,
+                ),
+            ],
+        )
+
     return BT.Sequence(
         name="Talk With Masters",
         map_id_or_name=SHING_JEA_MONASTERY,
         map_prep=PrepareForBattle(),
         children=[
-            BT.GetValuesByProfession(
-                profession_values=EMPTY_SKILLBARS,
-                target_key="empty_skillbar",
-            ),
-            BehaviorTree.SubtreeNode(
-                name="Equip Empty Skillbar",
-                subtree_fn=_equip_empty_skillbar,
-            ),
-            BT.GetValuesByProfession(
-                profession_values=OTHER_MASTER_COORDS_BY_PROFESSION,
-                target_key="other_master_coords",
-            ),
-            BehaviorTree.SubtreeNode(
-                name="Talk With Masters Subtree",
-                subtree_fn=_talk_with_other_masters,
-            ),
+            BT.Subtree(name="Equip Empty Skillbar", subtree_fn=_equip_empty_skillbar, ),
+            BT.GetValuesByProfession( profession_values=OTHER_MASTER_COORDS_BY_PROFESSION, target_key="other_master_coords",),
+            BT.Subtree( name="Talk With Masters Subtree", subtree_fn=_talk_with_other_masters,),
             DestroyTrash(),
             BT.HandleAutoQuest(NEING_THE_TANNER_COORDS), #a blet pouch
             BT.HandleAutoQuest(CAPTAIN_ZINGHU_COORDS), #appearance of the naga
@@ -1305,234 +1177,129 @@ def Talk_With_Masters() -> BehaviorTree:
             BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
         ],
     )
-
+    
 def FirstSecondaryBlock() -> BehaviorTree:
     return BT.Sequence(
             name="First Secondary Profession Block",
             children=[
-                BT.StoreProfessionNames(),
-                BehaviorTree.SubtreeNode(
-                    name="Necromancer Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Necromancer Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Necromancer action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Necromancer' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipNecromancerSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Necromancer"
-                            else NecromancerPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
+                BT.SkipNodeByProfession("Necromancer", NecromancerPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Assassin", AssassinPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Warrior", WarriorPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Monk", MonkPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Mesmer", MesmerPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Elementalist", ElementalistPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Ritualist", RitualistPrimaryStarterQuestsPart1()),
+                BT.SkipNodeByProfession("Ranger", RangerPrimaryStarterQuestsPart1()),
+            ],
+        )
+
+def R_Mo_Me_A_secondaries_and_Appearance_of_the_naga() -> BehaviorTree:
+    SISTER_CHOI_JU_COORDS = (-9999.64, -15870.08)
+    WULK_ENC_STR = "\\x5D7C\\xE26C\\xE63B\\x5AD5"
+    PATH_TO_WULK = [(-14675.84, -3652.20), (-17245.75, -1337.33), (-13281.57, -575.03), (-12287.93, 437.10)]
+    PATH_TO_NAGA_KILLSPOT = [(-6239.60, -4249.77),(-15608.21, -6463.72)]
+    
+    ZHO_COORDS = (9760.99, 5168.66)
+
+    def _escort_complete() -> bool:
+        wulk_agent_id = int(RoutinesAgents.GetAgentIDByModelOrEncStr(WULK_ENC_STR) or 0)
+        return (
+            wulk_agent_id != 0
+            and Agent.HasQuest(wulk_agent_id)
+            and not Checks.Agents.InDanger(aggro_area=Range.Spirit)
+        )
+    
+    return BT.Sequence(
+        name="R/Mo/Me/A Secondaries and Appearance of the Naga",
+        map_id_or_name=TSUMEI_VILLAGE,
+        map_prep=PrepareForBattle(),
+        children=[
+            BT.HandleAutoQuest(SISTER_CHOI_JU_COORDS), #appearance of the naga
+            BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
+            BT.MoveAndKill(PATH_TO_NAGA_KILLSPOT), #kill the naga
+            BT.MoveAndKill(PATH_TO_WULK), #wulk Cragfist
+            #BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=WULK_ENC_STR, require_quest_marker=False), #revenge of the yeti
+            #BT.FollowModel(WULK_ENC_STR, exit_condition=_escort_complete, exit_by_area=((-13717.04, 7714.01), Range.Earshot.value)),
+            #BT.ClearEnemiesInArea((-13717.04, 7714.01)),
+            #BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=WULK_ENC_STR, require_quest_marker=True), 
+            BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
+            BT.Move(ZHO_COORDS),
+            BT.SkipNodeByProfession("Ranger", RangerPrimaryStarterQuestsPart2()), 
+            BT.SkipNodeByProfession("Monk", MonkPrimaryStarterQuestsPart2()),
+            BT.SkipNodeByProfession("Mesmer", MesmerPrimaryStarterQuestsPart2()),
+            BT.SkipNodeByProfession("Assassin", AssassinPrimaryStarterQuestsPart2()),
+        ],
+    )
+
+    
+def W_E_Rt_N_and_secondaries() -> BehaviorTree:
+    HERDER_TSIYINJU_COORDS = (18180.43, 7276.40)
+    CORSAIRS_KILLSPOT_COORDS = (19766.83, 10781.28)
+    FARMER_ZINHAO_COORDS =  (12269.25, 5379.94)
+    
+    return BT.Sequence(
+        name="R/Mo/Me/A Secondaries and Appearance of the Naga",
+        map_id_or_name=TSUMEI_VILLAGE,
+        map_prep=PrepareForBattle(),
+        children=[
+            BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_PANJIAN_PENINSULA, target_map_id=PANJIAN_PENINSULA),
+            BT.SkipNodeByProfession("Warrior", WarriorPrimaryStarterQuestsPart2()), 
+            BT.SkipNodeByProfession("Elementalist", ElementalistPrimaryStarterQuestsPart2()),
+            #a belt pouch
+            BT.HandleAutoQuest(HERDER_TSIYINJU_COORDS),
+            BT.MoveAndKill(CORSAIRS_KILLSPOT_COORDS), #kill the bandits for the belt pouch
+            BT.HandleAutoQuest(HERDER_TSIYINJU_COORDS),
+            BT.HandleAutoQuest(FARMER_ZINHAO_COORDS), #pest control
+            BT.SkipNodeByProfession("Ritualist", RitualistPrimaryStarterQuestsPart2()),
+            BT.SkipNodeByProfession("Necromancer", NecromancerPrimaryStarterQuestsPart2()),
+
+        ],
+    )
+
+def An_Audience_WithMasterTogo_Reward() -> BehaviorTree:
+    TOGO_COORDS = (-92, 9217)
+    return BT.Sequence(
+            name="An Audience With Master Togo Reward",
+            map_id_or_name=SHING_JEA_MONASTERY,
+            map_prep=PrepareForBattle(),
+            children=[
+                BT.Travel(SHING_JEA_MONASTERY),
+                BT.HandleAutoQuest((-7446.29, 10364.74)), #pest control
+                BT.HandleAutoQuest((-9765.87, 9702.94)), #belt pouch
+                BT.EquipInventoryBag(ModelID.Belt_Pouch_Reward.value, Bags.BeltPouch),
+                BT.HandleAutoQuest((-9756.65, 8339.55)),
+                Pacifist(),
+                BT.MoveAndExitMap((-3480, 9460), target_map_name="Linnok Courtyard",),
+                BT.HandleAutoQuest(pos=[TOGO_COORDS]),
+                BT.HandleAutoQuest(pos=[TOGO_COORDS], buttons=[0],),
+                BT.Repeater(
+                    name="Take All Dialog Options",
+                    repeat_count=6,
+                    children=[
+                        BT.HandleAutoQuest(pos=[TOGO_COORDS], buttons=[1, 0],),
+                    ],
                 ),
-                BehaviorTree.SubtreeNode(
-                    name="Assassin Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Assassin Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Assassin action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Assassin' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipAssassinSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Assassin"
-                            else AssassinPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
+                BT.HandleAutoQuest(pos=[TOGO_COORDS], buttons=[0],),
+                BT.Repeater(
+                    name="Cancel Skill Reward Window",
+                    repeat_count=4,
+                    children=[
+                        BT.CancelSkillRewardWindow(),
+                    ],
                 ),
-                BehaviorTree.SubtreeNode(
-                    name="Warrior Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Warrior Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Warrior action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Warrior' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipWarriorSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Warrior"
-                            else WarriorPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="Monk Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Monk Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Monk action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Monk' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipMonkSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Monk"
-                            else MonkPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="Mesmer Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Mesmer Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Mesmer action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Mesmer' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipMesmerSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Mesmer"
-                            else MesmerPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="Elementalist Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Elementalist Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Elementalist action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Elementalist' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipElementalistSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Elementalist"
-                            else ElementalistPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="Ritualist Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Ritualist Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Ritualist action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Ritualist' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipRitualistSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Ritualist"
-                            else RitualistPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="Ranger Secondary Branch",
-                    subtree_fn=lambda node: BT.Sequence(
-                        name="Ranger Secondary Branch Decision",
-                        children=[
-                            BT.LogMessage(
-                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Ranger action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Ranger' else 'entered'}",
-                                module_name=MODULE_NAME,
-                                print_to_console=True,
-                                print_to_blackboard=False,
-                            ),
-                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipRangerSecondaryBranch"))
-                            if node.blackboard.get("player_primary_profession_name") == "Ranger"
-                            else RangerPrimaryStarterQuestsPart1(),
-                        ],
-                    ),
-                ),
+                BT.MoveAndExitMap((-3762, 9471),target_map_id=SHING_JEA_MONASTERY,),
             ],
         )
 
 
-def CapturePet() -> BehaviorTree:
+
+def CapturePet_And_to_minister_cho() -> BehaviorTree:
     bot = ensure_botting_tree()
     PET_CAPTURE_COORDS = (13585.15, -10782.06)
     PET_MODEL_ID = 3005
     CHARM_PET_SKILL_ID = 411
-    return BT.Sequence(
-            name="Capture Pet",
-            map_id_or_name=SHING_JEA_MONASTERY,
-            map_prep=PrepareForBattle(),
-            children=[
-                BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
-                bot.Config.Pacifist(),
-                BT.Move(PET_CAPTURE_COORDS, pause_on_combat=False),
-                BT.MoveAndTargetByModelID(PET_MODEL_ID, pause_on_combat=False),
-                BT.CastSkillID(CHARM_PET_SKILL_ID),
-                BT.Wait(15000),
-            ],
-        )
-
-#region old code
-
-
-
-
-def _handle_unlock_secondary_profession(node: BehaviorTree.Node) -> BehaviorTree:
-    return BT.HandleQuest(
-        317,
-        [(-159, 9174), (-92, 9217)],
-        node.blackboard["unlock_secondary_dialog"],
-        mode="accept",
-    )
-
-
-
-def Unlock_Secondary_Profession() -> BehaviorTree:
-    bot = ensure_botting_tree()
-    unlock_dialog_by_profession = {
-        "Mesmer": 0x813D08,
-        "Warrior": 0x813D0E,
-    }
-    return BT.Sequence(
-            name="Unlock Secondary Profession",
-            map_id_or_name=SHING_JEA_MONASTERY,
-            map_prep=PrepareForBattle(),
-            children=[
-                bot.Config.Pacifist(),
-                BT.MoveAndExitMap((-3480, 9460), target_map_name="Linnok Courtyard",),
-                BT.GetValuesByProfession(
-                    profession_values=unlock_dialog_by_profession,
-                    target_key="unlock_secondary_dialog",
-                ),
-                BehaviorTree.SubtreeNode(
-                    name="UnlockSecondaryProfessionDialog",
-                    subtree_fn=_handle_unlock_secondary_profession,
-                ),
-                BT.HandleQuest(317, (-92, 9217), 0x813D07, mode="complete", cancel_skill_reward_window=True),
-                BT.HandleQuest(318, (-92, 9217), 0x813E01),
-                BT.MoveAndExitMap((-3762, 9471),target_map_id=SHING_JEA_MONASTERY,),
-            ],
-        )
     
-    
-
-def Extend_Inventory_Space() -> BehaviorTree:
-    merchant = (-11866, 11444)
-    return BT.Sequence(
-            name="Extend Inventory Space",
-            map_id_or_name=SHING_JEA_MONASTERY,
-            map_prep=PrepareForBattle(),
-            children=[
-                BT.MoveAndBuyMerchantItem(merchant, ModelID.Belt_Pouch.value, quantity=1),
-                BT.EquipInventoryBag(ModelID.Belt_Pouch.value, Bags.BeltPouch),
-                BT.BuyMerchantItem(ModelID.Bag.value, quantity=1),
-                BT.EquipInventoryBag(ModelID.Bag.value, Bags.Bag1),
-                BT.BuyMerchantItem(ModelID.Bag.value, quantity=1),
-                BT.EquipInventoryBag(ModelID.Bag.value, Bags.Bag2),
-            ],
-        )
-    
-def To_Minister_Chos_Estate() -> BehaviorTree:
     togo_coords = (20036.72, -7821.50)
-    
     intro_quest_path = [
         (17065.27, -7227.24),
         (15051.48, -1352.39),
@@ -1540,22 +1307,26 @@ def To_Minister_Chos_Estate() -> BehaviorTree:
         (7315.20, 10209.45),
         (6692.19, 16005.08)   
     ]
-    minister_cho_state_map_id = 214
     
     return BT.Sequence(
-            name="To Minister Cho's Estate",
+            name="Capture Pet",
             map_id_or_name=SHING_JEA_MONASTERY,
             map_prep=PrepareForBattle(),
             children=[
-                ensure_botting_tree().Config.Pacifist(),
                 BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
                 BT.HandleAutoQuest(togo_coords, log=True),
-                BT.HandleQuest(318, intro_quest_path, 0x80000B, mode="skip", success_map_id=minister_cho_state_map_id),
-                BT.WaitForMapToChange(map_id=minister_cho_state_map_id),
+                Pacifist(),
+                BT.Move(PET_CAPTURE_COORDS, pause_on_combat=False),
+                BT.MoveAndTargetByModelID(PET_MODEL_ID, pause_on_combat=False),
+                BT.CastSkillID(CHARM_PET_SKILL_ID),
+                BT.Wait(15000),
+                BT.HandleQuest(318, intro_quest_path, 0x80000B, mode="skip", success_map_id=MINISTER_CHO_STATE),
+                BT.WaitForMapToChange(map_id=MINISTER_CHO_STATE),
                 BT.HandleQuest(318, (7884, -10029), 0x813E07, mode="complete"),
             ],
         )
 
+#region old code
 def Minister_Chos_Estate_Mission() -> BehaviorTree:
     bot = ensure_botting_tree()
     minister_cho_state_map_id = 214
@@ -1661,6 +1432,24 @@ def Warning_The_Tengu() -> BehaviorTree:
                 BT.HandleQuest(the_threat_grows_quest_id, (-1023, 4844), 0x815401, mode=BT.Questmode.Accept),
             ],
         )
+    
+
+def Extend_Inventory_Space() -> BehaviorTree:
+    merchant = (-11866, 11444)
+    return BT.Sequence(
+            name="Extend Inventory Space",
+            map_id_or_name=SHING_JEA_MONASTERY,
+            map_prep=PrepareForBattle(),
+            children=[
+                BT.MoveAndBuyMerchantItem(merchant, ModelID.Belt_Pouch.value, quantity=1),
+                BT.EquipInventoryBag(ModelID.Belt_Pouch.value, Bags.BeltPouch),
+                BT.BuyMerchantItem(ModelID.Bag.value, quantity=1),
+                BT.EquipInventoryBag(ModelID.Bag.value, Bags.Bag1),
+                BT.BuyMerchantItem(ModelID.Bag.value, quantity=1),
+                BT.EquipInventoryBag(ModelID.Bag.value, Bags.Bag2),
+            ],
+        )
+    
 
 def _move_and_kneel(coords: PointOrPath) -> BehaviorTree:
     return BT.Sequence(
@@ -1677,17 +1466,13 @@ def The_Threat_Grows_CashCrops_Togos_Utimatum() -> BehaviorTree:
     
     the_threat_grows_quest_id = 340
     sister_tai_model_id = 3367
+    FARMER_ZINHAO_COORDS =  (12269.25, 5379.94)
     
     return BT.Sequence(
             name="The Threat Grows",
             map_id_or_name=SHING_JEA_MONASTERY,
             map_prep=PrepareForBattle(),
             children=[
-                PrepareForBattle(),
-                bot.Config.Pacifist(),
-                BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
-                BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE),
-                PrepareForBattle(),
                 BT.HandleAutoQuest((-5157.23, -15496.60)), #togos ultimatum
                 BT.HandleAutoQuest((-10791.21, -15900.69)), #cahs crops
                 BT.MoveAndExitMap((-11659, -17174), target_map_id=PANJIAN_PENINSULA),
@@ -1706,6 +1491,8 @@ def The_Threat_Grows_CashCrops_Togos_Utimatum() -> BehaviorTree:
                                dialog_id=0x815501, 
                                use_npc_model_or_enc_str=sister_tai_model_id, 
                                mode=BT.Questmode.Accept,),
+                #pest control
+                BT.HandleAutoQuest(FARMER_ZINHAO_COORDS),
                 #cash crops
                 _move_and_kneel((12817.42, 8358.96)),
                 _move_and_kneel((17029.94, 7921.00)),
@@ -1731,19 +1518,15 @@ def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
         ("Buy And Craft Monastery Armor", BuyAndCraftMonasteryArmor),
         ("Talk With Masters", Talk_With_Masters),
         ("First Secondary Profession Block", FirstSecondaryBlock),
-    ]
-    
-    """
-        ("Unlock Secondary Profession", Unlock_Secondary_Profession),
-
-        ("Extend Inventory Space", Extend_Inventory_Space),
-        ("To Minister Cho's Estate", To_Minister_Chos_Estate),
+        ("Appearance of the Naga and R/Mo/Me/A Secondaries", R_Mo_Me_A_secondaries_and_Appearance_of_the_naga),
+        ("W/E/Rt/N and Secondaries", W_E_Rt_N_and_secondaries),
+        ("An Audience With Master Togo Reward", An_Audience_WithMasterTogo_Reward),
+        ("Capture Pet", CapturePet_And_to_minister_cho),
         ("Minister Cho's Estate Mission", Minister_Chos_Estate_Mission),
         ("Attribute Points Quest 1", Attribute_Points_Quest_1),
         ("Warning The Tengu", Warning_The_Tengu),
         ("The Threat Grows - Cash Crops & Togo's Ultimatum", The_Threat_Grows_CashCrops_Togos_Utimatum),
     ]
-    """
 
 def ensure_botting_tree() -> BottingTree:
     global botting_tree
@@ -1757,8 +1540,8 @@ def ensure_botting_tree() -> BottingTree:
             reset=False,
             pause_on_combat=True,
             multi_account=False,
-            configure_fn=lambda tree: tree.Config.ConfigureUpkeepTrees(
-                disable_looting=True,
+            configure_fn=lambda tree: tree.Config.ConfigureUpkeep(
+                disable_looting=not LOOTING_ACTIVE,
                 restore_isolation_on_stop=True,
                 enable_outpost_imp_service=True,
                 enable_explorable_imp_service=True,
@@ -1767,9 +1550,12 @@ def ensure_botting_tree() -> BottingTree:
                 imp_slot=0,
                 imp_log=False,
                 consumable_upkeeps=[
-                    'candy_apple',
-                    'war_supplies',
-                    'honeycomb',
+                    ModelID.Candy_Apple.value,
+                    ModelID.War_Supplies.value,
+                    ModelID.Honeycomb.value,
+                    ModelID.Candy_Apple.value,
+                    ModelID.War_Supplies.value,
+                    ModelID.Honeycomb.value,
                 ],
                 enable_party_wipe_recovery=True,
             ),

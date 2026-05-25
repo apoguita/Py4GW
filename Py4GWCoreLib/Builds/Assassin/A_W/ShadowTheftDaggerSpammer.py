@@ -1,9 +1,6 @@
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import BuildMgr
-from Py4GWCoreLib import Key
-from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Player
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Range
@@ -94,7 +91,8 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             yield from Routines.Yield.Keybinds.TargetNearestEnemy()
             target_id = Player.GetTargetID()
             yield from Routines.Yield.Keybinds.Interact()
-            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            if target_id:
+                Player.CallTarget(target_id)
             self.priority_target = target_id
             return
         else:
@@ -102,9 +100,8 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                 yield from Routines.Yield.Keybinds.TargetNearestEnemy()
                 target_id = Player.GetTargetID()
                 yield from Routines.Yield.Keybinds.Interact()
-                ActionQueueManager().AddAction(
-                    "ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value]
-                )
+                if target_id:
+                    Player.CallTarget(target_id)
                 self.priority_target = target_id
                 return
             self.priority_target = None
@@ -176,15 +173,16 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
         if best_agent_id:
             self.priority_target = best_agent_id
             Player.ChangeTarget(best_agent_id)
+            Player.CallTarget(best_agent_id)
             Player.Interact(best_agent_id, True)
-            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
             yield from Routines.Yield.Keybinds.TargetPriorityTarget()
             return
         else:
             yield from Routines.Yield.Keybinds.TargetNearestEnemy()
             target_id = Player.GetTargetID()
             yield from Routines.Yield.Keybinds.Interact()
-            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            if target_id:
+                Player.CallTarget(target_id)
             self.priority_target = target_id
             return
 

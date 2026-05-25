@@ -21,6 +21,7 @@ Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom"
 Protectors_Defense_ID = Skill.GetID("Protectors_Defense")
 Cant_Touch_This_ID = Skill.GetID("Cant_Touch_This")
 Make_Your_Time_ID = Skill.GetID("Make_Your_Time")
+Angelic_Protection_ID = Skill.GetID("Angelic_Protection")
 
 
 class Paragon_Refrain(BuildMgr):
@@ -34,8 +35,6 @@ class Paragon_Refrain(BuildMgr):
                 Heroic_Refrain_ID,
                 Theyre_on_Fire_ID,
                 Theres_Nothing_to_Fear_ID,
-                Aggressive_Refrain_ID
-
             ],
             optional_skills=[
                 Save_Yourselves_luxon_ID,
@@ -51,6 +50,7 @@ class Paragon_Refrain(BuildMgr):
                 Protectors_Defense_ID,
                 Cant_Touch_This_ID,
                 Make_Your_Time_ID,
+                Angelic_Protection_ID,
             ],
         )
         if match_only:
@@ -74,6 +74,9 @@ class Paragon_Refrain(BuildMgr):
 
         if not self.IsInAggro():
             return False
+
+        if self.IsSkillEquipped(Angelic_Protection_ID) and (yield from self.skills.Paragon.Leadership.Angelic_Protection(health_threshold=0.30)):
+            return True
 
         if self.IsSkillEquipped(Theres_Nothing_to_Fear_ID) and (yield from self.skills.Any.NoAttribute.Theres_Nothing_to_Fear()):
             return True

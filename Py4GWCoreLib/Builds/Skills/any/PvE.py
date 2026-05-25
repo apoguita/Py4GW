@@ -256,6 +256,33 @@ class PvE:
             aftercast_delay=250,
         ))
 
+    def Tryptophan_Signet(self) -> BuildCoroutine:
+        from Py4GWCoreLib import GLOBAL_CACHE, Routines
+
+        tryptophan_signet_id: int = Skill.GetID("Tryptophan_Signet")
+
+        if not self.build.IsSkillEquipped(tryptophan_signet_id):
+            return False
+        if not self.build.CanCastSkillID(tryptophan_signet_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(tryptophan_signet_id) or Range.Adjacent.value
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
+            cluster_radius=aoe_range,
+            filter_radius=Range.Spellcast.value,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=tryptophan_signet_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Vampirism(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, AgentArray, Player, SpiritModelID
 
@@ -345,11 +372,12 @@ class PvE:
 
     def _get_spirit_form_agent_ids(self) -> set[int]:
         from Py4GWCoreLib import GLOBAL_CACHE
+        from HeroAI.utils import SameMapOrPartyAsAccount
         result: set[int] = set()
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
+            if not SameMapOrPartyAsAccount(account):
                 continue
             try:
                 if any(
@@ -366,11 +394,12 @@ class PvE:
 
     def _get_morale_by_agent_id(self) -> dict[int, int]:
         from Py4GWCoreLib import GLOBAL_CACHE
+        from HeroAI.utils import SameMapOrPartyAsAccount
         morale_by_agent: dict[int, int] = {}
         for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
+            if not SameMapOrPartyAsAccount(account):
                 continue
             agent_id = int(account.AgentData.AgentID or 0)
             if agent_id <= 0:
@@ -385,7 +414,9 @@ class PvE:
         if len(spirit_form_ids) < self._SPIRIT_FORM_MIN_COUNT:
             return 0
 
-        restrict_to_spirit_form = len(spirit_form_ids) <= 2
+        # Spirit-form accounts are always valid targets.
+        # Non-spirit-form accounts are only valid when >= 3 spirit form accounts are present.
+        include_non_spirit_form = len(spirit_form_ids) >= 3
         morale_map = self._get_morale_by_agent_id()
         if not morale_map:
             return 0
@@ -397,7 +428,7 @@ class PvE:
             AgentArray.GetAllyArray(),
             lambda aid: Agent.IsAlive(aid)
             and int(aid) != my_id
-            and (not restrict_to_spirit_form or int(aid) in spirit_form_ids)
+            and (int(aid) in spirit_form_ids or include_non_spirit_form)
             and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= Range.Spellcast.value * 1.4,
         )
         if not allies:
