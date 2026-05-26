@@ -452,6 +452,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "428": {
+          "base_id": 428,
+          "id": 428,
+          "instance_type": "Explorable",
+          "name": "Tihark Orchard outpost"
         }
       },
       "observed_skills": {}
@@ -7069,12 +7075,24 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "428": {
+          "base_id": 428,
+          "id": 428,
+          "instance_type": "Explorable",
+          "name": "Tihark Orchard outpost"
         }
       },
       "observed_skills": {
         "320": {
           "id": 320,
           "name": "Hamstring",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "385": {
+          "id": 385,
+          "name": "Final Thrust",
           "profession": "Warrior",
           "profession_id": 1
         },
@@ -7107,6 +7125,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "428": {
+          "base_id": 428,
+          "id": 428,
+          "instance_type": "Explorable",
+          "name": "Tihark Orchard outpost"
         }
       },
       "observed_skills": {
@@ -7157,6 +7181,12 @@
           "id": 402,
           "instance_type": "Explorable",
           "name": "Resplendent Makuun"
+        },
+        "428": {
+          "base_id": 428,
+          "id": 428,
+          "instance_type": "Explorable",
+          "name": "Tihark Orchard outpost"
         }
       },
       "observed_skills": {
