@@ -34,7 +34,7 @@ class Ether_Renewal_Bonder(BuildMgr):
             name="Ether Renewal Bonder",
             required_primary=Profession.Elementalist,
             required_secondary=Profession.Monk,
-            template_code="",
+            template_code="OgNTw4284hkAA0iAA6xBpWQLA",
             required_skills=[
                 Life_Attunement_ID,
                 Ether_Renewal_ID,
