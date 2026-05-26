@@ -472,6 +472,12 @@
         2937
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -5031,6 +5037,12 @@
         4289
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -8627,6 +8639,12 @@
         5251
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -8683,6 +8701,12 @@
         5249
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -8787,6 +8811,12 @@
           "profession": "Monk",
           "profession_id": 3
         },
+        "292": {
+          "id": 292,
+          "name": "Infuse Health",
+          "profession": "Monk",
+          "profession_id": 3
+        },
         "298": {
           "id": 298,
           "name": "Martyr",
@@ -8804,6 +8834,12 @@
           "name": "Reversal of Fortune",
           "profession": "Monk",
           "profession_id": 3
+        },
+        "49": {
+          "id": 49,
+          "name": "Mind Wrack",
+          "profession": "Mesmer",
+          "profession_id": 5
         },
         "52": {
           "id": 52,
@@ -8847,6 +8883,12 @@
         5250
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -9000,6 +9042,120 @@
           "profession_id": 6
         }
       }
+    },
+    "enc:\\\\x8101\\\\x2847\\\\xD552\\\\xF4DA\\\\x04B9": {
+      "encoded_names": [
+        "\\\\x8101\\\\x2847\\\\xD552\\\\xF4DA\\\\x04B9"
+      ],
+      "inferred_primary": "None",
+      "inferred_secondary": "",
+      "model_ids": [
+        5194
+      ],
+      "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        }
+      },
+      "observed_skills": {
+        "1884": {
+          "id": 1884,
+          "name": "Consume_Torment",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "1885": {
+          "id": 1885,
+          "name": "Banish_Enchantment",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "1895": {
+          "id": 1895,
+          "name": "Wild_Smash",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x2849\\\\xE2FE\\\\x8E56\\\\x0A0D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x2849\\\\xE2FE\\\\x8E56\\\\x0A0D"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5204
+      ],
+      "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x284A\\\\xF36C\\\\xE74B\\\\x6994": {
+      "encoded_names": [
+        "\\\\x8101\\\\x284A\\\\xF36C\\\\xE74B\\\\x6994"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5204
+      ],
+      "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x284B\\\\x9EA5\\\\xE05C\\\\x3523": {
+      "encoded_names": [
+        "\\\\x8101\\\\x284B\\\\x9EA5\\\\xE05C\\\\x3523"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5204
+      ],
+      "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x284C\\\\xB4D0\\\\x8878\\\\x5FB6": {
+      "encoded_names": [
+        "\\\\x8101\\\\x284C\\\\xB4D0\\\\x8878\\\\x5FB6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5204
+      ],
+      "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x38EC\\\\xD08B\\\\x8C46\\\\x2EB7": {
       "encoded_names": [
@@ -9876,6 +10032,12 @@
         5266
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -9982,6 +10144,12 @@
         5267
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -10232,6 +10400,12 @@
         5252
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -10288,6 +10462,12 @@
         5254
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -10344,6 +10524,12 @@
         5253
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12058,6 +12244,12 @@
         5217
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12114,6 +12306,12 @@
         5218
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12164,6 +12362,12 @@
         5219
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12220,6 +12424,12 @@
         5220
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12276,6 +12486,12 @@
         5221
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12320,6 +12536,12 @@
         5222
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12370,6 +12592,12 @@
         5223
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12426,6 +12654,12 @@
         5224
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12470,6 +12704,12 @@
         5226
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12526,6 +12766,12 @@
         5227
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12582,6 +12828,12 @@
         5228
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12638,6 +12890,12 @@
         5229
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12682,6 +12940,12 @@
         5230
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12732,6 +12996,12 @@
         5246
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12776,6 +13046,12 @@
         5247
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12832,6 +13108,12 @@
         5248
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12876,6 +13158,12 @@
         5255
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12932,6 +13220,12 @@
         5256
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -12994,6 +13288,12 @@
         5257
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -13051,11 +13351,17 @@
         "\\\\x8101\\\\x57F5\\\\xA177\\\\x8902\\\\x4B1A"
       ],
       "inferred_primary": "Monk",
-      "inferred_secondary": "",
+      "inferred_secondary": "None",
       "model_ids": [
         5258
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -13075,6 +13381,12 @@
           "name": "Reversal of Damage",
           "profession": "Monk",
           "profession_id": 3
+        },
+        "1454": {
+          "id": 1454,
+          "name": "Call_to_the_Torment",
+          "profession": "None",
+          "profession_id": 0
         },
         "251": {
           "id": 251,
@@ -13112,6 +13424,12 @@
         5259
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -13162,6 +13480,12 @@
         5260
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -13224,6 +13548,12 @@
         5261
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,
@@ -13286,6 +13616,12 @@
         5263
       ],
       "observed_maps": {
+        "445": {
+          "base_id": 445,
+          "id": 445,
+          "instance_type": "Explorable",
+          "name": "The Ebony Citadel of Mallyx"
+        },
         "474": {
           "base_id": 474,
           "id": 474,

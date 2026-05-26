@@ -1020,6 +1020,23 @@ def TravelGH() -> BehaviorTree:
 def LeaveGH() -> BehaviorTree:
     return RoutinesBT.Map.LeaveGH()
 
+def TravelToRegion(
+    outpost_id: int,
+    region: int,
+    district: int,
+    language: int = 0,
+    log: bool = False,
+    timeout_ms: int = 10000,
+) -> BehaviorTree:
+    return RoutinesBT.Map.TravelToRegion(
+        outpost_id=outpost_id,
+        region=region,
+        district=district,
+        language=language,
+        log=log,
+        timeout=timeout_ms,
+    )
+
 def EnterChallenge(
     delay_ms: int = 3000,
     target_map_id: int = 0,

@@ -494,8 +494,8 @@ def PixelStack(index: int, message: SharedMessageStruct):
         if not player_agent_id or Agent.IsDead(player_agent_id):
             ConsoleLog(MODULE_NAME, "PixelStack aborted: player is dead.", Console.MessageType.Warning, log=True)
             return False
-        if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-            ConsoleLog(MODULE_NAME, "PixelStack aborted: map is invalid or not explorable.", Console.MessageType.Warning, log=True)
+        if not Routines.Checks.Map.MapValid():
+            ConsoleLog(MODULE_NAME, "PixelStack aborted: map is invalid.", Console.MessageType.Warning, log=True)
             return False
         return True
 

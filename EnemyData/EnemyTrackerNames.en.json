@@ -95,7 +95,9 @@
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": [
       "Spirit of Favorable Winds",
       "Agent 84",
-      "Agent 80"
+      "Agent 80",
+      "Agent 161",
+      "Agent 157"
     ],
     "enc:\\\\x0F98\\\\x84F2\\\\xC816\\\\x298E": [
       "Agent 325",
@@ -105,7 +107,9 @@
       "Agent 326",
       "Agent 358",
       "Agent 120",
-      "Agent 116"
+      "Agent 116",
+      "Agent 78",
+      "Agent 65"
     ],
     "enc:\\\\x0F99\\\\x863D\\\\xD474\\\\x6ACA": [
       "Spirit of Nature's Renewal",
@@ -656,7 +660,9 @@
       "Agent 325",
       "Agent 323",
       "Agent 122",
-      "Agent 322"
+      "Agent 322",
+      "Agent 65",
+      "Agent 79"
     ],
     "enc:\\\\x4162\\\\xB553\\\\x1F76": [
       "Agent 386",
@@ -900,13 +906,22 @@
       "Skree Griffin"
     ],
     "enc:\\\\x8101\\\\x09C3\\\\xCD6C\\\\x8FE6\\\\x7BD7": [
-      "Skree Raider"
+      "Skree Raider",
+      "Agent 212",
+      "Agent 214",
+      "Agent 210"
     ],
     "enc:\\\\x8101\\\\x09C4\\\\xA88E\\\\xE8DD\\\\x2A21": [
-      "Skree Tracker"
+      "Skree Tracker",
+      "Agent 215",
+      "Agent 211",
+      "Agent 213"
     ],
     "enc:\\\\x8101\\\\x09C5\\\\xEFF1\\\\x247F": [
-      "Skree Singer"
+      "Skree Singer",
+      "Agent 213",
+      "Agent 215",
+      "Agent 211"
     ],
     "enc:\\\\x8101\\\\x09C7\\\\xA4FE\\\\xB958\\\\x2879": [
       "Margonite Seer"
@@ -1029,7 +1044,11 @@
     "enc:\\\\x8101\\\\x1F3E\\\\x82DD\\\\x981E\\\\x48E0": [
       "Fury Titan",
       "Agent 380",
-      "Agent 381"
+      "Agent 381",
+      "Agent 30",
+      "Agent 31",
+      "Agent 28",
+      "Agent 29"
     ],
     "enc:\\\\x8101\\\\x1F3F\\\\xFACD\\\\xEE60\\\\x334D": [
       "Agent 332",
@@ -1048,12 +1067,15 @@
       "Agent 187",
       "Agent 335",
       "Agent 337",
-      "Agent 349"
+      "Agent 349",
+      "Agent 35",
+      "Agent 36"
     ],
     "enc:\\\\x8101\\\\x204A\\\\xEC57\\\\xE6ED\\\\x10FB": [
       "Despair Titan",
       "Agent 326",
-      "Agent 340"
+      "Agent 340",
+      "Agent 20"
     ],
     "enc:\\\\x8101\\\\x25C6\\\\xAB44\\\\xD387\\\\x428C": [
       "Agent 343",
@@ -1066,6 +1088,26 @@
     "enc:\\\\x8101\\\\x2745\\\\xA086\\\\xA9DB\\\\x260E": [
       "Agent 422",
       "The Fury"
+    ],
+    "enc:\\\\x8101\\\\x2847\\\\xD552\\\\xF4DA\\\\x04B9": [
+      "Agent 103",
+      "Mallyx the Unyielding"
+    ],
+    "enc:\\\\x8101\\\\x2849\\\\xE2FE\\\\x8E56\\\\x0A0D": [
+      "Agent 110",
+      "Shrouded Soul"
+    ],
+    "enc:\\\\x8101\\\\x284A\\\\xF36C\\\\xE74B\\\\x6994": [
+      "Agent 86",
+      "Tormented Soul"
+    ],
+    "enc:\\\\x8101\\\\x284B\\\\x9EA5\\\\xE05C\\\\x3523": [
+      "Agent 85",
+      "Listless Soul"
+    ],
+    "enc:\\\\x8101\\\\x284C\\\\xB4D0\\\\x8878\\\\x5FB6": [
+      "Agent 118",
+      "Demonic Soul"
     ],
     "enc:\\\\x8101\\\\x38EC\\\\xD08B\\\\x8C46\\\\x2EB7": [
       "Agent 410",
@@ -1145,7 +1187,8 @@
     "enc:\\\\x8101\\\\x3ACA\\\\xFD7E\\\\xC32B\\\\x229A": [
       "Tortureweb Dryder",
       "Agent 62",
-      "Agent 60"
+      "Agent 60",
+      "Agent 25"
     ],
     "enc:\\\\x8101\\\\x3ADE\\\\xE9CE\\\\xE69E\\\\x1625": [
       "Agent 187",
@@ -1157,7 +1200,9 @@
       "Greater Dream Rider",
       "Agent 63",
       "Agent 61",
-      "Agent 62"
+      "Agent 62",
+      "Agent 28",
+      "Agent 26"
     ],
     "enc:\\\\x8101\\\\x3AE0\\\\xD420\\\\xB4B8\\\\x68A8": [
       "Agent 347",
@@ -1190,7 +1235,8 @@
       "Agent 329",
       "Agent 323",
       "Agent 325",
-      "Agent 334"
+      "Agent 334",
+      "Agent 101"
     ],
     "enc:\\\\x8101\\\\x3AE5\\\\xA9E6\\\\x7668": [
       "Agent 336",
@@ -1199,12 +1245,14 @@
       "Agent 324",
       "Agent 340",
       "Agent 327",
-      "Agent 335"
+      "Agent 335",
+      "Agent 106"
     ],
     "enc:\\\\x8101\\\\x3AE6\\\\xB58A\\\\x9A74\\\\x759B": [
       "Agent 384",
       "Dementia Titan",
-      "Agent 367"
+      "Agent 367",
+      "Agent 77"
     ],
     "enc:\\\\x8101\\\\x3C60\\\\xF607\\\\xD607\\\\x1ACD": [
       "Agent 333",
@@ -1350,7 +1398,9 @@
       "Agent 48",
       "Agent 188",
       "Agent 328",
-      "Agent 324"
+      "Agent 324",
+      "Agent 19",
+      "Agent 18"
     ],
     "enc:\\\\x8101\\\\x57E3\\\\xA8BC\\\\xC6B2\\\\x242A": [
       "Agent 50",
@@ -1358,7 +1408,8 @@
       "Margonite Anur Dabi",
       "Agent 55",
       "Agent 53",
-      "Agent 54"
+      "Agent 54",
+      "Agent 39"
     ],
     "enc:\\\\x8101\\\\x57E4\\\\x8C28\\\\xE4D0\\\\x2D36": [
       "Agent 52",
@@ -1366,7 +1417,9 @@
       "Margonite Anur Su",
       "Agent 56",
       "Agent 54",
-      "Agent 55"
+      "Agent 55",
+      "Agent 20",
+      "Agent 19"
     ],
     "enc:\\\\x8101\\\\x57E5\\\\xAF06\\\\xAB4C\\\\x55BF": [
       "Margonite Anur Ki",
@@ -1374,58 +1427,72 @@
       "Agent 324",
       "Agent 328",
       "Agent 329",
-      "Agent 332"
+      "Agent 332",
+      "Agent 21",
+      "Agent 20"
     ],
     "enc:\\\\x8101\\\\x57E6\\\\xEC50\\\\x0131": [
       "Margonite Anur Vu",
       "Agent 57",
       "Agent 55",
       "Agent 56",
-      "Agent 53"
+      "Agent 53",
+      "Agent 22",
+      "Agent 21"
     ],
     "enc:\\\\x8101\\\\x57E7\\\\x8EDB\\\\xD612\\\\x63B6": [
       "Agent 54",
       "Margonite Anur Tuk",
       "Agent 58",
       "Agent 56",
-      "Agent 57"
+      "Agent 57",
+      "Agent 23",
+      "Agent 22"
     ],
     "enc:\\\\x8101\\\\x57E8\\\\xF9DF\\\\x8A02\\\\x0113": [
       "Margonite Anur Ruk",
       "Agent 59",
       "Agent 57",
       "Agent 58",
-      "Agent 55"
+      "Agent 55",
+      "Agent 100"
     ],
     "enc:\\\\x8101\\\\x57E9\\\\x97F0\\\\x825A\\\\x1463": [
       "Margonite Anur Rund",
       "Agent 60",
       "Agent 58",
       "Agent 59",
-      "Agent 56"
+      "Agent 56",
+      "Agent 24",
+      "Agent 23"
     ],
     "enc:\\\\x8101\\\\x57EA\\\\xA309\\\\xBC47\\\\x2003": [
       "Agent 337",
-      "Stygian Hunger"
+      "Stygian Hunger",
+      "Agent 81"
     ],
     "enc:\\\\x8101\\\\x57EB\\\\xA8F9\\\\x92C8\\\\x3BEE": [
       "Agent 342",
       "Stygian Brute",
-      "Agent 338"
+      "Agent 338",
+      "Agent 85"
     ],
     "enc:\\\\x8101\\\\x57EC\\\\xF656\\\\xD6E9\\\\x0F17": [
       "Agent 327",
       "Stygian Golem",
-      "Agent 347"
+      "Agent 347",
+      "Agent 86"
     ],
     "enc:\\\\x8101\\\\x57ED\\\\xC630\\\\x34CF": [
       "Agent 340",
       "Stygian Horror",
-      "Agent 336"
+      "Agent 336",
+      "Agent 87"
     ],
     "enc:\\\\x8101\\\\x57EE\\\\xE99A\\\\x8BFB\\\\x15B5": [
       "Agent 335",
-      "Stygian Fiend"
+      "Stygian Fiend",
+      "Agent 88"
     ],
     "enc:\\\\x8101\\\\x57EF\\\\xCC41\\\\xA331\\\\x105A": [
       "Misery Titan",
@@ -1446,7 +1513,9 @@
       "Agent 52",
       "Agent 54",
       "Agent 55",
-      "Agent 334"
+      "Agent 334",
+      "Agent 29",
+      "Agent 27"
     ],
     "enc:\\\\x8101\\\\x57F0\\\\xD610\\\\xC6CF\\\\x323F": [
       "Rage Titan",
@@ -1464,7 +1533,8 @@
       "Agent 341",
       "Agent 353",
       "Agent 352",
-      "Agent 347"
+      "Agent 347",
+      "Agent 24"
     ],
     "enc:\\\\x8101\\\\x57F1\\\\xCF01\\\\xC618\\\\x6766": [
       "Agent 345",
@@ -1481,47 +1551,57 @@
       "Agent 326",
       "Agent 336",
       "Agent 367",
-      "Agent 370"
+      "Agent 370",
+      "Agent 33",
+      "Agent 34"
     ],
     "enc:\\\\x8101\\\\x57F2\\\\xE073\\\\x9910\\\\x4584": [
       "Agent 143",
       "Mind Tormentor",
-      "Agent 250"
+      "Agent 250",
+      "Agent 39"
     ],
     "enc:\\\\x8101\\\\x57F3\\\\xB3B8\\\\xF778\\\\x77F6": [
       "Agent 74",
       "Soul Tormentor",
-      "Agent 440"
+      "Agent 440",
+      "Agent 40"
     ],
     "enc:\\\\x8101\\\\x57F4\\\\xCF00\\\\x1F8A": [
       "Agent 150",
       "Water Tormentor",
-      "Agent 464"
+      "Agent 464",
+      "Agent 41"
     ],
     "enc:\\\\x8101\\\\x57F5\\\\xA177\\\\x8902\\\\x4B1A": [
       "Agent 142",
       "Heart Tormentor",
-      "Agent 500"
+      "Agent 500",
+      "Agent 42"
     ],
     "enc:\\\\x8101\\\\x57F6\\\\xFDFF\\\\x8DBE\\\\x0AD7": [
       "Agent 157",
       "Flesh Tormentor",
-      "Agent 416"
+      "Agent 416",
+      "Agent 43"
     ],
     "enc:\\\\x8101\\\\x57F7\\\\xE689\\\\x85E0\\\\x73C1": [
       "Agent 135",
       "Spirit Tormentor",
-      "Agent 516"
+      "Agent 516",
+      "Agent 50"
     ],
     "enc:\\\\x8101\\\\x57F8\\\\x82C7\\\\xBF65\\\\x043C": [
       "Agent 78",
       "Earth Tormentor",
-      "Agent 526"
+      "Agent 526",
+      "Agent 51"
     ],
     "enc:\\\\x8101\\\\x57F9\\\\xCA2E\\\\xD34C\\\\x744D": [
       "Agent 152",
       "Sanity Tormentor",
-      "Agent 514"
+      "Agent 514",
+      "Agent 52"
     ],
     "enc:\\\\x8101\\\\x57FA\\\\x91ED\\\\x9721\\\\x2151": [
       "Agent 415",
