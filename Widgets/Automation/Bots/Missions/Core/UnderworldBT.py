@@ -1851,73 +1851,39 @@ def _resolve_uw_entry_map_id() -> int:
     return int(UW_ENTRYPOINTS.get(key, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY])[1])
 
 
-def _build_travel_to_entry_same_district_tree(_node: _BT.Node) -> _BT:
-    """Same travel block as ApoBT.DonateFaction(..., multi_account=True) / VQ Mount Quinkai Redux."""
-    from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
-    from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
-
-    return ApoBT.Sequence(
-        name='TravelToEntrySameDistrict',
-        children=[
-            ApoBT.LeaveParty(),
-            ApoBT.Travel(
-                target_map_id=_resolve_uw_entry_map_id(),
-                random_travel=True,
-                region_pool='eu',
-                log=True,
-            ),
-            RoutinesBT.Multibox.SummonAllAccounts(
-                timeout_ms=15_000,
-                poll_interval_ms=100,
-                log=True,
-            ),
-            ApoBT.Wait(duration_ms=1000, log=True),
-        ],
-    )
-
-
-def _build_gh_party_setup_tree(_node: _BT.Node) -> _BT:
-    """Same GH party setup as VQ Mount Quinkai Redux InitializeBot (TravelGH + CreateParty)."""
-    from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
-
-    return ApoBT.Sequence(
-        name='TravelGHAndCreateParty',
-        children=[
-            ApoBT.TravelGH(),
-            ApoBT.CreateParty(multibox_invite=True, log=True),
-        ],
-    )
-
-
 # ── Quest trees (chronological) ──────────────────────────────────────────────
+
+# TODO / Missing ApoBT wrappers (no equivalent exists in ApoBottingLib yet):
+#
+#   1. ApoBT.SummonAllAccounts(timeout_ms, poll_interval_ms, log)
+#      — Currently using RoutinesBT.Multibox.SummonAllAccounts directly.
+#        A standalone ApoBT wrapper would allow consistent blackboard integration
+#        without having to go through CreateParty.
+#
+#   2. ApoBT.UseItemByModelID(model_id, log, aftercast_ms)
+#      — Currently using a raw _BT.ActionNode + GLOBAL_CACHE.Inventory.UseItem.
+#        A proper wrapper would handle the "item not found" failure path uniformly
+#        and integrate with the botting tree flow.
+#
+#   3. ApoBT.EnableWidgets(widget_names, multi_account, log, aftercast_ms)
+#      — Currently using a raw _BT.ActionNode + WidgetManager + ShMem.SendMessage.
+#        A wrapper would encapsulate local + multibox widget enabling in one node.
 
 def _enter_underworld_tree() -> _BT:
     """
-    Step 1: Multibox party setup at Guild Hall, then entry point and UW scroll.
+    Step 1: Gather all accounts at Guild Hall, travel to entry point, create party, then enter UW.
 
-    Sequence (ApoBottingLib / VQ Mount Quinkai Redux pattern):
-      1. LeaveParty + random EU travel + SummonAllAccounts to entry outpost.
-      2. TravelGH + CreateParty(multibox_invite=True).
-      3. Optional Scroll Trader buy, enable required widgets.
-      4. Travel to configured entry outpost; set hard/normal mode; use UW scroll.
+    Sequence:
+      0. bot.Config.Pacifist(multi_account=True) — HeroAI off, isolation off, multibox on.
+      1. TravelGH + SummonAllAccounts + Wait — all accounts meet at GH.
+      2. Travel to configured entry outpost.
+      3. CreateParty(multibox_invite=True) — LeaveParty + SummonAllAccounts + InviteAllAccounts.
+      4. Optional Scroll Trader buy; enable required widgets.
+      5. Set hard/normal mode; use UW scroll.
     """
+    from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
+    from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
     BT = Routines.BT
-
-    def _wait_all_on_leader_map(node: _BT.Node) -> _BT.NodeState:
-        if not Map.IsMapReady():
-            return _BT.NodeState.RUNNING
-        local_map_id = int(Map.GetMapID() or 0)
-        my_email = str(Player.GetAccountEmail() or '')
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData(include_isolated=True):
-            email = str(getattr(account, 'AccountEmail', '') or '')
-            if not email or email == my_email:
-                continue
-            map_obj = getattr(getattr(account, 'AgentData', None), 'Map', None)
-            acc_map_id = int(getattr(account, 'MapID', 0) or getattr(map_obj, 'MapID', 0) or 0)
-            if acc_map_id != local_map_id:
-                return _BT.NodeState.RUNNING
-        ConsoleLog(BOT_NAME, f'[EnterUW] WaitAllAtEntryPoint: all accounts arrived (map={local_map_id}).', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
 
     def _use_local_uw_scroll() -> _BT.NodeState:
         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(UW_SCROLL_MODEL_ID)
@@ -1926,23 +1892,6 @@ def _enter_underworld_tree() -> _BT:
             return _BT.NodeState.FAILURE
         GLOBAL_CACHE.Inventory.UseItem(item_id)
         ConsoleLog(BOT_NAME, '[EnterUW] UseUWScroll: scroll used.', Py4GW.Console.MessageType.Info)
-        return _BT.NodeState.SUCCESS
-
-    def _wait_all_in_uw(node: _BT.Node) -> _BT.NodeState:
-        if not Map.IsMapReady():
-            return _BT.NodeState.RUNNING
-        if int(Map.GetMapID() or 0) != UW_MAP_ID:
-            return _BT.NodeState.RUNNING
-        my_email = str(Player.GetAccountEmail() or '')
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData(include_isolated=True):
-            email = str(getattr(account, 'AccountEmail', '') or '')
-            if not email or email == my_email:
-                continue
-            map_obj = getattr(getattr(account, 'AgentData', None), 'Map', None)
-            acc_map_id = int(getattr(account, 'MapID', 0) or getattr(map_obj, 'MapID', 0) or 0)
-            if acc_map_id != UW_MAP_ID:
-                return _BT.NodeState.RUNNING
-        ConsoleLog(BOT_NAME, '[EnterUW] WaitForUW: all accounts in Underworld.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
 
     def _log(name: str) -> _BT:
@@ -1955,58 +1904,69 @@ def _enter_underworld_tree() -> _BT:
         ))
 
     return BT.Composite.Sequence(
-        _log('TravelToEntrySameDistrict'),
+        bot.Config.Pacifist(multi_account=True),
+        _log('LeaveParty'),
         _BT(_BT.SubtreeNode(
-            name='TravelToEntrySameDistrict',
-            subtree_fn=_build_travel_to_entry_same_district_tree,
+            name='LeaveParty',
+            subtree_fn=lambda node: ApoBT.LeaveParty(),
         )),
-        _log('TravelGHAndCreateParty'),
+        _log('TravelGH'),
         _BT(_BT.SubtreeNode(
-            name='TravelGHAndCreateParty',
-            subtree_fn=_build_gh_party_setup_tree,
+            name='TravelGH',
+            subtree_fn=lambda node: ApoBT.TravelGH(),
+        )),
+        _log('SummonAllAccountsToGH'),
+        _BT(_BT.SubtreeNode(
+            name='SummonAllAccountsToGH',
+            subtree_fn=lambda node: RoutinesBT.Multibox.SummonAllAccounts(
+                timeout_ms=15_000,
+                poll_interval_ms=100,
+                log=True,
+            ),
+        )),
+        _BT(_BT.SubtreeNode(
+            name='WaitAfterGHSummon',
+            subtree_fn=lambda node: ApoBT.Wait(duration_ms=1000, log=True),
         )),
         _log('BuyUWScrolls'),
         _BT(_BT.SubtreeNode(
             name='BuyUWScrolls',
             subtree_fn=_build_buy_uw_scrolls_tree,
         )),
+        _log('TravelToEntryPoint'),
+        _BT(_BT.SubtreeNode(
+            name='TravelToEntryPoint',
+            subtree_fn=lambda node: ApoBT.Travel(
+                target_map_id=_resolve_uw_entry_map_id(),
+                log=True,
+            ),
+        )),
+        _log('CreateParty'),
+        _BT(_BT.SubtreeNode(
+            name='CreateParty',
+            subtree_fn=lambda node: ApoBT.CreateParty(
+                multibox_invite=True,
+                timeout_ms=15_000,
+                poll_interval_ms=100,
+                aftercast_ms=250,
+                log=True,
+            ),
+        )),
         _BT(_BT.ActionNode(
             name='EnableRequiredWidgets',
             action_fn=_enable_required_widgets_on_all_accounts,
             aftercast_ms=500,
         )),
-        _log('TravelToEntryPoint'),
-        _BT(_BT.SubtreeNode(
-            name='TravelToEntryPoint',
-            subtree_fn=lambda node: BT.Map.TravelToOutpost(
-                outpost_id=UW_ENTRYPOINTS.get(
-                    EnterSettings.EntryPoint or DEFAULT_UW_ENTRYPOINT_KEY,
-                    UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY],
-                )[1],
-                timeout=30_000,
-            ),
-        )),
-        _log('WaitAllAtEntryPoint'),
-        _BT(_BT.WaitUntilNode(
-            name='WaitAllAtEntryPoint',
-            condition_fn=_wait_all_on_leader_map,
-            throttle_interval_ms=1000,
-            timeout_ms=120_000,
-        )),
         _log('SetHardMode'),
-        BT.Map.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
+        _BT(_BT.SubtreeNode(
+            name='SetHardMode',
+            subtree_fn=lambda node: ApoBT.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
+        )),
         _log('UseUWScroll'),
         _BT(_BT.ActionNode(
             name='UseUWScroll',
             action_fn=lambda _node: _use_local_uw_scroll(),
             aftercast_ms=500,
-        )),
-        _log('WaitForUW'),
-        _BT(_BT.WaitUntilNode(
-            name='WaitForUW',
-            condition_fn=_wait_all_in_uw,
-            throttle_interval_ms=1000,
-            timeout_ms=120_000,
         )),
         name='EnterUnderworld',
     )
