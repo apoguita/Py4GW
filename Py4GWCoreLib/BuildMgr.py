@@ -1511,6 +1511,7 @@ class BuildMgr:
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Routines
         from Py4GWCoreLib.Agent import Agent
+        from Py4GWCoreLib.Skill import Skill
         from Py4GWCoreLib.enums_src.GameData_enums import Allegiance
 
         if not target_agent_id:
@@ -1566,6 +1567,15 @@ class BuildMgr:
                 if Routines.Checks.Agents.HasEffect(target_agent_id, skill_id, exact_weapon_spell=True):
                     return False
             elif Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
+                return False
+
+        blood_is_power_id = Skill.GetID("Blood_is_Power")
+        blood_ritual_id = Skill.GetID("Blood_Ritual")
+        if skill_id in (blood_is_power_id, blood_ritual_id):
+            if (
+                Routines.Checks.Agents.HasEffect(target_agent_id, blood_is_power_id)
+                or Routines.Checks.Agents.HasEffect(target_agent_id, blood_ritual_id)
+            ):
                 return False
 
         return True
@@ -1685,7 +1695,8 @@ class BuildMgr:
         skill_id: int,
         extra_condition: bool | Callable[[], bool] = True,
     ) -> bool:
-        from Py4GWCoreLib import Player, Routines, SkillBar
+        from HeroAI.types import SkillType
+        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SkillBar
 
         if not Routines.Checks.Map.IsExplorable():
             return False
@@ -1697,6 +1708,16 @@ class BuildMgr:
             return False
         if not Routines.Checks.Skills.IsSkillIDReady(skill_id):
             return False
+        skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+        if skill_type == SkillType.Shout.value:
+            player_id = Player.GetAgentID()
+            vocal_minority_id = GLOBAL_CACHE.Skill.GetID("Vocal_Minority")
+            well_of_silence_id = GLOBAL_CACHE.Skill.GetID("Well_of_Silence")
+            if (
+                Routines.Checks.Agents.HasEffect(player_id, vocal_minority_id)
+                or Routines.Checks.Agents.HasEffect(player_id, well_of_silence_id)
+            ):
+                return False
 
         slot = SkillBar.GetSlotBySkillID(skill_id)
         if not (1 <= slot <= 8):
@@ -1719,7 +1740,8 @@ class BuildMgr:
         slot: int,
         extra_condition: bool | Callable[[], bool] = True,
     ) -> bool:
-        from Py4GWCoreLib import Player, Routines, SkillBar
+        from HeroAI.types import SkillType
+        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SkillBar
 
         if not Routines.Checks.Map.IsExplorable():
             return False
@@ -1733,6 +1755,16 @@ class BuildMgr:
         skill_id = SkillBar.GetSkillIDBySlot(slot)
         if not skill_id:
             return False
+        skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+        if skill_type == SkillType.Shout.value:
+            player_id = Player.GetAgentID()
+            vocal_minority_id = GLOBAL_CACHE.Skill.GetID("Vocal_Minority")
+            well_of_silence_id = GLOBAL_CACHE.Skill.GetID("Well_of_Silence")
+            if (
+                Routines.Checks.Agents.HasEffect(player_id, vocal_minority_id)
+                or Routines.Checks.Agents.HasEffect(player_id, well_of_silence_id)
+            ):
+                return False
         if not self.IsSharedSkillToggleEnabled(slot):
             return False
         if not self._meets_custom_skill_weapon_requirement(skill_id):

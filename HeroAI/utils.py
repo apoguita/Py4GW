@@ -206,3 +206,36 @@ def DrawHeroFlag(pos_x, pos_y):
     )
         
     overlay.EndDraw()
+
+
+def DrawSharedMemoryFlags() -> None:
+    if not Map.IsMapReady():
+        return
+
+    leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
+    if (
+        leader_options is not None
+        and bool(getattr(leader_options, "IsFlagged", False))
+        and (
+            abs(float(getattr(leader_options.AllFlag, "x", 0.0))) > 0.001
+            or abs(float(getattr(leader_options.AllFlag, "y", 0.0))) > 0.001
+        )
+    ):
+        DrawFlagAll(float(leader_options.AllFlag.x), float(leader_options.AllFlag.y))
+
+    for i in range(1, MAX_NUM_PLAYERS):
+        account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(i)
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
+        if (
+            account is None
+            or options is None
+            or not bool(getattr(account, "IsSlotActive", False))
+            or not bool(getattr(options, "IsFlagged", False))
+        ):
+            continue
+        if (
+            abs(float(getattr(options.FlagPos, "x", 0.0))) <= 0.001
+            and abs(float(getattr(options.FlagPos, "y", 0.0))) <= 0.001
+        ):
+            continue
+        DrawHeroFlag(float(options.FlagPos.x), float(options.FlagPos.y))

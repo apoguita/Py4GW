@@ -15,6 +15,7 @@ from .follow.follower_runtime import (
     is_follow_recovery_active,
 )
 from .settings import Settings
+from .utils import DrawSharedMemoryFlags
 
 
 class HeroAIHeadlessTree:
@@ -161,6 +162,9 @@ class HeroAIHeadlessTree:
         if not options or not options.Combat:
             return False
 
+        if is_follow_recovery_active(self.cached_data, self._follow_state):
+            return False
+
         if not self.cached_data.IsHeadlessCombatPauseActive():
             return False
 
@@ -240,6 +244,10 @@ class HeroAIHeadlessTree:
 
     def tick(self):
         self.update()
+        try:
+            DrawSharedMemoryFlags()
+        except Exception:
+            pass
         if self.initialize():
             return self.tree.tick()
 

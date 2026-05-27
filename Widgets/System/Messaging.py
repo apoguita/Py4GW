@@ -53,6 +53,7 @@ MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
 PYCONS_WIDGET_NAME = "Pycons"
 _pcon_last_exec_ms_by_signature: dict[tuple[str, tuple[int, int, int, int]], int] = {}
 PCON_EXEC_DEDUP_MS = 500
+_pending_widget_enables: list[str] = []
 
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
@@ -66,6 +67,33 @@ def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
     while len(values) < 4:
         values.append("")
     return values[0], values[1], values[2], values[3]
+
+
+def _queue_widget_enable(widget_name: str) -> None:
+    normalized = str(widget_name or "").strip()
+    if not normalized:
+        return
+    if normalized not in _pending_widget_enables:
+        _pending_widget_enables.append(normalized)
+
+
+def _process_pending_widget_enables() -> None:
+    if not _pending_widget_enables:
+        return
+
+    widget_name = _pending_widget_enables.pop(0)
+    widget_handler = get_widget_handler()
+    if widget_handler.is_widget_enabled(widget_name):
+        return
+
+    try:
+        widget_handler.enable_widget(widget_name)
+        if widget_name == "HeroAI":
+            # WidgetHandler.enable_widget() already forces HeroAI options for the
+            # local account. Do not touch the options a second time here.
+            pass
+    except Exception as exc:
+        ConsoleLog(MODULE_NAME, f"Deferred EnableWidget('{widget_name}') failed: {exc}", Console.MessageType.Error, False)
 
 
 class HeroAIoptions:
@@ -751,11 +779,31 @@ def GetBlessing(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    dialog_button = int(message.Params[1])
-    if dialog_button < 0:
-        ConsoleLog(MODULE_NAME, "Invalid blessing dialog button index.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
+    extra0, extra1, _, _ = _extra_data(message)
+    mode = extra0.strip().lower() or 'auto'
+
+    auto_buttons: list[int] = []
+    manual_dialog_id: int | None = None
+
+    if mode == 'manual':
+        manual_dialog_id = int(message.Params[1])
+    else:
+        raw_buttons = str(extra1 or '').strip()
+        if raw_buttons:
+            for part in raw_buttons.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    auto_buttons.append(int(part))
+                except ValueError:
+                    continue
+        if not auto_buttons:
+            auto_buttons.append(int(message.Params[1]))
+        if any(button < 0 for button in auto_buttons):
+            ConsoleLog(MODULE_NAME, "Invalid blessing dialog button index.", Console.MessageType.Warning)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
 
     SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
@@ -766,7 +814,12 @@ def GetBlessing(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
         yield from Routines.Yield.wait(250)
-        yield from Routines.Yield.Player.SendAutomaticDialog(dialog_button)
+        if manual_dialog_id is not None:
+            Player.SendDialog(manual_dialog_id)
+            yield from Routines.Yield.wait(250)
+        else:
+            for dialog_button in auto_buttons:
+                yield from Routines.Yield.Player.SendAutomaticDialog(dialog_button)
 
         ConsoleLog(MODULE_NAME, "GetBlessing message processed and finished.", Console.MessageType.Info, False)
     finally:
@@ -2360,9 +2413,10 @@ def EnableWidget(index: int, message: SharedMessageStruct):
 
     widget_handler = get_widget_handler()
     if not widget_handler.is_widget_enabled(widget_name):
-        widget_handler.enable_widget(widget_name)
-    if widget_name == "HeroAI":
-        EnableHeroAIOptions(message.ReceiverEmail)
+        if widget_name == "HeroAI":
+            _queue_widget_enable(widget_name)
+        else:
+            widget_handler.enable_widget(widget_name)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"EnableWidget('{widget_name}') message processed and finished.", Console.MessageType.Info, False)
@@ -2844,6 +2898,7 @@ def ProcessMessages():
 
 def main():
     HealStaleHeroAISnapshot(Player.GetAccountEmail())
+    _process_pending_widget_enables()
     ProcessMessages()
 
 

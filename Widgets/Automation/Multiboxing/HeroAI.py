@@ -113,6 +113,9 @@ def HandleCombat(cached_data: CacheData):
     
     if not options or not options.Combat:  # halt operation if combat is disabled
         return False
+
+    if is_follow_recovery_active(cached_data, follow_execution_state):
+        return False
     
     if not cached_data.data.in_aggro:
         return False
@@ -155,7 +158,10 @@ def EnsureFollowModuleIni() -> None:
         Py4GW.Console.Log(MODULE_NAME, f"Follow formation INI bootstrap failed: {e}", Py4GW.Console.MessageType.Error)
 
 def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
-    return execute_follower_follow(cached_data, follow_execution_state)
+    if not cached_data.data.is_leader:
+        return execute_follower_follow(cached_data, follow_execution_state)
+    
+    return BehaviorTree.NodeState.FAILURE  # leader doesn't follow anyone
 
 def handle_UI (cached_data: CacheData):
     global HeroAI_BT
@@ -322,8 +328,8 @@ def movement_interrupt() -> BehaviorTree.NodeState:
 
 
 def user_interrupt() -> BehaviorTree.NodeState:
-    if IsUserInterrupting():
-        return BehaviorTree.NodeState.SUCCESS   # block lower-priority automation for this tick
+    #if IsUserInterrupting():
+    #    return BehaviorTree.NodeState.SUCCESS   # block lower-priority automation for this tick
     return BehaviorTree.NodeState.FAILURE      # allow next branch
 
 

@@ -19,6 +19,7 @@ Shatter_Hex_ID = Skill.GetID("Shatter_Hex")
 Flesh_of_My_Flesh_ID = Skill.GetID("Flesh_of_My_Flesh")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Ebon_Battle_Standard_of_Courage_ID = Skill.GetID("Ebon_Battle_Standard_of_Courage")
+Ebon_Battle_Standard_of_Honor_ID = Skill.GetID("Ebon_Battle_Standard_of_Honor")
 Tryptophan_Signet_ID = Skill.GetID("Tryptophan_Signet")
 
 
@@ -54,6 +55,7 @@ class Panic(BuildMgr):
                 Flesh_of_My_Flesh_ID,
                 Breath_of_the_Great_Dwarf_ID,
                 Ebon_Battle_Standard_of_Courage_ID,
+                Ebon_Battle_Standard_of_Honor_ID,
                 Tryptophan_Signet_ID,
             ],
         )
@@ -73,6 +75,7 @@ class Panic(BuildMgr):
             Power_Drain_ID,
             Shatter_Hex_ID,
             Ebon_Battle_Standard_of_Courage_ID,
+            Ebon_Battle_Standard_of_Honor_ID,
             Tryptophan_Signet_ID,
         ])
         self.SetSkillCastingFn(self._run_local_skill_logic)
@@ -118,6 +121,9 @@ class Panic(BuildMgr):
                 return True
 
         if self.IsSkillEquipped(Ebon_Battle_Standard_of_Courage_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Battle_Standard_of_Courage()):
+            return True
+
+        if self.IsSkillEquipped(Ebon_Battle_Standard_of_Honor_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Battle_Standard_of_Honor()):
             return True
 
         if not snapshot.in_aggro:
