@@ -59,32 +59,28 @@ class BotSettings:
 UW_MAP_ID = 72
 
 
-class UWBlacklistModelID(enum.IntEnum):
-    """Enemy model IDs for HeroAI EnemyBlacklist (model-ID only — never display names).
-
-    IDs verified via EnemyTracker (map 72) and model_data where noted.
-    """
-    BanishedDreamRider     = 2377  # UW map 72 (EnemyTracker); 7321 is wiki/model_data only
-    ObsidianBehemoth       = 2369
-    SpiritOfNaturesRenewal = 2938  # RitualSpirit.NATURES_RENEWAL + SPIRIT_OFFSET
-    ChainedSoul            = 2367
-    ObsidianGuardian       = 2370
-    TorturedSpiritFriendly = 2404  # GWCA UW::TorturedSpirit1, friendly during quest
-    TorturedSpirit         = 2422
-    TorturedSpiritAlt      = 2423  # legacy/EnemyTracker variant; remove defensively
-    VengefulAatxe          = 2390
+class UWBlacklistName:
+    """Display names for HeroAI EnemyBlacklist (name-based — requires stable TextParser)."""
+    BanishedDreamRider     = 'Banished Dream Rider'
+    ObsidianBehemoth       = 'Obsidian Behemoth'
+    SpiritOfNaturesRenewal = "Nature's Renewal"
+    ChainedSoul            = 'Chained Soul'
+    ObsidianGuardian       = 'Obsidian Guardian'
+    TorturedSpirit         = 'Tortured Spirit'  # covers Friendly + alt variants (same display name)
+    VengefulAatxe          = 'Vengeful Aatxe'
 
 
-UW_BEHEMOTH_GUARD_MODEL_IDS: frozenset[int] = frozenset({
-    int(UWBlacklistModelID.ObsidianBehemoth),
-    int(UWBlacklistModelID.SpiritOfNaturesRenewal),
-})
+# Model IDs kept ONLY for BehemothGuard agent-detection logic (not for blacklisting).
+UW_BEHEMOTH_GUARD_MODEL_IDS: frozenset[int] = frozenset({2369, 2938})
 
-UW_TORTURED_SPIRIT_MODEL_IDS: frozenset[int] = frozenset({
-    int(UWBlacklistModelID.TorturedSpiritFriendly),
-    int(UWBlacklistModelID.TorturedSpirit),
-    int(UWBlacklistModelID.TorturedSpiritAlt),
-})
+UW_BEHEMOTH_GUARD_NAMES: tuple[str, ...] = (
+    UWBlacklistName.ObsidianBehemoth,
+    UWBlacklistName.SpiritOfNaturesRenewal,
+)
+
+UW_TORTURED_SPIRIT_NAMES: tuple[str, ...] = (
+    UWBlacklistName.TorturedSpirit,
+)
 
 # Spectral Mindblade spawn wait in Restore Planes (not blacklisted)
 _UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
@@ -967,14 +963,14 @@ def _draw_main_additional_ui() -> None:
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 bot = BottingTree.Create(bot_name=BOT_NAME, multi_account=True, auto_loot=True, isolation_enabled=False)
-# Remove name-based blacklist entries left over from a previous crashed run.
-# Any name entry forces HeroAI to call GetNameByID on every enemy scan → TextParser crash.
+# Reset the EnemyBlacklist on startup: clear any leftover entries from a previous
+# crashed or incomplete run so HeroAI starts with a clean state.
 try:
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL_Init
 
     _bl_init = _EBL_Init()
-    for _n in list(_bl_init.get_all_names()):
-        _bl_init.remove_name(_n)
+    _bl_init._write(set())        # clear legacy model-ID entries
+    _bl_init._write_names(set())  # clear leftover name entries
 except Exception:
     pass
 bot.UI.override_draw_help(lambda: _draw_help())
@@ -997,9 +993,9 @@ def _build_behemoth_guard_service() -> _BT:
     No Routines.BT equivalent — dynamic EnemyBlacklist service.
 
     - Only runs its check every 500 ms to stay lightweight.
-    - Uses Agent.GetModelID only (no GetNameByID) for enemy identification.
-    - When a live behemoth enters range: removes it from the blacklist so HeroAI fights.
-    - When no more live behemoths within range: re-adds to blacklist.
+    - Uses Agent.GetModelID for enemy identification (model IDs are reliable without TextParser).
+    - When a live behemoth enters range: removes its names from the blacklist so HeroAI fights.
+    - When no more live behemoths within range: re-adds names to blacklist.
     - When the guard is deactivated (end of step): ensures the blacklist entry is restored.
     """
     state: dict = {'fighting': False, 'last_check_ms': 0}
@@ -1009,7 +1005,7 @@ def _build_behemoth_guard_service() -> _BT:
 
         if not _behemoth_guard_active:
             if state['fighting']:
-                _blacklist_model_ids(UW_BEHEMOTH_GUARD_MODEL_IDS)
+                _blacklist_names(UW_BEHEMOTH_GUARD_NAMES)
                 state['fighting'] = False
             return _BT.NodeState.RUNNING
 
@@ -1035,90 +1031,56 @@ def _build_behemoth_guard_service() -> _BT:
                 break
 
         if nearby and not state['fighting']:
-            _unblacklist_model_ids(UW_BEHEMOTH_GUARD_MODEL_IDS)
+            _unblacklist_names(UW_BEHEMOTH_GUARD_NAMES)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Enemy in range — blacklist OFF, engaging.', Py4GW.Console.MessageType.Info)
             state['fighting'] = True
         elif not nearby and state['fighting']:
-            _blacklist_model_ids(UW_BEHEMOTH_GUARD_MODEL_IDS)
+            _blacklist_names(UW_BEHEMOTH_GUARD_NAMES)
             ConsoleLog(BOT_NAME, '[BehemothGuard] Fight done — blacklist ON, resuming.', Py4GW.Console.MessageType.Info)
             state['fighting'] = False
 
         return _BT.NodeState.RUNNING
 
     return _BT(_BT.ActionNode(name='BehemothGuardService', action_fn=_tick, aftercast_ms=0))
-def _blacklist_add_entry(name: str = '', model_id: int = 0) -> None:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-
-    bl = _EBL()
-    if name:
-        bl.add_name(name)
-    if model_id > 0:
-        bl.add(model_id)
-
-
-def _blacklist_remove_entry(name: str = '', model_id: int = 0) -> None:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-
-    bl = _EBL()
-    if name:
-        bl.remove_name(name)
-    if model_id > 0:
-        bl.remove(model_id)
-
-
-def _blacklist_add_model(model_id: int) -> None:
-    if int(model_id) > 0:
-        _blacklist_add_entry(model_id=int(model_id))
-
-
-def _blacklist_remove_model(model_id: int) -> None:
-    if int(model_id) > 0:
-        _blacklist_remove_entry(model_id=int(model_id))
-
-
-def _blacklist_model_ids(model_ids: frozenset[int] | set[int] | tuple[int, ...]) -> None:
-    _update_blacklist_model_ids(add=model_ids)
-
-
-def _unblacklist_model_ids(model_ids: frozenset[int] | set[int] | tuple[int, ...]) -> None:
-    _update_blacklist_model_ids(remove=model_ids)
-
-
-def _update_blacklist_model_ids(
+def _update_blacklist_names(
     *,
-    add: frozenset[int] | set[int] | tuple[int, ...] = (),
-    remove: frozenset[int] | set[int] | tuple[int, ...] = (),
+    add: tuple[str, ...] | list[str] = (),
+    remove: tuple[str, ...] | list[str] = (),
+    clear: bool = False,
 ) -> None:
-    """Apply model-ID blacklist changes with a single INI write.
+    """Apply name-based blacklist changes with a single INI write.
 
-    EnemyBlacklist.add/remove writes the global INI on every call. Doing several of
-    those back-to-back while HeroAI is scanning can race its reload path, so step
-    setup code should prefer this batched helper.
+    EnemyBlacklist.add_name/remove_name each write the INI individually.
+    This helper batches all changes into one read-modify-write cycle.
+    Pass clear=True to wipe all existing names before applying adds.
     """
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
 
     bl = _EBL()
-    ids = set(bl.get_all())
-    for model_id in remove:
-        ids.discard(int(model_id))
-    for model_id in add:
-        model_id = int(model_id)
-        if model_id > 0:
-            ids.add(model_id)
-    bl._write(ids)
+    names: set[str] = set() if clear else set(bl.get_all_names())
+    for name in remove:
+        names.discard(name.strip().lower())
+    for name in add:
+        n = name.strip().lower()
+        if n:
+            names.add(n)
+    bl._write_names(names)
 
 
-def _is_agent_blacklisted_by_model(agent_id: int) -> bool:
-    """Model-ID blacklist only — avoids GetNameByID (TextParser crash on dying agents)."""
-    if not agent_id:
-        return False
-    try:
-        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
+def _blacklist_names(names: tuple[str, ...] | list[str]) -> None:
+    _update_blacklist_names(add=names)
 
-        model_id = int(Agent.GetModelID(agent_id))
-        return model_id in _EBL().get_all()
-    except Exception:
-        return False
+
+def _unblacklist_names(names: tuple[str, ...] | list[str]) -> None:
+    _update_blacklist_names(remove=names)
+
+
+def _blacklist_name(name: str) -> None:
+    _update_blacklist_names(add=(name,))
+
+
+def _unblacklist_name(name: str) -> None:
+    _update_blacklist_names(remove=(name,))
 
 
 def _is_agent_blacklisted(agent_id: int) -> bool:
@@ -1136,7 +1098,7 @@ def _behemoth_guard_start() -> _BT:
     """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
-        _blacklist_model_ids(UW_BEHEMOTH_GUARD_MODEL_IDS)
+        _blacklist_names(UW_BEHEMOTH_GUARD_NAMES)
         _behemoth_guard_active = True
         ConsoleLog(BOT_NAME, '[BehemothGuard] Started — Behemoth + Spirit blacklisted.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
@@ -1146,7 +1108,7 @@ def _behemoth_guard_stop() -> _BT:
     def _tick(node: _BT.Node) -> _BT.NodeState:
         global _behemoth_guard_active
         _behemoth_guard_active = False
-        _unblacklist_model_ids(UW_BEHEMOTH_GUARD_MODEL_IDS)
+        _unblacklist_names(UW_BEHEMOTH_GUARD_NAMES)
         ConsoleLog(BOT_NAME, '[BehemothGuard] Stopped and blacklist cleared.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
     return _BT(_BT.ActionNode(name='BehemothGuardStop', action_fn=_tick))
@@ -1282,7 +1244,7 @@ def _wait_quest_completed(
         timeout_ms=timeout_ms,
     ))
 def _blacklist_add_dream_rider() -> None:
-    _blacklist_add_model(int(UWBlacklistModelID.BanishedDreamRider))
+    _blacklist_name(UWBlacklistName.BanishedDreamRider)
 def _clear_follower_flags() -> _BT:
     """No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero)."""
 
@@ -1504,15 +1466,8 @@ def _follow_king_frozenwind() -> _BT:
         timeout_ms=int(_KING_FROZENWIND_TIMEOUT_S * 1000) + 5000,
     ))
 def _purge_all_enemy_blacklist_names() -> None:
-    """Drop every name-based blacklist entry (HeroAI must use model IDs only in UW)."""
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-
-    bl = EnemyBlacklist()
-    names = list(bl.get_all_names())
-    if not names:
-        return
-    for name in names:
-        bl.remove_name(name)
+    """Drop every name-based blacklist entry (resets all bot-managed blacklist state)."""
+    _update_blacklist_names(clear=True)
 
 
 def _purge_blacklist_names_action(_node: _BT.Node) -> _BT.NodeState:
@@ -1521,54 +1476,55 @@ def _purge_blacklist_names_action(_node: _BT.Node) -> _BT.NodeState:
 
 
 def _unblacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _blacklist_remove_model(int(UWBlacklistModelID.ChainedSoul))
+    _unblacklist_name(UWBlacklistName.ChainedSoul)
     return _BT.NodeState.SUCCESS
 
 
 def _blacklist_chained_soul(node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _blacklist_add_model(int(UWBlacklistModelID.ChainedSoul))
+    _blacklist_name(UWBlacklistName.ChainedSoul)
     return _BT.NodeState.SUCCESS
 
 
 def _blacklist_tortured_spirits(_node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _blacklist_model_ids(UW_TORTURED_SPIRIT_MODEL_IDS)
+    _blacklist_names(UW_TORTURED_SPIRIT_NAMES)
     return _BT.NodeState.SUCCESS
 
 
 def _unblacklist_tortured_spirits(_node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _unblacklist_model_ids(UW_TORTURED_SPIRIT_MODEL_IDS)
+    _unblacklist_names(UW_TORTURED_SPIRIT_NAMES)
     return _BT.NodeState.SUCCESS
 
 
 def _blacklist_obsidian_guardian(_node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _blacklist_add_model(int(UWBlacklistModelID.ObsidianGuardian))
+    _blacklist_name(UWBlacklistName.ObsidianGuardian)
     return _BT.NodeState.SUCCESS
 
 
 def _blacklist_vengeful_aatxe(_node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _blacklist_add_model(int(UWBlacklistModelID.VengefulAatxe))
+    _blacklist_name(UWBlacklistName.VengefulAatxe)
+    return _BT.NodeState.SUCCESS
+
+
+def _unblacklist_vengeful_aatxe(_node: _BT.Node) -> _BT.NodeState:
+    _unblacklist_name(UWBlacklistName.VengefulAatxe)
+    return _BT.NodeState.SUCCESS
+
+
+def _unblacklist_dream_rider(_node: _BT.Node) -> _BT.NodeState:
+    _unblacklist_name(UWBlacklistName.BanishedDreamRider)
     return _BT.NodeState.SUCCESS
 
 
 def _prepare_unwanted_guests_blacklist(_node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
-    _update_blacklist_model_ids(
-        add=(int(UWBlacklistModelID.VengefulAatxe),),
-        remove=UW_TORTURED_SPIRIT_MODEL_IDS,
+    _update_blacklist_names(
+        add=(UWBlacklistName.VengefulAatxe,),
+        remove=UW_TORTURED_SPIRIT_NAMES,
     )
     return _BT.NodeState.SUCCESS
 
 
-_BOT_MANAGED_BLACKLIST_NAMES: tuple[str, ...] = ()
 def _clear_bot_blacklist_names() -> None:
     _purge_all_enemy_blacklist_names()
-    _unblacklist_model_ids(UW_TORTURED_SPIRIT_MODEL_IDS)
 def _party_call_or_change_target(agent_id: int) -> None:
     """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target.
 
@@ -1962,6 +1918,7 @@ def _enter_underworld_tree() -> _BT:
             name='SetHardMode',
             subtree_fn=lambda node: ApoBT.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
         )),
+        _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
         _log('UseUWScroll'),
         _BT(_BT.ActionNode(
             name='UseUWScroll',
@@ -2089,11 +2046,11 @@ def _restore_planes_tree() -> _BT:
     from Py4GWCoreLib import AgentArray, Agent
 
     def _blacklist_add(node: _BT.Node) -> _BT.NodeState:
-        _blacklist_add_model(int(UWBlacklistModelID.BanishedDreamRider))
+        _blacklist_name(UWBlacklistName.BanishedDreamRider)
         return _BT.NodeState.SUCCESS
 
     def _blacklist_remove(node: _BT.Node) -> _BT.NodeState:
-        _blacklist_remove_model(int(UWBlacklistModelID.BanishedDreamRider))
+        _unblacklist_name(UWBlacklistName.BanishedDreamRider)
         return _BT.NodeState.SUCCESS
 
     def _wait_mindblade_spawn(
@@ -2200,6 +2157,7 @@ def _restore_planes_tree() -> _BT:
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
+        _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
         _BT(_BT.ActionNode(name='BlacklistDreamRider', action_fn=_blacklist_add)),
         _behemoth_guard_start(),
         BT.Movement.Move(x=-3560,  y=-5899),
@@ -2255,8 +2213,8 @@ def _four_horsemen_tree() -> _BT:
     return BT.Composite.Sequence(
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
-        BT.Movement.Move(x=13598, y=-11526),
-        _set_follower_flags(x=13598, y=-11526),
+        BT.Movement.Move(13600, -11956),
+        _set_follower_flags(13600, -11956),
         _dialog_until_quest_active(
             x=11337, y=-17962,
             dialog_id=0x806A01,
@@ -2320,6 +2278,8 @@ def _terrorweb_queen_tree() -> _BT:
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
+        _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
+        _BT(_BT.ActionNode(name='BlacklistDreamRider', action_fn=lambda node: (_blacklist_add_dream_rider() or _BT.NodeState.SUCCESS))),
         _BT(_BT.ActionNode(name='BlacklistObsidianGuardian', action_fn=_blacklist_obsidian_guardian)),
         _dialog_until_quest_active(
             x=-6957, y=-19478,
@@ -2343,6 +2303,8 @@ def _restore_pit_tree() -> _BT:
 
     return BT.Composite.Sequence(
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
+        _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
+        _BT(_BT.ActionNode(name='BlacklistDreamRider', action_fn=lambda node: (_blacklist_add_dream_rider() or _BT.NodeState.SUCCESS))),
         BT.Movement.Move(x=13672,  y=-16754),
         BT.Movement.Move(x=13390,  y=-10020),
         BT.Movement.Move(x=11416,  y=-2473),
@@ -2424,6 +2386,7 @@ def _imprisoned_spirits_tree() -> _BT:
     return BT.Composite.Sequence(
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
+        _BT(_BT.ActionNode(name='UnblacklistDreamRider', action_fn=_unblacklist_dream_rider)),
         BT.Movement.Move(x=13010, y=4452),
         _BT(_BT.ActionNode(name='FlagTeams', action_fn=_flag_teams)),
         _dialog_until_quest_active(
@@ -2492,6 +2455,7 @@ def _wrathfull_spirits_tree() -> _BT:
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
+        _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
         _BT(_BT.ActionNode(name='BlacklistTorturedSpirits', action_fn=_blacklist_tortured_spirits)),
         _dialog_until_quest_active(
             x=-13217, y=5167,
@@ -2500,6 +2464,7 @@ def _wrathfull_spirits_tree() -> _BT:
             label='WrathfulSpirits',
         ),
         BT.Movement.Move(x=-13422, y=973),
+        _BT(_BT.ActionNode(name='UnblacklistTorturedSpirits', action_fn=_unblacklist_tortured_spirits)),
         BT.Movement.MoveAndKill(Vec2f(-13791, 1642), clear_area_radius=_kr),
         BT.Movement.MoveAndKill(Vec2f(-12889, 963), clear_area_radius=_kr),
         BT.Movement.MoveAndKill(Vec2f(-11445, 1154), clear_area_radius=_kr),
@@ -2518,12 +2483,10 @@ def _wrathfull_spirits_tree() -> _BT:
             x=-13217, y=5167,
             button_number=0,
         ),
-        _BT(_BT.ActionNode(name='UnblacklistTorturedSpiritsBeforeTeleport', action_fn=_unblacklist_tortured_spirits)),
         BT.Agents.MoveTargetInteractAndDialog(
             x=-13217, y=5167,
             dialog_id=0x8D,
         ),
-        _BT(_BT.ActionNode(name='UnblacklistTorturedSpirits', action_fn=_unblacklist_tortured_spirits)),
         name='WrathfullSpirits',
     )
 
@@ -2599,6 +2562,7 @@ def _restore_wastes_tree() -> _BT:
     return BT.Composite.Sequence(
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
+        _BT(_BT.ActionNode(name='UnblacklistVengefulAatxe', action_fn=_unblacklist_vengeful_aatxe)),
         BT.Movement.Move(x=8138, y=16929),
         BT.Movement.Move(x=6210, y=19120),
         BT.Movement.MoveAndKill(Vec2f(6320, 21167), clear_area_radius=_kr),
@@ -2701,7 +2665,7 @@ def _dhuum_tree() -> _BT:
         _flag_dhuum_accounts(),
         _enable_dhuum_helper_on_all_accounts(),
         BT.Player.Wait(10000),
-        BT.Movement.Move(x=-14007, y=17287, pause_on_combat=False),
+        BT.Movement.Move(-15373, 17298, pause_on_combat=False),
         _wait_for_spirit_forms(),
         _enable_heroai_combat_all(),
         _wait_for_uw_chest(),
@@ -2824,7 +2788,7 @@ def _loot_chest_tree() -> _BT:
             throttle_interval_ms=100,
             timeout_ms=300_000,
         )),
-        BT.Player.Wait(duration_ms=10_000),
+        BT.Player.Wait(duration_ms=15_000),
         BT.Shared.SendAndWait(
             _SCT.TakeDialogWithTarget,
             params=king_params,
@@ -3061,11 +3025,11 @@ def _build_priority_target_service() -> _BT:
     def _agent_priority_from_model(model_id: int) -> int:
         return priority_by_model.get(int(model_id), -1)
 
-    def _blacklist_ids_snapshot() -> frozenset[int]:
+    def _blacklist_names_snapshot() -> frozenset[str]:
         try:
             from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
 
-            return frozenset(int(model_id) for model_id in _EBL().get_all())
+            return frozenset(_EBL().get_all_names())
         except Exception:
             return frozenset()
 
@@ -3098,7 +3062,7 @@ def _build_priority_target_service() -> _BT:
         if not player_pos:
             return _BT.NodeState.RUNNING
 
-        blacklist_ids = _blacklist_ids_snapshot()
+        blacklist_names = _blacklist_names_snapshot()
         px, py = float(player_pos[0]), float(player_pos[1])
         best_agent_id = 0
         best_priority = sentinel_priority
@@ -3114,7 +3078,11 @@ def _build_priority_target_service() -> _BT:
                 if not Agent.IsAlive(agent_id):
                     continue
                 model_id = int(Agent.GetModelID(agent_id))
-                if model_id in blacklist_ids:
+                try:
+                    agent_name = (Agent.GetNameByID(agent_id) or '').strip().lower()
+                except Exception:
+                    agent_name = ''
+                if agent_name and agent_name in blacklist_names:
                     continue
                 prio = _agent_priority_from_model(model_id)
                 if prio == -1 or prio >= best_priority:
@@ -3129,7 +3097,7 @@ def _build_priority_target_service() -> _BT:
             best_agent_id = agent_id
             best_model_id = model_id
 
-        if best_agent_id == 0 or best_model_id in blacklist_ids:
+        if best_agent_id == 0:
             return _BT.NodeState.RUNNING
         try:
             current_target_id = int(Player.GetTargetID() or 0)
@@ -3137,15 +3105,16 @@ def _build_priority_target_service() -> _BT:
             current_target_id = 0
 
         if current_target_id != 0:
+            current_prio = sentinel_priority
             try:
                 current_model_id = int(Agent.GetModelID(current_target_id))
+                current_target_name = (Agent.GetNameByID(current_target_id) or '').strip().lower()
+                if not (current_target_name and current_target_name in blacklist_names):
+                    current_prio = _agent_priority_from_model(current_model_id)
+                    if current_prio == -1:
+                        current_prio = sentinel_priority
             except Exception:
-                current_model_id = 0
-            current_prio = sentinel_priority
-            if current_model_id not in blacklist_ids:
-                current_prio = _agent_priority_from_model(current_model_id)
-                if current_prio == -1:
-                    current_prio = sentinel_priority
+                pass
             if best_priority >= current_prio and (now_ms - state['last_call_ms']) < _UW_PRIORITY_TARGET_COOLDOWN_MS:
                 return _BT.NodeState.RUNNING
 
@@ -3155,7 +3124,8 @@ def _build_priority_target_service() -> _BT:
         try:
             if not Agent.IsValid(best_agent_id) or not Agent.IsAlive(best_agent_id):
                 return _BT.NodeState.RUNNING
-            if int(Agent.GetModelID(best_agent_id)) in blacklist_ids:
+            best_name_final = (Agent.GetNameByID(best_agent_id) or '').strip().lower()
+            if best_name_final and best_name_final in blacklist_names:
                 return _BT.NodeState.RUNNING
         except Exception:
             return _BT.NodeState.RUNNING
@@ -3265,13 +3235,13 @@ _orig_tick_planner = bot._tick_planner
 
 
 def _in_aggro_excluding_blacklist() -> bool:
-    """Live radius scan that ignores blacklisted enemies (model IDs only — no GetNameByID)."""
+    """Live radius scan that ignores blacklisted enemies (name-based)."""
     from Py4GWCoreLib.AgentArray import AgentArray
     from Py4GWCoreLib.Agent import Agent
     from Py4GWCoreLib.Player import Player as _Player
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 
-    bl_ids = frozenset(EnemyBlacklist().get_all())
+    bl_names = frozenset(EnemyBlacklist().get_all_names())
     player_id = _Player.GetAgentID()
     player_pos = _Player.GetXY()
     if not player_pos:
@@ -3289,7 +3259,8 @@ def _in_aggro_excluding_blacklist() -> bool:
         if not Agent.IsAlive(agent_id):
             continue
         try:
-            if int(Agent.GetModelID(agent_id)) in bl_ids:
+            name = (Agent.GetNameByID(agent_id) or '').strip().lower()
+            if name and name in bl_names:
                 continue
         except Exception:
             pass
