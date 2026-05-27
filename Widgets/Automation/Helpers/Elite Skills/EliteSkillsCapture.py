@@ -2931,6 +2931,39 @@ ELITE_SKILLS = [
         capture_function="WeaponOfQuickening",
         start_map=219,
         icon_filename="[1268] - Weapon of Quickening.jpg"
+    ), 
+    EliteSkill(
+        id="skill-1091",
+        display_name="Double Dragon",
+        skill_id=1091,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Double Dragon",
+        capture_function="Double_Dragon",
+        start_map=303,
+        icon_filename="[1091] - Double Dragon.jpg"
+    ), 
+    EliteSkill(
+        id="skill-1367",
+        display_name="Blinding Surge",
+        skill_id=1367,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Blinding Surge",
+        capture_function="Blinding_Surge",
+        start_map=433,
+        icon_filename="[1367] - Blinding Surge.jpg"
+    ), 
+    EliteSkill(
+       id="skill-164",
+        display_name="Elemental Attunemente",
+        skill_id=164,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Elemental Attunement",
+        capture_function="Elemental_Attunement",
+        start_map=477,
+        icon_filename="[164] - Elemental Attunement.jpg" 
     )
 ]
 
@@ -4922,7 +4955,7 @@ def AvatarOfGrenth():
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(16110, -13455)
-    bot.Move.XY(12158, -9198)
+    bot.Move.XY(11764, -10069)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -9834,7 +9867,6 @@ def SpiritChanneling():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-17865, 16700, 197)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(4786, -14399)
@@ -9860,7 +9892,6 @@ def SpiritLightWeapon():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-7023, -10645, 201)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(12634, 20424)
@@ -9886,7 +9917,6 @@ def SpiritsStrength():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-139, 12822, 399)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(-6174, 5134)
@@ -9912,7 +9942,6 @@ def TranquilWasTanasen():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(5939, -12643, 31)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(8321, -7866)
@@ -9938,7 +9967,6 @@ def VengefulWasKhanhei():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(27438, 5576, 209)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(24420, -2651)
@@ -9963,7 +9991,6 @@ def Wanderlust():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(2770, -15781, 269)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(2916, -12704)
@@ -9991,7 +10018,6 @@ def WeaponOfFury():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3481, -4573, 379)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(2849, 13066)
@@ -10017,7 +10043,6 @@ def WeaponOfQuickening():
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-26272, 2836, 211)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(22084, 1779)
@@ -10031,6 +10056,77 @@ def WeaponOfQuickening():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
+def Double_Dragon():
+    bot.States.AddHeader("Double Dragon")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 303
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(10814, 14589, 239)
+    ConfigureAggressiveEnv(bot)
+    #bot.Items.UseAllConsumables()
+    bot.Move.XY(4035, 10701)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1091), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Blinding_Surge():
+    bot.States.AddHeader("Blinding Surge")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 433
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(5045, 1052, 404)
+    ConfigureAggressiveEnv(bot)
+    #bot.Items.UseAllConsumables()
+    bot.Move.XY(-7018, -8461)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1367), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Elemental_Attunement():
+    bot.States.AddHeader("Elemental Attunement")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 477
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-15629, -3751, 371)
+    ConfigureAggressiveEnv(bot)
+    #bot.Items.UseAllConsumables()
+    bot.Move.XY(-4598, -10651)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(164), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
 # ============================================================================
 #region ADVANCED GUI CLASS
 # ============================================================================
@@ -11439,6 +11535,9 @@ bot.States.AddCustomState(SmokeTrap, "[H]Smoke Trap")
 bot.States.AddCustomState(SpikeTrap, "[H]Spike Trap")
 bot.States.AddCustomState(StrikeAsOne, "[H]Strike as One")
 bot.States.AddCustomState(TrappersFocus, "[H]Trapper's Focus")
+bot.States.AddCustomState(Double_Dragon, "[H]Double Dragon")
+bot.States.AddCustomState(Blinding_Surge, "[H]Blinding Surge")
+bot.States.AddCustomState(Elemental_Attunement, "[H]Elemental Attunement")
 # Record base builder state count (used to append/remove dynamic sub-steps)
 gui._original_state_count = len(bot.config.FSM.states)
 gui._last_original_next = bot.config.FSM.states[-1].next_state if bot.config.FSM.states else None
