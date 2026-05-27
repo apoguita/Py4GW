@@ -9467,6 +9467,7 @@ def Quicksand():
     bot.Move.XYAndExitMap(-2395, -4922, 441)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1161.45, 7977.44)
     bot.Move.XY(-2115, 4646)
     bot.Wait.ForTime(6500)
     bot.Move.XYAndInteractGadget(-2288.00, 4524.00)
