@@ -101,6 +101,7 @@ class Compass():
 
     class Pathing:
         visible = True
+        invert = False
         color = Utils.RGBToColor(255, 255, 255, 80)
 
     class Config:
@@ -240,6 +241,7 @@ class Compass():
         self.position.detached_size      = self.ini.read_int('position',  'detached_size',      self.position.detached_size)
 
         self.pathing.visible = self.ini.read_bool('pathing', 'visible', self.pathing.visible)
+        self.pathing.invert = self.ini.read_bool('pathing', 'invert', self.pathing.invert)
         self.pathing.color = self.ini.read_int('pathing', 'color', self.pathing.color)
 
         self.config.spirit_alpha = self.ini.read_int('misc', 'spirit_alpha', self.config.spirit_alpha)
@@ -281,6 +283,7 @@ class Compass():
         self.ini.write_key('position', 'detached_size',       str(self.position.detached_size))
 
         self.ini.write_key('pathing', 'visible', str(self.pathing.visible))
+        self.ini.write_key('pathing', 'invert', str(self.pathing.invert))
         self.ini.write_key('pathing', 'color',   str(self.pathing.color))
 
         self.ini.write_key('misc', 'spirit_alpha', str(self.config.spirit_alpha))
@@ -352,6 +355,11 @@ class Compass():
             self.renderer.build_pathing_trapezoid_geometry(Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
             self.primitives_set = True
 
+            if self.pathing.invert:
+                self.renderer.inverse_rendering(True)
+            else:
+                self.renderer.inverse_rendering(False)
+
         self.renderer.world_space.set_zoom(zoom)
         self.renderer.world_space.set_rotation(-self.position.rotation)
         self.renderer.world_space.set_pan(self.position.current_pos.x + x_offset,
@@ -413,6 +421,16 @@ class Compass():
                 Utils.point_in_polygon(mouse[1], mouse[2], q1)
                 or Utils.point_in_polygon(mouse[1], mouse[2], q2)
             )
+        elif shape == "Tear2":
+            self.imgui.path_clear()
+            self.imgui.path_line_to(math.cos(math.radians(0) + rotation)*size*2 + x,math.sin(math.radians(0) + rotation)*size*2 + y)
+            self.imgui.path_arc_to(x, y, size, math.radians(60) + rotation, math.radians(300) + rotation)
+            self.imgui.path_fill_convex(color)
+
+            self.imgui.path_clear()
+            self.imgui.path_line_to(math.cos(math.radians(0) + rotation)*size*2 + x,math.sin(math.radians(0) + rotation)*size*2 + y)
+            self.imgui.path_arc_to(x, y, size, math.radians(60) + rotation, math.radians(300) + rotation)
+            self.imgui.path_stroke(line_col, True, line_thickness)
         else:
             scale = [1, 1, 1, 1]
             
@@ -649,6 +667,7 @@ class Compass():
                     self.DrawAgent(agent_id, mouse, *self.config.markers['Item (Green)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
                 case _:
                     self.DrawAgent(agent_id, mouse, *self.config.markers['Item (White)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
+    
     def Draw(self):
         self.UpdateOrientation()
     
@@ -784,21 +803,6 @@ def configure():
         if PyImGui.begin(compass.window_module.window_name, compass.window_module.window_flags):
             end_pos = PyImGui.get_window_pos()
 
-            # style/color
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Header,           (.2,.2,.2,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered,    (.3,.3,.3,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive,     (.4,.4,.4,1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg,          (0.2, 0.2, 0.2, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered,   (0.3, 0.3, 0.3, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive,    (0.4, 0.4, 0.4, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab,       (0.0, 0.0, 0.0, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0.0, 0.0, 0.0, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,           (0.35, 0.35, 0.35, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered,    (0.45, 0.45, 0.45, 1))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,     (0.55, 0.55, 0.55, 1))
-
-            PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark,     (0.9, 0.9, 0.9, 1))
-
             header_opened = False
 
             # position settings
@@ -822,7 +826,7 @@ def configure():
                 PyImGui.unindent(10)
 
             # agent settings
-            items = ['Circle','Tear', 'Square']
+            items = ['Circle','Tear','Tear2','Square']
             if PyImGui.collapsing_header(f'Agents'):
                 PyImGui.indent(10)
 
@@ -869,7 +873,7 @@ def configure():
                         PyImGui.same_line(0.0, 42)
                         marker.color = Utils.TupleToColor(PyImGui.color_edit4(f'Color##{name}', Utils.ColorToTuple(marker.color)))
                         PyImGui.push_item_width(120)
-                        items = ['Circle','Tear', 'Square']
+                        items = ['Circle','Tear','Tear2','Square']
                         marker.shape = items[PyImGui.combo(f'Shape##{name}',  items.index(marker.shape),  items)]
                         PyImGui.pop_item_width()
                         PyImGui.push_item_width(224)
@@ -883,7 +887,7 @@ def configure():
                             break
                         PyImGui.unindent(14)
 
-                PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark,     (0.9, 0.9, 0.9, 1))
+                    PyImGui.pop_style_color(1)
 
                 #PyImGui.indent(4)
                 PyImGui.push_item_width(150)
@@ -919,12 +923,12 @@ def configure():
                 compass.pathing.visible = PyImGui.checkbox('Visible', compass.pathing.visible)
                 PyImGui.same_line(0.0, -1)
                 compass.pathing.color = Utils.TupleToColor(PyImGui.color_edit4('', Utils.ColorToTuple(compass.pathing.color)))
+                compass.pathing.invert = PyImGui.checkbox('Invert Pathing', compass.pathing.invert)
                 PyImGui.unindent(10)
 
             if PyImGui.button('Save Settings', PyImGui.get_window_width() - 20 if header_opened else 150):
                 compass.SaveConfig()
 
-            PyImGui.pop_style_color(11)
         PyImGui.end()
 
         compass.ini.write_key('position', 'config_x', str(int(end_pos[0])))
