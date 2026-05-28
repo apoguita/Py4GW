@@ -1344,20 +1344,72 @@ _UW_CHEST_RADIUS   = 300.0
 def _wait_for_uw_chest() -> _BT:
     """RUNNING until the Underworld Chest gadget appears near its spawn point.
 
-    Bails out immediately (SUCCESS) on map change / wipe.
+    Only bails out with SUCCESS when:
+      - the map is confirmed invalid (left UW / party wipe kicked everyone out), or
+      - the chest gadget is found within _UW_CHEST_RADIUS, or
+      - the safety timeout fires (25 min — Dhuum fight far exceeds this only if bugged).
+
+    API errors are treated as RUNNING (keep waiting), never as SUCCESS.
+    This prevents a transient exception (e.g. while the leader is dead) from
+    prematurely exiting the wait and triggering LootChest mid-fight.
     """
+    import time as _time
+
+    _TIMEOUT_S = 3600.0  # 60 minutes — only fires if something is catastrophically broken
+    state: dict = {'deadline': None}
+
     def _tick(node: _BT.Node) -> _BT.NodeState:
-        if not Routines.Checks.Map.MapValid() or int(Map.GetMapID() or 0) != UW_MAP_ID:
+        # ── Map validity check — exception → keep waiting (RUNNING) ──────────
+        try:
+            map_valid = Routines.Checks.Map.MapValid()
+        except Exception:
+            return _BT.NodeState.RUNNING  # can't determine → stay safe
+        if not map_valid:
+            ConsoleLog(BOT_NAME, '[Dhuum] WaitForUWChest: map no longer valid — exiting.', Py4GW.Console.MessageType.Warning)
+            state['deadline'] = None
             return _BT.NodeState.SUCCESS
-        from Py4GWCoreLib import AgentArray as _AA
-        for agent_id in _AA.GetAgentArray():
-            if not Agent.IsValid(agent_id):
+
+        try:
+            map_id = int(Map.GetMapID() or 0)
+        except Exception:
+            return _BT.NodeState.RUNNING  # can't determine → stay safe
+        if map_id != UW_MAP_ID:
+            ConsoleLog(BOT_NAME, f'[Dhuum] WaitForUWChest: map changed ({map_id}) — exiting.', Py4GW.Console.MessageType.Warning)
+            state['deadline'] = None
+            return _BT.NodeState.SUCCESS
+
+        # ── Safety timeout (last resort only) ────────────────────────────────
+        now = _time.monotonic()
+        if state['deadline'] is None:
+            state['deadline'] = now + _TIMEOUT_S
+        elif now >= state['deadline']:
+            ConsoleLog(BOT_NAME, '[Dhuum] WaitForUWChest: safety timeout fired — something is broken.', Py4GW.Console.MessageType.Error)
+            state['deadline'] = None
+            return _BT.NodeState.SUCCESS
+
+        # ── Scan for chest gadget ─────────────────────────────────────────────
+        try:
+            from Py4GWCoreLib import AgentArray as _AA
+            agents = list(_AA.GetAgentArray() or [])
+        except Exception:
+            return _BT.NodeState.RUNNING
+
+        for agent_id in agents:
+            try:
+                if not Agent.IsValid(agent_id):
+                    continue
+                if not Agent.IsGadget(agent_id):
+                    continue
+                pos = Agent.GetXY(agent_id)
+                if not pos:
+                    continue
+                if Utils.Distance(_UW_CHEST_POS, pos) <= _UW_CHEST_RADIUS:
+                    ConsoleLog(BOT_NAME, '[Dhuum] Underworld Chest appeared — Dhuum done.', Py4GW.Console.MessageType.Info)
+                    state['deadline'] = None
+                    return _BT.NodeState.SUCCESS
+            except Exception:
                 continue
-            if not Agent.IsGadget(agent_id):
-                continue
-            if Utils.Distance(_UW_CHEST_POS, Agent.GetXY(agent_id)) <= _UW_CHEST_RADIUS:
-                ConsoleLog(BOT_NAME, '[Dhuum] Underworld Chest appeared — Dhuum done.', Py4GW.Console.MessageType.Info)
-                return _BT.NodeState.SUCCESS
+
         return _BT.NodeState.RUNNING
 
     return _BT(_BT.ActionNode(name='WaitForUWChest', action_fn=_tick))
@@ -1809,21 +1861,11 @@ def _resolve_uw_entry_map_id() -> int:
 
 # ── Quest trees (chronological) ──────────────────────────────────────────────
 
-# TODO / Missing ApoBT wrappers (no equivalent exists in ApoBottingLib yet):
+# Missing ApoBT wrappers (no equivalent exists in ApoBottingLib yet):
 #
-#   1. ApoBT.SummonAllAccounts(timeout_ms, poll_interval_ms, log)
-#      — Currently using RoutinesBT.Multibox.SummonAllAccounts directly.
-#        A standalone ApoBT wrapper would allow consistent blackboard integration
-#        without having to go through CreateParty.
-#
-#   2. ApoBT.UseItemByModelID(model_id, log, aftercast_ms)
-#      — Currently using a raw _BT.ActionNode + GLOBAL_CACHE.Inventory.UseItem.
-#        A proper wrapper would handle the "item not found" failure path uniformly
-#        and integrate with the botting tree flow.
-#
-#   3. ApoBT.EnableWidgets(widget_names, multi_account, log, aftercast_ms)
-#      — Currently using a raw _BT.ActionNode + WidgetManager + ShMem.SendMessage.
-#        A wrapper would encapsulate local + multibox widget enabling in one node.
+#   1. ApoBT.SummonAllAccounts — using RoutinesBT.Multibox.SummonAllAccounts directly.
+#   2. ApoBT.UseItemByModelID  — using a raw _BT.ActionNode + GLOBAL_CACHE.Inventory.UseItem.
+#   3. ApoBT.EnableWidgets     — using a raw _BT.ActionNode + WidgetManager + ShMem.SendMessage.
 
 def _enter_underworld_tree() -> _BT:
     """
@@ -1831,17 +1873,18 @@ def _enter_underworld_tree() -> _BT:
 
     Sequence:
       0. bot.Config.Pacifist(multi_account=True) — HeroAI off, isolation off, multibox on.
-      1. TravelGH + SummonAllAccounts + Wait — all accounts meet at GH.
-      2. Travel to configured entry outpost.
-      3. CreateParty(multibox_invite=True) — LeaveParty + SummonAllAccounts + InviteAllAccounts.
-      4. Optional Scroll Trader buy; enable required widgets.
-      5. Set hard/normal mode; use UW scroll.
+      1. LeaveParty → TravelGH → SummonAllAccounts → Wait — all accounts meet at GH.
+      2. BuyUWScrolls (skipped when stock is sufficient).
+      3. Travel to configured entry outpost.
+      4. CreateParty(multibox_invite=True) — LeaveParty + SummonAllAccounts + InviteAllAccounts.
+      5. EnableRequiredWidgets; set hard/normal mode.
+      6. BlacklistChainedSoul; use UW scroll.
     """
     from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
     from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
     BT = Routines.BT
 
-    def _use_local_uw_scroll() -> _BT.NodeState:
+    def _use_local_uw_scroll(_node: _BT.Node) -> _BT.NodeState:
         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(UW_SCROLL_MODEL_ID)
         if item_id == 0:
             ConsoleLog(BOT_NAME, '[EnterUW] UseUWScroll: no scroll found in inventory!', Py4GW.Console.MessageType.Warning)
@@ -1850,81 +1893,19 @@ def _enter_underworld_tree() -> _BT:
         ConsoleLog(BOT_NAME, '[EnterUW] UseUWScroll: scroll used.', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
 
-    def _log(name: str) -> _BT:
-        return _BT(_BT.ActionNode(
-            name=f'Log_{name}',
-            action_fn=lambda node, n=name: (
-                ConsoleLog(BOT_NAME, f'[EnterUW] Starting: {n}', Py4GW.Console.MessageType.Info)
-                or _BT.NodeState.SUCCESS
-            ),
-        ))
-
     return BT.Composite.Sequence(
         bot.Config.Pacifist(multi_account=True),
-        _log('LeaveParty'),
-        _BT(_BT.SubtreeNode(
-            name='LeaveParty',
-            subtree_fn=lambda node: ApoBT.LeaveParty(),
-        )),
-        _log('TravelGH'),
-        _BT(_BT.SubtreeNode(
-            name='TravelGH',
-            subtree_fn=lambda node: ApoBT.TravelGH(),
-        )),
-        _log('SummonAllAccountsToGH'),
-        _BT(_BT.SubtreeNode(
-            name='SummonAllAccountsToGH',
-            subtree_fn=lambda node: RoutinesBT.Multibox.SummonAllAccounts(
-                timeout_ms=15_000,
-                poll_interval_ms=100,
-                log=True,
-            ),
-        )),
-        _BT(_BT.SubtreeNode(
-            name='WaitAfterGHSummon',
-            subtree_fn=lambda node: ApoBT.Wait(duration_ms=1000, log=True),
-        )),
-        _log('BuyUWScrolls'),
-        _BT(_BT.SubtreeNode(
-            name='BuyUWScrolls',
-            subtree_fn=_build_buy_uw_scrolls_tree,
-        )),
-        _log('TravelToEntryPoint'),
-        _BT(_BT.SubtreeNode(
-            name='TravelToEntryPoint',
-            subtree_fn=lambda node: ApoBT.Travel(
-                target_map_id=_resolve_uw_entry_map_id(),
-                log=True,
-            ),
-        )),
-        _log('CreateParty'),
-        _BT(_BT.SubtreeNode(
-            name='CreateParty',
-            subtree_fn=lambda node: ApoBT.CreateParty(
-                multibox_invite=True,
-                timeout_ms=15_000,
-                poll_interval_ms=100,
-                aftercast_ms=250,
-                log=True,
-            ),
-        )),
-        _BT(_BT.ActionNode(
-            name='EnableRequiredWidgets',
-            action_fn=_enable_required_widgets_on_all_accounts,
-            aftercast_ms=500,
-        )),
-        _log('SetHardMode'),
-        _BT(_BT.SubtreeNode(
-            name='SetHardMode',
-            subtree_fn=lambda node: ApoBT.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
-        )),
+        ApoBT.LeaveParty(),
+        ApoBT.TravelGH(),
+        RoutinesBT.Multibox.SummonAllAccounts(timeout_ms=15_000, poll_interval_ms=100, log=True),
+        ApoBT.Wait(duration_ms=1000, log=True),
+        _BT(_BT.SubtreeNode(name='BuyUWScrolls', subtree_fn=_build_buy_uw_scrolls_tree)),
+        ApoBT.Travel(target_map_id=_resolve_uw_entry_map_id(), log=True),
+        ApoBT.CreateParty(multibox_invite=True, timeout_ms=15_000, poll_interval_ms=100, aftercast_ms=250, log=True),
+        _BT(_BT.ActionNode(name='EnableRequiredWidgets', action_fn=_enable_required_widgets_on_all_accounts, aftercast_ms=500)),
+        ApoBT.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
-        _log('UseUWScroll'),
-        _BT(_BT.ActionNode(
-            name='UseUWScroll',
-            action_fn=lambda _node: _use_local_uw_scroll(),
-            aftercast_ms=500,
-        )),
+        _BT(_BT.ActionNode(name='UseUWScroll', action_fn=_use_local_uw_scroll, aftercast_ms=500)),
         name='EnterUnderworld',
     )
 
