@@ -4301,7 +4301,7 @@ def Panic():
     bot.Wait.ForTime(2000)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Map.EnterChallenge(6000, target_map_id=124)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(2573, 134)
     bot.Move.XY(3009, -4916)
@@ -10372,8 +10372,9 @@ def Mirror_of_Ice(): #[1098] - Mirror of Ice
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(6939, 10824)
-    bot.Move.XY(1865, 7093)
-    bot.Move.XY(6523, -380)
+    bot.Move.XY(2009.15, 5432.86)
+    bot.Move.XY(3684.09, 3832.11)
+    bot.Move.XY(6207.97, 26.18)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
