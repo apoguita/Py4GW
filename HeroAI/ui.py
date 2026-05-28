@@ -7,6 +7,7 @@ import random
 from typing import Optional
 from Py4GW import Console
 import PyImGui
+from HeroAI import resurrection_scroll
 from HeroAI import windows
 from HeroAI.cache_data import CacheData
 from HeroAI.commands import HeroAICommands
@@ -2955,6 +2956,10 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                 if ImGui.begin_child("##BlacklistSettingsChild", (0, 0)):
                     draw_blacklist_ui()
                 ImGui.end_child()
+                ImGui.end_tab_item()
+
+            if ImGui.begin_tab_item("Resurrection Scroll"):
+                resurrection_scroll.draw_settings()
                 ImGui.end_tab_item()
 
             if ImGui.begin_tab_item("Debug"):

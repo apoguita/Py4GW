@@ -17,7 +17,6 @@ class BotSettings:
     WIDGETS_TO_ENABLE: tuple[str, ...] = (
         "Titles",
         "Return to outpost on defeat",
-        "ResurrectionScroll",
     )
 
 bot = Botting(BotSettings.BOT_NAME,

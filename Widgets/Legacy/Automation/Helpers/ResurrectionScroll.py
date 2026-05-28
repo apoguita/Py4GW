@@ -39,6 +39,7 @@ try:
         Skill,
     )
     from Py4GWCoreLib import PyImGui, Color
+    from Py4GWCoreLib.GlobalCache.WhiteboardLocks import claim_resurrection_target
 
     # -----------------------------------------------------------------------
     # Config / INI
@@ -220,10 +221,9 @@ try:
             _status_text = "Player is dead"
             return
 
-        # Reserve the same shared resurrection target used by resurrection skills.
-        dead_ally_id = Routines.Agents.GetResurrectionTarget(
-            Range.Earshot.value,
-            reserve=True,
+        # Claim a dead ally through the shared whiteboard so only one account spends a scroll.
+        dead_ally_id = claim_resurrection_target(
+            Routines.Agents.GetDeadAllyArray(Range.Earshot.value),
             skill_id=0,
             aftercast_delay=_USE_COOLDOWN_MS,
         )
