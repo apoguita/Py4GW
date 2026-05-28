@@ -50,3 +50,5 @@ class HeroType(IntEnum):
     MercenaryHero8 = 35
     Miku = 36
     ZeiRi = 37
+    Devona = 38
+    GhostOfAlthea = 39

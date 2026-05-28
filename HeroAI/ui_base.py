@@ -2,6 +2,7 @@ import math
 
 import HeroAI.globals as hero_globals
 import PyImGui
+from HeroAI import resurrection_scroll
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, IconsFontAwesome5, ImGui, Map, Overlay, Range, Utils, WindowFrames, Color, ColorPalette, ConsoleLog, SharedCommandType
 from Py4GWCoreLib import Key, Keystroke, ThrottledTimer, UIManager
@@ -409,9 +410,9 @@ class HeroAI_BaseUI:
 
     @staticmethod
     def DrawButtonBar(cached_data: CacheData):
-        btn_size = 23
+        btn_size = 30
         ImGui.push_font("Regular", 10)
-        if PyImGui.begin_child("ControlPanelChild", (215, 0), False, PyImGui.WindowFlags.AlwaysAutoResize):
+        if PyImGui.begin_child("ControlPanelChild", (250, 0), False, PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_table("MessagingTable", 5):
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
@@ -501,21 +502,6 @@ class HeroAI_BaseUI:
                     if account_data is None:
                         return
 
-                    party_id = account_data.AgentPartyData.PartyID
-                    map_id = account_data.AgentData.Map.MapID
-                    map_region = account_data.AgentData.Map.Region
-                    map_district = account_data.AgentData.Map.District
-                    map_language = account_data.AgentData.Map.Language
-
-                    def on_same_map_and_party(account: AccountStruct) -> bool:
-                        return (
-                            account.AgentPartyData.PartyID == party_id
-                            and account.AgentData.Map.MapID == map_id
-                            and account.AgentData.Map.Region == map_region
-                            and account.AgentData.Map.District == map_district
-                            and account.AgentData.Map.Language == map_language
-                        )
-
                     all_accounts = [account for account in cached_data.party.accounts.values()]
                     lowest_party_index_account = min(all_accounts, key=lambda account: account.AgentPartyData.PartyPosition, default=None)
                     if lowest_party_index_account is None:
@@ -535,6 +521,8 @@ class HeroAI_BaseUI:
                 ImGui.pop_font()
                 ImGui.show_tooltip("Pick up Loot")
                 ImGui.push_font("Regular", 10)
+                PyImGui.same_line(0, -1)
+
                 PyImGui.end_table()
 
             PyImGui.separator()
@@ -544,19 +532,23 @@ class HeroAI_BaseUI:
 
                 from HeroAI import ui
 
-                v = ui.is_base_configure_consumables_window_open()
-                new_v = ImGui.toggle_button(
-                    label=f"{IconsFontAwesome5.ICON_CANDY_CANE}##consumables",
-                    v=v,
-                    width=btn_size,
-                    height=btn_size,
-                )
-                if new_v != v:
-                    ui.show_base_configure_consumables_window()
-                ImGui.pop_font()
-                ImGui.show_tooltip("Consumables")
-                ImGui.push_font("Regular", 10)
-                PyImGui.same_line(0, -1)
+                is_explorable = Map.IsExplorable()
+                is_outpost = Map.IsOutpost()
+
+                if is_explorable:
+                    v = ui.is_base_configure_consumables_window_open()
+                    new_v = ImGui.toggle_button(
+                        label=f"{IconsFontAwesome5.ICON_CANDY_CANE}##consumables",
+                        v=v,
+                        width=btn_size,
+                        height=btn_size,
+                    )
+                    if new_v != v:
+                        ui.show_base_configure_consumables_window()
+                    ImGui.pop_font()
+                    ImGui.show_tooltip("Consumables")
+                    ImGui.push_font("Regular", 10)
+                    PyImGui.same_line(0, -1)
 
                 fv = HeroAI_BaseUI.show_follow_formations_quick_window
                 new_fv = ImGui.toggle_button(
@@ -572,30 +564,66 @@ class HeroAI_BaseUI:
                 ImGui.push_font("Regular", 10)
                 PyImGui.same_line(0, -1)
 
-                fv = ui.is_party_window_open()
-                new_fv = ImGui.toggle_button(
-                    label=f"{IconsFontAwesome5.ICON_PEOPLE_GROUP}##open_party_window",
-                    v=fv,
-                    width=btn_size,
-                    height=btn_size,
-                )
-                if new_fv != fv:
-                    Keystroke.PressAndRelease(Key.P.value)
-                ImGui.pop_font()
-                ImGui.show_tooltip("Open Party Window")
-                ImGui.push_font("Regular", 10)
-                PyImGui.same_line(0, -1)
+                if is_explorable:
+                    flag_window_visible = hero_globals.show_flagging_window
+                    new_flag_window_visible = ImGui.toggle_button(
+                        label=f"{IconsFontAwesome5.ICON_FLAG}##open_flagging_window",
+                        v=flag_window_visible,
+                        width=btn_size,
+                        height=btn_size,
+                    )
+                    if new_flag_window_visible != flag_window_visible:
+                        hero_globals.show_flagging_window = new_flag_window_visible
+                        HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                        HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
+                    ImGui.pop_font()
+                    ImGui.show_tooltip("Flagging")
+                    ImGui.push_font("Regular", 10)
+                    PyImGui.same_line(0, -1)
+
+                if is_outpost:
+                    party_window_open = False
+                    new_party_window_open = ImGui.toggle_button(
+                        label=f"{IconsFontAwesome5.ICON_PEOPLE_GROUP}##open_party_window",
+                        v=party_window_open,
+                        width=btn_size,
+                        height=btn_size,
+                    )
+                    if new_party_window_open != party_window_open:
+                        Keystroke.PressAndRelease(Key.P.value)
+                    ImGui.pop_font()
+                    ImGui.show_tooltip("Open Party Window")
+                    ImGui.push_font("Regular", 10)
+                    PyImGui.same_line(0, -1)
 
                 bv = HeroAI_BaseUI.show_build_match_window
                 new_bv = ImGui.toggle_button(
-                    label="Builds##open_build_matches",
+                    label=f"{IconsFontAwesome5.ICON_CUBES}##open_build_matches",
                     v=bv,
-                    width=60,
+                    width=btn_size,
                     height=btn_size,
                 )
                 if new_bv != bv:
                     HeroAI_BaseUI.show_build_match_window = new_bv
-                ImGui.show_tooltip("Show each party account's build resolved from shared-memory skillbars")
+                
+                ImGui.pop_font()
+                ImGui.show_tooltip("Builds")
+                ImGui.push_font("Regular", 10)
+                PyImGui.same_line(0, -1)
+
+                button_state_enabled = resurrection_scroll.are_all_party_accounts_enabled()
+                new_button_state = ImGui.toggle_button(
+                    label=f"{IconsFontAwesome5.ICON_SCROLL}##resurrection_scroll_toggle",
+                    v=button_state_enabled,
+                    width=btn_size,
+                    height=btn_size,
+                )
+                if new_button_state != button_state_enabled:
+                    resurrection_scroll.toggle_all_accounts()
+                    
+                ImGui.pop_font()
+                ImGui.show_tooltip(f"Res Scroll Use: {'Enabled' if button_state_enabled else 'Disabled'}")
+                ImGui.push_font("Regular", 10)
                 PyImGui.end_table()
             PyImGui.end_child()
         ImGui.pop_font()
@@ -1929,46 +1957,44 @@ class HeroAI_BaseUI:
         # (the window itself is leader-side; the overlay must work on the follower).
         HeroAI_BaseUI.DrawSmartUnstuck3DOverlay(cached_data)
 
-        if not HeroAI_BaseUI.show_follow_formations_quick_window:
-            return
-
-        if ImGui.Begin(ini_key=cached_data.formation_window_ini_key, name="Follow Formations Quick Settings", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            HeroAI_BaseUI._load_follow_formations_quick_data()
-            HeroAI_BaseUI._load_follow_runtime_config(cached_data.formation_window_ini_key)
-            if PyImGui.button("Refresh Formations"):
+        if HeroAI_BaseUI.show_follow_formations_quick_window:
+            if ImGui.Begin(ini_key=cached_data.formation_window_ini_key, name="Follow Formations Quick Settings", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
                 HeroAI_BaseUI._load_follow_formations_quick_data()
                 HeroAI_BaseUI._load_follow_runtime_config(cached_data.formation_window_ini_key)
-            PyImGui.same_line(0, 6)
-            editor_label = "Close Editor" if HeroAI_BaseUI.show_follow_formations_editor_window else "Open Editor"
-            if PyImGui.button(editor_label):
-                HeroAI_BaseUI.show_follow_formations_editor_window = not HeroAI_BaseUI.show_follow_formations_editor_window
-                if HeroAI_BaseUI.show_follow_formations_editor_window:
-                    from HeroAI.follow.editor import open_editor
-                    open_editor()
+                if PyImGui.button("Refresh Formations"):
+                    HeroAI_BaseUI._load_follow_formations_quick_data()
+                    HeroAI_BaseUI._load_follow_runtime_config(cached_data.formation_window_ini_key)
+                PyImGui.same_line(0, 6)
+                editor_label = "Close Editor" if HeroAI_BaseUI.show_follow_formations_editor_window else "Open Editor"
+                if PyImGui.button(editor_label):
+                    HeroAI_BaseUI.show_follow_formations_editor_window = not HeroAI_BaseUI.show_follow_formations_editor_window
+                    if HeroAI_BaseUI.show_follow_formations_editor_window:
+                        from HeroAI.follow.editor import open_editor
+                        open_editor()
 
-            if HeroAI_BaseUI.follow_formations_names:
-                idx = PyImGui.combo("Formation", HeroAI_BaseUI.follow_formations_selected_index, HeroAI_BaseUI.follow_formations_names)
-                if idx != HeroAI_BaseUI.follow_formations_selected_index:
-                    HeroAI_BaseUI._set_selected_follow_formation(idx)
-                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
-            else:
-                PyImGui.text_disabled("No saved follow formations found.")
+                if HeroAI_BaseUI.follow_formations_names:
+                    idx = PyImGui.combo("Formation", HeroAI_BaseUI.follow_formations_selected_index, HeroAI_BaseUI.follow_formations_names)
+                    if idx != HeroAI_BaseUI.follow_formations_selected_index:
+                        HeroAI_BaseUI._set_selected_follow_formation(idx)
+                        HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
+                else:
+                    PyImGui.text_disabled("No saved follow formations found.")
 
-            dirty_runtime_cfg = False
+                dirty_runtime_cfg = False
 
-            PyImGui.separator()
-            PyImGui.text("Follower Behavior")
+                PyImGui.separator()
+                PyImGui.text("Follower Behavior")
 
-            if cached_data.global_options is not None:
-                new_following = PyImGui.checkbox("Enable Following", bool(cached_data.global_options.Following))
-                if new_following != bool(cached_data.global_options.Following):
-                    HeroAI_BaseUI._set_party_follow_option(cached_data, "Following", new_following)
-                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
+                if cached_data.global_options is not None:
+                    new_following = PyImGui.checkbox("Enable Following", bool(cached_data.global_options.Following))
+                    if new_following != bool(cached_data.global_options.Following):
+                        HeroAI_BaseUI._set_party_follow_option(cached_data, "Following", new_following)
+                        HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
 
-                new_avoidance = PyImGui.checkbox("Enable Combat Avoidance Mix", bool(cached_data.global_options.Avoidance))
-                if new_avoidance != bool(cached_data.global_options.Avoidance):
-                    HeroAI_BaseUI._set_party_follow_option(cached_data, "Avoidance", new_avoidance)
-                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
+                    new_avoidance = PyImGui.checkbox("Enable Combat Avoidance Mix", bool(cached_data.global_options.Avoidance))
+                    if new_avoidance != bool(cached_data.global_options.Avoidance):
+                        HeroAI_BaseUI._set_party_follow_option(cached_data, "Avoidance", new_avoidance)
+                        HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
 
             PyImGui.separator()
             PyImGui.text("Follow Publish")
@@ -2121,14 +2147,14 @@ class HeroAI_BaseUI:
                 HeroAI_BaseUI._apply_follow_thresholds_to_party(cached_data)
                 HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
-            if Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
-                new_show_flagging_window = PyImGui.checkbox("Show Flagging Window", hero_globals.show_flagging_window)
-                if new_show_flagging_window != hero_globals.show_flagging_window:
-                    hero_globals.show_flagging_window = new_show_flagging_window
-                    HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
-                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
+                if Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+                    new_show_flagging_window = PyImGui.checkbox("Show Flagging Window", hero_globals.show_flagging_window)
+                    if new_show_flagging_window != hero_globals.show_flagging_window:
+                        hero_globals.show_flagging_window = new_show_flagging_window
+                        HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                        HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
-        ImGui.End(ini_key=cached_data.formation_window_ini_key)
+            ImGui.End(ini_key=cached_data.formation_window_ini_key)
 
         if HeroAI_BaseUI.show_follow_formations_editor_window:
             import Py4GW
@@ -2312,7 +2338,7 @@ class HeroAI_BaseUI:
             PyImGui.dummy(0, 5)
 
         if ImGui.Begin(ini_key=cached_data.ini_key, name="HeroAI Control Panel", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            if PyImGui.begin_child("ControlPanelChild", (200, 138), False, PyImGui.WindowFlags.AlwaysAutoResize):
+            if PyImGui.begin_child("ControlPanelChild", (200, 150), False, PyImGui.WindowFlags.AlwaysAutoResize):
                 style = ImGui.get_style()
                 style.ItemSpacing.push_style_var(2, 2)
                 style.CellPadding.push_style_var(2, 2)
