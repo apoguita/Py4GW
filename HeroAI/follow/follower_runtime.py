@@ -13,6 +13,7 @@ from ..cache_data import CacheData
 from .smart_unstuck import (
     SMART_UNSTUCK_CFG,
     SmartUnstuckState,
+    force_front_detour,
     reset_smart_unstuck,
     update_smart_unstuck,
 )
@@ -25,13 +26,15 @@ class FollowExecutionState:
     follow_map_entry_signature: tuple[int, int, int, int, int] | None = None
     last_leader_publish_signature: tuple[int, int, int, int, int] | None = None
     recovery_active: bool = False
+    last_recovery_follow_command_ms: int = 0
+    recovery_detour_attempted: bool = False
     pet_recovery_notified: bool = False
     stuck: SmartUnstuckState = field(default_factory=SmartUnstuckState)
 
 
-FOLLOW_RECOVERY_DISTANCE = 4000.0
+FOLLOW_RECOVERY_DISTANCE = Range.Spirit.value
 FOLLOW_RECOVERY_START_DISTANCE = FOLLOW_RECOVERY_DISTANCE
-FOLLOW_RECOVERY_RELEASE_DISTANCE = Range.Spellcast.value
+FOLLOW_RECOVERY_RELEASE_DISTANCE = Range.Earshot.value
 
 
 def get_follow_destination_distance(cached_data: CacheData) -> float:
@@ -118,12 +121,15 @@ def is_follow_recovery_active(cached_data: CacheData, state: FollowExecutionStat
     distance_to_destination = get_follow_destination_distance(cached_data)
     if state.recovery_active:
         state.recovery_active = distance_to_destination >= FOLLOW_RECOVERY_RELEASE_DISTANCE
+        if not state.recovery_active:
+            state.recovery_detour_attempted = False
         return state.recovery_active
 
     if distance_to_destination < FOLLOW_RECOVERY_START_DISTANCE:
         return False
 
     state.recovery_active = True
+    state.recovery_detour_attempted = False
     try:
         _notify_recovery_console_message("Hey, Wait for me!")
     except Exception:
@@ -135,12 +141,16 @@ def execute_follower_follow(
     cached_data: CacheData,
     state: FollowExecutionState,
 ) -> BehaviorTree.NodeState:
+    follow_active_state = BehaviorTree.NodeState.SUCCESS
+
     def _is_nonzero_xy(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
 
     def _reset_follow_runtime() -> None:
         state.last_follow_move_point = None
         state.last_follow_assigned_point = None
+        state.last_recovery_follow_command_ms = 0
+        state.recovery_detour_attempted = False
         reset_smart_unstuck(state.stuck)
 
     def _account_map_signature(account) -> tuple[int, int, int, int, int] | None:
@@ -293,6 +303,8 @@ def execute_follower_follow(
     # closing the gap instead of stopping at the normal slot threshold.
     effective_follow_distance = min(follow_distance, FOLLOW_RECOVERY_RELEASE_DISTANCE) if recovery_active else follow_distance
     if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= effective_follow_distance:
+        state.last_recovery_follow_command_ms = 0
+        state.recovery_detour_attempted = False
         reset_smart_unstuck(state.stuck)
         return BehaviorTree.NodeState.FAILURE
 
@@ -313,7 +325,30 @@ def execute_follower_follow(
     if state.stuck.mode != "idle":
         state.last_follow_move_point = None
         cached_data.follow_throttle_timer.Reset()
-        return BehaviorTree.NodeState.FAILURE
+        return follow_active_state
+
+    if recovery_active:
+        if not state.recovery_detour_attempted:
+            force_front_detour(
+                state.stuck,
+                SMART_UNSTUCK_CFG,
+                current_xy=Player.GetXY(),
+                follow_xy=(follow_x, follow_y),
+            )
+            state.recovery_detour_attempted = True
+            state.last_recovery_follow_command_ms = 0
+            cached_data.follow_throttle_timer.Reset()
+            return follow_active_state
+        now_ms = int(Utils.GetBaseTimestamp())
+        if now_ms - int(state.last_recovery_follow_command_ms) < 1000:
+            cached_data.follow_throttle_timer.Reset()
+            return follow_active_state
+        if ActionQueueManager().IsEmpty("ACTION"):
+            ActionQueueManager().AddAction("ACTION", UIManager.Keypress, ControlAction.ControlAction_TargetPartyMember1.value, 0)
+            ActionQueueManager().AddAction("ACTION", UIManager.Keypress, ControlAction.ControlAction_Follow.value, 0)
+            state.last_recovery_follow_command_ms = now_ms
+        cached_data.follow_throttle_timer.Reset()
+        return follow_active_state
 
     xx = follow_x
     yy = follow_y
@@ -321,10 +356,10 @@ def execute_follower_follow(
     if not assigned_changed and state.last_follow_move_point is not None:
         last_x, last_y = state.last_follow_move_point
         if Utils.Distance((last_x, last_y), (xx, yy)) <= 10.0:
-            return BehaviorTree.NodeState.FAILURE
+            return follow_active_state
 
     if not ActionQueueManager().IsEmpty("ACTION"):
-        return BehaviorTree.NodeState.FAILURE
+        return follow_active_state
 
     if follow_z == 0:
         Player.Move(xx, yy)
@@ -335,4 +370,4 @@ def execute_follower_follow(
     state.last_follow_move_point = (xx, yy)
 
     cached_data.follow_throttle_timer.Reset()
-    return BehaviorTree.NodeState.FAILURE
+    return follow_active_state

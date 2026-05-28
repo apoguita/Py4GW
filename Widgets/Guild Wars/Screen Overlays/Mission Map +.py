@@ -4,13 +4,14 @@ from Py4GWCoreLib import GLOBAL_CACHE
 import PyImGui
 from Py4GWCoreLib import ImGui, Color
 from Py4GWCoreLib import DXOverlay
+from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Rarity
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib import Map, Player, AutoPathing
+from Py4GWCoreLib import Map, Player, AutoPathing, Item
 from Py4GWCoreLib import Agent, AgentArray
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
@@ -25,6 +26,8 @@ import sys
 #region CONSTANTS
 MODULE_NAME = "Mission Map+"
 MODULE_ICON = "Textures\\Module_Icons\\Mission Map+.png"
+INI_PATH = "Widgets/Guild Wars/Screen Overlays"
+INI_FILENAME = "Mission Map +.ini"
 MATH_PI = math.pi
 BASE_ANGLE = (-MATH_PI / 2)
 SQRT_2 = math.sqrt(2)
@@ -42,6 +45,8 @@ _SNAP_RESUME_REISSUE_MS = 1000
 _SNAP_USE_BT_MOVETO = True
 _SNAP_PAUSE_ON_DANGER = True
 _SNAP_DANGER_RADIUS = Range.Earshot.value
+INI_KEY = ""
+_INI_READY = False
 
 #end region
 
@@ -894,6 +899,116 @@ object_item = ConfigItem("Item", marker_name="Square", color=item_color, alterna
 GLOBAL_CONFIGS.add(object_item)
 
 
+def _ini_marker_slug(name: str) -> str:
+    return "".join(ch.lower() if ch.isalnum() else "_" for ch in name).strip("_")
+
+
+def _ini_marker_section(name: str) -> str:
+    return f"Marker.{_ini_marker_slug(name)}"
+
+
+def _color_from_ini(value: int) -> Color:
+    color = Color()
+    color.from_color(int(value))
+    return color
+
+
+def _marker_groups() -> dict[str, list[str]]:
+    return {
+        "Party": ["Player", "Ally", "Players", "Pet"],
+        "Hostile": ["Enemy", "Enemy Pet", "Minion"],
+        "World": ["Neutral", "NPC", "Merchant", "Minipet", "Gadget", "Chest", "Item", "Default"],
+        "Spirits": [buff.spirit_name for buff in SPIRIT_BUFFS],
+    }
+
+
+def _config_items_by_name() -> dict[str, ConfigItem]:
+    return {item.Name: item for item in GLOBAL_CONFIGS.ConfigItems}
+
+
+def _add_config_vars() -> None:
+    global INI_KEY
+    ini = IniManager()
+    ini.add_bool(INI_KEY, "snap_enabled", "Map", "snap_enabled", default=False)
+    ini.add_bool(INI_KEY, "snap_pause_on_danger", "Map", "snap_pause_on_danger", default=_SNAP_PAUSE_ON_DANGER)
+    ini.add_float(INI_KEY, "snap_danger_radius", "Map", "snap_danger_radius", default=float(_SNAP_DANGER_RADIUS))
+    ini.add_bool(INI_KEY, "terrain_enabled", "Terrain", "enabled", default=True)
+    ini.add_bool(INI_KEY, "terrain_inverted", "Terrain", "inverted", default=False)
+    ini.add_int(INI_KEY, "terrain_color", "Terrain", "color", default=Color(200, 200, 200, 80).to_color())
+    ini.add_int(
+        INI_KEY,
+        "terrain_zoom_fill_color",
+        "Terrain",
+        "zoom_fill_color",
+        default=Color(75, 75, 75, 200).to_color(),
+    )
+    for item in GLOBAL_CONFIGS.ConfigItems:
+        slug = _ini_marker_slug(item.Name)
+        section = _ini_marker_section(item.Name)
+        ini.add_bool(INI_KEY, f"{slug}_visible", section, "visible", default=item.visible)
+        ini.add_str(INI_KEY, f"{slug}_marker", section, "marker", default=item.Marker)
+        ini.add_int(INI_KEY, f"{slug}_color", section, "color", default=item.Color.to_color())
+        ini.add_int(INI_KEY, f"{slug}_alternate_color", section, "alternate_color", default=item.AlternateColor.to_color())
+        ini.add_float(INI_KEY, f"{slug}_size", section, "size", default=item.size)
+
+
+def _apply_config() -> None:
+    global mission_map
+    ini = IniManager()
+    mission_map.snap_enabled = ini.getBool(INI_KEY, "snap_enabled", mission_map.snap_enabled, "Map")
+    mission_map.snap_pause_on_danger = ini.getBool(
+        INI_KEY,
+        "snap_pause_on_danger",
+        mission_map.snap_pause_on_danger,
+        "Map",
+    )
+    mission_map.snap_danger_radius = ini.getFloat(
+        INI_KEY,
+        "snap_danger_radius",
+        mission_map.snap_danger_radius,
+        "Map",
+    )
+    mission_map.terrain_enabled = ini.getBool(INI_KEY, "terrain_enabled", mission_map.terrain_enabled, "Terrain")
+    mission_map.terrain_inverted = ini.getBool(INI_KEY, "terrain_inverted", mission_map.terrain_inverted, "Terrain")
+    mission_map.terrain_color = _color_from_ini(
+        ini.getInt(INI_KEY, "terrain_color", mission_map.terrain_color.to_color(), "Terrain")
+    )
+    mission_map.terrain_zoom_fill_color = _color_from_ini(
+        ini.getInt(
+            INI_KEY,
+            "terrain_zoom_fill_color",
+            mission_map.terrain_zoom_fill_color.to_color(),
+            "Terrain",
+        )
+    )
+    for item in GLOBAL_CONFIGS.ConfigItems:
+        slug = _ini_marker_slug(item.Name)
+        section = _ini_marker_section(item.Name)
+        item.visible = ini.getBool(INI_KEY, f"{slug}_visible", item.visible, section)
+        item.Marker = ini.getStr(INI_KEY, f"{slug}_marker", item.Marker, section)
+        item.Color = _color_from_ini(ini.getInt(INI_KEY, f"{slug}_color", item.Color.to_color(), section))
+        item.AlternateColor = _color_from_ini(
+            ini.getInt(INI_KEY, f"{slug}_alternate_color", item.AlternateColor.to_color(), section)
+        )
+        item.size = ini.getFloat(INI_KEY, f"{slug}_size", item.size, section)
+    mission_map.apply_terrain_settings()
+
+
+def _ensure_ini() -> bool:
+    global INI_KEY, _INI_READY
+    if _INI_READY:
+        return True
+    if not INI_KEY:
+        INI_KEY = IniManager().ensure_key(INI_PATH, INI_FILENAME)
+        if not INI_KEY:
+            return False
+        _add_config_vars()
+        IniManager().load_once(INI_KEY)
+        _apply_config()
+        _INI_READY = True
+    return _INI_READY
+
+
 #region MISSIONMAP
 class MissionMap:
     def __init__(self):
@@ -945,6 +1060,10 @@ class MissionMap:
         self.item_rarity_green_color = Color(25, 200, 0, 255)
         self.item_rarity_gold_color = Color(225, 150, 0, 255)
         self.item_rarity_purple_color = Color(110, 65, 200, 255)
+        self.terrain_enabled = True
+        self.terrain_inverted = True
+        self.terrain_color = Color(0, 0, 0, 200)
+        self.terrain_zoom_fill_color = Color(75, 75, 75, 200)
         
         self.target_accent_color = Color(235, 235, 50, 255)
         self.boss_glow_accent_color = Color(0, 200, 45, 255)
@@ -992,7 +1111,12 @@ class MissionMap:
         self.mega_zoom_renderer.mask.set_rectangle_mask(True)
         self.renderer.world_space.set_world_space(True)
         self.mega_zoom_renderer.world_space.set_world_space(True)
+        self.apply_terrain_settings()
         self._mask_enabled = True
+
+    def apply_terrain_settings(self) -> None:
+        self.renderer.inverse_rendering(self.terrain_inverted)
+        self.mega_zoom_renderer.inverse_rendering(self.terrain_inverted)
 
     def _clear_snap_bt_draw_state(self) -> None:
         bb = self.snap_bt_draw_helper.blackboard
@@ -1207,8 +1331,9 @@ class MissionMap:
         #self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
         #self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
         if not self.pathing_geometry_built_by_map_id.get(map_id, False):
-            self.renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 80).to_dx_color())
-            self.mega_zoom_renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 100).to_dx_color())
+            self.renderer.build_pathing_trapezoid_geometry(self.terrain_color.to_dx_color())
+            self.mega_zoom_renderer.build_pathing_trapezoid_geometry(self.terrain_color.to_dx_color())
+            self.apply_terrain_settings()
             self.pathing_geometry_built_by_map_id[map_id] = True
         
         coords = Map.MissionMap.GetMissionMapContentsCoords()
@@ -1481,8 +1606,20 @@ def DrawFrame():
         _draw_circle_fill(mission_map.player_screen_x, mission_map.player_screen_y, radius, color, segments)
         
     def _draw_terrain(zoom):
+        if not mission_map.terrain_enabled:
+            return
         if zoom >3.5:
-            mission_map.mega_zoom_renderer.DrawQuadFilled(mission_map.left,mission_map.top, mission_map.right,mission_map.top, mission_map.right,mission_map.bottom, mission_map.left,mission_map.bottom, color=Utils.RGBToColor(75,75,75,200))
+            mission_map.mega_zoom_renderer.DrawQuadFilled(
+                mission_map.left,
+                mission_map.top,
+                mission_map.right,
+                mission_map.top,
+                mission_map.right,
+                mission_map.bottom,
+                mission_map.left,
+                mission_map.bottom,
+                color=mission_map.terrain_zoom_fill_color.to_color(),
+            )
             mission_map.mega_zoom_renderer.render()
         else:
             mission_map.renderer.render()
@@ -1551,7 +1688,7 @@ def DrawFrame():
         living = obj.GetAsAgentLiving()
         if not living:
             continue
-        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+        if living.is_spawned and not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
             continue
         x,y = _get_agent_xy_from_obj(obj)
         rotation_angle = obj.rotation_angle
@@ -1629,13 +1766,11 @@ def DrawFrame():
         living = obj.GetAsAgentLiving()
         if not living:
             continue
-        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
-            continue
         x,y = _get_agent_xy_from_obj(obj)
         rotation_angle = obj.rotation_angle
         if living.is_npc:
             marker = mission_map.npc_marker
-        else:
+        else:    
             marker = mission_map.players_marker  
         alternate_color, size = _get_alternate_color(agent_id)
         Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw() 
@@ -1647,7 +1782,7 @@ def DrawFrame():
             living = obj.GetAsAgentLiving()
         else:
             living = None
-        if living and (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+        if living:
             if obj is None:
                 return
             x,y = _get_agent_xy_from_obj(obj)
@@ -1705,23 +1840,24 @@ def DrawFrame():
         x,y = _get_agent_xy_from_obj(obj)
         rotation_angle = obj.rotation_angle
         marker = mission_map.item_marker
-        
-        item_id = item_agent.item_id
-        item = GLOBAL_CACHE.Item.raw_item_array.get_item_by_id(item_id)
-        item_rarity = item.rarity if item is not None else 0
-        if item_rarity == Rarity.Blue.value:
-            marker.Color = mission_map.item_rarity_blue_color
-        elif item_rarity == Rarity.Purple.value:
-            marker.Color = mission_map.item_rarity_purple_color
-        elif item_rarity == Rarity.Gold.value:
-            marker.Color = mission_map.item_rarity_gold_color
-        elif item_rarity == Rarity.Green.value:
-            marker.Color = mission_map.item_rarity_green_color
-        else:
-            marker.Color = mission_map.item_rarity_white_color
-        
+        item_color = mission_map.item_rarity_white_color
+
+        try:
+            item_rarity = Item.item_instance(item_agent.item_id).rarity.value
+        except Exception:
+            item_rarity = 0
+
+        if item_rarity == 1:
+            item_color = mission_map.item_rarity_blue_color
+        elif item_rarity == 2:
+            item_color = mission_map.item_rarity_purple_color
+        elif item_rarity == 3:
+            item_color = mission_map.item_rarity_gold_color
+        elif item_rarity == 4:
+            item_color = mission_map.item_rarity_green_color
+
         alternate_color, size = _get_alternate_color(agent_id)
-        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        Marker(marker.Marker, item_color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
 
     # ── NavMesh snap overlay ────────────────────────────────────────────
     def _snap_to_screen(gx: float, gy: float) -> tuple[float, float]:
@@ -1845,8 +1981,132 @@ def tooltip():
 
     PyImGui.end_tooltip()
 
+
+def configure():
+    if not _ensure_ini():
+        return
+
+    ini = IniManager()
+    marker_names = list(shapes.keys())
+    grouped_items = _config_items_by_name()
+
+    def _draw_marker_editor(item: ConfigItem) -> None:
+        slug = _ini_marker_slug(item.Name)
+        section = _ini_marker_section(item.Name)
+
+        PyImGui.text(item.Name)
+        visible = PyImGui.checkbox(f"Visible##{slug}", item.visible)
+        if visible != item.visible:
+            item.visible = visible
+            ini.set(INI_KEY, f"{slug}_visible", visible, section)
+
+        current_marker_index = marker_names.index(item.Marker) if item.Marker in marker_names else 0
+        marker_index = PyImGui.combo(f"Marker##{slug}", current_marker_index, marker_names)
+        if marker_index != current_marker_index:
+            item.Marker = marker_names[marker_index]
+            ini.set(INI_KEY, f"{slug}_marker", item.Marker, section)
+
+        size = PyImGui.slider_float(f"Size##{slug}", float(item.size), 1.0, 20.0)
+        if size != item.size:
+            item.size = float(size)
+            ini.set(INI_KEY, f"{slug}_size", item.size, section)
+
+        color_tuple = PyImGui.color_edit4(f"Color##{slug}", item.Color.to_tuple_normalized())
+        color = Color.from_tuple_normalized(color_tuple)
+        if color != item.Color:
+            item.Color = color
+            ini.set(INI_KEY, f"{slug}_color", item.Color.to_color(), section)
+
+        accent_tuple = PyImGui.color_edit4(f"Accent##{slug}", item.AlternateColor.to_tuple_normalized())
+        accent_color = Color.from_tuple_normalized(accent_tuple)
+        if accent_color != item.AlternateColor:
+            item.AlternateColor = accent_color
+            ini.set(INI_KEY, f"{slug}_alternate_color", item.AlternateColor.to_color(), section)
+
+        PyImGui.separator()
+
+    ini.begin_window_config(INI_KEY)
+    PyImGui.set_next_window_size((520.0, 680.0), PyImGui.ImGuiCond.FirstUseEver)
+
+    expanded = PyImGui.begin(f"{MODULE_NAME} Config")
+    ini.track_window_collapsed(INI_KEY, expanded)
+
+    if expanded:
+        ini.mark_begin_success(INI_KEY)
+
+        if PyImGui.collapsing_header("Terrain"):
+            terrain_enabled = PyImGui.checkbox("Show terrain", mission_map.terrain_enabled)
+            if terrain_enabled != mission_map.terrain_enabled:
+                mission_map.terrain_enabled = terrain_enabled
+                ini.set(INI_KEY, "terrain_enabled", terrain_enabled, "Terrain")
+
+            terrain_inverted = PyImGui.checkbox("Invert terrain", mission_map.terrain_inverted)
+            if terrain_inverted != mission_map.terrain_inverted:
+                mission_map.terrain_inverted = terrain_inverted
+                mission_map.apply_terrain_settings()
+                ini.set(INI_KEY, "terrain_inverted", terrain_inverted, "Terrain")
+
+            terrain_color_tuple = PyImGui.color_edit4("Terrain color", mission_map.terrain_color.to_tuple_normalized())
+            terrain_color = Color.from_tuple_normalized(terrain_color_tuple)
+            if terrain_color != mission_map.terrain_color:
+                mission_map.terrain_color = terrain_color
+                mission_map.pathing_geometry_built_by_map_id.clear()
+                ini.set(INI_KEY, "terrain_color", terrain_color.to_color(), "Terrain")
+
+            terrain_zoom_fill_tuple = PyImGui.color_edit4(
+                "Mega zoom fill",
+                mission_map.terrain_zoom_fill_color.to_tuple_normalized(),
+            )
+            terrain_zoom_fill_color = Color.from_tuple_normalized(terrain_zoom_fill_tuple)
+            if terrain_zoom_fill_color != mission_map.terrain_zoom_fill_color:
+                mission_map.terrain_zoom_fill_color = terrain_zoom_fill_color
+                ini.set(INI_KEY, "terrain_zoom_fill_color", terrain_zoom_fill_color.to_color(), "Terrain")
+
+            PyImGui.separator()
+
+        if PyImGui.collapsing_header("Movement"):
+            snap_enabled = PyImGui.checkbox("Enable snap movement", mission_map.snap_enabled)
+            if snap_enabled != mission_map.snap_enabled:
+                mission_map.snap_enabled = snap_enabled
+                ini.set(INI_KEY, "snap_enabled", snap_enabled, "Map")
+
+            snap_pause_on_danger = PyImGui.checkbox("Pause snap on danger", mission_map.snap_pause_on_danger)
+            if snap_pause_on_danger != mission_map.snap_pause_on_danger:
+                mission_map.snap_pause_on_danger = snap_pause_on_danger
+                ini.set(INI_KEY, "snap_pause_on_danger", snap_pause_on_danger, "Map")
+
+            snap_danger_radius = PyImGui.slider_float(
+                "Danger radius",
+                mission_map.snap_danger_radius,
+                0.0,
+                float(Range.Spirit.value * 2),
+            )
+            if snap_danger_radius != mission_map.snap_danger_radius:
+                mission_map.snap_danger_radius = float(snap_danger_radius)
+                ini.set(INI_KEY, "snap_danger_radius", mission_map.snap_danger_radius, "Map")
+
+            PyImGui.separator()
+
+        for group_name, item_names in _marker_groups().items():
+            if not PyImGui.collapsing_header(group_name):
+                continue
+            for item_name in item_names:
+                item = grouped_items.get(item_name)
+                if item is not None:
+                    _draw_marker_editor(item)
+
+    PyImGui.end()
+    ini.end_window_config(INI_KEY)
+    ini.save_vars(INI_KEY)
+
+
+def main():
+    _ensure_ini()
+
+
 def draw():  
     try:  
+        main()
         if not Routines.Checks.Map.MapValid():
             mission_map.geometry = [] 
             mission_map.Map_load_timer.Reset()
@@ -1897,6 +2157,9 @@ def draw():
     except Exception as e:
         import Py4GW
         Py4GW.Console.Log("Mission Map +", str(e), Py4GW.Console.MessageType.Error)
+    finally:
+        if INI_KEY:
+            IniManager().save_vars(INI_KEY)
 
         
     

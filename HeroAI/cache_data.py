@@ -47,6 +47,7 @@ class GameData:
         self.leader_in_aggro = False
         self.party_in_aggro = False
         self.party_position = -1
+        self.is_leader = False
         self.weapon_type = 0
               
         
@@ -259,6 +260,10 @@ class CacheData:
                 self.account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self.account_email) or self.account_data
                 self.account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(self.account_email) or self.account_options
                 self.data.party_position = int(self.account_data.AgentPartyData.PartyPosition)
+                self.data.is_leader = bool(
+                    getattr(self.account_data.AgentPartyData, "IsPartyLeader", False)
+                    or Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+                )
                 
                 from .utils import SameMapOrPartyAsAccount
 

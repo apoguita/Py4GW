@@ -19,12 +19,23 @@ Hex_Eater_Signet_ID = Skill.GetID("Hex_Eater_Signet")
 Castigation_Signet_ID = Skill.GetID("Castigation_Signet")
 Bane_Signet_ID = Skill.GetID("Bane_Signet")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
+Blood_Ritual_ID = Skill.GetID("Blood_Ritual")
+Animate_Bone_Fiend_ID = Skill.GetID("Animate_Bone_Fiend")
+Animate_Bone_Horror_ID = Skill.GetID("Animate_Bone_Horror")
+Animate_Bone_Minions_ID = Skill.GetID("Animate_Bone_Minions")
+Animate_Flesh_Golem_ID = Skill.GetID("Animate_Flesh_Golem")
+Animate_Shambling_Horror_ID = Skill.GetID("Animate_Shambling_Horror")
+Animate_Vampiric_Horror_ID = Skill.GetID("Animate_Vampiric_Horror")
+Death_Nova_ID = Skill.GetID("Death_Nova")
+Cry_of_Frustration_ID = Skill.GetID("Cry_of_Frustration")
+Tryptophan_Signet_ID = Skill.GetID("Tryptophan_Signet")
 
 
 @dataclass(slots=True)
 class _KeystoneBarSnapshot:
     has_symbolic_celerity: bool = False
     has_keystone_signet: bool = False
+    enemy_casting: bool = False
     enemy_in_spellcast: bool = False
     attacking_enemy_in_spellcast: bool = False
 
@@ -55,6 +66,16 @@ class KeystoneSignet(BuildMgr):
                 Castigation_Signet_ID,
                 Bane_Signet_ID,
                 Breath_of_the_Great_Dwarf_ID,
+                Blood_Ritual_ID,
+                Animate_Bone_Fiend_ID,
+                Animate_Bone_Horror_ID,
+                Animate_Bone_Minions_ID,
+                Animate_Flesh_Golem_ID,
+                Animate_Shambling_Horror_ID,
+                Animate_Vampiric_Horror_ID,
+                Death_Nova_ID,
+                Cry_of_Frustration_ID,
+                Tryptophan_Signet_ID,
             ],
         )
         if match_only:
@@ -84,6 +105,30 @@ class KeystoneSignet(BuildMgr):
 
         snapshot = self._get_bar_snapshot()
         player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
+        
+        if snapshot.enemy_casting and (yield from self.skills.Mesmer.DominationMagic.Cry_of_Frustration()):
+            return True
+
+        if self.IsSkillEquipped(Death_Nova_ID) and (yield from self.skills.Necromancer.DeathMagic.Death_Nova()):
+            return True
+
+        if self.IsSkillEquipped(Animate_Flesh_Golem_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Flesh_Golem()):
+            return True
+
+        if self.IsSkillEquipped(Animate_Bone_Fiend_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Bone_Fiend()):
+            return True
+
+        if self.IsSkillEquipped(Animate_Bone_Horror_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Bone_Horror()):
+            return True
+
+        if self.IsSkillEquipped(Animate_Bone_Minions_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Bone_Minions()):
+            return True
+
+        if self.IsSkillEquipped(Animate_Shambling_Horror_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Shambling_Horror()):
+            return True
+
+        if self.IsSkillEquipped(Animate_Vampiric_Horror_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Vampiric_Horror()):
+            return True
 
         if (yield from self.skills.Monk.SmitingPrayers.Smite_Hex(min_priority=HexRemovalPriority.HIGH)):
             return True
@@ -98,10 +143,16 @@ class KeystoneSignet(BuildMgr):
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
             return True
 
+        if self.IsSkillEquipped(Blood_Ritual_ID) and (yield from self.skills.Necromancer.BloodMagic.Blood_Ritual()):
+            return True
+
         if not self.IsInAggro():
             return False
 
         if snapshot.keystone_signet_needed and (yield from self.skills.Mesmer.FastCasting.Keystone_Signet()):
+            return True
+        
+        if self.IsSkillEquipped(Tryptophan_Signet_ID) and (yield from self.skills.Any.PvE.Tryptophan_Signet()):
             return True
 
         if player_energy_pct >= 0.50 and (yield from self.skills.Monk.SmitingPrayers.Smite_Hex(min_priority=HexRemovalPriority.MEDIUM)):
@@ -117,9 +168,6 @@ class KeystoneSignet(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Bane_Signet_ID) and snapshot.attacking_enemy_in_spellcast and (yield from self.skills.Monk.SmitingPrayers.Bane_Signet()):
-            return True
-
-        if player_energy_pct >= 0.70 and (yield from self.skills.Monk.SmitingPrayers.Smite_Hex()):
             return True
 
         return False

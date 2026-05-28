@@ -308,7 +308,7 @@ class BTMap:
         return BehaviorTree(tree)
 
     @staticmethod
-    def TravelToRegion(outpost_id, region, district, language=0, log:bool=False, timeout: int = 10000):
+    def TravelToRegion(outpost_id, region:int, district:int =1, language:int=0, log:bool=False, timeout: int = 10000):
         """
         Build a tree that travels to a specific outpost, region, district, and language combination.
 
@@ -320,6 +320,8 @@ class BTMap:
           UserDescription: Use this when you need to travel to a map with a specific region, district, or language.
           Notes: Treats matching map id, region, district, and language as early success.
         """
+        _real_district = district -1
+        #district = district +1
         target_region = int(region)
         target_district = int(district)
         target_language = int(language)
@@ -360,7 +362,7 @@ class BTMap:
               Notes: Returns success immediately after dispatching the travel request.
             """
             _log("TravelToRegion", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
-            Map.TravelToRegion(outpost_id, region, district, language)
+            Map.TravelToRegion(outpost_id, region, _real_district, language)
             return BehaviorTree.NodeState.SUCCESS
         # 3. ARRIVAL CHECK
         def map_arrival() -> BehaviorTree.NodeState:

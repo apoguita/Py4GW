@@ -83,7 +83,7 @@ def Killroute() -> BehaviorTree:
     return BT.Sequence(
         name='Killroute',
         children=[
-            BT.TakeFactionBlessing(
+            BT.TakeBlessing(
                 pos=LUXON_PRIEST_COORDS,
                 faction='luxon',
                 multi_account=True,
