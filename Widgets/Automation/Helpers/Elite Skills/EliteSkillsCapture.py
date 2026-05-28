@@ -10423,7 +10423,7 @@ def Water_Trident(): #[237] - Water Trident
     bot.Move.XYAndExitMap(1250, 800, 499)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(5715, 19935)
+    bot.Move.XY(5721.17, 21335.62)
     bot.Wait.ForTime(45000) #Boss Path limit
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
