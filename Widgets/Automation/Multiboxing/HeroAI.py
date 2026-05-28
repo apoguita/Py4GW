@@ -22,6 +22,7 @@ from HeroAI.follow.follower_runtime import (
     get_follow_destination_distance,
     is_follow_recovery_active,
 )
+from HeroAI import resurrection_scroll
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui_base import HeroAI_BaseUI
@@ -447,6 +448,7 @@ def main():
         EnsureFollowModuleIni()
         HeroAI_FloatingWindows.update()
         handle_UI(cached_data)
+        resurrection_scroll.tick()
         
         if initialize(cached_data):
             modulo += 1

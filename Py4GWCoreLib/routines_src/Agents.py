@@ -340,19 +340,23 @@ class Agents:
         from ..Py4GWcorelib import Utils
 
         dead_ally_array = Agents.GetDeadAllyArray(max_distance)
-        try:
-            from ..GlobalCache.WhiteboardLocks import filter_unlocked_resurrection_targets
-            dead_ally_array = filter_unlocked_resurrection_targets(dead_ally_array)
-        except Exception:
-            pass
-        selected = Utils.GetFirstFromArray(dead_ally_array)
-        if selected and reserve:
+        if reserve:
             try:
-                from ..GlobalCache.WhiteboardLocks import post_resurrection_lock
-                post_resurrection_lock(selected, skill_id=skill_id, aftercast_delay=aftercast_delay)
+                from ..GlobalCache.WhiteboardLocks import claim_resurrection_target
+                return claim_resurrection_target(
+                    dead_ally_array,
+                    skill_id=skill_id,
+                    aftercast_delay=aftercast_delay,
+                )
             except Exception:
                 pass
-        return selected
+        else:
+            try:
+                from ..GlobalCache.WhiteboardLocks import filter_unlocked_resurrection_targets
+                dead_ally_array = filter_unlocked_resurrection_targets(dead_ally_array)
+            except Exception:
+                pass
+        return Utils.GetFirstFromArray(dead_ally_array)
 
     @staticmethod
     def GetCorpses(max_distance=4500.0):

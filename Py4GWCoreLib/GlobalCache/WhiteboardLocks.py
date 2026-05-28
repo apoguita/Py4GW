@@ -175,6 +175,42 @@ def filter_unlocked_resurrection_targets(dead_ally_agent_ids: list[int]) -> list
     ]
 
 
+def get_resurrection_lock_owner(dead_ally_agent_id: int, now_tick: int | None = None) -> tuple[str, int]:
+    """Return the effective owner email and slot for a resurrection target lock."""
+    if dead_ally_agent_id <= 0:
+        return "", -1
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return "", -1
+        if now_tick is None:
+            now_tick = int(Py4GW.Game.get_tick_count64())
+
+        winner = None
+        for slot_index, intent in GLOBAL_CACHE.ShMem.GetAllAccounts().GetAllIntents():
+            if int(intent.KindID) != int(WhiteboardLockKind.RESURRECT_TARGET):
+                continue
+            if int(intent.SkillID) != int(RESURRECTION_LOCK_KEY):
+                continue
+            if int(intent.TargetAgentID) != int(dead_ally_agent_id):
+                continue
+            if int(intent.IsolationGroupID) != int(group_id):
+                continue
+            if int(intent.ExpiresAtTick) <= int(now_tick):
+                continue
+            candidate = (int(intent.PostedAtTick), int(slot_index), intent.OwnerEmail or "")
+            if winner is None or candidate < winner:
+                winner = candidate
+
+        if winner is None:
+            return "", -1
+        return winner[2], winner[1]
+    except Exception:
+        return "", -1
+
+
 def post_resurrection_lock(dead_ally_agent_id: int, skill_id: int = 0, aftercast_delay: int = 250) -> int:
     """Reserve a dead ally for resurrection. Returns slot index or -1."""
     if dead_ally_agent_id <= 0:
@@ -186,6 +222,13 @@ def post_resurrection_lock(dead_ally_agent_id: int, skill_id: int = 0, aftercast
         if not email:
             return -1
         now = int(Py4GW.Game.get_tick_count64())
+
+        owner_email, owner_slot = get_resurrection_lock_owner(dead_ally_agent_id, now)
+        if owner_email:
+            if owner_email == email:
+                return int(owner_slot)
+            return -1
+
         expires_at = now + _skill_lock_duration_ms(
             int(skill_id),
             int(aftercast_delay),
@@ -405,6 +448,48 @@ def post_buff_target_lock(
         ))
     except Exception:
         return -1
+
+
+def claim_resurrection_target(dead_ally_agent_ids: list[int], skill_id: int = 0, aftercast_delay: int = 250) -> int:
+    """Claim the first available dead ally through the whiteboard and return its agent id."""
+    if not dead_ally_agent_ids:
+        return 0
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return 0
+
+        for dead_ally_id in dead_ally_agent_ids:
+            now = int(Py4GW.Game.get_tick_count64())
+            owner_email, _ = get_resurrection_lock_owner(int(dead_ally_id), now)
+            if owner_email:
+                if owner_email == email:
+                    return int(dead_ally_id)
+                continue
+
+            lock_slot = post_resurrection_lock(
+                int(dead_ally_id),
+                skill_id=skill_id,
+                aftercast_delay=aftercast_delay,
+            )
+            if lock_slot < 0:
+                continue
+
+            owner_email, owner_slot = get_resurrection_lock_owner(int(dead_ally_id))
+            if owner_email == email and int(owner_slot) == int(lock_slot):
+                return int(dead_ally_id)
+
+            GLOBAL_CACHE.ShMem.GetAllAccounts().ClearLockByOwnerKindTarget(
+                email,
+                int(WhiteboardLockKind.RESURRECT_TARGET),
+                int(dead_ally_id),
+                int(group_id),
+            )
+    except Exception:
+        return 0
+    return 0
 
 
 def filter_unlocked_buff_targets(ally_agent_ids: list[int], key_id: int = BUFF_TARGET_LOCK_KEY) -> list[int]:

@@ -759,6 +759,252 @@
         }
       }
     },
+    "enc:\\\\x0EC1\\\\x8C1E\\\\x75CC": {
+      "encoded_names": [
+        "\\\\x0EC1\\\\x8C1E\\\\x75CC"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        2285
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "546": {
+          "id": 546,
+          "name": "Spectral_Agony1",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x0EC2\\\\xAC1E\\\\xB3E5\\\\x5A5A": {
+      "encoded_names": [
+        "\\\\x0EC2\\\\xAC1E\\\\xB3E5\\\\x5A5A"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        2286
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "123": {
+          "id": 123,
+          "name": "Insidious Parasite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "126": {
+          "id": 126,
+          "name": "Life Transfer",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "546": {
+          "id": 546,
+          "name": "Spectral_Agony1",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x0EC3\\\\xE5FE\\\\xCBD2\\\\x3645": {
+      "encoded_names": [
+        "\\\\x0EC3\\\\xE5FE\\\\xCBD2\\\\x3645"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "None",
+      "model_ids": [
+        2287
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "201": {
+          "id": 201,
+          "name": "Glyph of Concentration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "223": {
+          "id": 223,
+          "name": "Chain Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "228": {
+          "id": 228,
+          "name": "Thunderclap",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "546": {
+          "id": 546,
+          "name": "Spectral_Agony1",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x0EC4\\\\xBA78\\\\xC81B\\\\x260A": {
+      "encoded_names": [
+        "\\\\x0EC4\\\\xBA78\\\\xC81B\\\\x260A"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "None",
+      "model_ids": [
+        2288
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "260": {
+          "id": 260,
+          "name": "Aura of Faith",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "300": {
+          "id": 300,
+          "name": "Contemplation of Purity",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "311": {
+          "id": 311,
+          "name": "Draw Conditions",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "546": {
+          "id": 546,
+          "name": "Spectral_Agony1",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x0EC5\\\\xA84B\\\\xC18D\\\\x10CC": {
+      "encoded_names": [
+        "\\\\x0EC5\\\\xA84B\\\\xC18D\\\\x10CC"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2289
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x0EC6\\\\xA142\\\\x3286": {
+      "encoded_names": [
+        "\\\\x0EC6\\\\xA142\\\\x3286"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2290
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "402": {
+          "id": 402,
+          "name": "Determined Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "405": {
+          "id": 405,
+          "name": "Oath Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "460": {
+          "id": 460,
+          "name": "Healing Spring",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
     "enc:\\\\x0EFD\\\\xFBE1\\\\x93D0\\\\x76C6": {
       "encoded_names": [
         "\\\\x0EFD\\\\xFBE1\\\\x93D0\\\\x76C6"
@@ -863,6 +1109,12 @@
         2931
       ],
       "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        },
         "201": {
           "base_id": 201,
           "id": 201,
@@ -2668,6 +2920,100 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x1246\\\\xAC43\\\\x88DD\\\\x6A2C": {
+      "encoded_names": [
+        "\\\\x1246\\\\xAC43\\\\x88DD\\\\x6A2C"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        2291
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "24": {
+          "id": 24,
+          "name": "Power Leak",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "39": {
+          "id": 39,
+          "name": "Energy Surge",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "546": {
+          "id": 546,
+          "name": "Spectral_Agony1",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x1247\\\\xC5F7\\\\xBACE\\\\x74C7": {
+      "encoded_names": [
+        "\\\\x1247\\\\xC5F7\\\\xBACE\\\\x74C7"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        2292
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "115": {
+          "id": 115,
+          "name": "Blood Renewal",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "123": {
+          "id": 123,
+          "name": "Insidious Parasite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "126": {
+          "id": 126,
+          "name": "Life Transfer",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "127": {
+          "id": 127,
+          "name": "Mark of Subversion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "546": {
+          "id": 546,
+          "name": "Spectral_Agony1",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
     "enc:\\\\x1248\\\\xC0A7\\\\xB0C3\\\\x7592": {
       "encoded_names": [
         "\\\\x1248\\\\xC0A7\\\\xB0C3\\\\x7592"
@@ -2678,6 +3024,12 @@
         2293
       ],
       "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        },
         "22": {
           "base_id": 22,
           "id": 22,
@@ -2686,6 +3038,12 @@
         }
       },
       "observed_skills": {
+        "201": {
+          "id": 201,
+          "name": "Glyph of Concentration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "223": {
           "id": 223,
           "name": "Chain Lightning",
@@ -2704,11 +3062,49 @@
           "profession": "Elementalist",
           "profession_id": 6
         },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "546": {
           "id": 546,
           "name": "Spectral_Agony1",
           "profession": "None",
           "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x124A\\\\xB934\\\\x981A\\\\x0201": {
+      "encoded_names": [
+        "\\\\x124A\\\\xB934\\\\x981A\\\\x0201"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2301
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "201": {
+          "id": 201,
+          "name": "Glyph of Concentration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "226": {
+          "id": 226,
+          "name": "Mind Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
         }
       }
     },
@@ -2727,6 +3123,12 @@
           "id": 121,
           "instance_type": "Explorable",
           "name": "Perdition Rock"
+        },
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
         }
       },
       "observed_skills": {
@@ -2760,6 +3162,12 @@
         2295
       ],
       "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        },
         "22": {
           "base_id": 22,
           "id": 22,
@@ -2786,11 +3194,55 @@
           "profession": "Monk",
           "profession_id": 3
         },
+        "311": {
+          "id": 311,
+          "name": "Draw Conditions",
+          "profession": "Monk",
+          "profession_id": 3
+        },
         "546": {
           "id": 546,
           "name": "Spectral_Agony1",
           "profession": "None",
           "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x1251\\\\xB729\\\\x32CD": {
+      "encoded_names": [
+        "\\\\x1251\\\\xB729\\\\x32CD"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2299
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "326": {
+          "id": 326,
+          "name": "Protector's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "352": {
+          "id": 352,
+          "name": "Crushing Blow",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -2809,6 +3261,12 @@
           "id": 121,
           "instance_type": "Explorable",
           "name": "Perdition Rock"
+        },
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
         }
       },
       "observed_skills": {
@@ -3505,6 +3963,102 @@
           "profession_id": 1
         }
       }
+    },
+    "enc:\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9": {
+      "encoded_names": [
+        "\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2479
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1301\\\\xCE50\\\\x7AC8": {
+      "encoded_names": [
+        "\\\\x1301\\\\xCE50\\\\x7AC8"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2497
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "76": {
+          "id": 76,
+          "name": "Imagined Burden",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x1303\\\\xD589\\\\xA1F3\\\\x61C7": {
+      "encoded_names": [
+        "\\\\x1303\\\\xD589\\\\xA1F3\\\\x61C7"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2499
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x1323\\\\xF632\\\\x2C75": {
+      "encoded_names": [
+        "\\\\x1323\\\\xF632\\\\x2C75"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2491
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406": {
       "encoded_names": [
@@ -4942,6 +5496,139 @@
         }
       }
     },
+    "enc:\\\\x1496\\\\xED6F\\\\xC688\\\\x7062": {
+      "encoded_names": [
+        "\\\\x1496\\\\xED6F\\\\xC688\\\\x7062"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2812
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "428": {
+          "id": 428,
+          "name": "Incendiary Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x1497\\\\xE331\\\\x898E\\\\x1CD5": {
+      "encoded_names": [
+        "\\\\x1497\\\\xE331\\\\x898E\\\\x1CD5"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2813
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "50": {
+          "id": 50,
+          "name": "Wastrel's Worry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "53": {
+          "id": 53,
+          "name": "Migraine",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x1498\\\\xE96E\\\\x9810\\\\x4245": {
+      "encoded_names": [
+        "\\\\x1498\\\\xE96E\\\\x9810\\\\x4245"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2814
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "166": {
+          "id": 166,
+          "name": "Kinetic Armor",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "171": {
+          "id": 171,
+          "name": "Stoning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "224": {
+          "id": 224,
+          "name": "Enervating Charge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x1499\\\\xACCD\\\\xE90E\\\\x2C5A": {
+      "encoded_names": [
+        "\\\\x1499\\\\xACCD\\\\xE90E\\\\x2C5A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2815
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x149B\\\\x9F2C\\\\xA58A\\\\x69D9": {
       "encoded_names": [
         "\\\\x149B\\\\x9F2C\\\\xA58A\\\\x69D9"
@@ -5009,6 +5696,70 @@
           "name": "Wild Blow",
           "profession": "Warrior",
           "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x14A2\\\\xE704\\\\xB24F\\\\x0CB2": {
+      "encoded_names": [
+        "\\\\x14A2\\\\xE704\\\\xB24F\\\\x0CB2"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2824
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x14A3\\\\xB042\\\\x5C46": {
+      "encoded_names": [
+        "\\\\x14A3\\\\xB042\\\\x5C46"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2825
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "461": {
+          "id": 461,
+          "name": "Spike Trap",
+          "profession": "Ranger",
+          "profession_id": 2
         }
       }
     },
@@ -5410,6 +6161,44 @@
         }
       }
     },
+    "enc:\\\\x14B0\\\\xE5E9\\\\xCD46\\\\x1D4F": {
+      "encoded_names": [
+        "\\\\x14B0\\\\xE5E9\\\\xCD46\\\\x1D4F"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2839
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "428": {
+          "id": 428,
+          "name": "Incendiary Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
     "enc:\\\\x14B1\\\\xE1F5\\\\x917E\\\\x0A54": {
       "encoded_names": [
         "\\\\x14B1\\\\xE1F5\\\\x917E\\\\x0A54"
@@ -5425,6 +6214,12 @@
           "id": 121,
           "instance_type": "Explorable",
           "name": "Perdition Rock"
+        },
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
         }
       },
       "observed_skills": {
@@ -5501,6 +6296,12 @@
           "id": 121,
           "instance_type": "Explorable",
           "name": "Perdition Rock"
+        },
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
         }
       },
       "observed_skills": {
@@ -5545,6 +6346,12 @@
           "id": 121,
           "instance_type": "Explorable",
           "name": "Perdition Rock"
+        },
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
         }
       },
       "observed_skills": {
@@ -5577,6 +6384,12 @@
           "id": 121,
           "instance_type": "Explorable",
           "name": "Perdition Rock"
+        },
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
         }
       },
       "observed_skills": {
@@ -5653,6 +6466,100 @@
           "name": "Glyph of Renewal",
           "profession": "Elementalist",
           "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x14B8\\\\x8EA7\\\\x9C5E\\\\x2F96": {
+      "encoded_names": [
+        "\\\\x14B8\\\\x8EA7\\\\x9C5E\\\\x2F96"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2848
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "183": {
+          "id": 183,
+          "name": "Inferno",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "185": {
+          "id": 185,
+          "name": "Mind Burn",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "192": {
+          "id": 192,
+          "name": "Meteor Shower",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "200": {
+          "id": 200,
+          "name": "Glyph of Lesser Energy",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x14B9\\\\xEDA8\\\\xAA94\\\\x3179": {
+      "encoded_names": [
+        "\\\\x14B9\\\\xEDA8\\\\xAA94\\\\x3179"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2838
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "116": {
+          "id": 116,
+          "name": "Dark Aura",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "134": {
+          "id": 134,
+          "name": "Order of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "143": {
+          "id": 143,
+          "name": "Strip Enchantment",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "158": {
+          "id": 158,
+          "name": "Touch of Agony",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "92": {
+          "id": 92,
+          "name": "Well of Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
         }
       }
     },
@@ -6352,6 +7259,50 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x3C73\\\\x9A71\\\\xE88E\\\\x66A1": {
+      "encoded_names": [
+        "\\\\x3C73\\\\x9A71\\\\xE88E\\\\x66A1"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2603
+      ],
+      "observed_maps": {
+        "122": {
+          "base_id": 122,
+          "id": 122,
+          "instance_type": "Explorable",
+          "name": "Ring of Fire outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "210": {
+          "id": 210,
+          "name": "Ice Prison",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "212": {
+          "id": 212,
+          "name": "Frozen Burst",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "236": {
+          "id": 236,
+          "name": "Mist Form",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x3CAB\\\\xCB84\\\\xB6C1\\\\x685B": {
       "encoded_names": [

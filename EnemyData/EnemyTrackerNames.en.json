@@ -88,6 +88,24 @@
     "enc:\\\\x0EB6\\\\xC79F\\\\xF1B5\\\\x1515": [
       "Bleck Oogle"
     ],
+    "enc:\\\\x0EC1\\\\x8C1E\\\\x75CC": [
+      "Melek the Virtuous"
+    ],
+    "enc:\\\\x0EC2\\\\xAC1E\\\\xB3E5\\\\x5A5A": [
+      "Odelyn the Displeased"
+    ],
+    "enc:\\\\x0EC3\\\\xE5FE\\\\xCBD2\\\\x3645": [
+      "Maida the Ill Tempered"
+    ],
+    "enc:\\\\x0EC4\\\\xBA78\\\\xC81B\\\\x260A": [
+      "Coventina the Matron"
+    ],
+    "enc:\\\\x0EC5\\\\xA84B\\\\xC18D\\\\x10CC": [
+      "Cairn the Smug"
+    ],
+    "enc:\\\\x0EC6\\\\xA142\\\\x3286": [
+      "Cairn the Troubling"
+    ],
     "enc:\\\\x0EFD\\\\xFBE1\\\\x93D0\\\\x76C6": [
       "Dune Lizard"
     ],
@@ -235,14 +253,26 @@
     "enc:\\\\x1232\\\\xF535\\\\x05E0": [
       "Bone Minion"
     ],
+    "enc:\\\\x1246\\\\xAC43\\\\x88DD\\\\x6A2C": [
+      "Mursaat Mesmer"
+    ],
+    "enc:\\\\x1247\\\\xC5F7\\\\xBACE\\\\x74C7": [
+      "Mursaat Necromancer"
+    ],
     "enc:\\\\x1248\\\\xC0A7\\\\xB0C3\\\\x7592": [
       "Mursaat Elementalist"
+    ],
+    "enc:\\\\x124A\\\\xB934\\\\x981A\\\\x0201": [
+      "Ether Seal"
     ],
     "enc:\\\\x124C\\\\x9EE1\\\\xF2A7\\\\x2CD7": [
       "Ether Seal"
     ],
     "enc:\\\\x124D\\\\x8CEC\\\\x8840\\\\x088F": [
       "Mursaat Monk"
+    ],
+    "enc:\\\\x1251\\\\xB729\\\\x32CD": [
+      "Jade Armor"
     ],
     "enc:\\\\x1252\\\\xF59C\\\\xF0CA\\\\x246D": [
       "Jade Bow"
@@ -300,6 +330,18 @@
     ],
     "enc:\\\\x12C5\\\\xD142\\\\xFA22\\\\x1E49": [
       "Grasping Darkness"
+    ],
+    "enc:\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9": [
+      "Carrion Devourer"
+    ],
+    "enc:\\\\x1301\\\\xCE50\\\\x7AC8": [
+      "Shatter Gargoyle"
+    ],
+    "enc:\\\\x1303\\\\xD589\\\\xA1F3\\\\x61C7": [
+      "Flash Gargoyle"
+    ],
+    "enc:\\\\x1323\\\\xF632\\\\x2C75": [
+      "Hulking Stone Elemental"
     ],
     "enc:\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406": [
       "Blessed Griffon"
@@ -418,11 +460,29 @@
     "enc:\\\\x1494\\\\xF555\\\\xE8A2\\\\x1FF9": [
       "Zombie Warlock"
     ],
+    "enc:\\\\x1496\\\\xED6F\\\\xC688\\\\x7062": [
+      "Casses Flameweb"
+    ],
+    "enc:\\\\x1497\\\\xE331\\\\x898E\\\\x1CD5": [
+      "Pytt Spitespew"
+    ],
+    "enc:\\\\x1498\\\\xE96E\\\\x9810\\\\x4245": [
+      "Jyth Sprayburst"
+    ],
+    "enc:\\\\x1499\\\\xACCD\\\\xE90E\\\\x2C5A": [
+      "Grun Galesurge"
+    ],
     "enc:\\\\x149B\\\\x9F2C\\\\xA58A\\\\x69D9": [
       "Dosakaru Fevertouch"
     ],
     "enc:\\\\x149D\\\\xA3F9\\\\xE001\\\\x0747": [
       "Skintekaru Manshredder"
+    ],
+    "enc:\\\\x14A2\\\\xE704\\\\xB24F\\\\x0CB2": [
+      "Ferk Mallet"
+    ],
+    "enc:\\\\x14A3\\\\xB042\\\\x5C46": [
+      "Vulg Painbrain"
     ],
     "enc:\\\\x14A4\\\\xE7FC\\\\x9B01\\\\x020C": [
       "Rull Browbeater"
@@ -454,6 +514,9 @@
     "enc:\\\\x14AE\\\\x8E18\\\\x8251\\\\x1300": [
       "Rwek Khawl Mawl"
     ],
+    "enc:\\\\x14B0\\\\xE5E9\\\\xCD46\\\\x1D4F": [
+      "Lava Spitter"
+    ],
     "enc:\\\\x14B1\\\\xE1F5\\\\x917E\\\\x0A54": [
       "Breeze Keeper"
     ],
@@ -471,6 +534,12 @@
     ],
     "enc:\\\\x14B7\\\\xCC03\\\\xCE3C\\\\x6BF7": [
       "Mahgo Hydra"
+    ],
+    "enc:\\\\x14B8\\\\x8EA7\\\\x9C5E\\\\x2F96": [
+      "Lava Imp"
+    ],
+    "enc:\\\\x14B9\\\\xEDA8\\\\xAA94\\\\x3179": [
+      "Nightmare"
     ],
     "enc:\\\\x14BA\\\\xF722\\\\xC8CB\\\\x3FD7": [
       "Wurm"
@@ -522,6 +591,9 @@
     ],
     "enc:\\\\x3AE0\\\\xEDC5\\\\xEDC3\\\\x4270": [
       "White Mantle Engineer"
+    ],
+    "enc:\\\\x3C73\\\\x9A71\\\\xE88E\\\\x66A1": [
+      "Eidolon"
     ],
     "enc:\\\\x3CAB\\\\xCB84\\\\xB6C1\\\\x685B": [
       "Undead Lich"
