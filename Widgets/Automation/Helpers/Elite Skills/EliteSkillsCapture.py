@@ -3073,7 +3073,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Searing Flames",
         capture_function="Searing_Flames",
-        start_map=0,
+        start_map=403,
         icon_filename="[884] - Searing Flames.jpg"
     ),
     EliteSkill(
@@ -3084,7 +3084,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Star Burst",
         capture_function="Star_Burst",
-        start_map=0,
+        start_map=226,
         icon_filename="[1095] - Star Burst.jpg"
     ),
     EliteSkill(
@@ -3095,7 +3095,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Icy Shackles",
         capture_function="Icy_Shackles",
-        start_map=0,
+        start_map=424,
         icon_filename="[939] - Icy Shackles.jpg"
     ),
     EliteSkill(
@@ -3106,7 +3106,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Mind Freeze",
         capture_function="Mind_Freeze",
-        start_map=0,
+        start_map=469,
         icon_filename="[209] - Mind Freeze.jpg"
     ),
     EliteSkill(
@@ -3117,7 +3117,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Mirror of Ice",
         capture_function="Mirror_of_Ice",
-        start_map=0,
+        start_map=284,
         icon_filename="[1098] - Mirror of Ice.jpg"
     ),
     EliteSkill(
@@ -3128,19 +3128,8 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Shatterstone",
         capture_function="Shatterstone",
-        start_map=0,
+        start_map=130,
         icon_filename="[809] - Shatterstone.jpg"
-    ),
-    EliteSkill(
-        id="skill-239",
-        display_name="Ward Against Harm",
-        skill_id=239,
-        profession=Profession.ELEMENTALIST,
-        type=EliteSkillType.ELITE_SKILL,
-        step_name="[H]Ward Against Harm",
-        capture_function="Ward_Against_Harm",
-        start_map=0,
-        icon_filename="[239] - Ward Against Harm.jpg"
     ),
     EliteSkill(
         id="skill-237",
@@ -3150,7 +3139,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Water Trident",
         capture_function="Water_Trident",
-        start_map=0,
+        start_map=642,
         icon_filename="[237] - Water Trident.jpg"
     ),
 ]
@@ -10268,7 +10257,7 @@ def Savannah_Heat():
 def Searing_Flames(): 
     bot.States.AddHeader("Searing Flames")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 403
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10276,13 +10265,12 @@ def Searing_Flames():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(-18812, 13402, 402)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(-7285, 15774)
+    bot.Move.XY(4932, 14298)
+    bot.Move.XY(10875, 13329)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10295,7 +10283,7 @@ def Searing_Flames():
 def Star_Burst(): #[1095] - Star Burst
     bot.States.AddHeader("Star Burst")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 226
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10303,13 +10291,12 @@ def Star_Burst(): #[1095] - Star Burst
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(-9600, 3803, 233)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(16795, 8477)
+    bot.Move.XY(-973, 2190)
+    bot.Move.XY(-3992.75, -6002.14)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10322,7 +10309,7 @@ def Star_Burst(): #[1095] - Star Burst
 def Icy_Shackles(): #[939] - Icy Shackles
     bot.States.AddHeader("Icy Shackles")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 424
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10334,8 +10321,6 @@ def Icy_Shackles(): #[939] - Icy Shackles
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
     bot.Move.XY(0, 0)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
@@ -10349,7 +10334,7 @@ def Icy_Shackles(): #[939] - Icy Shackles
 def Mind_Freeze(): #[209] - Mind Freeze
     bot.States.AddHeader("Mind Freeze")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 469
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10357,13 +10342,11 @@ def Mind_Freeze(): #[209] - Mind Freeze
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(7611, 18645, 468)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(9441, 11297)
+    bot.Wait.ForTime(30000)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10376,7 +10359,7 @@ def Mind_Freeze(): #[209] - Mind Freeze
 def Mirror_of_Ice(): #[1098] - Mirror of Ice
     bot.States.AddHeader("Mirror of Ice")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 284
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10384,13 +10367,13 @@ def Mirror_of_Ice(): #[1098] - Mirror of Ice
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XY(11750, -18667)
+    bot.Move.XYAndExitMap(11745, -21128, 256)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(6939, 10824)
+    bot.Move.XY(1865, 7093)
+    bot.Move.XY(6523, -380)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10403,7 +10386,7 @@ def Mirror_of_Ice(): #[1098] - Mirror of Ice
 def Shatterstone(): #[809] - Shatterstone
     bot.States.AddHeader("Shatterstone")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 130
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10411,13 +10394,11 @@ def Shatterstone(): #[809] - Shatterstone
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(18072, 1905, 128)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(14466, -24)
+    bot.Move.XY(20038, -4499)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10427,37 +10408,10 @@ def Shatterstone(): #[809] - Shatterstone
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Ward_Against_Harm(): #[239] - Ward Against Harm
-    bot.States.AddHeader("Ward Against Harm")
-    target_prof = Profession.ELEMENTALIST
-    start_map = 0
-    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
-    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Elementalist Build")
-    bot.Party.LeaveParty()
-    bot.Travel_To_Random_District(target_map_id=start_map)
-    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
-    #bot.Items.UseAllConsumables() #uncomment for harder areas
-    ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
-    bot.Wait.UntilOutOfCombat()
-    ConfigurePacifistEnv(bot)
-    bot.SkillBar.UseSkill(3)
-    bot.Wait.ForTime(5000)
-    bot.States.AddCustomState(lambda: ClickSkillFrame(239), "Click Skill Frame")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-    yield    
-
 def Water_Trident(): #[237] - Water Trident
     bot.States.AddHeader("Water Trident")
     target_prof = Profession.ELEMENTALIST
-    start_map = 0
+    start_map = 642
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10465,13 +10419,11 @@ def Water_Trident(): #[237] - Water Trident
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(1250, 800, 499)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Wait.ForTime(7000)
-    bot.Move.XYAndInteractGadget(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(5715, 19935)
+    bot.Wait.ForTime(45000) #Boss Path limit
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -11876,7 +11828,6 @@ bot.States.AddCustomState(Icy_Shackles, "[H]Icy Shackles")
 bot.States.AddCustomState(Mind_Freeze, "[H]Mind Freeze")
 bot.States.AddCustomState(Mirror_of_Ice, "[H]Mirror of Ice")
 bot.States.AddCustomState(Shatterstone, "[H]Shatterstone")
-bot.States.AddCustomState(Ward_Against_Harm, "[H]Ward Against Harm")
 bot.States.AddCustomState(Water_Trident, "[H]Water Trident")
 # Record base builder state count (used to append/remove dynamic sub-steps)
 gui._original_state_count = len(bot.config.FSM.states)
