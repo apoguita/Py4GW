@@ -3869,7 +3869,7 @@ def Signet_of_Spirits():
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10536, 17699)
     bot.Move.XY(3726, 7910)
-    bot.Move.XY(5202.53, 4566.32)
+    bot.Move.XY(5956, 4177)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
