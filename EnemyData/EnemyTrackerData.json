@@ -3506,6 +3506,102 @@
         }
       }
     },
+    "enc:\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9": {
+      "encoded_names": [
+        "\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2479
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1301\\\\xCE50\\\\x7AC8": {
+      "encoded_names": [
+        "\\\\x1301\\\\xCE50\\\\x7AC8"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2497
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "76": {
+          "id": 76,
+          "name": "Imagined Burden",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x1303\\\\xD589\\\\xA1F3\\\\x61C7": {
+      "encoded_names": [
+        "\\\\x1303\\\\xD589\\\\xA1F3\\\\x61C7"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2499
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x1323\\\\xF632\\\\x2C75": {
+      "encoded_names": [
+        "\\\\x1323\\\\xF632\\\\x2C75"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2491
+      ],
+      "observed_maps": {
+        "33": {
+          "base_id": 33,
+          "id": 33,
+          "instance_type": "Explorable",
+          "name": "Old Ascalon"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406": {
       "encoded_names": [
         "\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406"
