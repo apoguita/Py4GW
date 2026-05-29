@@ -724,7 +724,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Mind Burn",
         capture_function="MindBurn",
-        start_map=124,
+        start_map=217,
         icon_filename="[185] - Mind Burn.jpg",   
     ),
     EliteSkill(
@@ -2336,7 +2336,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Life Transfer",
         capture_function="Life_Transfer",
-        start_map=23,
+        start_map=650,
         icon_filename="[126] - Life Transfer.jpg",
     ),
     EliteSkill(
@@ -3141,6 +3141,215 @@ ELITE_SKILLS = [
         capture_function="Water_Trident",
         start_map=642,
         icon_filename="[237] - Water Trident.jpg"
+    ),
+    EliteSkill(
+        id="skill_1345",
+        display_name="Enchanter's Conundrum",
+        skill_id=1345,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Enchanter's Conundrum",
+        capture_function="Enchanters_Conundrum",
+        start_map=426,
+        icon_filename="[1345] - Enchanter's Conundrum.jpg",
+    ),
+    EliteSkill(
+        id="skill_1348",
+        display_name="Hex Eater Vortex",
+        skill_id=1348,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Hex Eater Vortex",
+        capture_function="Hex_Eater_Vortex",
+        start_map=480,
+        icon_filename="[1348] - Hex Eater Vortex.jpg",
+    ),
+    EliteSkill(
+        id="skill_5",
+        display_name="Power Block",
+        skill_id=5,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Power Block",
+        capture_function="Power_Block",
+        start_map=650,
+        icon_filename="[5] - Power Block.jpg",
+    ),
+    EliteSkill(
+        id="skill_953",
+        display_name="Power Flux",
+        skill_id=953,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Power Flux",
+        capture_function="Power_Flux",
+        start_map=469,
+        icon_filename="[953] - Power Flux.jpg",
+    ),
+    EliteSkill(
+        id="skill_1053",
+        display_name="Psychic Distraction",
+        skill_id=1053,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Psychic Distraction",
+        capture_function="Psychic_Distraction",
+        start_map=284,
+        icon_filename="[1053] - Psychic Distraction.jpg",
+    ),
+    EliteSkill(
+        id="skill_804",
+        display_name="Arcane Languor",
+        skill_id=804,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Arcane Languor",
+        capture_function="Arcane_Languor",
+        start_map=226,
+        icon_filename="[804] - Arcane Languor.jpg",
+    ),
+    EliteSkill(
+        id="skill_63",
+        display_name="Keystone Signet",
+        skill_id=63,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Keystone Signet",
+        capture_function="Keystone_Signet",
+        start_map=156,
+        icon_filename="[63] - Keystone Signet.jpg",
+    ),
+    EliteSkill(
+        id="skill_13",
+        display_name="Mantra of Recovery",
+        skill_id=13,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Mantra of Recovery",
+        capture_function="Mantra_of_Recovery",
+        start_map=349,
+        icon_filename="[13] - Mantra of Recovery.jpg",
+    ),
+    EliteSkill(
+        id="skill_880",
+        display_name="Stolen Speed",
+        skill_id=880,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Stolen Speed",
+        capture_function="Stolen_Speed",
+        start_map=283,
+        icon_filename="[880] - Stolen Speed.jpg",
+    ),
+    EliteSkill(
+        id="skill_1339",
+        display_name="Symbols of Inspiration",
+        skill_id=1339,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Symbols of Inspiration",
+        capture_function="Symbols_of_Inspiration",
+        start_map=473,
+        icon_filename="[1339] - Symbols of Inspiration.jpg",
+    ),
+    EliteSkill(
+        id="skill_1656",
+        display_name="Air of Disenchantment",
+        skill_id=1656,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Air of Disenchantment",
+        capture_function="Air_of_Disenchantment",
+        start_map=428,
+        icon_filename="[1656] - Air of Disenchantment.jpg",
+    ),
+    EliteSkill(
+        id="skill_1055",
+        display_name="Recurring Insecurity",
+        skill_id=1055,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Recurring Insecurity",
+        capture_function="Recurring_Insecurity",
+        start_map=287,
+        icon_filename="[1055] - Recurring Insecurity.jpg",
+    ),
+    EliteSkill(
+        id="skill_900",
+        display_name="Shared Burden",
+        skill_id=900,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Shared Burden",
+        capture_function="Shared_Burden",
+        start_map=287,
+        icon_filename="[900] - Shared Burden.jpg",
+    ),
+    EliteSkill(
+        id="skill_1346",
+        display_name="Signet of Illusions",
+        skill_id=1346,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Signet of Illusions",
+        capture_function="Signet_of_Illusions",
+        start_map=494,
+        icon_filename="[1346] - Signet of Illusions.jpg",
+    ),
+    EliteSkill(
+        id="skill_79",
+        display_name="Energy Drain",
+        skill_id=79,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Energy Drain",
+        capture_function="Energy_Drain",
+        start_map=193,
+        icon_filename="[79] - Energy Drain.jpg",
+    ),
+    EliteSkill(
+        id="skill_1333",
+        display_name="Extend Conditions",
+        skill_id=1333,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Extend Conditions",
+        capture_function="Extend_Conditions",
+        start_map=381,
+        icon_filename="[1333] - Extend Conditions.jpg",
+    ),
+    EliteSkill(
+        id="skill_813",
+        display_name="Lyssa's Aura",
+        skill_id=813,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Lyssa's Aura",
+        capture_function="Lyssas_Aura",
+        start_map=643,
+        icon_filename="[813] - Lyssa's Aura.jpg",
+    ),
+    EliteSkill(
+        id="skill_74",
+        display_name="Echo",
+        skill_id=74,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Echo",
+        capture_function="Echo",
+        start_map=130,
+        icon_filename="[74] - Echo.jpg",
+    ),
+    EliteSkill(
+        id="skill_954",
+        display_name="Expel Hexes",
+        skill_id=954,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Expel Hexes",
+        capture_function="Expel_Hexes",
+        start_map=292,
+        icon_filename="[954] - Expel Hexes.jpg",
     ),
 ]
 
@@ -4322,24 +4531,19 @@ def Panic():
 def MindBurn():
     bot.States.AddHeader("Mind Burn")
     target_prof = Profession.ELEMENTALIST
-    start_map = 35 #Will set Ember light Camp as Start since Hell's Precipice Mission and outpost have the same Map ID
+    start_map = 217
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ele Build")
     bot.Party.LeaveParty()
-    bot.Travel_To_Random_District(target_map_id=124)
+    bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Wait.ForTime(2000)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
-    bot.Map.EnterChallenge(6000, target_map_id=124)
+    bot.Move.XYAndExitMap(-11644, -15830, 197)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(2573, 134)
-    bot.Move.XY(3009, -4916)
-    bot.Wait.ForTime(7000)
-    bot.Move.XY(5043.89, -7425.06)
-    bot.Move.XY(9299, -9728)
-    bot.Move.XY(7827.06, -13540.96)
+    bot.Move.XY(-1976, 10596)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -4591,18 +4795,27 @@ def MindShock():
 def Life_Transfer():
     bot.States.AddHeader("Life Transfer")
     target_prof = Profession.NECROMANCER
-    start_map = 23
+    start_map = 650
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necromancer Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
-    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
-    bot.Move.XYAndExitMap(-12507, -23517, 94)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-21630, 12565, 649) #Exit to Gothmar Wardowns
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-4163, -203, "Res Shrine 1")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11385, 2228, "Res Shrine 2")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(19190, -12141, "Res Shrine 3")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XYAndExitMap(23054, -13225, 651)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(7408, 15741)
+    bot.Move.XY(-16333, 16622, "Res Shrine 4")
+    bot.Move.XY(-9609, 11059)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -5026,13 +5239,14 @@ def TogetherAsOne():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Items.Withdraw(38031, 1)
     bot.Move.XYAndExitMap(-21630, 12565, 649) #Exit to Gothmar Wardowns
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3924.91, -572.00, "Res Shrine 1")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(11385, 2228, "Res Shrine 2")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(19190, -12141, "Res Shrine 3")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XYAndExitMap(23054, -13225, target_map_name="Sacnoth Valley")
+    bot.Move.XYAndExitMap(23054, -13225, 651)
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(-16333, 16622, "Res Shrine 4")
@@ -5190,13 +5404,14 @@ def TimeWard():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
     bot.Items.Withdraw(38031, 1)
     bot.Move.XYAndExitMap(-21630, 12565, 649) #Exit to Gothmar Wardowns
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4163, -203, "Res Shrine 1")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(11385, 2228, "Res Shrine 2")
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(19190, -12141, "Res Shrine 3")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XYAndExitMap(23054, -13225, target_map_name="Sacnoth Valley")
+    bot.Move.XYAndExitMap(23054, -13225, 651)
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
     bot.Move.XY(-16333, 16622, "Res Shrine 4")
@@ -10280,7 +10495,7 @@ def Searing_Flames():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Star_Burst(): #[1095] - Star Burst
+def Star_Burst():
     bot.States.AddHeader("Star Burst")
     target_prof = Profession.ELEMENTALIST
     start_map = 226
@@ -10306,7 +10521,7 @@ def Star_Burst(): #[1095] - Star Burst
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Icy_Shackles(): #[939] - Icy Shackles
+def Icy_Shackles():
     bot.States.AddHeader("Icy Shackles")
     target_prof = Profession.ELEMENTALIST
     start_map = 424
@@ -10331,7 +10546,7 @@ def Icy_Shackles(): #[939] - Icy Shackles
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Mind_Freeze(): #[209] - Mind Freeze
+def Mind_Freeze():
     bot.States.AddHeader("Mind Freeze")
     target_prof = Profession.ELEMENTALIST
     start_map = 469
@@ -10356,7 +10571,7 @@ def Mind_Freeze(): #[209] - Mind Freeze
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Mirror_of_Ice(): #[1098] - Mirror of Ice
+def Mirror_of_Ice():
     bot.States.AddHeader("Mirror of Ice")
     target_prof = Profession.ELEMENTALIST
     start_map = 284
@@ -10384,7 +10599,7 @@ def Mirror_of_Ice(): #[1098] - Mirror of Ice
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Shatterstone(): #[809] - Shatterstone
+def Shatterstone():
     bot.States.AddHeader("Shatterstone")
     target_prof = Profession.ELEMENTALIST
     start_map = 130
@@ -10399,7 +10614,7 @@ def Shatterstone(): #[809] - Shatterstone
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(14466, -24)
-    bot.Move.XY(20038, -4499)
+    bot.Move.XY(20340.17, -5591.57)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10409,7 +10624,7 @@ def Shatterstone(): #[809] - Shatterstone
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
-def Water_Trident(): #[237] - Water Trident
+def Water_Trident():
     bot.States.AddHeader("Water Trident")
     target_prof = Profession.ELEMENTALIST
     start_map = 642
@@ -10432,7 +10647,502 @@ def Water_Trident(): #[237] - Water Trident
     bot.States.AddCustomState(lambda: ClickSkillFrame(237), "Click Skill Frame")
     bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-    yield        
+    yield
+
+def Enchanters_Conundrum():
+    bot.States.AddHeader("Enchanter's Conundrum")
+    target_prof = Profession.MESMER
+    start_map = 426
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-4431, 5107, 380)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(12304, -2881)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1345), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Hex_Eater_Vortex():
+    bot.States.AddHeader("Hex Eater Vortex")
+    target_prof = Profession.MESMER
+    start_map = 480
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XY(-3039, 13579)
+    bot.Move.XYAndExitMap(-3076, 11494, 446)
+    bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-6449, 4707)
+    bot.Move.XY(-7007, 2674)
+    bot.Move.XY(-9644, -10835)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1348), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Power_Block():
+    bot.States.AddHeader("Power Block")
+    target_prof = Profession.MESMER
+    start_map = 650
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-21630, 12565, 649) #Exit to Gothmar Wardowns
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-4163, -203, "Res Shrine 1")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(11385, 2228, "Res Shrine 2")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(19190, -12141, "Res Shrine 3")
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XYAndExitMap(23054, -13225, 651)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-16333, 16622, "Res Shrine 4")
+    bot.Move.XY(-9609, 11059)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(5), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Power_Flux():
+    bot.States.AddHeader("Power Flux")
+    target_prof = Profession.MESMER
+    start_map = 469
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(15365, 20110, 470)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-11703, 1000)
+    bot.Move.XY(-16661, 6337)
+    bot.Move.XY(-8634, 10748)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(953), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Psychic_Distraction():
+    bot.States.AddHeader("Psychic Distraction")
+    target_prof = Profession.MESMER
+    start_map = 284
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XY(11750, -18667)
+    bot.Move.XYAndExitMap(11745, -21128, 256)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(4219, 7155)
+    bot.Move.XY(267, 6433)
+    bot.Move.XY(123, 2310)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1053), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Arcane_Languor():
+    bot.States.AddHeader("Arcane Languor")
+    target_prof = Profession.MESMER
+    start_map = 226
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-9692, 3974, 233)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(24348, 1495)
+    bot.Move.XY(17308, 5582)
+    bot.Move.XY(9049, 3750)
+    bot.Move.XY(10315, -1258)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(804), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Keystone_Signet():
+    bot.States.AddHeader("Keystone Signet")
+    target_prof = Profession.MESMER
+    start_map = 156
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-11740, 14510, 93)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-5079, -998)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(63), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Mantra_of_Recovery():
+    bot.States.AddHeader("Mantra of Recovery")
+    target_prof = Profession.MESMER
+    start_map = 349
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-8796, -21562, 210)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(3019, -12299)
+    bot.Move.XY(-377, -10935)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(13), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Stolen_Speed():
+    bot.States.AddHeader("Stolen Speed")
+    target_prof = Profession.MESMER
+    start_map = 283
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-18666, 16718, 197)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(2563, -14091)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(880), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Symbols_of_Inspiration():
+    bot.States.AddHeader("Symbols of Inspiration")
+    target_prof = Profession.MESMER
+    start_map = 473
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(11560, -1337, 472)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(14496, 1656)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1339), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Air_of_Disenchantment():
+    bot.States.AddHeader("Air of Disenchantment")
+    target_prof = Profession.MESMER
+    start_map = 428
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-2220, 14596, 399)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndDialog(-4552.00, 15863.00, 0x84)
+    bot.Wait.ForMapLoad(394)
+    bot.Move.XY(21037, -6504)
+    bot.Move.XY(21933, -1662)
+    bot.Move.XY(21988, 4865)
+    bot.Move.XY(18622, 13967)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1656), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Recurring_Insecurity():
+    bot.States.AddHeader("Recurring Insecurity")
+    target_prof = Profession.MESMER
+    start_map = 287
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(27082, 5310, 209)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(20840, 2153)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1055), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Shared_Burden():
+    bot.States.AddHeader("Shared Burden")
+    target_prof = Profession.MESMER
+    start_map = 287
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(27082, 5310, 209)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(22343, -6025)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(900), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Signet_of_Illusions():
+    bot.States.AddHeader("Signet of Illusions")
+    target_prof = Profession.MESMER
+    start_map = 494
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-17156, 5363, 465)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(10335, 14284)
+    bot.Move.XY(19876, 2352)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1346), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Energy_Drain():
+    bot.States.AddHeader("Energy Drain")
+    target_prof = Profession.MESMER
+    start_map = 193
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(6756, -7638, 198)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(3079, 4784)
+    bot.Move.XY(3966, -1263)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(79), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Extend_Conditions(): #[1333] - Extend Conditions
+    bot.States.AddHeader("Extend Conditions")
+    target_prof = Profession.MESMER
+    start_map = 381
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6340, 5354, 371)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(17746, -12948)
+    bot.Move.XY(10002, -10969)
+    bot.Move.XY(6450, -13753)
+    bot.Move.XY(5055, -12183)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1333), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Lyssas_Aura(): #[813] - Lyssa's Aura
+    bot.States.AddHeader("Lyssa's Aura")
+    target_prof = Profession.MESMER
+    start_map = 643
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(13563, 19055, 513) 
+    #bot.Items.UseAllConsumables()
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(13774, 1991)
+    bot.Move.XY(11330, -4626)
+    bot.Move.XY(11757, -9994)
+    bot.Move.XY(12602, -18525)
+    bot.Move.XY(14034, -22760)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(813), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Echo(): #[74] - Echo
+    bot.States.AddHeader("Echo")
+    target_prof = Profession.MESMER
+    start_map = 130
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(18021, 1913, 128)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(9675, -2176)
+    bot.Move.XY(4240, -2340)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(74), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Expel_Hexes(): #[954] - Expel Hexes
+    bot.States.AddHeader("Expel Hexes")
+    target_prof = Profession.MESMER
+    start_map = 292
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XYAndExitMap(-14677, 5182, 240)
+    #bot.Items.UseAllConsumables() #uncomment for harder areas
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(5352, -2622)
+    bot.Move.XY(4441, 1667)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(954), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+
 # ============================================================================
 #region ADVANCED GUI CLASS
 # ============================================================================
@@ -11830,6 +12540,25 @@ bot.States.AddCustomState(Mind_Freeze, "[H]Mind Freeze")
 bot.States.AddCustomState(Mirror_of_Ice, "[H]Mirror of Ice")
 bot.States.AddCustomState(Shatterstone, "[H]Shatterstone")
 bot.States.AddCustomState(Water_Trident, "[H]Water Trident")
+bot.States.AddCustomState(Enchanters_Conundrum, "[H]Enchanter's Conundrum")
+bot.States.AddCustomState(Hex_Eater_Vortex, "[H]Hex Eater Vortex")
+bot.States.AddCustomState(Power_Block, "[H]Power Block")
+bot.States.AddCustomState(Power_Flux, "[H]Power Flux")
+bot.States.AddCustomState(Psychic_Distraction, "[H]Psychic Distraction")
+bot.States.AddCustomState(Arcane_Languor, "[H]Arcane Languor")
+bot.States.AddCustomState(Keystone_Signet, "[H]Keystone Signet")
+bot.States.AddCustomState(Mantra_of_Recovery, "[H]Mantra of Recovery")
+bot.States.AddCustomState(Stolen_Speed, "[H]Stolen Speed")
+bot.States.AddCustomState(Symbols_of_Inspiration, "[H]Symbols of Inspiration")
+bot.States.AddCustomState(Air_of_Disenchantment, "[H]Air of Disenchantment")
+bot.States.AddCustomState(Recurring_Insecurity, "[H]Recurring Insecurity")
+bot.States.AddCustomState(Shared_Burden, "[H]Shared Burden")
+bot.States.AddCustomState(Signet_of_Illusions, "[H]Signet of Illusions")
+bot.States.AddCustomState(Energy_Drain, "[H]Energy Drain")
+bot.States.AddCustomState(Extend_Conditions, "[H]Extend Conditions")
+bot.States.AddCustomState(Lyssas_Aura, "[H]Lyssa's Aura")
+bot.States.AddCustomState(Echo, "[H]Echo")
+bot.States.AddCustomState(Expel_Hexes, "[H]Expel Hexes")
 # Record base builder state count (used to append/remove dynamic sub-steps)
 gui._original_state_count = len(bot.config.FSM.states)
 gui._last_original_next = bot.config.FSM.states[-1].next_state if bot.config.FSM.states else None
