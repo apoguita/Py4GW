@@ -308,6 +308,12 @@ def execute_follower_follow(
     # tighten the tolerance to FOLLOW_RECOVERY_RELEASE_DISTANCE so it keeps
     # closing the gap instead of stopping at the normal slot threshold.
     effective_follow_distance = min(follow_distance, FOLLOW_RECOVERY_RELEASE_DISTANCE) if recovery_active else follow_distance
+    # When flagged the published threshold is 0.0 (hold position exactly), which
+    # makes the arrival check below impossible to satisfy and permanently blocks
+    # HandleCombat in the headless tree selector.  Enforce a minimum arrival
+    # radius of Adjacent so followers that have reached the flag can fight.
+    if (own_flag_active or all_flag_active) and effective_follow_distance < float(Range.Adjacent.value):
+        effective_follow_distance = float(Range.Adjacent.value)
     if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= effective_follow_distance:
         state.last_recovery_follow_command_ms = 0
         state.recovery_detour_attempted = False

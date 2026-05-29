@@ -85,10 +85,22 @@ UW_TORTURED_SPIRIT_NAMES: tuple[str, ...] = (
 # Spectral Mindblade spawn wait in Restore Planes (not blacklisted)
 _UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
+RES_SCROLL_MODEL_ID = 26501  # ModelID.Scroll_Of_Resurrection
+PLANT_FIBER_MODEL_ID = 934  # ModelID.Plant_Fiber
+BONE_MODEL_ID = 921  # ModelID.Bone
 _SCROLL_TRADER_NAME = 'Scroll Trader'
 _SCROLL_TRADER_MODEL_ID = 207      # Guild Hall Scroll Trader
 _SCROLL_TRADER_APPROACH_DIST = 220.0  # stop short of NPC collision (Adjacent ~= 166)
 _SCROLL_TRADER_MOVE_TOLERANCE = 200.0
+_REZ_SCROLL_MATERIAL_TRADER_XY = (2958.0, -2211.0)
+_REZ_SCROLL_CRAFTER_XY = (3342.0, 613.0)
+_REZ_SCROLL_NPC_TARGET_DISTANCE = 700.0
+_REZ_SCROLL_MOVE_TOLERANCE = 200.0
+_REZ_SCROLL_CRAFT_GOLD_COST = 250
+_REZ_SCROLL_FIBER_COST = 25
+_REZ_SCROLL_BONE_COST = 25
+_REZ_SCROLL_MATERIAL_BATCH_SIZE = 10
+_REZ_SCROLL_MATERIAL_BATCH_GOLD_BUFFER = 250
 DEFAULT_UW_ENTRYPOINT_KEY = 'embark_beach'
 UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     'embark_beach':       ('Embark Beach',       int(name_to_map_id['Embark Beach'])),
@@ -157,10 +169,16 @@ class InventorySettings:
     RefillEnabled: bool = bool(_ini.read_bool(BOT_NAME, 'inv_refill_enabled', True))
     RestockCons:   bool = bool(_ini.read_bool(BOT_NAME, 'inv_restock_cons',   True))
     BuyUWScrolls:  bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_uw_scrolls', False))
+    BuyRezScrolls: bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_rez_scrolls', False))
     UWScrollMin:   int = max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_min', 1) or 1))
     UWScrollMax:   int = max(
         UWScrollMin,
         max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_max', 2) or 2)),
+    )
+    RezScrollMin:  int = max(0, int(_ini.read_int(BOT_NAME, 'inv_rez_scroll_min', 1) or 1))
+    RezScrollMax:  int = max(
+        RezScrollMin,
+        max(0, int(_ini.read_int(BOT_NAME, 'inv_rez_scroll_max', 5) or 5)),
     )
 
     @classmethod
@@ -168,8 +186,11 @@ class InventorySettings:
         _ini.write_key(BOT_NAME, 'inv_refill_enabled', str(cls.RefillEnabled))
         _ini.write_key(BOT_NAME, 'inv_restock_cons',   str(cls.RestockCons))
         _ini.write_key(BOT_NAME, 'inv_buy_uw_scrolls', str(cls.BuyUWScrolls))
+        _ini.write_key(BOT_NAME, 'inv_buy_rez_scrolls', str(cls.BuyRezScrolls))
         _ini.write_key(BOT_NAME, 'inv_uw_scroll_min',  str(max(0, int(cls.UWScrollMin))))
         _ini.write_key(BOT_NAME, 'inv_uw_scroll_max',  str(max(0, int(cls.UWScrollMax))))
+        _ini.write_key(BOT_NAME, 'inv_rez_scroll_min', str(max(0, int(cls.RezScrollMin))))
+        _ini.write_key(BOT_NAME, 'inv_rez_scroll_max', str(max(0, int(cls.RezScrollMax))))
 
 
 # ── Consumables ───────────────────────────────────────────────────────────────
@@ -546,6 +567,53 @@ def _draw_inventory_settings() -> None:
         changed = True
     if new_max != InventorySettings.UWScrollMax:
         InventorySettings.UWScrollMax = new_max
+        changed = True
+    PyImGui.end_disabled()
+    PyImGui.separator()
+    new_val = PyImGui.checkbox('Buy Rez Scrolls at Embark Beach', InventorySettings.BuyRezScrolls)
+    if new_val != InventorySettings.BuyRezScrolls:
+        InventorySettings.BuyRezScrolls = new_val
+        changed = True
+    PyImGui.begin_disabled(not InventorySettings.BuyRezScrolls)
+    PyImGui.text('Min')
+    PyImGui.same_line(0, 4)
+    PyImGui.push_item_width(_uw_scroll_input_w)
+    new_min = max(
+        0,
+        _input_int_val(
+            PyImGui.input_int('##rez_scroll_min', InventorySettings.RezScrollMin, 0, 0, 0),
+            InventorySettings.RezScrollMin,
+        ),
+    )
+    PyImGui.pop_item_width()
+    PyImGui.same_line(0, 12)
+    PyImGui.text('Max')
+    PyImGui.same_line(0, 4)
+    PyImGui.push_item_width(_uw_scroll_input_w)
+    new_max = max(
+        0,
+        _input_int_val(
+            PyImGui.input_int('##rez_scroll_max', InventorySettings.RezScrollMax, 0, 0, 0),
+            InventorySettings.RezScrollMax,
+        ),
+    )
+    PyImGui.pop_item_width()
+    current_rez_scrolls = int(GLOBAL_CACHE.Inventory.GetModelCount(int(RES_SCROLL_MODEL_ID)) or 0)
+    PyImGui.same_line(0, 12)
+    _rez_scroll_now_label = f'Now: {current_rez_scrolls}'
+    if current_rez_scrolls < new_min:
+        PyImGui.text_colored(_rez_scroll_now_label, Utils.RGBToNormal(255, 80, 80, 255))
+    elif current_rez_scrolls >= new_max:
+        PyImGui.text_colored(_rez_scroll_now_label, Utils.RGBToNormal(100, 255, 100, 255))
+    else:
+        PyImGui.text_colored(_rez_scroll_now_label, Utils.RGBToNormal(200, 200, 200, 255))
+    if new_max < new_min:
+        new_max = new_min
+    if new_min != InventorySettings.RezScrollMin:
+        InventorySettings.RezScrollMin = new_min
+        changed = True
+    if new_max != InventorySettings.RezScrollMax:
+        InventorySettings.RezScrollMax = new_max
         changed = True
     PyImGui.end_disabled()
     if changed:
@@ -1686,6 +1754,183 @@ def _leader_needs_uw_scroll_buy() -> bool:
     return _uw_scroll_count_local() < max(0, int(InventorySettings.UWScrollMin))
 
 
+def _rez_scroll_count_local() -> int:
+    return int(GLOBAL_CACHE.Inventory.GetModelCount(int(RES_SCROLL_MODEL_ID)) or 0)
+
+
+def _leader_needs_rez_scroll_buy() -> bool:
+    if not InventorySettings.BuyRezScrolls:
+        return False
+    if int(Map.GetMapID() or 0) != int(UW_ENTRYPOINTS['embark_beach'][1]):
+        return False
+    return _rez_scroll_count_local() < max(0, int(InventorySettings.RezScrollMin))
+
+
+def _inventory_count(model_id: int) -> int:
+    return int(GLOBAL_CACHE.Inventory.GetModelCount(int(model_id)) or 0)
+
+
+def _gold_on_character() -> int:
+    return int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter() or 0)
+
+
+def _gold_in_storage() -> int:
+    return int(GLOBAL_CACHE.Inventory.GetGoldInStorage() or 0)
+
+
+def _rez_scroll_target_buy_qty() -> int:
+    if not InventorySettings.BuyRezScrolls:
+        return 0
+    if int(Map.GetMapID() or 0) != int(UW_ENTRYPOINTS['embark_beach'][1]):
+        return 0
+    target_max = max(0, int(InventorySettings.RezScrollMax))
+    return max(0, target_max - _rez_scroll_count_local())
+
+
+def _rez_scroll_material_batches_needed(model_id: int, scroll_qty: int) -> int:
+    if scroll_qty <= 0:
+        return 0
+    required_count = scroll_qty * (
+        _REZ_SCROLL_FIBER_COST if model_id == PLANT_FIBER_MODEL_ID else _REZ_SCROLL_BONE_COST
+    )
+    missing_count = max(0, required_count - _inventory_count(model_id))
+    return int(math.ceil(missing_count / float(_REZ_SCROLL_MATERIAL_BATCH_SIZE)))
+
+
+def _rez_scroll_craft_ready(_node: _BT.Node) -> _BT.NodeState:
+    for candidate in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems() or []:
+        if int(GLOBAL_CACHE.Item.GetModelID(candidate) or 0) == int(RES_SCROLL_MODEL_ID):
+            return _BT.NodeState.SUCCESS
+    return _BT.NodeState.RUNNING
+
+
+def _build_buy_rez_scrolls_tree(node: _BT.Node) -> _BT:
+    """Embark Beach local restock for Scrolls of Resurrection when below configured min."""
+    BT = Routines.BT
+    target_qty = _rez_scroll_target_buy_qty()
+    if target_qty <= 0:
+        return _BT(_BT.ActionNode(name='SkipBuyRezScrolls', action_fn=lambda _node: _BT.NodeState.SUCCESS))
+
+    fiber_batches = _rez_scroll_material_batches_needed(PLANT_FIBER_MODEL_ID, target_qty)
+    bone_batches = _rez_scroll_material_batches_needed(BONE_MODEL_ID, target_qty)
+    estimated_material_gold = (fiber_batches + bone_batches) * _REZ_SCROLL_MATERIAL_BATCH_GOLD_BUFFER
+    required_gold = target_qty * _REZ_SCROLL_CRAFT_GOLD_COST + estimated_material_gold
+    available_gold = _gold_on_character() + _gold_in_storage()
+    if available_gold < required_gold:
+        ConsoleLog(
+            BOT_NAME,
+            (
+                f'[EnterUW] BuyRezScrolls: not enough gold for {target_qty} scroll(s). '
+                f'Need about {required_gold}g, available {available_gold}g.'
+            ),
+            Py4GW.Console.MessageType.Warning,
+        )
+        return _BT(_BT.ActionNode(name='SkipBuyRezScrollsNoGold', action_fn=lambda _node: _BT.NodeState.SUCCESS))
+
+    if (
+        _inventory_count(RES_SCROLL_MODEL_ID) <= 0
+        and _inventory_count(PLANT_FIBER_MODEL_ID) <= 0
+        and _inventory_count(BONE_MODEL_ID) <= 0
+        and int(GLOBAL_CACHE.Inventory.GetFreeSlotCount() or 0) < 3
+    ):
+        ConsoleLog(
+            BOT_NAME,
+            '[EnterUW] BuyRezScrolls: need at least 3 free slots for Fiber, Bones, and Rez Scroll stack.',
+            Py4GW.Console.MessageType.Warning,
+        )
+        return _BT(_BT.ActionNode(name='SkipBuyRezScrollsNoSpace', action_fn=lambda _node: _BT.NodeState.SUCCESS))
+
+    ConsoleLog(
+        BOT_NAME,
+        (
+            f'[EnterUW] BuyRezScrolls: target {target_qty} scroll(s); '
+            f'Fiber batches={fiber_batches}, Bone batches={bone_batches}, gold target={required_gold}.'
+        ),
+        Py4GW.Console.MessageType.Info,
+    )
+
+    material_buy_steps = []
+    if fiber_batches > 0:
+        material_buy_steps.append(
+            BT.Items.BuyMaterials(int(PLANT_FIBER_MODEL_ID), batches=fiber_batches, log=True, aftercast_ms=200)
+        )
+    if bone_batches > 0:
+        material_buy_steps.append(
+            BT.Items.BuyMaterials(int(BONE_MODEL_ID), batches=bone_batches, log=True, aftercast_ms=200)
+        )
+    if not material_buy_steps:
+        material_buy_steps.append(
+            _BT(_BT.ActionNode(name='SkipBuyRezMaterials', action_fn=lambda _node: _BT.NodeState.SUCCESS))
+        )
+
+    craft_steps = [
+        BT.Items.CraftItem(
+            int(RES_SCROLL_MODEL_ID),
+            _REZ_SCROLL_CRAFT_GOLD_COST,
+            [int(PLANT_FIBER_MODEL_ID), int(BONE_MODEL_ID)],
+            [_REZ_SCROLL_FIBER_COST, _REZ_SCROLL_BONE_COST],
+            aftercast_ms=500,
+        )
+        for _ in range(target_qty)
+    ]
+
+    return BT.Composite.Sequence(
+        BT.Items.EqualizeGold(required_gold, deposit_all=False, log=True, aftercast_ms=350),
+        BT.Movement.Move(
+            x=_REZ_SCROLL_MATERIAL_TRADER_XY[0],
+            y=_REZ_SCROLL_MATERIAL_TRADER_XY[1],
+            tolerance=_REZ_SCROLL_MOVE_TOLERANCE,
+            timeout_ms=30_000,
+            pause_on_combat=False,
+            log=False,
+        ),
+        BT.Agents.TargetNearestNPCXY(
+            x=_REZ_SCROLL_MATERIAL_TRADER_XY[0],
+            y=_REZ_SCROLL_MATERIAL_TRADER_XY[1],
+            distance=_REZ_SCROLL_NPC_TARGET_DISTANCE,
+            log=True,
+        ),
+        BT.Player.InteractTarget(log=True),
+        BT.Player.Wait(1000, log=False),
+        *material_buy_steps,
+        BT.Movement.Move(
+            x=_REZ_SCROLL_CRAFTER_XY[0],
+            y=_REZ_SCROLL_CRAFTER_XY[1],
+            tolerance=_REZ_SCROLL_MOVE_TOLERANCE,
+            timeout_ms=30_000,
+            pause_on_combat=False,
+            log=False,
+        ),
+        BT.Agents.TargetNearestNPCXY(
+            x=_REZ_SCROLL_CRAFTER_XY[0],
+            y=_REZ_SCROLL_CRAFTER_XY[1],
+            distance=_REZ_SCROLL_NPC_TARGET_DISTANCE,
+            log=True,
+        ),
+        BT.Player.InteractTarget(log=True),
+        BT.Player.Wait(1000, log=False),
+        _BT(_BT.WaitUntilNode(
+            name='WaitRezScrollCrafterStock',
+            condition_fn=_rez_scroll_craft_ready,
+            throttle_interval_ms=100,
+            timeout_ms=8000,
+        )),
+        *craft_steps,
+        _BT(_BT.ActionNode(
+            name='LogBuyRezScrollsDone',
+            action_fn=lambda _node: (
+                ConsoleLog(
+                    BOT_NAME,
+                    f'[EnterUW] BuyRezScrolls: now have {_rez_scroll_count_local()} scroll(s).',
+                    Py4GW.Console.MessageType.Info,
+                )
+                or _BT.NodeState.SUCCESS
+            ),
+        )),
+        name='BuyRezScrolls',
+    )
+
+
 def _resolve_scroll_trader() -> tuple[float, float, int] | None:
     """Locate Scroll Trader (model 207) in the Guild Hall NPC arrays."""
     from Py4GWCoreLib import AgentArray as _AA
@@ -1902,6 +2147,7 @@ def _enter_underworld_tree() -> _BT:
         _BT(_BT.SubtreeNode(name='BuyUWScrolls', subtree_fn=_build_buy_uw_scrolls_tree)),
         ApoBT.Travel(target_map_id=_resolve_uw_entry_map_id(), log=True),
         ApoBT.CreateParty(multibox_invite=True, timeout_ms=15_000, poll_interval_ms=100, aftercast_ms=250, log=True),
+        _BT(_BT.SubtreeNode(name='BuyRezScrolls', subtree_fn=_build_buy_rez_scrolls_tree)),
         _BT(_BT.ActionNode(name='EnableRequiredWidgets', action_fn=_enable_required_widgets_on_all_accounts, aftercast_ms=500)),
         ApoBT.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
@@ -1925,7 +2171,7 @@ def _clear_the_chamber_tree() -> _BT:
     BT = Routines.BT
 
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         # Take quest from Lost Soul
         ApoBT.MoveAndAutoDialog(pos=(345, 7167), buttons=0, multi_account=True),
@@ -2127,7 +2373,7 @@ def _restore_planes_tree() -> _BT:
     BT = Routines.BT
     return BT.Composite.Sequence(
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
         _BT(_BT.ActionNode(name='BlacklistDreamRider', action_fn=_blacklist_add)),
@@ -2183,7 +2429,7 @@ def _four_horsemen_tree() -> _BT:
         return _BT(_BT.ActionNode(name='SetFollowerFlags', action_fn=_tick))
 
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         BT.Movement.Move(13600, -11956),
         _set_follower_flags(13600, -11956),
@@ -2247,7 +2493,7 @@ def _terrorweb_queen_tree() -> _BT:
     BT = Routines.BT
 
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
@@ -2355,7 +2601,7 @@ def _imprisoned_spirits_tree() -> _BT:
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='UnblacklistDreamRider', action_fn=_unblacklist_dream_rider)),
         BT.Movement.Move(x=13010, y=4452),
@@ -2423,7 +2669,7 @@ def _wrathfull_spirits_tree() -> _BT:
     _kr = 2000.0
 
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
@@ -2482,7 +2728,7 @@ def _unwanted_guests_tree() -> _BT:
 
     return BT.Composite.Sequence(
         _BT(_BT.ActionNode(name='PrepareUnwantedGuestsBlacklist', action_fn=_prepare_unwanted_guests_blacklist)),
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         BT.Movement.Move(x=_fx, y=_fy),
         _BT(_BT.ActionNode(name='SetFollowerFlagsUnwantedGuests', action_fn=_set_follower_flags_at_hold)),
@@ -2533,7 +2779,7 @@ def _restore_wastes_tree() -> _BT:
     BT = Routines.BT
     _kr = 2000.0
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='UnblacklistVengefulAatxe', action_fn=_unblacklist_vengeful_aatxe)),
         BT.Movement.Move(x=8138, y=16929),
@@ -2581,7 +2827,7 @@ def _servants_of_grenth_tree() -> _BT:
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         BT.Movement.Move(x=2700, y=19952),
         _BT(_BT.ActionNode(name='SetServantsOfGrenthFlags', action_fn=_set_spread_flags)),
@@ -2625,7 +2871,7 @@ def _dhuum_tree() -> _BT:
     """
     BT = Routines.BT
     return BT.Composite.Sequence(
-        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
+        bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _follow_king_frozenwind(),
         BT.Agents.MoveTargetInteractAndAutomaticDialogByModelID(
