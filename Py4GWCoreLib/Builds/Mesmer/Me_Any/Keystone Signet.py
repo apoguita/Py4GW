@@ -109,9 +109,6 @@ class KeystoneSignet(BuildMgr):
         if snapshot.enemy_casting and (yield from self.skills.Mesmer.DominationMagic.Cry_of_Frustration()):
             return True
 
-        if self.IsSkillEquipped(Death_Nova_ID) and (yield from self.skills.Necromancer.DeathMagic.Death_Nova()):
-            return True
-
         if self.IsSkillEquipped(Animate_Flesh_Golem_ID) and (yield from self.skills.Necromancer.DeathMagic.Animate_Flesh_Golem()):
             return True
 
@@ -149,6 +146,9 @@ class KeystoneSignet(BuildMgr):
         if not self.IsInAggro():
             return False
 
+        if self.IsSkillEquipped(Death_Nova_ID) and (yield from self.skills.Necromancer.DeathMagic.Death_Nova()):
+            return True
+        
         if snapshot.keystone_signet_needed and (yield from self.skills.Mesmer.FastCasting.Keystone_Signet()):
             return True
         

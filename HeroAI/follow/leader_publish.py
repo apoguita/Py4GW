@@ -2,6 +2,8 @@ import math
 
 from dataclasses import dataclass, field
 from typing import Protocol
+from typing import SupportsIndex
+from typing import SupportsInt
 
 from Py4GWCoreLib import Agent, Party, Player, Range, ThrottledTimer
 from Py4GWCoreLib.IniManager import IniManager
@@ -33,6 +35,18 @@ class SharedMemoryManagerProtocol(Protocol):
     max_num_players: int
 
     def GetAllAccounts(self) -> AllAccounts:
+        ...
+
+
+class NavMeshProtocol(Protocol):
+    def contains(self, x: float, y: float, margin: float) -> bool:
+        ...
+
+    def find_nearest_reachable(
+        self,
+        origin: tuple[float, float],
+        margin: float = 20,
+    ) -> tuple[float, float] | None:
         ...
 
 
@@ -99,6 +113,7 @@ class FollowPublisherState:
     leader_in_combat_last: bool = False
     combat_anchor_facing: float | None = None
     navmesh_recovery_attempts: int = 0
+    cached_navmesh: NavMeshProtocol | None = None
 
 
 class FollowFormationPublisher:
@@ -130,6 +145,25 @@ class FollowFormationPublisher:
             (0.0, 468.0),
             (-144.0, 468.0),
         ]
+
+    @staticmethod
+    def _as_int(value: object, default: int = 0) -> int:
+        try:
+            if isinstance(value, bool):
+                return int(value)
+            if isinstance(value, int):
+                return value
+            if isinstance(value, float):
+                return int(value)
+            if isinstance(value, str):
+                return int(value)
+            if isinstance(value, SupportsInt):
+                return int(value)
+            if isinstance(value, SupportsIndex):
+                return int(value)
+        except Exception:
+            pass
+        return default
 
     def _ensure_global_ini_key_strict(self, path: str, filename: str) -> str:
         im = IniManager()
@@ -389,6 +423,7 @@ class FollowFormationPublisher:
         self.state.leader_entry_pos = None
         self.state.leader_in_combat_last = False
         self.state.combat_anchor_facing = None
+        self.state.cached_navmesh = None
         for index in range(self.shared_memory_manager.max_num_players):
             account = all_accounts.AccountData[index]
             if (not account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
@@ -408,9 +443,20 @@ class FollowFormationPublisher:
         self.state.hold_until_leader_moves = True
         self.state.leader_entry_pos = (float(leader_x), float(leader_y))
         self.state.navmesh_recovery_attempts = 0
+        self.state.cached_navmesh = None
         self.navmesh_recovery_timer.Reset()
 
-    def _ensure_live_navmesh_is_sane(self, leader_x: float, leader_y: float) -> bool:
+    def _ensure_cached_navmesh_is_sane(self, leader_x: float, leader_y: float) -> bool:
+        navmesh = self.state.cached_navmesh
+        if navmesh is not None:
+            try:
+                if navmesh.contains(leader_x, leader_y, self.tuning.navmesh_recovery_contains_margin):
+                    self.state.navmesh_recovery_attempts = 0
+                    return True
+            except Exception:
+                self.state.cached_navmesh = None
+                navmesh = None
+
         navmesh = _get_navmesh()
         if navmesh is None:
             if not self.navmesh_recovery_timer.IsExpired():
@@ -427,6 +473,7 @@ class FollowFormationPublisher:
             try:
                 if recovered.contains(leader_x, leader_y, self.tuning.navmesh_recovery_contains_margin):
                     self.state.navmesh_recovery_attempts = 0
+                    self.state.cached_navmesh = recovered
                     return True
             except Exception:
                 pass
@@ -435,6 +482,7 @@ class FollowFormationPublisher:
         try:
             if navmesh.contains(leader_x, leader_y, self.tuning.navmesh_recovery_contains_margin):
                 self.state.navmesh_recovery_attempts = 0
+                self.state.cached_navmesh = navmesh
                 return True
         except Exception:
             pass
@@ -454,10 +502,14 @@ class FollowFormationPublisher:
         try:
             if recovered.contains(leader_x, leader_y, self.tuning.navmesh_recovery_contains_margin):
                 self.state.navmesh_recovery_attempts = 0
+                self.state.cached_navmesh = recovered
                 return True
         except Exception:
             pass
         return False
+
+    def _get_cached_navmesh(self) -> NavMeshProtocol | None:
+        return self.state.cached_navmesh
 
     def _apply_idle_slot(self, options: HeroAIOptionStruct) -> None:
         options.FollowPos.x = 0.0
@@ -565,7 +617,7 @@ class FollowFormationPublisher:
     ) -> tuple[float, float]:
         """Use the raw FollowPos when valid; otherwise fall back near party mass."""
 
-        navmesh = _get_navmesh()
+        navmesh = self._get_cached_navmesh()
         if navmesh is None:
             return (raw_x, raw_y)
 
@@ -718,15 +770,13 @@ class FollowFormationPublisher:
         leader_x, leader_y = Player.GetXY()
         leader_zplane = int(Agent.GetZPlane(leader_agent_id))
         leader_facing = Agent.GetRotationAngle(leader_agent_id)
-        leader_navmesh_sane = self._ensure_live_navmesh_is_sane(leader_x, leader_y)
-        bypass_validation = not leader_navmesh_sane
 
         current_map_signature = (
-            int(leader_account.AgentData.Map.MapID),
-            int(leader_account.AgentData.Map.Region),
-            int(leader_account.AgentData.Map.District),
-            int(leader_account.AgentData.Map.Language),
-            int(leader_account.AgentPartyData.PartyID),
+            self._as_int(leader_account.AgentData.Map.MapID),
+            self._as_int(leader_account.AgentData.Map.Region),
+            self._as_int(leader_account.AgentData.Map.District),
+            self._as_int(leader_account.AgentData.Map.Language),
+            self._as_int(leader_account.AgentPartyData.PartyID),
         )
         if self.state.map_signature != current_map_signature:
             self._handle_map_signature_change(
@@ -736,6 +786,8 @@ class FollowFormationPublisher:
                 leader_x,
                 leader_y,
             )
+        leader_navmesh_sane = self._ensure_cached_navmesh_is_sane(leader_x, leader_y)
+        bypass_validation = not leader_navmesh_sane
 
         if self.state.hold_until_leader_moves and self.state.leader_entry_pos is not None:
             entry_x, entry_y = self.state.leader_entry_pos

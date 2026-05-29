@@ -10,6 +10,7 @@ from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..py4gwcorelib_src.WidgetManager import get_widget_handler
 from ..py4gwcorelib_src.WidgetManager import WidgetCatalog
 from .enums import HeroAIStatus
+from HeroAI.settings import Settings
 
 
 class _BottingTreeHeroAIHost(Protocol):
@@ -18,6 +19,7 @@ class _BottingTreeHeroAIHost(Protocol):
     _headless_disabled_heroai_widget: bool
     blackboard: dict[str, Any]
     looting_enabled: bool
+    resurrection_scroll_enabled: bool
     started: bool
     paused: bool
     headless_heroai_enabled: bool
@@ -32,6 +34,7 @@ class _BottingTreeHeroAIHost(Protocol):
     def _sync_multibox_heroai_widget(self, enabled: bool) -> bool: ...
     def SetHeadlessHeroAIEnabled(self, enabled: bool, reset_runtime: bool = True): ...
     def SetLootingEnabled(self, enabled: bool) -> bool: ...
+    def SetResurrectionScrollEnabled(self, enabled: bool) -> bool: ...
     def RestoreHeroAIOptions(self) -> bool: ...
     def _heroai_options_match_runtime_policy(self) -> bool: ...
 
@@ -215,6 +218,28 @@ class BottingTreeHeroAIMixin:
     def IsLootingEnabled(self: _BottingTreeHeroAIHost) -> bool:
         return self.looting_enabled
 
+    def SetResurrectionScrollEnabled(self: _BottingTreeHeroAIHost, enabled: bool) -> bool:
+        self.resurrection_scroll_enabled = bool(enabled)
+        self.blackboard['resurrection_scroll_enabled'] = self.resurrection_scroll_enabled
+        self.headless_heroai.SetResurrectionScrollEnabled(self.resurrection_scroll_enabled)
+        return True
+
+    def EnableResurrectionScroll(self: _BottingTreeHeroAIHost) -> bool:
+        return self.SetResurrectionScrollEnabled(True)
+
+    def DisableResurrectionScroll(self: _BottingTreeHeroAIHost) -> bool:
+        return self.SetResurrectionScrollEnabled(False)
+
+    def ToggleResurrectionScroll(self: _BottingTreeHeroAIHost) -> bool:
+        self.SetResurrectionScrollEnabled(not self.resurrection_scroll_enabled)
+        return self.resurrection_scroll_enabled
+
+    def IsResurrectionScrollEnabled(self: _BottingTreeHeroAIHost) -> bool:
+        account_email = Player.GetAccountEmail()
+        if account_email:
+            self.resurrection_scroll_enabled = bool(Settings().get_account_resurrection_scroll_enabled(account_email))
+        return self.resurrection_scroll_enabled
+
     def RestoreHeroAIOptions(self: _BottingTreeHeroAIHost) -> bool:
         cached_data = self.headless_heroai.cached_data
         changed = False
@@ -396,3 +421,51 @@ class BottingTreeHeroAIMixin:
 
     def IsHeadlessHeroAIEnabled(self: _BottingTreeHeroAIHost) -> bool:
         return self.headless_heroai_enabled
+
+    @staticmethod
+    def GetResurrectionScrollSetEnabledTree(
+        enabled: bool,
+        name: str | None = None,
+    ) -> BehaviorTree:
+        node_name = name or ('EnableResurrectionScroll' if enabled else 'DisableResurrectionScroll')
+
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            node.blackboard['resurrection_scroll_enabled_request'] = enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=node_name,
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def EnableResurrectionScrollTree() -> BehaviorTree:
+        return BottingTreeHeroAIMixin.GetResurrectionScrollSetEnabledTree(
+            True,
+            name='EnableResurrectionScroll',
+        )
+
+    @staticmethod
+    def DisableResurrectionScrollTree() -> BehaviorTree:
+        return BottingTreeHeroAIMixin.GetResurrectionScrollSetEnabledTree(
+            False,
+            name='DisableResurrectionScroll',
+        )
+
+    @staticmethod
+    def ToggleResurrectionScrollTree() -> BehaviorTree:
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_enabled = bool(node.blackboard.get('resurrection_scroll_enabled', False))
+            node.blackboard['resurrection_scroll_enabled_request'] = not current_enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name='ToggleResurrectionScroll',
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )

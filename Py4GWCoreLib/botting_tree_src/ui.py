@@ -425,7 +425,8 @@ class _BottingTreeUI:
                 snapshot.Skills[i] = bool(source_options.Skills[i])
 
         snapshot.Looting = bool(self.parent.headless_heroai.IsLootingEnabled())
-        return snapshot, options_source
+        resurrection_scroll_enabled = bool(self.parent.IsResurrectionScrollEnabled())
+        return snapshot, options_source, resurrection_scroll_enabled
 
     def _draw_headless_heroai_panel(self) -> None:
         if not PyImGui.collapsing_header('Headless HeroAI'):
@@ -433,12 +434,14 @@ class _BottingTreeUI:
 
         from HeroAI.ui_base import HeroAI_BaseUI
 
-        option_snapshot, options_source = self._build_headless_heroai_option_snapshot()
+        option_snapshot, options_source, resurrection_scroll_enabled = self._build_headless_heroai_option_snapshot()
 
         if PyImGui.begin_child('BottingTreeHeadlessHeroAIPanel', (0, 0), True, PyImGui.WindowFlags.NoFlag):
             PyImGui.text(f'Options source: {options_source}')
             PyImGui.text(f"Looting source: {'headless runtime'}")
-            PyImGui.text_wrapped('This preview reflects the headless HeroAI runtime. It does not write to the user-facing HeroAI looting toggle.')
+            PyImGui.text(f"Resurrection Scroll source: {'headless runtime'}")
+            PyImGui.text_wrapped('This preview reflects the headless HeroAI runtime. It does not write to the user-facing HeroAI looting or resurrection scroll toggles.')
+            PyImGui.text(f'Resurrection Scroll Enabled: {resurrection_scroll_enabled}')
             PyImGui.separator()
             PyImGui.begin_disabled(True)
             HeroAI_BaseUI.DrawPanelButtons('botting_tree_headless_preview', option_snapshot, set_global=False)
@@ -468,6 +471,7 @@ class _BottingTreeUI:
             'paused': self.parent.IsPaused(),
             'headless_heroai_enabled': self.parent.IsHeadlessHeroAIEnabled(),
             'looting_enabled': self.parent.IsLootingEnabled(),
+            'resurrection_scroll_enabled': self.parent.IsResurrectionScrollEnabled(),
             'account_isolation_enabled': self.parent.IsIsolationEnabled(),
             'pause_on_combat_enabled': bool(self.parent.pause_on_combat),
             'combat_active': combat_active,
@@ -520,6 +524,7 @@ class _BottingTreeUI:
         self._colored_bool('Paused', status['paused'])
         self._colored_bool('Headless HeroAI Enabled', status['headless_heroai_enabled'])
         self._colored_bool('Looting Enabled', status['looting_enabled'])
+        self._colored_bool('Resurrection Scroll Enabled', status['resurrection_scroll_enabled'])
         self._colored_bool('Account Isolation Enabled', status['account_isolation_enabled'])
         self._colored_bool('Pause On Combat Enabled', status['pause_on_combat_enabled'])
         self._colored_bool('Combat Routine Active', status['combat_active'])
@@ -556,6 +561,10 @@ class _BottingTreeUI:
         looting_enabled = PyImGui.checkbox('Looting', self.parent.IsLootingEnabled())
         if looting_enabled != self.parent.IsLootingEnabled():
             self.parent.SetLootingEnabled(looting_enabled)
+
+        resurrection_scroll_enabled = PyImGui.checkbox('Resurrection Scroll', self.parent.IsResurrectionScrollEnabled())
+        if resurrection_scroll_enabled != self.parent.IsResurrectionScrollEnabled():
+            self.parent.SetResurrectionScrollEnabled(resurrection_scroll_enabled)
 
         isolation_enabled = PyImGui.checkbox('Account Isolation', self.parent.IsIsolationEnabled())
         if isolation_enabled != self.parent.IsIsolationEnabled():

@@ -21,6 +21,7 @@ class _BottingTreeConfig:
         isolation: bool,
         multi_account: Optional[bool] = None,
         looting: Optional[bool] = None,
+        resurrection_scroll: Optional[bool] = None,
         pause_on_combat: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
@@ -30,6 +31,7 @@ class _BottingTreeConfig:
             'headless_heroai_enabled_request',
             'headless_heroai_reset_runtime_request',
             'looting_enabled_request',
+            'resurrection_scroll_enabled_request',
             'account_isolation_enabled_request',
             'pause_on_combat_request',
         )
@@ -47,6 +49,8 @@ class _BottingTreeConfig:
             node.blackboard['headless_heroai_reset_runtime_request'] = bool(reset_hero_ai)
             if looting is not None:
                 node.blackboard['looting_enabled_request'] = bool(looting)
+            if resurrection_scroll is not None:
+                node.blackboard['resurrection_scroll_enabled_request'] = bool(resurrection_scroll)
             node.blackboard['account_isolation_enabled_request'] = bool(isolation)
             if pause_on_combat is not None:
                 node.blackboard['pause_on_combat_request'] = bool(pause_on_combat)
@@ -70,6 +74,7 @@ class _BottingTreeConfig:
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         name: str = 'ConfigurePacifistEnv',
     ) -> BehaviorTree:
         resolved_isolation = bool(account_isolation) if account_isolation is not None else not bool(multi_account)
@@ -81,6 +86,7 @@ class _BottingTreeConfig:
             reset_hero_ai=reset_hero_ai,
             pause_on_combat=pause_on_danger,
             looting=auto_loot,
+            resurrection_scroll=resurrection_scroll,
         )
 
     def PacifistForceHeroAITree(
@@ -88,6 +94,7 @@ class _BottingTreeConfig:
         *,
         pause_on_danger: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         reset_hero_ai: bool = True,
         name: str = 'ConfigurePacifistForceHeroAIEnv',
     ) -> BehaviorTree:
@@ -96,6 +103,7 @@ class _BottingTreeConfig:
             hero_ai=True,
             isolation=False,
             looting=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             pause_on_combat=pause_on_danger,
             reset_hero_ai=reset_hero_ai,
         )
@@ -107,6 +115,7 @@ class _BottingTreeConfig:
         account_isolation: Optional[bool] = None,
         multi_account: Optional[bool] = None,
         auto_loot: Optional[bool] = None,
+        resurrection_scroll: Optional[bool] = None,
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveEnv',
     ) -> BehaviorTree:
@@ -117,6 +126,7 @@ class _BottingTreeConfig:
             isolation=resolved_isolation,
             multi_account=multi_account,
             looting=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             pause_on_combat=pause_on_danger,
             reset_hero_ai=reset_hero_ai,
         )
@@ -126,6 +136,7 @@ class _BottingTreeConfig:
         *,
         pause_on_danger: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveForceHeroAIEnv',
     ) -> BehaviorTree:
@@ -134,6 +145,7 @@ class _BottingTreeConfig:
             hero_ai=True,
             isolation=False,
             looting=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             pause_on_combat=pause_on_danger,
             reset_hero_ai=reset_hero_ai,
         )
@@ -142,6 +154,7 @@ class _BottingTreeConfig:
         self,
         *,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
         name: str = 'ConfigureMultiboxAggressiveEnv',
@@ -152,6 +165,7 @@ class _BottingTreeConfig:
             isolation=False,
             multi_account=True,
             looting=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             pause_on_combat=pause_on_danger,
             reset_hero_ai=reset_hero_ai,
         )
@@ -164,6 +178,7 @@ class _BottingTreeConfig:
         reset_hero_ai: bool = True,
         pause_on_danger: bool = False,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
     ) -> BehaviorTree:
         return self.PacifistTree(
             account_isolation=account_isolation,
@@ -171,6 +186,7 @@ class _BottingTreeConfig:
             reset_hero_ai=reset_hero_ai,
             pause_on_danger=pause_on_danger,
             auto_loot=auto_loot,
+            resurrection_scroll=resurrection_scroll,
         )
 
     def PacifistForceHeroAI(
@@ -179,11 +195,13 @@ class _BottingTreeConfig:
         reset_hero_ai: bool = True,
         pause_on_danger: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
     ) -> BehaviorTree:
         return self.PacifistForceHeroAITree(
             reset_hero_ai=reset_hero_ai,
             pause_on_danger=pause_on_danger,
             auto_loot=auto_loot,
+            resurrection_scroll=resurrection_scroll,
         )
 
     def Aggressive(
@@ -193,6 +211,7 @@ class _BottingTreeConfig:
         account_isolation: Optional[bool] = None,
         multi_account: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveTree(
@@ -200,6 +219,7 @@ class _BottingTreeConfig:
             account_isolation=account_isolation,
             multi_account=multi_account,
             auto_loot=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             reset_hero_ai=reset_hero_ai,
         )
 
@@ -208,11 +228,13 @@ class _BottingTreeConfig:
         *,
         pause_on_danger: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveForceHeroAITree(
             pause_on_danger=pause_on_danger,
             auto_loot=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             reset_hero_ai=reset_hero_ai,
         )
 
@@ -221,11 +243,13 @@ class _BottingTreeConfig:
         *,
         pause_on_danger: Optional[bool] = None,
         auto_loot: bool = True,
+        resurrection_scroll: bool = False,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.MultiboxAggressiveTree(
             pause_on_danger=pause_on_danger,
             auto_loot=auto_loot,
+            resurrection_scroll=resurrection_scroll,
             reset_hero_ai=reset_hero_ai,
         )
 
@@ -246,6 +270,7 @@ class _BottingTreeConfig:
         self,
         *,
         disable_looting: bool = False,
+        resurrection_scroll: bool = False,
         restore_isolation_on_stop: bool = True,
         enable_outpost_imp_service: bool = False,
         enable_explorable_imp_service: bool = False,
@@ -265,6 +290,11 @@ class _BottingTreeConfig:
             self.parent.DisableLooting()
         else:
             self.parent.EnableLooting()
+
+        if resurrection_scroll:
+            self.parent.EnableResurrectionScroll()
+        else:
+            self.parent.DisableResurrectionScroll()
 
         self.parent.SetRestoreIsolationOnStop(restore_isolation_on_stop)
         self.parent.SetHeroAIStateLogging(
@@ -314,6 +344,7 @@ class _BottingTreeConfig:
         self,
         *,
         disable_looting: bool = True,
+        resurrection_scroll: bool = False,
         restore_isolation_on_stop: bool = True,
         enable_outpost_imp_service: bool = True,
         enable_explorable_imp_service: bool = True,
@@ -331,6 +362,7 @@ class _BottingTreeConfig:
         def _configure(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             self.ConfigureUpkeep(
                 disable_looting=disable_looting,
+                resurrection_scroll=resurrection_scroll,
                 restore_isolation_on_stop=restore_isolation_on_stop,
                 enable_outpost_imp_service=enable_outpost_imp_service,
                 enable_explorable_imp_service=enable_explorable_imp_service,
