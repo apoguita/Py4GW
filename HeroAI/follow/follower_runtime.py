@@ -45,22 +45,22 @@ def get_follow_destination_distance(cached_data: CacheData) -> float:
 
 
 def get_follow_destination_xy(cached_data: CacheData) -> tuple[float, float] | None:
-    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
     options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
 
-    if not account or not options:
+    if not options:
         return None
 
-    if bool(getattr(options, "IsFlagged", False)):
-        if int(account.AgentPartyData.PartyPosition) == 0:
-            return (float(options.AllFlag.x), float(options.AllFlag.y))
-        else:
-            return (float(options.FlagPos.x), float(options.FlagPos.y))
-    else:
-        leader_agent_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        if leader_agent_id <= 0:
-            return None
-        return Agent.GetXY(leader_agent_id)
+    def _is_nonzero_xy(x: float, y: float) -> bool:
+        return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
+
+    published_follow_xy = (float(options.FollowPos.x), float(options.FollowPos.y))
+    if _is_nonzero_xy(*published_follow_xy):
+        return published_follow_xy
+
+    if bool(getattr(options, "IsFlagged", False)) and _is_nonzero_xy(float(options.FlagPos.x), float(options.FlagPos.y)):
+        return (float(options.FlagPos.x), float(options.FlagPos.y))
+
+    return None
 
 
 def _notify_recovery_console_message(message_text: str) -> None:
@@ -243,10 +243,17 @@ def execute_follower_follow(
     follow_threshold_raw = float(options.FollowMoveThreshold)
     combat_threshold_raw = float(options.FollowMoveThresholdCombat)
 
+    published_follow_xy = (float(options.FollowPos.x), float(options.FollowPos.y))
+    published_follow_z = int(float(options.FollowPos.z))
+
     if own_flag_active:
-        follow_x = float(options.FlagPos.x)
-        follow_y = float(options.FlagPos.y)
-        follow_z = 0
+        if _is_nonzero_xy(*published_follow_xy):
+            follow_x, follow_y = published_follow_xy
+            follow_z = published_follow_z
+        else:
+            follow_x = float(options.FlagPos.x)
+            follow_y = float(options.FlagPos.y)
+            follow_z = 0
     else:
         if not bool(getattr(options, "LeaderFollowReady", False)):
             _reset_follow_runtime()
@@ -257,9 +264,8 @@ def execute_follower_follow(
         if follow_threshold_raw < 0.0 and combat_threshold_raw < 0.0:
             _reset_follow_runtime()
             return BehaviorTree.NodeState.FAILURE
-        follow_x = float(options.FollowPos.x)
-        follow_y = float(options.FollowPos.y)
-        follow_z = int(float(options.FollowPos.z))
+        follow_x, follow_y = published_follow_xy
+        follow_z = published_follow_z
         if (not _is_nonzero_xy(follow_x, follow_y)) and follow_z == 0:
             _reset_follow_runtime()
             return BehaviorTree.NodeState.FAILURE
@@ -339,6 +345,9 @@ def execute_follower_follow(
             state.last_recovery_follow_command_ms = 0
             cached_data.follow_throttle_timer.Reset()
             return follow_active_state
+        if own_flag_active or all_flag_active:
+            cached_data.follow_throttle_timer.Reset()
+            return follow_active_state
         now_ms = int(Utils.GetBaseTimestamp())
         if now_ms - int(state.last_recovery_follow_command_ms) < 1000:
             cached_data.follow_throttle_timer.Reset()
@@ -361,7 +370,7 @@ def execute_follower_follow(
     if not ActionQueueManager().IsEmpty("ACTION"):
         return follow_active_state
 
-    if follow_z == 0:
+    if follow_z == 0 or own_flag_active or all_flag_active:
         Player.Move(xx, yy)
     else:
         ActionQueueManager().AddAction("ACTION", UIManager.Keypress, ControlAction.ControlAction_TargetPartyMember1.value, 0)

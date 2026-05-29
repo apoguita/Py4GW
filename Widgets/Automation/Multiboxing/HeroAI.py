@@ -22,6 +22,7 @@ from HeroAI.follow.follower_runtime import (
     get_follow_destination_distance,
     is_follow_recovery_active,
 )
+from HeroAI import enemy_party
 from HeroAI import resurrection_scroll
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
@@ -178,6 +179,8 @@ def handle_UI (cached_data: CacheData):
         HeroAI_BaseUI.draw_debug_window(HeroAI_BT)
 
     HeroAI_FloatingWindows.show_ui(cached_data)
+    if Map.IsExplorable() and cached_data.data.is_leader and enemy_party.is_enabled():
+        enemy_party.ui_main()
     HeroAI_BaseUI.DrawBuildMatchesWindow(cached_data)
     HeroAI_BaseUI.DrawFollowFormationsQuickWindow(cached_data)
    

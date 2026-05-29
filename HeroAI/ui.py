@@ -1230,9 +1230,11 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
         
         def flag_hero_account():
             from HeroAI.ui_base import HeroAI_BaseUI
+            party_pos = int(account_data.AgentPartyData.PartyPosition)
+            hero_count = int(GLOBAL_CACHE.Party.GetHeroCount() or 0)
             HeroAI_BaseUI.capture_flag_all = False
             HeroAI_BaseUI.capture_hero_flag = True
-            HeroAI_BaseUI.capture_hero_index = account_data.AgentPartyData.PartyPosition  
+            HeroAI_BaseUI.capture_hero_index = party_pos if account_data.IsHero else party_pos + hero_count
             return -1
         
         def clear_hero_flag():
@@ -1263,7 +1265,7 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
              SharedCommandType.TakeDialogWithTarget, lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.TakeDialogWithTarget, (target_id, 0, 0, 0)), lambda: is_queued(SharedCommandType.TakeDialogWithTarget), True),
 
             ("flag", IconsFontAwesome5.ICON_FLAG, "Flag Target",
-             SharedCommandType.NoCommand, flag_hero_account, lambda: IsHeroFlagged(account_data.AgentPartyData.PartyPosition)),
+             SharedCommandType.NoCommand, flag_hero_account, lambda: IsHeroFlagged(account_data.AgentPartyData.PartyPosition if account_data.IsHero else int(account_data.AgentPartyData.PartyPosition) + int(GLOBAL_CACHE.Party.GetHeroCount() or 0))),
 
             ("clear flag", IconsFontAwesome5.ICON_CIRCLE_XMARK, "Clear Flag",
              SharedCommandType.NoCommand, clear_hero_flag, lambda: False),

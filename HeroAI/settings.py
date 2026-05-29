@@ -425,8 +425,8 @@ class Settings:
     def get_account_resurrection_scroll_enabled(self, account_email: str | None = None) -> bool:
         ini_handler = self._get_account_settings_handler(account_email)
         if ini_handler is None:
-            return True
-        return ini_handler.read_bool("ResurrectionScroll", "Enabled", True)
+            return False
+        return ini_handler.read_bool("ResurrectionScroll", "Enabled", False)
 
     def set_account_resurrection_scroll_enabled(self, enabled: bool, account_email: str | None = None) -> None:
         ini_handler = self._get_account_settings_handler(account_email)

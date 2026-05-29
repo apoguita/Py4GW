@@ -1,6 +1,12 @@
 {
   "language": "en",
   "names": {
+    "enc:\\\\x0BAA\\\\x010A\\\\x3D75\\\\xEF56\\\\x9125\\\\x06D8\\\\x0001": [
+      "Pet - Elder Crane"
+    ],
+    "enc:\\\\x0BAA\\\\x010A\\\\x3D84\\\\xF666\\\\xF223\\\\x2E39\\\\x0001": [
+      "Pet - Elder Reef Lurker"
+    ],
     "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001": [
       "Pet - Elder Hyena"
     ],
@@ -105,6 +111,21 @@
     ],
     "enc:\\\\x0EC6\\\\xA142\\\\x3286": [
       "Cairn the Troubling"
+    ],
+    "enc:\\\\x0EC7\\\\xE317\\\\xF43D\\\\x1D88": [
+      "Mercia the Smug"
+    ],
+    "enc:\\\\x0EC8\\\\xB514\\\\xFB83\\\\x09F1": [
+      "Sarlic the Judge"
+    ],
+    "enc:\\\\x0ECA\\\\xD25C\\\\xCD7C\\\\x699A": [
+      "Willa the Unpleasant"
+    ],
+    "enc:\\\\x0ECB\\\\x8298\\\\xC553\\\\x2D08": [
+      "Cairn the Destroyer"
+    ],
+    "enc:\\\\x0ECC\\\\xF3B2\\\\x81E3\\\\x5A96": [
+      "Cairn the Relentless"
     ],
     "enc:\\\\x0EFD\\\\xFBE1\\\\x93D0\\\\x76C6": [
       "Dune Lizard"
@@ -238,11 +259,23 @@
     "enc:\\\\x10E5\\\\xFA64\\\\xFDDE\\\\x7968": [
       "Enchanted Bow"
     ],
+    "enc:\\\\x1213\\\\x9C94\\\\xAEC7\\\\x4743": [
+      "White Mantle Sycophant"
+    ],
+    "enc:\\\\x1214\\\\x8B58\\\\xD769\\\\x1954": [
+      "White Mantle Ritualist"
+    ],
+    "enc:\\\\x1215\\\\x934D\\\\x0661": [
+      "White Mantle Savant"
+    ],
     "enc:\\\\x1217\\\\x81E3\\\\x9199\\\\x58F8": [
       "White Mantle Priest"
     ],
     "enc:\\\\x121C\\\\x99A1\\\\xB6F3\\\\x395B": [
       "White Mantle Zealot"
+    ],
+    "enc:\\\\x121F\\\\x957F\\\\x95C5\\\\x320B": [
+      "White Mantle Seeker"
     ],
     "enc:\\\\x1230\\\\x9354\\\\x94B4\\\\x654F": [
       "Bone Horror"
@@ -263,6 +296,9 @@
       "Mursaat Elementalist"
     ],
     "enc:\\\\x124A\\\\xB934\\\\x981A\\\\x0201": [
+      "Ether Seal"
+    ],
+    "enc:\\\\x124B\\\\xE81E\\\\x87E3\\\\x7D16": [
       "Ether Seal"
     ],
     "enc:\\\\x124C\\\\x9EE1\\\\xF2A7\\\\x2CD7": [
@@ -433,6 +469,9 @@
     "enc:\\\\x1479\\\\xACFC\\\\xCEEC\\\\x3792": [
       "Wraith"
     ],
+    "enc:\\\\x147B\\\\xCA30\\\\x9235\\\\x4A04": [
+      "Temporal Vortex"
+    ],
     "enc:\\\\x147C\\\\xD250\\\\xD2FF\\\\x6A5E": [
       "Grasping Ghoul"
     ],
@@ -478,6 +517,12 @@
     "enc:\\\\x149D\\\\xA3F9\\\\xE001\\\\x0747": [
       "Skintekaru Manshredder"
     ],
+    "enc:\\\\x149F\\\\xF838\\\\xAA67\\\\x0885": [
+      "Goss Darkweb"
+    ],
+    "enc:\\\\x14A0\\\\xC418\\\\xB8DE\\\\x46B6": [
+      "Spindle Agonyvein"
+    ],
     "enc:\\\\x14A2\\\\xE704\\\\xB24F\\\\x0CB2": [
       "Ferk Mallet"
     ],
@@ -519,6 +564,9 @@
     ],
     "enc:\\\\x14B1\\\\xE1F5\\\\x917E\\\\x0A54": [
       "Breeze Keeper"
+    ],
+    "enc:\\\\x14B2\\\\xCE17\\\\x8C0C\\\\x1A28": [
+      "Crag Behemoth"
     ],
     "enc:\\\\x14B3\\\\x8EFA\\\\xA8DC\\\\x6F7C": [
       "Dark Flame Dryder"
@@ -592,11 +640,152 @@
     "enc:\\\\x3AE0\\\\xEDC5\\\\xEDC3\\\\x4270": [
       "White Mantle Engineer"
     ],
+    "enc:\\\\x3B35\\\\xD6B7\\\\xCBE6\\\\x689C": [
+      "Eidolon"
+    ],
     "enc:\\\\x3C73\\\\x9A71\\\\xE88E\\\\x66A1": [
       "Eidolon"
     ],
     "enc:\\\\x3CAB\\\\xCB84\\\\xB6C1\\\\x685B": [
       "Undead Lich"
+    ],
+    "enc:\\\\x3CC9\\\\xFF2A\\\\x8F70\\\\x686A": [
+      "Optimus Caliph"
+    ],
+    "enc:\\\\x3CD0\\\\x8D8A\\\\xE830\\\\x4FBF": [
+      "Lich"
+    ],
+    "enc:\\\\x3CD1\\\\xE9BB\\\\xECB8\\\\x3EF3": [
+      "Lich"
+    ],
+    "enc:\\\\x3CD2\\\\xA970\\\\x9E22\\\\x7DDC": [
+      "Titan"
+    ],
+    "enc:\\\\x3CD9\\\\xCC46\\\\xFEBC\\\\x6277": [
+      "Seal Guard"
+    ],
+    "enc:\\\\x3CDA\\\\xCCD3\\\\xEF15\\\\x6D58": [
+      "Seal Guard"
+    ],
+    "enc:\\\\x3CDB\\\\xA93F\\\\xE8F6\\\\x49D8": [
+      "Seal Guard"
+    ],
+    "enc:\\\\x3CDC\\\\xEDC3\\\\xC740\\\\x2B13": [
+      "Seal Guard"
+    ],
+    "enc:\\\\x3CDD\\\\xBADE\\\\xBE93\\\\x37A1": [
+      "Seal Guard"
+    ],
+    "enc:\\\\x3CDE\\\\xFDD6\\\\xE941\\\\x6615": [
+      "Seal Guard"
+    ],
+    "enc:\\\\x3CDF\\\\xCA83\\\\x9EB4\\\\x2030": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE0\\\\xCFCF\\\\xCE93\\\\x2B77": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE1\\\\xA6D3\\\\x9D13\\\\x580D": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE2\\\\xCC20\\\\x928E\\\\x5E2A": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE3\\\\xA0D0\\\\xBD83\\\\x7CB3": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE4\\\\xD342\\\\xA588\\\\x4583": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE5\\\\xCBA1\\\\xC1F6\\\\x7D25": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE6\\\\x9D15\\\\xEA09\\\\x536B": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE7\\\\xB4B1\\\\x98E1\\\\x16CA": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE8\\\\xCCF8\\\\x9D34\\\\x5CFE": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CE9\\\\x8C6A\\\\xA322\\\\x7E15": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CEA\\\\xE392\\\\xBF4A\\\\x4AF4": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CEB\\\\xB773\\\\x0505": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CEC\\\\x8157\\\\x8522\\\\x71D0": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CED\\\\xFBBD\\\\x8B64\\\\x32E0": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CEE\\\\xEA0D\\\\xFC6D\\\\x1F82": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CEF\\\\xAD4B\\\\xB58F\\\\x78AF": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3CF0\\\\x9C16\\\\x825D\\\\x2275": [
+      "Mursaat Guardian"
+    ],
+    "enc:\\\\x3D1C\\\\xC85F\\\\x9648\\\\x5C76": [
+      "Armageddon Lord"
+    ],
+    "enc:\\\\x3D1D\\\\x9B23\\\\xBA12\\\\x07FF": [
+      "Portal Wraith"
+    ],
+    "enc:\\\\x3D22\\\\xEC06\\\\xE0FB\\\\x2414": [
+      "Lich"
+    ],
+    "enc:\\\\x3D23\\\\xE298\\\\x9414\\\\x5DBD": [
+      "Lich"
+    ],
+    "enc:\\\\x3D25\\\\xF078\\\\xF311\\\\x01CA": [
+      "Undead Prince Rurik"
+    ],
+    "enc:\\\\x3D27\\\\x9EBA\\\\x3A8A": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D28\\\\x8F34\\\\x8ADD\\\\x3C2E": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D29\\\\x995B\\\\xEBF1\\\\x1090": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D2A\\\\xA260\\\\x8E97\\\\x7F1C": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D2B\\\\xA11B\\\\xB631\\\\x6696": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D2C\\\\xA69D\\\\x8C64\\\\x652A": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D2D\\\\x946A\\\\xA187\\\\x1CD1": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D2E\\\\x93E8\\\\x7C89": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D5D\\\\xA231\\\\x9D92\\\\x0D35": [
+      "Hand of the Titans"
+    ],
+    "enc:\\\\x3D5E\\\\xB2CE\\\\xFD38\\\\x14B9": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D5F\\\\xAD3A\\\\x8C97\\\\x6DAC": [
+      "Hand of the Titans"
+    ],
+    "enc:\\\\x3D60\\\\x84AA\\\\x93D1\\\\x46B3": [
+      "Fist of the Titans"
+    ],
+    "enc:\\\\x3D61\\\\xF20A\\\\xA0B3\\\\x59A6": [
+      "Hand of the Titans"
     ],
     "enc:\\\\x3D70\\\\x8985\\\\xFE38\\\\x4A20": [
       "Elder White Tiger"
@@ -606,6 +795,9 @@
     ],
     "enc:\\\\x3D7A\\\\x889C\\\\xF394\\\\x0D00": [
       "Elder Tiger"
+    ],
+    "enc:\\\\x3D84\\\\xF666\\\\xF223\\\\x2E39": [
+      "Elder Reef Lurker"
     ],
     "enc:\\\\x3E2E\\\\x825A\\\\x81DF\\\\x63EE": [
       "Am Fah Assassin"
@@ -625,8 +817,35 @@
     "enc:\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA": [
       "Bone Horror"
     ],
+    "enc:\\\\x3F2A\\\\xEBD1\\\\x8A14\\\\x4435": [
+      "Luxon Assassin"
+    ],
+    "enc:\\\\x3F2B\\\\xAF52\\\\xFB34\\\\x31B2": [
+      "Ilidus of the Empty Palm"
+    ],
     "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": [
       "Kayali the Brave"
+    ],
+    "enc:\\\\x3F31\\\\xC710\\\\xB79E\\\\x194B": [
+      "Milodestus the Wrangler"
+    ],
+    "enc:\\\\x3F3C\\\\xC777\\\\xB4B1\\\\x0EC8": [
+      "Luxon Necromancer"
+    ],
+    "enc:\\\\x3F3D\\\\xE8E9\\\\xC56A\\\\x767F": [
+      "Luxon Elementalist"
+    ],
+    "enc:\\\\x3F3E\\\\xB59D\\\\x4849": [
+      "Luxon Monk"
+    ],
+    "enc:\\\\x3F3F\\\\x9320\\\\x99D6\\\\x78AF": [
+      "Luxon Warrior"
+    ],
+    "enc:\\\\x3F40\\\\xD471\\\\xF4E7\\\\x304F": [
+      "Luxon Ranger"
+    ],
+    "enc:\\\\x3F8A\\\\xC05D\\\\x8B6E\\\\x0AA4": [
+      "Siege Turtle"
     ],
     "enc:\\\\x3F8B\\\\xE8EC\\\\xC74F\\\\x5002": [
       "White Tiger"
@@ -745,10 +964,67 @@
     "enc:\\\\x3FDB\\\\xC878\\\\x9ECF\\\\x7D89": [
       "Warden of the Spring"
     ],
+    "enc:\\\\x3FDC\\\\xE327\\\\x7FE4": [
+      "Sickened Bear"
+    ],
+    "enc:\\\\x3FDD\\\\xC859\\\\x4DD4": [
+      "Sickened Moa"
+    ],
+    "enc:\\\\x3FDE\\\\xF217\\\\x8C9A\\\\x1569": [
+      "Sickened Lynx"
+    ],
+    "enc:\\\\x3FDF\\\\xC1B9\\\\xE564\\\\x2514": [
+      "Sickened Stalker"
+    ],
+    "enc:\\\\x3FE0\\\\xF120\\\\x84CB\\\\x033E": [
+      "Sickened Warthog"
+    ],
+    "enc:\\\\x3FE1\\\\x91DB\\\\xB157\\\\x39F7": [
+      "Sickened Wolf"
+    ],
+    "enc:\\\\x3FE2\\\\xA646\\\\xF235\\\\x35F9": [
+      "Sickened Guard"
+    ],
+    "enc:\\\\x3FE4\\\\xB19D\\\\xBAD4\\\\x69D6": [
+      "Sickened Guard"
+    ],
+    "enc:\\\\x3FE5\\\\xC816\\\\x9C47\\\\x5845": [
+      "Sickened Guard"
+    ],
+    "enc:\\\\x3FEE\\\\xC6FA\\\\x944B\\\\x6E6D": [
+      "Sickened Peasant"
+    ],
+    "enc:\\\\x3FEF\\\\xF889\\\\xD628\\\\x3959": [
+      "Sickened Peasant"
+    ],
+    "enc:\\\\x3FF0\\\\xC534\\\\xA638\\\\x0E9C": [
+      "Sickened Scribe"
+    ],
+    "enc:\\\\x3FF1\\\\x91EB\\\\xF544\\\\x77EB": [
+      "Sickened Servant"
+    ],
     "enc:\\\\x3FF2\\\\xC987\\\\x8579\\\\x1F01": [
       "Afflicted Assassin"
     ],
+    "enc:\\\\x3FF7\\\\xC4D2\\\\x8A06\\\\x1469": [
+      "Afflicted Assassin"
+    ],
+    "enc:\\\\x3FFA\\\\xCAF1\\\\x7F7A": [
+      "The Afflicted Kana"
+    ],
+    "enc:\\\\x3FFC\\\\x8AEE\\\\xF81A\\\\x6BDE": [
+      "The Afflicted Xai"
+    ],
+    "enc:\\\\x3FFE\\\\x9A9E\\\\x9000\\\\x541F": [
+      "Afflicted Horror"
+    ],
+    "enc:\\\\x400F\\\\xB65F\\\\xE1E6\\\\x7621": [
+      "Afflicted Bull"
+    ],
     "enc:\\\\x4010\\\\xA842\\\\xB552\\\\x57F2": [
+      "Afflicted Mesmer"
+    ],
+    "enc:\\\\x4015\\\\xD003\\\\xB549\\\\x26CA": [
       "Afflicted Mesmer"
     ],
     "enc:\\\\x4017\\\\xB59A\\\\xB1CB\\\\x739A": [
@@ -757,7 +1033,13 @@
     "enc:\\\\x4018\\\\xFEC4\\\\x8105\\\\x54CA": [
       "Afflicted Necromancer"
     ],
+    "enc:\\\\x401C\\\\xB37E\\\\xA066\\\\x51A3": [
+      "Afflicted Necromancer"
+    ],
     "enc:\\\\x401E\\\\x8B4E\\\\xE7F8\\\\x3BA6": [
+      "Afflicted Elementalist"
+    ],
+    "enc:\\\\x4023\\\\xEA3F\\\\x3577": [
       "Afflicted Elementalist"
     ],
     "enc:\\\\x4025\\\\xE9BE\\\\xE970\\\\x3F37": [
@@ -766,14 +1048,26 @@
     "enc:\\\\x4026\\\\xA2A1\\\\xAA7E\\\\x7CD0": [
       "Afflicted Monk"
     ],
+    "enc:\\\\x402A\\\\xEE6D\\\\xF56C\\\\x0998": [
+      "Afflicted Monk"
+    ],
     "enc:\\\\x402C\\\\x8302\\\\xF3BE\\\\x5BFE": [
       "Afflicted Warrior"
     ],
     "enc:\\\\x402D\\\\x86AD\\\\xADED\\\\x6AD6": [
       "Afflicted Warrior"
     ],
+    "enc:\\\\x4031\\\\xEC2B\\\\x8C5D\\\\x478F": [
+      "Afflicted Warrior"
+    ],
     "enc:\\\\x4033\\\\x8F3D\\\\x90F0\\\\x0281": [
       "Afflicted Ranger"
+    ],
+    "enc:\\\\x4038\\\\xB22D\\\\x6491": [
+      "Afflicted Ranger"
+    ],
+    "enc:\\\\x403A\\\\xF8E3\\\\x4E00": [
+      "Afflicted Ravager"
     ],
     "enc:\\\\x403B\\\\x90CA\\\\xE02F\\\\x4932": [
       "Afflicted Ritualist"
@@ -781,14 +1075,32 @@
     "enc:\\\\x403C\\\\xB21F\\\\xED9B\\\\x4752": [
       "Afflicted Ritualist"
     ],
+    "enc:\\\\x4040\\\\xEB81\\\\xC856\\\\x76D5": [
+      "Afflicted Ritualist"
+    ],
     "enc:\\\\x4043\\\\xC3AB\\\\xF8A9\\\\x0CC3": [
       "Crane"
+    ],
+    "enc:\\\\x4044\\\\xCA21\\\\x05F4": [
+      "Water Buffalo"
     ],
     "enc:\\\\x4045\\\\xC5F3\\\\xD79D\\\\x731F": [
       "Tiger"
     ],
+    "enc:\\\\x4046\\\\xCF45\\\\xC5B5\\\\x0D35": [
+      "Oni"
+    ],
     "enc:\\\\x4047\\\\xFEDF\\\\xA28A\\\\x45B7": [
       "Lesser Oni"
+    ],
+    "enc:\\\\x4048\\\\xC5EE\\\\xE72A\\\\x244A": [
+      "Bonesnap Turtle"
+    ],
+    "enc:\\\\x4049\\\\xA62F\\\\xF1CA\\\\x3820": [
+      "Pei the Skull Blade"
+    ],
+    "enc:\\\\x404A\\\\xBCCA\\\\xA6EB\\\\x37E7": [
+      "Sulmeng the Skull Staff"
     ],
     "enc:\\\\x404B\\\\xE144\\\\xF9A7\\\\x0FD6": [
       "Yingko the Skull Claw"
@@ -799,11 +1111,20 @@
     "enc:\\\\x404D\\\\x8ACA\\\\x9F15\\\\x0844": [
       "Feng the Skull Symbol"
     ],
+    "enc:\\\\x404E\\\\x95C3\\\\x82D1\\\\x2D54": [
+      "Cho Wei the Skull Axe"
+    ],
     "enc:\\\\x404F\\\\xEF97\\\\xE675\\\\x4C95": [
       "Jin the Skull Bow"
     ],
+    "enc:\\\\x4050\\\\xD27C\\\\xF1B1\\\\x6755": [
+      "Miki the Skull Spirit"
+    ],
     "enc:\\\\x4051\\\\xEC67\\\\x90F4\\\\x112A": [
       "Crimson Skull Ether Fiend"
+    ],
+    "enc:\\\\x4052\\\\xABB0\\\\xC161\\\\x74A4": [
+      "Crimson Skull Mentalist"
     ],
     "enc:\\\\x4054\\\\xBC7F\\\\xC1C5\\\\x60E2": [
       "Crimson Skull Mesmer"
@@ -811,11 +1132,17 @@
     "enc:\\\\x4055\\\\xADC8\\\\xF53A\\\\x0C87": [
       "Crimson Skull Healer"
     ],
+    "enc:\\\\x4056\\\\x81B4\\\\xF5A0\\\\x6D19": [
+      "Crimson Skull Priest"
+    ],
     "enc:\\\\x4058\\\\xF498\\\\xE50B\\\\x3C5D": [
       "Crimson Skull Mender"
     ],
     "enc:\\\\x4059\\\\xA543\\\\x45F5": [
       "Crimson Skull Hunter"
+    ],
+    "enc:\\\\x405A\\\\xC99D\\\\x95FE\\\\x6737": [
+      "Crimson Skull Longbow"
     ],
     "enc:\\\\x405C\\\\xCA7A\\\\xE3D8\\\\x4B21": [
       "Crimson Skull Raider"
@@ -829,8 +1156,29 @@
     "enc:\\\\x4062\\\\xE1E0\\\\xAE93\\\\x20C6": [
       "Mantid Drone"
     ],
+    "enc:\\\\x4063\\\\x88F4\\\\x9BB2\\\\x45C9": [
+      "Mantid Parasite"
+    ],
+    "enc:\\\\x4066\\\\xFF9D\\\\x0893": [
+      "Mantid Darkwing"
+    ],
+    "enc:\\\\x4067\\\\xBDDE\\\\xFED2\\\\x5978": [
+      "Mantid Drone Hatchling"
+    ],
     "enc:\\\\x4068\\\\x8F5A\\\\xF1AB\\\\x5523": [
       "Mantid Monitor"
+    ],
+    "enc:\\\\x4069\\\\xC6DD\\\\x9E2F\\\\x0439": [
+      "Mantid Gazer"
+    ],
+    "enc:\\\\x406B\\\\xCBEB\\\\x8C41\\\\x710F": [
+      "Mantid Queen"
+    ],
+    "enc:\\\\x406C\\\\xA195\\\\xFDFD\\\\x7131": [
+      "Mantid Glitterfang"
+    ],
+    "enc:\\\\x406D\\\\xFD2B\\\\xBA86\\\\x4E2D": [
+      "Mantid Monitor Hatchling"
     ],
     "enc:\\\\x4072\\\\x83DB\\\\xBEEE\\\\x7BCF": [
       "Naga Wizard"
@@ -853,26 +1201,56 @@
     "enc:\\\\x4078\\\\xC551\\\\x9FD0\\\\x65C0": [
       "Naga Witch"
     ],
+    "enc:\\\\x4079\\\\xE651\\\\x8AE1\\\\x1F1D": [
+      "Naga Bone Collector"
+    ],
     "enc:\\\\x407A\\\\x8E81\\\\x5D9B": [
       "Naga Sibyl"
+    ],
+    "enc:\\\\x407B\\\\xC78A\\\\xF7B0\\\\x1044": [
+      "Dragon Lilly"
+    ],
+    "enc:\\\\x407C\\\\x84F7\\\\xED3D\\\\x7965": [
+      "Grasping Root"
     ],
     "enc:\\\\x407D\\\\xC87B\\\\xC4B1\\\\x4784": [
       "Sensali Assassin"
     ],
+    "enc:\\\\x407E\\\\xE697\\\\xAB70\\\\x76DD": [
+      "Sensali Claw"
+    ],
     "enc:\\\\x407F\\\\x9B04\\\\xF423\\\\x4C70": [
       "Sensali Blood"
+    ],
+    "enc:\\\\x4080\\\\xAF39\\\\x8602\\\\x0839": [
+      "Sensali DarkFeather"
     ],
     "enc:\\\\x4081\\\\xE5EB\\\\xD058\\\\x49D5": [
       "Sensali Fighter"
     ],
+    "enc:\\\\x4082\\\\xC722\\\\xA788\\\\x2673": [
+      "Sensali Cutter"
+    ],
     "enc:\\\\x4086\\\\xB7C7\\\\x8570\\\\x7898": [
+      "Kappa"
+    ],
+    "enc:\\\\x4087\\\\xE2A8\\\\x8F0A\\\\x1AA4": [
       "Kappa"
     ],
     "enc:\\\\x4088\\\\x9412\\\\xAF4C\\\\x68D3": [
       "Kappa"
     ],
+    "enc:\\\\x408A\\\\xE40B\\\\xC317\\\\x3EF8": [
+      "Mountain Yeti"
+    ],
+    "enc:\\\\x408B\\\\xF35E\\\\x5637": [
+      "Longhair Yeti"
+    ],
     "enc:\\\\x408C\\\\xF27A\\\\xECDF\\\\x777E": [
       "Red Yeti"
+    ],
+    "enc:\\\\x4091\\\\x8C29\\\\x4A2B": [
+      "Reef Lurker"
     ],
     "enc:\\\\x4094\\\\xCEC0\\\\xF419\\\\x7244": [
       "Whispering Ritual Lord"
@@ -889,6 +1267,12 @@
     "enc:\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59": [
       "Rot Wallow"
     ],
+    "enc:\\\\x40A5\\\\xC73D\\\\xB47C\\\\x7D81": [
+      "Leviathan Claw"
+    ],
+    "enc:\\\\x40A7\\\\xB814\\\\x4D64": [
+      "Mohby Windbeak"
+    ],
     "enc:\\\\x40A8\\\\xF179\\\\xA07F\\\\x4171": [
       "Reefclaw Ragebound"
     ],
@@ -900,6 +1284,9 @@
     ],
     "enc:\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85": [
       "Oni"
+    ],
+    "enc:\\\\x40AD\\\\xA29A\\\\xB849\\\\x7CDC": [
+      "Kraken Spawn"
     ],
     "enc:\\\\x40B0\\\\xCD35\\\\xC22E\\\\x415F": [
       "Saltspray Dragon"
@@ -931,6 +1318,9 @@
     "enc:\\\\x40C1\\\\xC667\\\\xE565\\\\x0A16": [
       "Amadis, Wind of the Sea"
     ],
+    "enc:\\\\x40C3\\\\xF7C4\\\\xAFAE\\\\x1295": [
+      "Jacqui The Reaver"
+    ],
     "enc:\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A": [
       "Outcast Deathhand"
     ],
@@ -939,6 +1329,12 @@
     ],
     "enc:\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE": [
       "Outcast Ritualist"
+    ],
+    "enc:\\\\x40CB\\\\xCF18\\\\xB1B8\\\\x5905": [
+      "Jade Torn Kirin"
+    ],
+    "enc:\\\\x40D2\\\\xA678\\\\xC841\\\\x5E62": [
+      "Sskai, Dragon's Birth"
     ],
     "enc:\\\\x40D5\\\\xF293\\\\xA099\\\\x6268": [
       "Naga Warrior"
@@ -979,6 +1375,9 @@
     "enc:\\\\x4145\\\\xE318\\\\xB930\\\\x0158": [
       "Temple Guardian"
     ],
+    "enc:\\\\x4149\\\\xD0CC\\\\xF1B6\\\\x6021": [
+      "Kappa"
+    ],
     "enc:\\\\x4155\\\\x84CC\\\\x8A6B\\\\x29F9": [
       "Vampiric Horror"
     ],
@@ -987,6 +1386,9 @@
     ],
     "enc:\\\\x415E\\\\xA59C\\\\x97CB\\\\x25E8": [
       "Spirit of Equinox"
+    ],
+    "enc:\\\\x415F\\\\xF6F7\\\\x920A\\\\x09BE": [
+      "Spirit of Tranquility"
     ],
     "enc:\\\\x4161\\\\xA291\\\\xB856\\\\x0259": [
       "Spirit of Famine"
@@ -1024,6 +1426,9 @@
     "enc:\\\\x416C\\\\xAA58\\\\xAA7C\\\\x7D1F": [
       "Spirit of Earthbind"
     ],
+    "enc:\\\\x416D\\\\x8D84\\\\xC067\\\\x1F90": [
+      "Spirit of Shelter"
+    ],
     "enc:\\\\x416E\\\\xC037\\\\xCF58\\\\x6CA4": [
       "Spirit of Union"
     ],
@@ -1041,6 +1446,9 @@
     ],
     "enc:\\\\x42CC\\\\xC76F\\\\xEA48\\\\x06EB": [
       "Warden of Saprophytes"
+    ],
+    "enc:\\\\x450F\\\\xBAF9\\\\x8AD4\\\\x75A9": [
+      "Gull Hookbeak"
     ],
     "enc:\\\\x4660\\\\xD3CD\\\\x901F\\\\x2E23": [
       "Mantid"
@@ -1071,6 +1479,21 @@
     ],
     "enc:\\\\x4709\\\\xF708\\\\x58C0": [
       "Shackled Spirit"
+    ],
+    "enc:\\\\x479F\\\\x8E79\\\\xB941\\\\x7658": [
+      "Yorrt Strongjaw"
+    ],
+    "enc:\\\\x4B30\\\\x8C3C\\\\xB1D2\\\\x4809": [
+      "Sickened Guardsman Tahnjo"
+    ],
+    "enc:\\\\x4B72\\\\xE2E8\\\\xC85E\\\\x23A1": [
+      "Diseased Minister"
+    ],
+    "enc:\\\\x4BAD\\\\xE14A\\\\x766F": [
+      "Afflicted Yijo"
+    ],
+    "enc:\\\\x4BB5\\\\xF75E\\\\xB370\\\\x2153": [
+      "Afflicted Farmer Xeng Jo"
     ],
     "enc:\\\\x5C88\\\\xF60F\\\\xC73B\\\\x5C63": [
       "Huan"
@@ -1117,6 +1540,9 @@
     "enc:\\\\x7B75\\\\xC299\\\\xEC48\\\\x5558": [
       "Kournan Zealot"
     ],
+    "enc:\\\\x7CB3\\\\x92A0\\\\x9259\\\\x5C7C": [
+      "Lale the Vindictive"
+    ],
     "enc:\\\\x7D54\\\\xF46D\\\\xEC6C\\\\x721C": [
       "Kournan Phalanx"
     ],
@@ -1144,17 +1570,50 @@
     "enc:\\\\x7F39\\\\xD18A\\\\xA785\\\\x01EC": [
       "Strongroot Tanglebranch"
     ],
+    "enc:\\\\x7F3E\\\\x840F\\\\x79FC": [
+      "Razorfang Hazeclaw"
+    ],
+    "enc:\\\\x7F40\\\\x94EA\\\\xE82B\\\\x6128": [
+      "Whyk  Steelshell"
+    ],
+    "enc:\\\\x7F44\\\\xFD82\\\\xA788\\\\x5136": [
+      "Lukrker Foulfist"
+    ],
+    "enc:\\\\x7F45\\\\xC1B8\\\\xAA3B\\\\x3C1B": [
+      "Bahnba Shockfoot"
+    ],
     "enc:\\\\x7F49\\\\xECFC\\\\xFFCF\\\\x6731": [
       "Soulwhisper, Elder Guardian"
     ],
     "enc:\\\\x7F4D\\\\x99C9\\\\x2E86": [
       "Tahkayun Tsi"
     ],
+    "enc:\\\\x7F4E\\\\x84EF\\\\xB00C\\\\x590A": [
+      "Yunlai Deathkeeper"
+    ],
     "enc:\\\\x7F4F\\\\x83C7\\\\xBF14\\\\x0B60": [
       "Ziinjuu Life Crawler"
     ],
+    "enc:\\\\x7F50\\\\xB7AD\\\\xBE4D\\\\x27DA": [
+      "Tin Dao Kaineng"
+    ],
+    "enc:\\\\x7F51\\\\x9D31\\\\xA329\\\\x0687": [
+      "Baozo Evilbranch"
+    ],
     "enc:\\\\x7F59\\\\xE8E8\\\\x84BE\\\\x2382": [
       "Quansong Spiritspeak"
+    ],
+    "enc:\\\\x7F5A\\\\xA5F0\\\\x7C7D": [
+      "Baubao Wavewrath"
+    ],
+    "enc:\\\\x8101\\\\x02C7\\\\x8AA2\\\\xE953\\\\x3147": [
+      "Sanhan Tall Earth"
+    ],
+    "enc:\\\\x8101\\\\x02C8\\\\xD732\\\\x896E\\\\x415C": [
+      "Hanjuu Towerfist"
+    ],
+    "enc:\\\\x8101\\\\x02C9\\\\xE5BD\\\\xD10D\\\\x7236": [
+      "Ahvha Sankii"
     ],
     "enc:\\\\x8101\\\\x04F4\\\\xC70B\\\\xF5EA\\\\x0534": [
       "Ruby Djinn"
@@ -1173,6 +1632,9 @@
     ],
     "enc:\\\\x8101\\\\x0678\\\\x8EA8\\\\xAD51\\\\x78BA": [
       "Diamond Djinn"
+    ],
+    "enc:\\\\x8101\\\\x06F0\\\\xA984\\\\xCA3E\\\\x1953": [
+      "Geoffer Pain Bringer"
     ],
     "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": [
       "Tormented Land"
@@ -1327,11 +1789,29 @@
     "enc:\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1": [
       "Rampaging Ntouka"
     ],
+    "enc:\\\\x8101\\\\x118C\\\\xBEBC\\\\x8C31\\\\x5E39": [
+      "Herald of Nightmares"
+    ],
     "enc:\\\\x8101\\\\x118D\\\\xD3B8\\\\x8A56\\\\x1EB2": [
       "Shadow of Fear"
     ],
+    "enc:\\\\x8101\\\\x118E\\\\x9D69\\\\xFFA8\\\\x3313": [
+      "Rain of Terror"
+    ],
+    "enc:\\\\x8101\\\\x118F\\\\x976E\\\\xBF12\\\\x7AD6": [
+      "Spear of Torment"
+    ],
+    "enc:\\\\x8101\\\\x1190\\\\xA775\\\\xAB65\\\\x5DDA": [
+      "Word of Madness"
+    ],
     "enc:\\\\x8101\\\\x1191\\\\xE797\\\\xFE23\\\\x7544": [
       "Blade of Corruption"
+    ],
+    "enc:\\\\x8101\\\\x1192\\\\x909C\\\\xA8D4\\\\x0DB7": [
+      "Arm of Insanity"
+    ],
+    "enc:\\\\x8101\\\\x1193\\\\xB272\\\\x0D68": [
+      "Scythe of Chaos"
     ],
     "enc:\\\\x8101\\\\x1201\\\\xBAE9\\\\xEED9\\\\x6B26": [
       "Brokk Ripsnort"
@@ -1498,6 +1978,9 @@
     "enc:\\\\x8101\\\\x2745\\\\xA086\\\\xA9DB\\\\x260E": [
       "The Fury"
     ],
+    "enc:\\\\x8101\\\\x2753\\\\xA30D\\\\x9600\\\\x4DF6": [
+      "Binding Guardian"
+    ],
     "enc:\\\\x8101\\\\x2CD6\\\\xEF7C\\\\xFA54\\\\x5DCB": [
       "Skree Hatchling"
     ],
@@ -1641,6 +2124,9 @@
     ],
     "enc:\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7": [
       "Steelfang Drake"
+    ],
+    "enc:\\\\x8101\\\\x46EA\\\\xE602\\\\xC496\\\\x117A": [
+      "Abaddon"
     ],
     "enc:\\\\x8101\\\\x471C\\\\xFC06\\\\x8512\\\\x5F61": [
       "Awakened Head"
@@ -1825,6 +2311,24 @@
     "enc:\\\\x8101\\\\x524C\\\\x9FD4\\\\x8828\\\\x2DA0": [
       "Mandragor Slither"
     ],
+    "enc:\\\\x8101\\\\x53DB\\\\x82F9\\\\x9C3E\\\\x25BA": [
+      "Shadow Mesmer"
+    ],
+    "enc:\\\\x8101\\\\x53DC\\\\xEFEC\\\\xF5B8\\\\x5680": [
+      "Shadow Beast"
+    ],
+    "enc:\\\\x8101\\\\x53DD\\\\xD6BD\\\\xAD8B\\\\x3858": [
+      "Shadow Elemental"
+    ],
+    "enc:\\\\x8101\\\\x53DE\\\\xA669\\\\xEEA1\\\\x273C": [
+      "Shadow Monk"
+    ],
+    "enc:\\\\x8101\\\\x53DF\\\\x8BDA\\\\x8542\\\\x3AAA": [
+      "Shadow Warrior"
+    ],
+    "enc:\\\\x8101\\\\x53E0\\\\xC9FA\\\\xF22F\\\\x36BC": [
+      "Shadow Ranger"
+    ],
     "enc:\\\\x8101\\\\x5538\\\\xB5A9\\\\x4339": [
       "Rual, Stealer of Hope"
     ],
@@ -1918,6 +2422,9 @@
     "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": [
       "Elder Crocodile"
     ],
+    "enc:\\\\x8101\\\\x5E5F\\\\x9237\\\\x8D02\\\\x0582": [
+      "Torment Claw"
+    ],
     "enc:\\\\x8101\\\\x5E6D\\\\xD73F\\\\xFAAB\\\\x2E64": [
       "Elder Skree Griffin"
     ],
@@ -1929,6 +2436,39 @@
     ],
     "enc:\\\\x8101\\\\x5E70\\\\xB4F7\\\\xFA55\\\\x62D9": [
       "Elder Skree Singer"
+    ],
+    "enc:\\\\x8101\\\\x5E77\\\\xD094\\\\xD5AD\\\\x5E4D": [
+      "Pain Titan"
+    ],
+    "enc:\\\\x8101\\\\x5E78\\\\xB462\\\\x2C0A": [
+      "Titan Abomination"
+    ],
+    "enc:\\\\x8101\\\\x5E79\\\\xF1B1\\\\xFF88\\\\x26D1": [
+      "Madness Titan"
+    ],
+    "enc:\\\\x8101\\\\x6755\\\\xABA0\\\\xF852\\\\x7177": [
+      "Herald of Nightmares"
+    ],
+    "enc:\\\\x8101\\\\x6757\\\\xC09A\\\\xCEDF\\\\x4EDA": [
+      "Blade of Corruption"
+    ],
+    "enc:\\\\x8101\\\\x6758\\\\xEF89\\\\x8DB2\\\\x4172": [
+      "Arm of Insanity"
+    ],
+    "enc:\\\\x8101\\\\x737F\\\\x99E5\\\\xFEAC\\\\x66B7": [
+      "Ferothrax"
+    ],
+    "enc:\\\\x8101\\\\x7382\\\\x9976\\\\xEE44\\\\x72C3": [
+      "Raptor"
+    ],
+    "enc:\\\\x8101\\\\x73C1\\\\xA349\\\\xC6E3\\\\x44FE": [
+      "Cloudtouched Simian"
+    ],
+    "enc:\\\\x8101\\\\x73C2\\\\xB3D3\\\\x71E4": [
+      "Redhand Simian"
+    ],
+    "enc:\\\\x8101\\\\x73C3\\\\xC020\\\\x36A7": [
+      "Simian Spiritcaller"
     ],
     "enc:\\\\x8101\\\\x742A\\\\xD2E5\\\\x8AFA\\\\x7C87": [
       "Chromatic Drake"
@@ -2056,6 +2596,9 @@
     "enc:\\\\x8101\\\\x7644\\\\xE510\\\\x89BC\\\\x5D04": [
       "Polar Bear"
     ],
+    "enc:\\\\x8101\\\\x7710\\\\xA247\\\\x58DC": [
+      "Angorodon"
+    ],
     "enc:\\\\x8101\\\\x790C\\\\xE4FD\\\\xB49B\\\\x03C1": [
       "Mandragor Shadowfang"
     ],
@@ -2121,6 +2664,9 @@
     ],
     "enc:\\\\x8102\\\\x0EAD\\\\x822D\\\\x38FD": [
       "Mystic Mandragor"
+    ],
+    "enc:\\\\x8102\\\\x0FA0\\\\xC3D3\\\\xF9AC\\\\x2343": [
+      "Ambassador Kharnige"
     ],
     "enc:\\\\x8102\\\\x0FA4\\\\xF5CA\\\\xE2C8\\\\x77E3": [
       "Rend Ragemauler"
@@ -2193,6 +2739,21 @@
     ],
     "enc:\\\\x8102\\\\x23B4\\\\xD7F0\\\\x5DF7": [
       "Tumbled Elemental"
+    ],
+    "enc:\\\\x8102\\\\x2895\\\\xCEF4\\\\x869A\\\\x65D1": [
+      "Agari Tlamatini"
+    ],
+    "enc:\\\\x8102\\\\x2896\\\\xB63A\\\\x9C3F\\\\x5020": [
+      "Agari Amini"
+    ],
+    "enc:\\\\x8102\\\\x2897\\\\xC739\\\\x2346": [
+      "Agari Nahualli"
+    ],
+    "enc:\\\\x8102\\\\x2898\\\\x88AF\\\\xD080\\\\x10AC": [
+      "Agari Cuicani"
+    ],
+    "enc:\\\\x8102\\\\x28A4\\\\xBD1F\\\\xF8ED\\\\x2741": [
+      "Brynn Earthporter"
     ],
     "enc:\\\\x8102\\\\x2A76\\\\xB9F0\\\\x8EE6\\\\x687F": [
       "Bone Fiend"

@@ -53,7 +53,7 @@ def _call_target(agent_id: int, interact: bool = False) -> bool:
     Player.ChangeTarget(agent_id)
     Player.CallTarget(agent_id)
     if interact:
-        Player.Interact(agent_id, True)
+        Player.Interact(agent_id, False)
     return True
 
 
@@ -94,6 +94,7 @@ class EnemyPartyUI:
     draw_hover_mission_map: bool = True
     draw_hover_world_circle: bool = True
     draw_called_world_circle: bool = True
+    interact_with_called_target: bool = False
     atlas_search: str = ""
     atlas_selected_key: str = ""
     atlas_selected_skill_id: int = 0
@@ -684,7 +685,7 @@ class EnemyTracker:
         PyImGui.table_next_column()
         if PyImGui.button(f"Call##call_{row.agent_id}"):
             _enemy_bar_debug(f"call button clicked agent_id={row.agent_id} name={row.name}")
-            _call_target(row.agent_id, interact=False)
+            _call_target(row.agent_id, interact=self.ui.interact_with_called_target)
         call_hovered = PyImGui.is_item_hovered()
         call_item_min, call_item_max, _ = ImGui.get_item_rect()
         call_x1, call_y1 = call_item_min
@@ -714,7 +715,7 @@ class EnemyTracker:
         )
         if bar_state.double_clicked:
             _enemy_bar_debug(f"row handler double click agent_id={row.agent_id} name={row.name}")
-            _call_target(row.agent_id, interact=False)
+            _call_target(row.agent_id, interact=self.ui.interact_with_called_target)
         hovered = call_hovered or bar_state.hovered or row_hovered
         if hovered:
             self.ui.hovered_agent_id = row.agent_id
@@ -758,6 +759,7 @@ class EnemyTracker:
         self.ui.draw_hover_mission_map = PyImGui.checkbox("Hover mission map marker", self.ui.draw_hover_mission_map)
         self.ui.draw_hover_world_circle = PyImGui.checkbox("Hover 3D touch circle", self.ui.draw_hover_world_circle)
         self.ui.draw_called_world_circle = PyImGui.checkbox("Called 3D touch circle", self.ui.draw_called_world_circle)
+        self.ui.interact_with_called_target = PyImGui.checkbox("Interact with called target", self.ui.interact_with_called_target)
 
     def _draw_sort_controls(self) -> None:
         self._sort_button("Agent ID")
@@ -1240,6 +1242,9 @@ def ui_main():
             _enemy_bar_debug("Enemy Party ui_main started")
         state = _ensure_state()
         state.floating_button.draw(EnemyTrackerConfig.FLOATING_INI_KEY)
+        if not state.floating_button.visible:
+            state.ui.hovered_agent_id = 0
+            return
         state.draw_world_agent_markers()
         state.draw_mission_map_range_ring()
     except Exception as exc:

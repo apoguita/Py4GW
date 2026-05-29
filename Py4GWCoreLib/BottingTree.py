@@ -54,6 +54,7 @@ class BottingTree(
         pause_on_combat: bool = True,
         multi_account: bool = False,
         auto_loot: bool = True,
+        auto_resurrection_scroll: bool = False,
         isolation_enabled: bool | None = None,
         account_config: BottingTreeAccountConfig | dict[str, object] | str | None = None,
         configure_fn: Callable[['BottingTree'], object] | None = None,
@@ -63,6 +64,7 @@ class BottingTree(
             pause_on_combat=pause_on_combat,
             multi_account=multi_account,
             auto_loot=auto_loot,
+            auto_resurrection_scroll=auto_resurrection_scroll,
             isolation_enabled=isolation_enabled,
             account_config=account_config,
         )
@@ -89,6 +91,7 @@ class BottingTree(
         pause_on_combat: bool = True,
         multi_account: bool = False,
         auto_loot: bool = True,
+        auto_resurrection_scroll: bool = False,
         isolation_enabled: bool | None = None,
         account_config: BottingTreeAccountConfig | dict[str, object] | str | None = None,
     ):
@@ -119,6 +122,7 @@ class BottingTree(
         self._headless_disabled_heroai_widget = False
         self._last_multibox_heroai_widget_state = None
         self.looting_enabled = bool(auto_loot)
+        self.resurrection_scroll_enabled = bool(auto_resurrection_scroll)
         self.planner_repeat = False
         self.started = False
         self.paused = False
@@ -131,6 +135,7 @@ class BottingTree(
         self.heroai_state_logging_enabled = True
         self.heroai_state_log_interval_ms = 5000
         self._last_heroai_log_ms = 0
+        self.headless_heroai.SetResurrectionScrollEnabled(self.resurrection_scroll_enabled)
 
     def Start(self):
         self.Reset()
