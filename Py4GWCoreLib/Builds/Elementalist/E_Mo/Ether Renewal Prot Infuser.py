@@ -13,6 +13,8 @@ from Py4GWCoreLib.Builds.Skills import SkillsTemplate
 
 
 Infuse_Health_ID = Skill.GetID("Infuse_Health")
+Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
+Vital_Blessing_ID = Skill.GetID("Vital_Blessing")
 Spirit_Bond_ID = Skill.GetID("Spirit_Bond")
 Life_Attunement_ID = Skill.GetID("Life_Attunement")
 Protective_Bond_ID = Skill.GetID("Protective_Bond")
@@ -43,6 +45,8 @@ class Ether_Renewal_Bonder(BuildMgr):
             optional_skills=[
                 Protective_Bond_ID,
                 Infuse_Health_ID,
+                Breath_of_the_Great_Dwarf_ID,
+                Vital_Blessing_ID,
                 Spirit_Bond_ID,
                 Life_Bond_ID,
                 Great_Dwarf_Weapon_ID,
@@ -94,7 +98,7 @@ class Ether_Renewal_Bonder(BuildMgr):
 
     def _life_attunement_upkeep(self) -> BuildCoroutine:
         """
-        Keep Life Attunement on self and on party members with N or Rt profession.
+        Keep Life Attunement on self and on N/Rit party members.
         """
         if not self.IsSkillEquipped(Life_Attunement_ID):
             return False
@@ -132,7 +136,7 @@ class Ether_Renewal_Bonder(BuildMgr):
 
     def _drop_all_bonds(self) -> bool:
         """
-        Drop every active bond maintained enchantment when energy is critically low (< 5).
+        Drop every active bond maintained enchantment when energy is critically low (< 5 mana).
         Returns True if at least one buff was dropped.
         """
         player_agent_id = Player.GetAgentID()
@@ -219,7 +223,7 @@ class Ether_Renewal_Bonder(BuildMgr):
         Energy recovery mode: spam Spirit Bond and Reversal of Fortune on self
         to trigger Ether Renewal's energy gain.
 
-        Activates when energy drops below 70% AND either:
+        Activates when energy drops below 70% or health drops below 60%, AND either:
         - not in aggro, or
         - all party members are at full health.
         """
@@ -331,7 +335,15 @@ class Ether_Renewal_Bonder(BuildMgr):
         if (yield from self.skills.Elementalist.EnergyStorage.Aura_of_Restoration()):
             return True
 
-        # Bond upkeep: only cast when energy regen > -10 pips.
+        # Vital Blessing as a maintained self-enchantment.
+        if self.IsSkillEquipped(Vital_Blessing_ID) and (yield from self._self_enchantment_upkeep(Vital_Blessing_ID)):
+            return True
+
+        # Breath of the Great Dwarf for the party.
+        if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
+            return True
+
+        # Bond upkeep: only when below the max bond limit.
         if self._can_cast_more_bonds():
             if (yield from self._life_attunement_upkeep()):
                 return True
