@@ -669,7 +669,12 @@ class CombatClass:
             if current_target != party_target:
                 if Agent.IsLiving(party_target) and not self._is_blacklisted_enemy_target(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
-                    if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
+                    if (
+                        alliegeance != 'Ally'
+                        and alliegeance != 'NPC/Minipet'
+                        and self.is_combat_enabled
+                        and self._is_target_within_guard_anchor_range(party_target)
+                    ):
                         self.SafeChangeTarget(party_target)
                         return party_target
         return 0
@@ -679,7 +684,50 @@ class CombatClass:
             return False
         return EnemyBlacklist().is_blacklisted(agent_id)
 
+    def _get_guard_anchor_xy(self) -> tuple[float, float] | None:
+        if self.cached_data is None or self.cached_data.data.is_leader:
+            return None
+
+        options = self.cached_data.account_options
+        if options is None or not bool(getattr(options, 'IsFlagged', False)):
+            return None
+
+        try:
+            from .follow.follower_runtime import get_follow_destination_xy
+
+            anchor_xy = get_follow_destination_xy(self.cached_data)
+        except Exception:
+            anchor_xy = None
+
+        if anchor_xy is not None:
+            return (float(anchor_xy[0]), float(anchor_xy[1]))
+
+        flag_x = float(getattr(options.FlagPos, 'x', 0.0))
+        flag_y = float(getattr(options.FlagPos, 'y', 0.0))
+        if abs(flag_x) > 0.001 or abs(flag_y) > 0.001:
+            return (flag_x, flag_y)
+        return None
+
+    def _is_guarding_flag_anchor(self) -> bool:
+        return self._get_guard_anchor_xy() is not None
+
+    def _is_target_within_guard_anchor_range(self, target_id: int, max_range: float = float(Range.Spirit.value)) -> bool:
+        if target_id == 0 or not Agent.IsValid(target_id):
+            return False
+
+        anchor_xy = self._get_guard_anchor_xy()
+        if anchor_xy is None:
+            return True
+
+        try:
+            target_xy = Agent.GetXY(target_id)
+        except Exception:
+            return False
+        return float(Utils.Distance(anchor_xy, target_xy)) <= float(max_range)
+
     def get_combat_distance(self) -> float:
+        if self._is_guarding_flag_anchor():
+            return float(Range.Spirit.value)
         if self.cached_data is not None:
             return self.cached_data.GetActiveScanRange()
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
@@ -706,6 +754,7 @@ class CombatClass:
             and Agent.IsLiving(party_target)
             and not Agent.IsDead(party_target)
             and not self._is_blacklisted_enemy_target(party_target)
+            and self._is_target_within_guard_anchor_range(party_target)
         ):
             preferred_enemy_target = party_target
 
@@ -1875,6 +1924,12 @@ class CombatClass:
             Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
         return False
 
+    def IsAlcoholTopoffPending(self) -> bool:
+        try:
+            return int(Utils.GetBaseTimestamp()) < int(self._next_alcohol_recheck_ms)
+        except Exception:
+            return False
+
     def _skill_lock_enabled(self, skill: SkillData) -> bool:
         custom_skill = getattr(skill, "custom_skill_data", None)
         return bool(getattr(custom_skill, "SkillLock", False))
@@ -1992,6 +2047,10 @@ class CombatClass:
             drunk_level = self.GetDrunkLevel()
             if drunk_level <= 1:
                 if self.UseAlcoholIfAvailable():
+                    self.ResetSkillPointer()
+                    return False
+
+                if self.IsAlcoholTopoffPending():
                     self.ResetSkillPointer()
                     return False
 

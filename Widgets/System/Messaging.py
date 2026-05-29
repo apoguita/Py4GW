@@ -1350,19 +1350,6 @@ def UsePcon(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    if morale_target is not None:
-        try:
-            from Py4GWCoreLib.routines_src.behaviourtrees_src.upkeepers import BTUpkeepers
-
-            BTUpkeepers._log_party_morale_consume_event(
-                MODULE_NAME,
-                morale_target,
-                pcon_model_to_use,
-                item_id=item_id,
-            )
-        except Exception:
-            pass
-
     GLOBAL_CACHE.Inventory.UseItem(item_id)
     ConsoleLog(
         MODULE_NAME, f"Using PCon model {pcon_model_to_use} with item_id {item_id}.", Console.MessageType.Info, False

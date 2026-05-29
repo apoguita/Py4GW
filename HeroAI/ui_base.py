@@ -2,6 +2,7 @@ import math
 
 import HeroAI.globals as hero_globals
 import PyImGui
+from HeroAI import enemy_party
 from HeroAI import resurrection_scroll
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, IconsFontAwesome5, ImGui, Map, Overlay, Range, Utils, WindowFrames, Color, ColorPalette, ConsoleLog, SharedCommandType
@@ -157,6 +158,41 @@ class HeroAI_BaseUI:
         return options_by_party, accounts_by_party, options_by_party[0]
 
     @staticmethod
+    def _resolve_flag_display_slot(display_index: int) -> tuple[str, int]:
+        hero_count = int(GLOBAL_CACHE.Party.GetHeroCount() or 0)
+        if display_index <= 0:
+            return ("all", 0)
+        if display_index <= hero_count:
+            return ("hero", display_index)
+        return ("account", display_index - hero_count)
+
+    @staticmethod
+    def _is_flag_display_slot_flagged(
+        display_index: int,
+        options_by_party: list[HeroAIOptionStruct | None] | None = None,
+    ) -> bool:
+        if options_by_party is None:
+            options_by_party, _, _ = HeroAI_BaseUI._get_flag_option_pairs()
+
+        slot_kind, slot_index = HeroAI_BaseUI._resolve_flag_display_slot(display_index)
+
+        if slot_kind == "all":
+            leader_options = options_by_party[0]
+            return bool(leader_options is not None and leader_options.IsFlagged)
+
+        if slot_kind == "hero":
+            try:
+                return bool(GLOBAL_CACHE.Party.Heroes.IsHeroFlagged(slot_index))
+            except Exception:
+                return False
+
+        if slot_index < 0 or slot_index >= MAX_NUM_PLAYERS:
+            return False
+
+        options = options_by_party[slot_index]
+        return bool(options is not None and options.IsFlagged)
+
+    @staticmethod
     def _clear_all_flags(options_by_party: list[HeroAIOptionStruct | None] | None = None) -> None:
         party_heroes = GLOBAL_CACHE.Party.Heroes
         if options_by_party is None:
@@ -223,27 +259,27 @@ class HeroAI_BaseUI:
 
             if mouse_clicked:
                 capture_index = HeroAI_BaseUI.capture_hero_index
-                hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+                slot_kind, slot_index = HeroAI_BaseUI._resolve_flag_display_slot(capture_index)
 
-                if 0 < capture_index <= hero_count and not HeroAI_BaseUI.capture_flag_all:
-                    agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(capture_index)
-                    GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
-                    HeroAI_BaseUI.one_time_set_flag = True
-                else:
-                    if capture_index == 0:
-                        hero_ai_index = 0
-                        GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(x, y)
-                    else:
-                        hero_ai_index = capture_index - hero_count
-
-                    options = options_by_party[hero_ai_index] if 0 <= hero_ai_index < MAX_NUM_PLAYERS else None
+                if slot_kind == "all":
+                    GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(x, y)
+                    options = options_by_party[0]
                     if options is not None:
-                        if capture_index == 0:
-                            options.AllFlag.x = x
-                            options.AllFlag.y = y
-                        else:
-                            options.FlagPos.x = x
-                            options.FlagPos.y = y
+                        options.AllFlag.x = x
+                        options.AllFlag.y = y
+                        options.IsFlagged = True
+                        options.FlagFacingAngle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+                    HeroAI_BaseUI.one_time_set_flag = True
+                elif slot_kind == "hero":
+                    agent_id = int(GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(slot_index) or 0)
+                    if agent_id > 0 and not HeroAI_BaseUI.capture_flag_all:
+                        GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+                        HeroAI_BaseUI.one_time_set_flag = True
+                else:
+                    options = options_by_party[slot_index] if 0 <= slot_index < MAX_NUM_PLAYERS else None
+                    if options is not None:
+                        options.FlagPos.x = x
+                        options.FlagPos.y = y
                         options.IsFlagged = True
                         options.FlagFacingAngle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
                     HeroAI_BaseUI.one_time_set_flag = True
@@ -578,6 +614,21 @@ class HeroAI_BaseUI:
                         HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
                     ImGui.pop_font()
                     ImGui.show_tooltip("Flagging")
+                    ImGui.push_font("Regular", 10)
+                    PyImGui.same_line(0, -1)
+
+                if is_explorable and cached_data.data.is_leader and enemy_party.is_enabled():
+                    enemy_party_visible = enemy_party.is_window_open()
+                    new_enemy_party_visible = ImGui.toggle_button(
+                        label=f"{IconsFontAwesome5.ICON_FACE_ANGRY}##enemy_party_window",
+                        v=enemy_party_visible,
+                        width=btn_size,
+                        height=btn_size,
+                    )
+                    if new_enemy_party_visible != enemy_party_visible:
+                        enemy_party.set_window_open(new_enemy_party_visible)
+                    ImGui.pop_font()
+                    ImGui.show_tooltip("Enemy Party")
                     ImGui.push_font("Regular", 10)
                     PyImGui.same_line(0, -1)
 
@@ -1909,34 +1960,34 @@ class HeroAI_BaseUI:
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             if party_size >= 2:
-                HeroAI_BaseUI.HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(1), 30, 30)
+                HeroAI_BaseUI.HeroFlags[0] = ImGui.toggle_button("1", HeroAI_BaseUI._is_flag_display_slot_flagged(1), 30, 30)
             PyImGui.table_next_column()
             if party_size >= 3:
-                HeroAI_BaseUI.HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(2), 30, 30)
+                HeroAI_BaseUI.HeroFlags[1] = ImGui.toggle_button("2", HeroAI_BaseUI._is_flag_display_slot_flagged(2), 30, 30)
             PyImGui.table_next_column()
             if party_size >= 4:
-                HeroAI_BaseUI.HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(3), 30, 30)
+                HeroAI_BaseUI.HeroFlags[2] = ImGui.toggle_button("3", HeroAI_BaseUI._is_flag_display_slot_flagged(3), 30, 30)
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             if party_size >= 5:
-                HeroAI_BaseUI.HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(4), 30, 30)
+                HeroAI_BaseUI.HeroFlags[3] = ImGui.toggle_button("4", HeroAI_BaseUI._is_flag_display_slot_flagged(4), 30, 30)
             PyImGui.table_next_column()
-            HeroAI_BaseUI.AllFlag = ImGui.toggle_button("All", IsHeroFlagged(0), 30, 30)
+            HeroAI_BaseUI.AllFlag = ImGui.toggle_button("A", HeroAI_BaseUI._is_flag_display_slot_flagged(0), 30, 30)
             PyImGui.table_next_column()
             if party_size >= 6:
-                HeroAI_BaseUI.HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(5), 30, 30)
+                HeroAI_BaseUI.HeroFlags[4] = ImGui.toggle_button("5", HeroAI_BaseUI._is_flag_display_slot_flagged(5), 30, 30)
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             if party_size >= 7:
-                HeroAI_BaseUI.HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(6), 30, 30)
+                HeroAI_BaseUI.HeroFlags[5] = ImGui.toggle_button("6", HeroAI_BaseUI._is_flag_display_slot_flagged(6), 30, 30)
             PyImGui.table_next_column()
             if party_size >= 8:
-                HeroAI_BaseUI.HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(7), 30, 30)
+                HeroAI_BaseUI.HeroFlags[6] = ImGui.toggle_button("7", HeroAI_BaseUI._is_flag_display_slot_flagged(7), 30, 30)
             PyImGui.table_next_column()
             HeroAI_BaseUI.ClearFlags = ImGui.toggle_button("X", HeroAI_BaseUI.ClearFlags, 30, 30)
             PyImGui.end_table()
 
-        if HeroAI_BaseUI.AllFlag != IsHeroFlagged(0):
+        if HeroAI_BaseUI.AllFlag != HeroAI_BaseUI._is_flag_display_slot_flagged(0):
             HeroAI_BaseUI.capture_hero_flag = True
             HeroAI_BaseUI.capture_flag_all = True
             HeroAI_BaseUI.capture_hero_index = 0
@@ -1944,7 +1995,7 @@ class HeroAI_BaseUI:
             hero_globals.capture_mouse_timer.Start()
 
         for i in range(1, party_size):
-            if HeroAI_BaseUI.HeroFlags[i - 1] != IsHeroFlagged(i):
+            if HeroAI_BaseUI.HeroFlags[i - 1] != HeroAI_BaseUI._is_flag_display_slot_flagged(i):
                 HeroAI_BaseUI.capture_hero_flag = True
                 HeroAI_BaseUI.capture_flag_all = False
                 HeroAI_BaseUI.capture_hero_index = i
