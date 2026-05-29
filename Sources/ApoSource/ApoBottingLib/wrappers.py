@@ -10,6 +10,7 @@ from .helpers import _movement_with_runtime_pause
 from .helpers import _pause_heroai_for_action
 from .helpers import _POST_MOVEMENT_SETTLE_MS
 from .helpers import _send_multibox_auto_dialog
+from .helpers import _send_multibox_get_blessing_with_target
 from .helpers import _send_multibox_dialog_to_target
 from .helpers import _send_multibox_manual_dialog
 from .helpers import _send_multibox_take_dialog_with_target
@@ -862,9 +863,10 @@ def StoreFactionData(
     )
 
 
-def TakeFactionBlessing(
+def TakeBlessing(
     pos: PointOrPath,
-    faction: str = 'luxon',
+    faction: str | None = None,
+    buttons: int | SequenceABC[int] = 0,
     blessing_dialog_id: int | str = 0x86,
     bribe_dialog_id: int | str = 0x84,
     multi_account: bool = False,
@@ -872,52 +874,91 @@ def TakeFactionBlessing(
     pre_dialog_wait_ms: int = 125,
     post_dialog_wait_ms: int = 125,
 ) -> BehaviorTree:
-    faction_name = str(faction or 'luxon').strip().lower()
-    if faction_name not in {'luxon', 'kurzick'}:
-        raise ValueError("faction must be 'luxon' or 'kurzick'.")
+    faction_name = str(faction or '').strip().lower()
+    if faction_name and faction_name not in {'luxon', 'kurzick'}:
+        raise ValueError("faction must be 'luxon', 'kurzick', or empty.")
 
-    bribe_key = f'{faction_name}_blessing_bribe_priest'
+    if faction_name:
+        bribe_key = f'{faction_name}_blessing_bribe_priest'
 
-    def _set_bribe_flag(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        current_luxon = int(node.blackboard.get('current_luxon_faction', 0) or 0)
-        current_kurzick = int(node.blackboard.get('current_kurzick_faction', 0) or 0)
-        node.blackboard[bribe_key] = (
-            current_kurzick >= current_luxon if faction_name == 'luxon' else current_luxon >= current_kurzick
-        )
-        return BehaviorTree.NodeState.SUCCESS
-
-    def _maybe_bribe(node: BehaviorTree.Node) -> BehaviorTree:
-        if bool(node.blackboard.get(bribe_key, False)):
-            return InteractTargetAndSendDialog(
-                dialog_id=bribe_dialog_id,
-                log=log,
-                multi_account=multi_account,
+        def _set_bribe_flag(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_luxon = int(node.blackboard.get('current_luxon_faction', 0) or 0)
+            current_kurzick = int(node.blackboard.get('current_kurzick_faction', 0) or 0)
+            node.blackboard[bribe_key] = (
+                current_kurzick >= current_luxon if faction_name == 'luxon' else current_luxon >= current_kurzick
             )
-        return Succeeder(name=f'Skip{faction_name.title()}BlessingBribe')
+            return BehaviorTree.NodeState.SUCCESS
+
+        def _maybe_bribe(node: BehaviorTree.Node) -> BehaviorTree:
+            if bool(node.blackboard.get(bribe_key, False)):
+                return InteractTargetAndSendDialog(
+                    dialog_id=bribe_dialog_id,
+                    log=log,
+                    multi_account=multi_account,
+                )
+            return Succeeder(name=f'Skip{faction_name.title()}BlessingBribe')
+
+        return Sequence(
+            name=f'Take {faction_name.title()} Blessing',
+            children=[
+                StoreFactionData(log=log),
+                BehaviorTree(
+                    BehaviorTree.ActionNode(
+                        name=f'Set{faction_name.title()}BlessingBribeFlag',
+                        action_fn=_set_bribe_flag,
+                    )
+                ),
+                MoveAndInteract(pos=pos, log=log),
+                LogMessage(message=f"Obtaining {faction_name.title()} blessing"),
+                Wait(pre_dialog_wait_ms, log=log),
+                Subtree(name=f'MaybeBribe{faction_name.title()}Priest', subtree_fn=_maybe_bribe),
+                InteractTargetAndSendDialog(
+                    dialog_id=blessing_dialog_id,
+                    log=log,
+                    multi_account=multi_account,
+                ),
+                Wait(post_dialog_wait_ms, log=log),
+            ],
+        )
 
     return Sequence(
-        name=f'Take {faction_name.title()} Blessing',
+        name='Take Blessing',
         children=[
-            StoreFactionData(log=log),
-            BehaviorTree(
-                BehaviorTree.ActionNode(
-                    name=f'Set{faction_name.title()}BlessingBribeFlag',
-                    action_fn=_set_bribe_flag,
-                )
-            ),
             MoveAndInteract(pos=pos, log=log),
-            LogMessage(message=f"Obtaining {faction_name.title()} blessing"),
+            LogMessage(message='Obtaining blessing'),
             Wait(pre_dialog_wait_ms, log=log),
-            Subtree(name=f'MaybeBribe{faction_name.title()}Priest',subtree_fn=_maybe_bribe,),
-            InteractTargetAndSendDialog(
-                dialog_id=blessing_dialog_id,
-                log=log,
-                multi_account=multi_account,
+            *(
+                [
+                    _capture_current_target(),
+                    RoutinesBT.Composite.Sequence(
+                        *[
+                            RoutinesBT.Player.SendAutomaticDialog(
+                                button_number=int(button),
+                                log=log,
+                            )
+                            for button in ([buttons] if isinstance(buttons, int) else list(buttons))
+                        ],
+                        _send_multibox_get_blessing_with_target(
+                            buttons=[buttons] if isinstance(buttons, int) else list(buttons),
+                            log=log,
+                        ),
+                        name='TakeBlessingMultiboxSequence',
+                    ),
+                ]
+                if multi_account
+                else [
+                    *[
+                        RoutinesBT.Player.SendAutomaticDialog(
+                            button_number=int(button),
+                            log=log,
+                        )
+                        for button in ([buttons] if isinstance(buttons, int) else list(buttons))
+                    ]
+                ]
             ),
             Wait(post_dialog_wait_ms, log=log),
         ],
     )
-
 
 def DonateFaction(
     faction: str = 'luxon',

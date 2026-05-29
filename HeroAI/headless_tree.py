@@ -14,7 +14,9 @@ from .follow.follower_runtime import (
     get_follow_destination_distance,
     is_follow_recovery_active,
 )
+from . import resurrection_scroll
 from .settings import Settings
+from .utils import DrawSharedMemoryFlags
 
 
 class HeroAIHeadlessTree:
@@ -161,6 +163,9 @@ class HeroAIHeadlessTree:
         if not options or not options.Combat:
             return False
 
+        if is_follow_recovery_active(self.cached_data, self._follow_state):
+            return False
+
         if not self.cached_data.IsHeadlessCombatPauseActive():
             return False
 
@@ -193,6 +198,12 @@ class HeroAIHeadlessTree:
 
     def IsLootingEnabled(self) -> bool:
         return bool(self._headless_looting_enabled)
+
+    def SetResurrectionScrollEnabled(self, enabled: bool) -> None:
+        Settings().set_account_resurrection_scroll_enabled(bool(enabled))
+
+    def IsResurrectionScrollEnabled(self) -> bool:
+        return bool(Settings().get_account_resurrection_scroll_enabled())
 
     def GetBuildContract(self):
         return self.heroai_build.GetBuildContract()
@@ -236,10 +247,15 @@ class HeroAIHeadlessTree:
 
     def update(self) -> None:
         self._consume_headless_looting_control_messages()
+        resurrection_scroll.tick()
         self.cached_data.Update()
 
     def tick(self):
         self.update()
+        try:
+            DrawSharedMemoryFlags()
+        except Exception:
+            pass
         if self.initialize():
             return self.tree.tick()
 

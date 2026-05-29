@@ -5,6 +5,11 @@ from typing import TYPE_CHECKING
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import Range, Routines, ThrottledTimer
 from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.GlobalCache.WhiteboardLocks import (
+    BLOOD_ENERGY_BUFF_LOCK_KEY,
+    is_buff_target_lock_blocked,
+    post_buff_target_lock,
+)
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
 
@@ -20,6 +25,8 @@ class BloodMagic:
         self.build: BuildMgr = build
         self.bip_throttle: ThrottledTimer = ThrottledTimer(1500)
         self.bip_throttle.Stop()
+        self.blood_ritual_throttle: ThrottledTimer = ThrottledTimer(1500)
+        self.blood_ritual_throttle.Stop()
 
     #region B
     def Blood_Bond(self) -> BuildCoroutine:
@@ -46,6 +53,50 @@ class BloodMagic:
             log=False,
             aftercast_delay=250,
         ))
+
+    def Blood_Ritual(self) -> BuildCoroutine:
+        blood_ritual_id: int = Skill.GetID("Blood_Ritual")
+        blood_ritual: CustomSkill = self.build.GetCustomSkill(blood_ritual_id)
+
+        def _is_blood_ritual_throttle_ready() -> bool:
+            return self.blood_ritual_throttle.IsStopped() or self.blood_ritual_throttle.IsExpired()
+
+        def _can_safely_cast_blood_ritual() -> bool:
+            player_id = Player.GetAgentID()
+            current_hp_fraction = float(Agent.GetHealth(player_id))
+            sacrifice_floor = float(blood_ritual.Conditions.SacrificeHealth or 0.0)
+            return current_hp_fraction > sacrifice_floor
+
+        if not self.build.IsSkillEquipped(blood_ritual_id):
+            return False
+
+        target_agent_id: int = self.build.ResolveAllyTarget(
+            blood_ritual_id,
+            blood_ritual,
+        )
+        if not target_agent_id:
+            return False
+        if is_buff_target_lock_blocked(target_agent_id, BLOOD_ENERGY_BUFF_LOCK_KEY):
+            return False
+        if not _is_blood_ritual_throttle_ready():
+            return False
+        if not _can_safely_cast_blood_ritual():
+            return False
+
+        post_buff_target_lock(
+            target_agent_id,
+            key_id=BLOOD_ENERGY_BUFF_LOCK_KEY,
+            skill_id=blood_ritual_id,
+        )
+        if (yield from self.build.CastSkillIDAndRestoreTarget(
+            blood_ritual_id,
+            target_agent_id,
+            extra_condition=_can_safely_cast_blood_ritual,
+        )):
+            self.blood_ritual_throttle.Reset()
+            return True
+
+        return False
 
     def Blood_is_Power(self) -> BuildCoroutine:
         blood_is_power_id: int = Skill.GetID("Blood_is_Power")
@@ -92,11 +143,18 @@ class BloodMagic:
         )
         if not target_agent_id:
             return False
+        if is_buff_target_lock_blocked(target_agent_id, BLOOD_ENERGY_BUFF_LOCK_KEY):
+            return False
         if not _is_bip_throttle_ready():
             return False
         if not _can_safely_cast_bip():
             return False
 
+        post_buff_target_lock(
+            target_agent_id,
+            key_id=BLOOD_ENERGY_BUFF_LOCK_KEY,
+            skill_id=blood_is_power_id,
+        )
         if (yield from self.build.CastSkillIDAndRestoreTarget(
             blood_is_power_id,
             target_agent_id,

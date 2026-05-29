@@ -11,6 +11,7 @@ EMBARK_BEACH = 857
 #region F
 #region G
 #region H
+HOLDINGS_OF_CHOKHIN = 395
 #region I
 #region J
 #region K
@@ -19,6 +20,7 @@ KINYA_PROVINCE = 236
 #region L
 LAKESIDE_COUNTY_PRESEARING = 146
 #region M
+MIHANU_TOWNSHIP = 396
 MINISTER_CHO_STATE = 214
 MOUNT_QINKAI = 200
 #region N

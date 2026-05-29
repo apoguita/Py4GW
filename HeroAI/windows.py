@@ -616,7 +616,7 @@ class HeroAI_Windows():
             if party_size >= 5:
                 HeroAI_Windows.HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(4),30,30)
             PyImGui.table_next_column()
-            HeroAI_Windows.AllFlag = ImGui.toggle_button("All", IsHeroFlagged(0), 30, 30)
+            HeroAI_Windows.AllFlag = ImGui.toggle_button("A", IsHeroFlagged(0), 30, 30)
             PyImGui.table_next_column()
             if party_size >= 6:
                 HeroAI_Windows.HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(5),30,30)

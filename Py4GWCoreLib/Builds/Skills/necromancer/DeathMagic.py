@@ -7,6 +7,7 @@ from Py4GWCoreLib import AgentArray, Profession, Range, Routines, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
+from HeroAI.targeting import TargetMinionNonEnchanted
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.BuildMgr import BuildMgr
@@ -19,6 +20,68 @@ class DeathMagic:
         self.build: BuildMgr = build
 
     #region D
+    def Death_Nova(self) -> BuildCoroutine:
+        death_nova_id: int = Skill.GetID("Death_Nova")
+        death_nova = self.build.GetCustomSkill(death_nova_id)
+
+        if not self.build.IsSkillEquipped(death_nova_id):
+            return False
+
+        target_agent_id = TargetMinionNonEnchanted(distance=Range.Spellcast.value)
+        if not target_agent_id:
+            return False
+
+        max_health_threshold = float(death_nova.Conditions.LessLife or 1.0) if death_nova is not None else 1.0
+        if Agent.GetHealth(target_agent_id) > max_health_threshold:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=death_nova_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
+    def _animate_minion(self, skill_name: str, *, aftercast_delay: int = 250) -> BuildCoroutine:
+        skill_id: int = Skill.GetID(skill_name)
+
+        if not self.build.IsSkillEquipped(skill_id):
+            return False
+
+        target_corpse_id = Routines.Agents.GetNearestExploitableCorpse(
+            Range.Spellcast.value,
+            reserve=True,
+            skill_id=skill_id,
+            aftercast_delay=aftercast_delay,
+        )
+        if not target_corpse_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=skill_id,
+            target_agent_id=target_corpse_id,
+            log=False,
+            aftercast_delay=aftercast_delay,
+        ))
+
+    def Animate_Bone_Fiend(self) -> BuildCoroutine:
+        return (yield from self._animate_minion("Animate_Bone_Fiend"))
+
+    def Animate_Bone_Horror(self) -> BuildCoroutine:
+        return (yield from self._animate_minion("Animate_Bone_Horror"))
+
+    def Animate_Bone_Minions(self) -> BuildCoroutine:
+        return (yield from self._animate_minion("Animate_Bone_Minions"))
+
+    def Animate_Flesh_Golem(self) -> BuildCoroutine:
+        return (yield from self._animate_minion("Animate_Flesh_Golem"))
+
+    def Animate_Shambling_Horror(self) -> BuildCoroutine:
+        return (yield from self._animate_minion("Animate_Shambling_Horror"))
+
+    def Animate_Vampiric_Horror(self) -> BuildCoroutine:
+        return (yield from self._animate_minion("Animate_Vampiric_Horror"))
+
     def Dark_Aura(
         self,
         *,

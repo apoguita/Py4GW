@@ -1,6 +1,7 @@
 import builtins
 import json
 import os
+import time
 import tkinter as tk
 from dataclasses import dataclass, field
 from tkinter import filedialog
@@ -99,6 +100,70 @@ class EnemyTrackerVars:
     include_dead: bool = False
 
 
+class EnemyTrackerLock:
+    LOCK_FILENAME: str = ".enemy_tracker.lock"
+    STALE_AFTER_MS: int = 15000
+    POLL_INTERVAL_S: float = 0.05
+
+    def __init__(self, lock_dir: str) -> None:
+        self._lock_dir = str(lock_dir)
+        self._lock_path = os.path.join(self._lock_dir, self.LOCK_FILENAME)
+        self._acquired = False
+        os.makedirs(self._lock_dir, exist_ok=True)
+
+    def acquire(self, timeout_ms: int = 3000) -> bool:
+        """Try to acquire the lock file atomically.
+
+        Returns True if lock was acquired, False on timeout.
+        Stale locks (older than STALE_AFTER_MS) are removed before retry.
+        TOCTOU race on stale removal is accepted: if two clients try to
+        remove the same stale lock simultaneously, one will get OSError.
+        Atomic file creation (O_CREAT|O_EXCL) is the final arbiter.
+        """
+        os.makedirs(self._lock_dir, exist_ok=True)
+        start = time.time()
+
+        while True:
+            # Check for stale lock before attempting creation
+            if os.path.exists(self._lock_path):
+                try:
+                    mtime = os.path.getmtime(self._lock_path)
+                    age_ms = (time.time() - mtime) * 1000.0
+                    if age_ms > self.STALE_AFTER_MS:
+                        try:
+                            os.remove(self._lock_path)
+                        except OSError:
+                            pass
+                except OSError:
+                    pass
+
+            # Atomic lock creation
+            try:
+                fd = os.open(self._lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+                with os.fdopen(fd, "w") as f:
+                    f.write(f"pid={os.getpid()}\n")
+                self._acquired = True
+                return True
+            except OSError:
+                pass
+
+            # Check timeout
+            elapsed_ms = (time.time() - start) * 1000.0
+            if elapsed_ms >= timeout_ms:
+                return False
+
+            time.sleep(self.POLL_INTERVAL_S)
+
+    def release(self) -> None:
+        """Release the lock file. Idempotent — safe to call even if never acquired."""
+        try:
+            if self._acquired:
+                os.remove(self._lock_path)
+                self._acquired = False
+        except OSError:
+            pass
+
+
 class EnemyTracker:
     SCANNER_RADIUS = float(Range.SafeCompass.value)
 
@@ -121,20 +186,14 @@ class EnemyTracker:
         self.data_root = os.path.join(Py4GW.Console.get_projects_path(), EnemyTrackerConfig.DATA_DIRNAME)
         self.data_path = os.path.join(self.data_root, EnemyTrackerConfig.DATA_FILENAME)
         self.data_dir = os.path.dirname(self.data_path)
+        self._lock = EnemyTrackerLock(self.data_dir)
         if shared_vars is None or (not self.vars.records and not self.vars.name_records):
             self._load_data()
 
-    def _legacy_data_root(self) -> str:
-        return Py4GW.Console.get_projects_path()
-
-    def _legacy_data_path(self) -> str:
-        return os.path.join(self._legacy_data_root(), EnemyTrackerConfig.DATA_FILENAME)
-
     def _load_data(self) -> None:
         try:
-            load_path = self.data_path if os.path.exists(self.data_path) else self._legacy_data_path()
-            if os.path.exists(load_path):
-                with open(load_path, "r", encoding="utf-8") as handle:
+            if os.path.exists(self.data_path):
+                with open(self.data_path, "r", encoding="utf-8") as handle:
                     data = json.load(handle)
                 self.vars.records = self._normalize_records(dict(data.get("enemies", {})))
                 if int(data.get("schema_version", 1) or 1) < 2:
@@ -150,46 +209,167 @@ class EnemyTracker:
     def _load_name_data(self) -> None:
         prefix = f"{EnemyTrackerConfig.NAME_DATA_PREFIX}."
         suffix = ".json"
-        for candidate_dir in (self.data_dir, self._legacy_data_root()):
-            if not os.path.isdir(candidate_dir):
+        if not os.path.isdir(self.data_dir):
+            return
+        for filename in os.listdir(self.data_dir):
+            if not filename.startswith(prefix) or not filename.endswith(suffix):
                 continue
-            for filename in os.listdir(candidate_dir):
+            language = filename[len(prefix) : -len(suffix)].strip().lower()
+            if not language or language in self.vars.name_records:
+                continue
+            path = os.path.join(self.data_dir, filename)
+            try:
+                with open(path, "r", encoding="utf-8") as handle:
+                    data = json.load(handle)
+                self.vars.name_records[language] = self._normalize_name_records(dict(data.get("names", {})))
+            except Exception as exc:
+                Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load {filename}: {exc}", Py4GW.Console.MessageType.Warning)
+
+    def _merge_disk_data(self) -> bool:
+        """Re-read disk files and merge into in-memory state.
+
+        Does NOT call _merge_record(), does NOT set dirty flags.
+        Returns True if disk had data not already present in memory.
+        """
+        had_new = False
+
+        # --- Merge enemy data ---
+        if os.path.exists(self.data_path):
+            try:
+                with open(self.data_path, "r", encoding="utf-8") as handle:
+                    data = json.load(handle)
+                disk_enemies = data.get("enemies", {})
+
+                for key, disk_record in disk_enemies.items():
+                    key = str(key)
+                    disk_record = dict(disk_record)
+                    existing = self.vars.records.get(key)
+
+                    if existing is None:
+                        # New enemy key from disk — adopt it (normalize without dirty)
+                        saved_data_dirty = self.vars.data_dirty
+                        saved_names_dirty = self.vars.names_dirty
+                        self.vars.records[key] = self._normalize_record(key, disk_record)
+                        # _normalize_record may set names_dirty via _add_name_record
+                        # and data_dirty via field normalization. Preserve any it set.
+                        self.vars.data_dirty = saved_data_dirty or self.vars.data_dirty
+                        self.vars.names_dirty = saved_names_dirty or self.vars.names_dirty
+                        had_new = True
+                        continue
+
+                    # Merge fields without setting dirty flags
+                    for field_name in ("encoded_names", "model_ids"):
+                        existing_values = list(existing.get(field_name, []))
+                        for value in disk_record.get(field_name, []):
+                            if value not in existing_values:
+                                existing_values.append(value)
+                                had_new = True
+                        existing[field_name] = existing_values
+
+                    for map_key, map_entry in disk_record.get("observed_maps", {}).items():
+                        if map_key not in existing.setdefault("observed_maps", {}):
+                            existing["observed_maps"][map_key] = map_entry
+                            had_new = True
+
+                    for skill_key, skill_entry in disk_record.get("observed_skills", {}).items():
+                        if skill_key not in existing.setdefault("observed_skills", {}):
+                            existing["observed_skills"][skill_key] = skill_entry
+                            had_new = True
+
+                    # Adopt inferred professions if ours are empty
+                    if not existing.get("inferred_primary") and disk_record.get("inferred_primary"):
+                        existing["inferred_primary"] = disk_record["inferred_primary"]
+                        had_new = True
+                    if not existing.get("inferred_secondary") and disk_record.get("inferred_secondary"):
+                        existing["inferred_secondary"] = disk_record["inferred_secondary"]
+                        had_new = True
+            except Exception as exc:
+                Py4GW.Console.Log(
+                    EnemyTrackerConfig.MODULE_NAME,
+                    f"Merge disk data: failed to read enemy data: {exc}",
+                    Py4GW.Console.MessageType.Warning,
+                )
+
+        # --- Merge name data ---
+        prefix = f"{EnemyTrackerConfig.NAME_DATA_PREFIX}."
+        suffix = ".json"
+        if os.path.isdir(self.data_dir):
+            for filename in os.listdir(self.data_dir):
                 if not filename.startswith(prefix) or not filename.endswith(suffix):
                     continue
-                language = filename[len(prefix):-len(suffix)].strip().lower()
-                if not language or language in self.vars.name_records:
+                language = filename[len(prefix) : -len(suffix)].strip().lower()
+                if not language:
                     continue
-                path = os.path.join(candidate_dir, filename)
+                path = os.path.join(self.data_dir, filename)
                 try:
                     with open(path, "r", encoding="utf-8") as handle:
-                        data = json.load(handle)
-                    self.vars.name_records[language] = self._normalize_name_records(dict(data.get("names", {})))
+                        name_data = json.load(handle)
+                    disk_names = name_data.get("names", {})
+                    for key, names in disk_names.items():
+                        key = str(key)
+                        for name in self._clean_name_values(names):
+                            if self._is_agent_name_junk(name):
+                                continue
+                            lang_names = self.vars.name_records.setdefault(language, {}).setdefault(key, [])
+                            if name not in lang_names:
+                                lang_names.append(name)
+                                had_new = True
                 except Exception as exc:
-                    Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load {filename}: {exc}", Py4GW.Console.MessageType.Warning)
+                    Py4GW.Console.Log(
+                        EnemyTrackerConfig.MODULE_NAME,
+                        f"Merge disk data: failed to read names from {filename}: {exc}",
+                        Py4GW.Console.MessageType.Warning,
+                    )
 
-    def _save_data_if_needed(self, force: bool = False) -> None:
-        if not self.vars.data_dirty and not self.vars.names_dirty and not force:
+        return had_new
+
+    def _save_data_if_needed(self, force: bool = False, lock_timeout_ms: int = 3000) -> None:
+        had_own_dirty = force or self.vars.data_dirty or self.vars.names_dirty
+        if not had_own_dirty:
             return
         now = int(Py4GW.Game.get_tick_count64())
         if not force and now - self.vars.last_save_ms < 2000:
             return
+
+        if not self._lock.acquire(timeout_ms=lock_timeout_ms):
+            # Prevent retry-spam: update last_save_ms so poll loop doesn't
+            # immediately try again on the next frame.
+            self.vars.last_save_ms = now
+            return
+
         try:
+            disk_had_new = self._merge_disk_data()
+            own_dirty_after_merge = force or self.vars.data_dirty or self.vars.names_dirty
+            if not own_dirty_after_merge and not force:
+                # Only disk had new data; it was already written by the
+                # previous lock holder. Nothing to persist.
+                return
+
             os.makedirs(self.data_dir, exist_ok=True)
+
+            # Write enemy data atomically via temp + os.replace
             if self.vars.data_dirty or force:
                 payload = {
                     "schema": "py4gw_enemy_tracker",
                     "schema_version": 2,
                     "enemies": self.vars.records,
                 }
-                with open(self.data_path, "w", encoding="utf-8") as handle:
+                tmp_path = self.data_path + ".tmp"
+                with open(tmp_path, "w", encoding="utf-8") as handle:
                     json.dump(payload, handle, indent=2, sort_keys=True)
+                os.replace(tmp_path, self.data_path)
+
+            # Write name data (per-file atomic via _save_name_data)
             if self.vars.names_dirty or force:
                 self._save_name_data()
+
             self.vars.data_dirty = False
             self.vars.names_dirty = False
             self.vars.last_save_ms = now
         except Exception as exc:
             Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to save data: {exc}", Py4GW.Console.MessageType.Warning)
+        finally:
+            self._lock.release()
 
     def _save_name_data(self) -> None:
         os.makedirs(self.data_dir, exist_ok=True)
@@ -200,8 +380,11 @@ class EnemyTracker:
                 "language": language,
                 "names": names,
             }
-            with open(self._name_data_path(language), "w", encoding="utf-8") as handle:
+            target_path = self._name_data_path(language)
+            tmp_path = target_path + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump(payload, handle, indent=2, sort_keys=True)
+            os.replace(tmp_path, target_path)
 
     def _enemy_key(self, agent_id: int, name: str, enc_name: str, model_id: int) -> str:
         if enc_name:
@@ -235,6 +418,11 @@ class EnemyTracker:
                 clean_names.append(name)
         return clean_names
 
+    @staticmethod
+    def _is_agent_name_junk(name: str) -> bool:
+        s = str(name or "").strip()
+        return s.startswith("Agent ") and s[6:].isdigit()
+
     def _normalize_names_by_language(self, record: dict) -> dict[str, list[str]]:
         language_names: dict[str, list[str]] = {}
         raw_language_names = record.get("names_by_language", {})
@@ -261,6 +449,8 @@ class EnemyTracker:
     def _add_name_record(self, key: str, language: str, name: str) -> bool:
         clean_name = str(name or "").strip()
         if not clean_name:
+            return False
+        if self._is_agent_name_junk(clean_name):
             return False
         language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
         names = self.vars.name_records.setdefault(language_key, {}).setdefault(key, [])
@@ -373,7 +563,7 @@ class EnemyTracker:
                                 imported_any = True
 
             if imported_any:
-                self._save_data_if_needed(force=True)
+                self._save_data_if_needed(force=True, lock_timeout_ms=30000)
             return imported_any
         except Exception as exc:
             Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Import failed: {exc}", Py4GW.Console.MessageType.Warning)
