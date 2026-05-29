@@ -1249,13 +1249,15 @@ def _clear_follower_flags() -> _BT:
     """No Routines.BT equivalent — HeroAI multibox follower flags (not BT.Party.FlagHero)."""
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
-        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            if int(_.AgentPartyData.PartyPosition) == 0:
+        for account, _ in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            if int(account.AgentPartyData.PartyPosition) == 0:
                 continue
-            options.IsFlagged       = False
-            options.FlagPos.x       = 0.0
-            options.FlagPos.y       = 0.0
-            options.FlagFacingAngle = 0.0
+            email = str(account.AccountEmail or '').strip().lower()
+            if not email:
+                continue
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'IsFlagged',       False)
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagPos',         Vec2f(0.0, 0.0))
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagFacingAngle', 0.0)
         return _BT.NodeState.SUCCESS
 
     return _BT(_BT.ActionNode(name='ClearFollowerFlags', action_fn=_tick))
@@ -1282,27 +1284,26 @@ def _flag_dhuum_accounts() -> _BT:
         sac_flagged:  list[str] = []
         surv_flagged: list[str] = []
 
-        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+        for account, _ in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
             email = str(account.AccountEmail or '').strip().lower()
+            if not email:
+                continue
 
             # Always clear first
-            options.IsFlagged       = False
-            options.FlagPos.x       = 0.0
-            options.FlagPos.y       = 0.0
-            options.FlagFacingAngle = 0.0
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'IsFlagged',       False)
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagPos',         Vec2f(0.0, 0.0))
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagFacingAngle', 0.0)
 
             if email == my_email:
                 continue  # leader runs the bot — never flagged
 
             if email in sacrifice_emails:
-                options.IsFlagged = True
-                options.FlagPos.x = _DHUUM_SAC_FLAG_X
-                options.FlagPos.y = _DHUUM_SAC_FLAG_Y
+                GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'IsFlagged', True)
+                GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagPos',   Vec2f(_DHUUM_SAC_FLAG_X,  _DHUUM_SAC_FLAG_Y))
                 sac_flagged.append(email)
             else:
-                options.IsFlagged = True
-                options.FlagPos.x = _DHUUM_SURV_FLAG_X
-                options.FlagPos.y = _DHUUM_SURV_FLAG_Y
+                GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'IsFlagged', True)
+                GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagPos',   Vec2f(_DHUUM_SURV_FLAG_X, _DHUUM_SURV_FLAG_Y))
                 surv_flagged.append(email)
 
         if not sacrifice_emails:
@@ -1894,7 +1895,6 @@ def _enter_underworld_tree() -> _BT:
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(
-        bot.Config.Pacifist(multi_account=True),
         ApoBT.LeaveParty(),
         ApoBT.TravelGH(),
         RoutinesBT.Multibox.SummonAllAccounts(timeout_ms=15_000, poll_interval_ms=100, log=True),
@@ -1919,18 +1919,16 @@ def _clear_the_chamber_tree() -> _BT:
       2.  Move to combat start position (769, 6564).
       3.  Walk the chamber clearing path.
       4.  Move to Reaper of the Labyrinth (2399) at (-5806, 12831) → collect reward (0x806507).
-      5.  Take Restore Monuments quest from same Reaper (0x806D01).
+      5.  Take Restore Monuments quest from same Reaper (buttons [2, 0]).
     """
+    from Sources.ApoSource.ApoBottingLib import wrappers as ApoBT
     BT = Routines.BT
 
     return BT.Composite.Sequence(
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True),
         _force_local_skills_on(),
         # Take quest from Lost Soul
-        BT.Agents.MoveTargetInteractAndAutomaticDialog(
-            x=345, y=7167,
-            button_number=0,
-        ),
+        ApoBT.MoveAndAutoDialog(pos=(345, 7167), buttons=0, multi_account=True),
         # Move to combat staging area
         BT.Movement.Move(x=769, y=6564),
         # Clear the chamber — walk the full path
@@ -1943,18 +1941,11 @@ def _clear_the_chamber_tree() -> _BT:
         BT.Movement.Move(x=-4699, y=11793),
         BT.Movement.Move(x=-5963, y=11827),
         BT.Movement.Move(x=-5834, y=12812),
+        BT.Player.Wait(duration_ms=10000),
         # Collect reward from Reaper of the Labyrinth
-        BT.Agents.MoveTargetInteractAndAutomaticDialog(
-            x=-5834, y=12812,
-            button_number=0,
-        ),
-        # Take Restore Monuments quest from same Reaper (with quest-active retry)
-        _dialog_until_quest_active(
-            x=-5834, y=12812,
-            dialog_id=0x806D01,
-            quest_id=int(UWQuestID.RestoringGrenthsMonuments),
-            label='RestoreMonuments',
-        ),
+        ApoBT.MoveAndAutoDialog(pos=(-5834, 12812), buttons=0, multi_account=True),
+        # Take Restore Monuments quest from same Reaper
+        ApoBT.MoveAndAutoDialog(pos=(-5834, 12812), buttons=[2, 0], multi_account=True),
         name='ClearTheChamber',
     )
 
@@ -2330,37 +2321,36 @@ def _imprisoned_spirits_tree() -> _BT:
     # No Routines.BT equivalent — HeroAI multibox follower flags.
     def _flag_teams(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib import Agent as _Agent
-        facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        pairs = GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False)
+        facing_angle  = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        left_emails   = {e.strip().lower() for e in ImprisonedSpiritsSettings.LeftTeamEmails}
+        pairs         = GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False)
 
         left_idx  = 0
         right_idx = 0
 
-        for account, options in pairs:
+        for account, _ in pairs:
             party_pos = int(account.AgentPartyData.PartyPosition)
             if party_pos == 0:
                 continue
 
             email = str(account.AccountEmail or '').strip().lower()
-            settings = ImprisonedSpiritsSettings
+            if not email:
+                continue
 
-            if email in [e.strip().lower() for e in settings.LeftTeamEmails]:
-                if left_idx < len(LEFT_POINTS):
-                    px, py = LEFT_POINTS[left_idx]
-                    left_idx += 1
-                else:
-                    continue
+            if email in left_emails:
+                # Clamp to last point if more accounts than positions.
+                px, py = LEFT_POINTS[min(left_idx, len(LEFT_POINTS) - 1)]
+                left_idx += 1
             else:
-                if right_idx < len(RIGHT_POINTS):
-                    px, py = RIGHT_POINTS[right_idx]
-                    right_idx += 1
-                else:
-                    continue
+                px, py = RIGHT_POINTS[min(right_idx, len(RIGHT_POINTS) - 1)]
+                right_idx += 1
 
-            options.IsFlagged       = True
-            options.FlagPos.x       = float(px)
-            options.FlagPos.y       = float(py)
-            options.FlagFacingAngle = facing_angle
+            # Use SetHeroAIPropertyByEmail for reliable shared-memory writes
+            # (avoids potential ctypes sub-struct copy pitfall with FlagPos.x = ...).
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'IsFlagged',       True)
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagPos',         Vec2f(float(px), float(py)))
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagFacingAngle', float(facing_angle))
+            ConsoleLog(BOT_NAME, f'[IS] Flagged {email} → ({px}, {py})', Py4GW.Console.MessageType.Info)
 
         return _BT.NodeState.SUCCESS
 
@@ -2479,13 +2469,15 @@ def _unwanted_guests_tree() -> _BT:
     def _set_follower_flags_at_hold(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib import Agent as _Agent
         facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+        for account, _ in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
             if int(account.AgentPartyData.PartyPosition) == 0:
                 continue
-            options.IsFlagged       = True
-            options.FlagPos.x       = _fx
-            options.FlagPos.y       = _fy
-            options.FlagFacingAngle = facing_angle
+            email = str(account.AccountEmail or '').strip().lower()
+            if not email:
+                continue
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'IsFlagged',       True)
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagPos',         Vec2f(float(_fx), float(_fy)))
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'FlagFacingAngle', float(facing_angle))
         return _BT.NodeState.SUCCESS
 
     return BT.Composite.Sequence(

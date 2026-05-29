@@ -1,5 +1,4 @@
-import json
-import os
+import time as _time
 
 from Py4GWCoreLib import (
 	Agent,
@@ -15,239 +14,77 @@ from Py4GWCoreLib import (
 	UIManager,
 	Utils,
 )
-from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree as _BT
+from Py4GWCoreLib.routines_src.BehaviourTrees import BT as _RoutinesBT
 import PyImGui
-import PyInventory
+
+# ── Module identity ───────────────────────────────────────────────────────────
 
 MODULE_NAME = "Dhuum Helper"
 MODULE_ICON = "Textures/Module_Icons/Underworld.png"
 
-# Keep this helper very cheap while idle.
-_CHECK_TIMER = ThrottledTimer(750)
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+_TARGET_NPC_NAME       = "Mayor Alegheri"
+_TARGET_NPC_NAME_LOWER = _TARGET_NPC_NAME.lower()
+_TARGET_BUFF_NAME      = "Curse of Dhuum"
+_NEARBY_NPC_RADIUS     = 2000.0
+_INTERACT_CLOSE_RANGE  = 500.0
+
+# ── Timers ────────────────────────────────────────────────────────────────────
+
+_CHECK_TIMER = ThrottledTimer(3000)
 _CHECK_TIMER.Reset()
 
 _DIALOG_COOLDOWN_TIMER = ThrottledTimer(2500)
 _DIALOG_COOLDOWN_TIMER.Reset()
 
-_armor_written_this_map: bool = False
+# ── Runtime state ─────────────────────────────────────────────────────────────
 
-_EQUIPPED_ARMOR_FILE = os.path.join(
-	Py4GW.Console.get_projects_path(), "Widgets", "Config", "EquippedArmor.json"
-)
+_buff_skill_id: int        = 0
+_warned_missing_skill: bool = False
+_handled_current_buff: bool = False
+_interaction_tree: _BT | None = None
 
+# ── Following helpers ─────────────────────────────────────────────────────────
 
-def _write_equipped_armor_json() -> None:
+def _pause_following() -> None:
+	"""Set Following=False so the follower stops chasing the leader during the dialog."""
 	try:
 		email = Player.GetAccountEmail()
-		if not email:
-			return
-
-		_ARMOR_SLOTS = {2, 3, 4, 5, 6}  # Head, Chest, Hands, Legs, Feet
-		bag = PyInventory.Bag(22, "Equipped_Items")
-		slots: dict[str, int] = {}
-		for item in bag.GetItems():
-			item_id  = int(getattr(item, "item_id",  0) or 0)
-			model_id = int(getattr(item, "model_id", 0) or 0)
-			slot     = int(getattr(item, "slot",     0) or 0)
-			if item_id == 0 or slot not in _ARMOR_SLOTS:
-				continue
-			slots[str(slot)] = model_id
-
-		# Read existing file, merge this account's entry, write back atomically.
-		all_armor: dict = {}
-		if os.path.exists(_EQUIPPED_ARMOR_FILE):
-			with open(_EQUIPPED_ARMOR_FILE, "r") as f:
-				all_armor = json.load(f)
-
-		# Migrate old flat format {"2": 123} -> {"normal": {"2": 123}, "sacrifice": {}}
-		existing = all_armor.get(email, {})
-		if not isinstance(existing, dict) or "normal" not in existing:
-			old_slots = {k: v for k, v in existing.items() if isinstance(k, str) and k.isdigit()}
-			existing = {"normal": old_slots, "sacrifice": {}}
-
-		# Skip writing if sacrifice armor is currently equipped to avoid overwriting
-		# the normal armor configuration with sacrifice model IDs.
-		saved_sacrifice = existing.get("sacrifice") or {}
-		sacrifice_model_ids = {v for v in saved_sacrifice.values() if v != 0}
-		current_model_ids = set(slots.values())
-		if sacrifice_model_ids and sacrifice_model_ids.issubset(current_model_ids):
-			Py4GW.Console.Log(MODULE_NAME, "Armor write skipped - sacrifice armor is equipped.", Py4GW.Console.MessageType.Info)
-			return
-
-		existing["normal"] = slots
-		all_armor[email] = existing
-
-		tmp_path = _EQUIPPED_ARMOR_FILE + ".tmp"
-		with open(tmp_path, "w") as f:
-			json.dump(all_armor, f, indent=2)
-		os.replace(tmp_path, _EQUIPPED_ARMOR_FILE)
-	except Exception as e:
-		Py4GW.Console.Log(MODULE_NAME, f"Armor write error: {e}", Py4GW.Console.MessageType.Warning)
-
-_TARGET_NPC_NAME = "Mayor Alegheri"
-_TARGET_BUFF_NAME = "Curse of Dhuum"
-_NEARBY_NPC_RADIUS = 2000.0
-_HEROAI_WIDGET_NAME = "HeroAI"
-
-_buff_skill_id = 0
-_warned_missing_skill = False
-_handled_current_buff = False
-_interaction_running = False
-
-_MAX_NPC_FIND_RETRIES = 10   # × 1 s  → up to 10 s waiting for NPC to appear
-_MAX_MOVE_RETRIES     = 8    # × 1.5 s → up to 12 s to reach the NPC
-_MAX_DIALOG_RETRIES   = 8    # × 2 s  → up to 16 s for dialog to open
-_INTERACT_CLOSE_RANGE = 500.0
-
-
-def _is_any_widget_enabled(*widget_names: str) -> bool:
-	try:
-		widget_handler = get_widget_handler()
-		return any(bool(widget_handler.is_widget_enabled(name)) for name in widget_names)
-	except Exception:
-		return False
-
-
-def _disable_combat_widgets_for_dialog() -> dict:
-	"""Disable HeroAI widget while the local player takes the Dhuum dialog."""
-	state = {
-		"heroai_was_enabled": False,
-		"custom_enabled_names": [],
-	}
-
-	try:
-		widget_handler = get_widget_handler()
-
-		heroai_enabled = bool(widget_handler.is_widget_enabled(_HEROAI_WIDGET_NAME))
-		if heroai_enabled:
-			widget_handler.disable_widget(_HEROAI_WIDGET_NAME)
-			state["heroai_was_enabled"] = True
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				"Temporarily disabled HeroAI widget for Dhuum dialog.",
-				Py4GW.Console.MessageType.Info,
-			)
+		if email:
+			GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'Following', False)
+			Py4GW.Console.Log(MODULE_NAME, "Following paused for Dhuum dialog.", Py4GW.Console.MessageType.Info)
 	except Exception as ex:
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			f"Failed to disable HeroAI widget before dialog: {ex}",
-			Py4GW.Console.MessageType.Warning,
-		)
-
-	return state
+		Py4GW.Console.Log(MODULE_NAME, f"Failed to pause following: {ex}", Py4GW.Console.MessageType.Warning)
 
 
-def _restore_combat_widgets_after_dialog(state: dict) -> None:
-	if not isinstance(state, dict):
-		return
-
+def _resume_following() -> None:
+	"""Restore Following=True after the dialog interaction is complete."""
 	try:
-		widget_handler = get_widget_handler()
-
-		if bool(state.get("heroai_was_enabled", False)) and not bool(widget_handler.is_widget_enabled(_HEROAI_WIDGET_NAME)):
-			widget_handler.enable_widget(_HEROAI_WIDGET_NAME)
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				"Restored HeroAI widget state after Dhuum dialog.",
-				Py4GW.Console.MessageType.Info,
-			)
+		email = Player.GetAccountEmail()
+		if email:
+			GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'Following', True)
+			Py4GW.Console.Log(MODULE_NAME, "Following resumed after Dhuum dialog.", Py4GW.Console.MessageType.Info)
 	except Exception as ex:
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			f"Failed to restore HeroAI widget after dialog: {ex}",
-			Py4GW.Console.MessageType.Warning,
-		)
+		Py4GW.Console.Log(MODULE_NAME, f"Failed to resume following: {ex}", Py4GW.Console.MessageType.Warning)
 
+# ── HeroAI build refresh ──────────────────────────────────────────────────────
 
-def _toggle_local_cb_movement(enabled: bool) -> None:
-	return
-	"""Removed legacy movement hook.
-	Kept as a no-op compatibility function for old call sites.
-	the player.  Does NOT touch shared memory — only this account is affected."""
-	try:
-		RemovedBehaviorLoader = None
-		behavior = RemovedBehaviorLoader().custom_combat_behavior
-		if behavior is None:
-			return
-		_MOVEMENT_SKILL_NAMES = (
-			"follow_party_leader",
-			"follow_flag",
-			"move_to_party_member_if_in_aggro",
-			"move_to_enemy_if_close_enough",
-			"move_to_party_member_if_dead",
-			"wait_if_in_aggro",
-			"move_to_distant_chest_if_path_exists",
-		)
-		_MOVEMENT_CLASS_NAMES = (
-			"FollowPartyLeaderUtility",
-			"FollowFlagUtility",
-			"MoveToPartyMemberIfInAggroUtility",
-			"MoveToEnemyIfCloseEnoughUtility",
-			"MoveToPartyMemberIfDeadUtility",
-			"WaitIfInAggroUtility",
-			"MoveToDistantChestIfPathExistsUtility",
-		)
-		for utility in behavior.get_skills_final_list():
-			skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
-			if skill_name in _MOVEMENT_SKILL_NAMES or utility.__class__.__name__ in _MOVEMENT_CLASS_NAMES:
-				utility.is_enabled = enabled
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			f"Local legacy movement {'enabled' if enabled else 'disabled'}.",
-			Py4GW.Console.MessageType.Info,
-		)
-	except Exception as ex:
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			f"Failed to toggle local legacy movement: {ex}",
-			Py4GW.Console.MessageType.Warning,
-		)
-
-
-def _refresh_custom_behavior_after_skillbar_change() -> None:
-	return
-	try:
-		RemovedBehaviorLoader = None
-		loader = RemovedBehaviorLoader()
-
-		# Local refresh sequence without private internals.
-		if loader.custom_combat_behavior is not None:
-			try:
-				loader.custom_combat_behavior.disable()
-			except Exception:
-				pass
-
-		loader.refresh_custom_behavior_candidate()
-		loader.initialize_custom_behavior_candidate()
-		behavior_name = loader.custom_combat_behavior.__class__.__name__ if loader.custom_combat_behavior is not None else "None"
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			f"Legacy behavior refreshed after Dhuum dialog. Active behavior: {behavior_name}",
-			Py4GW.Console.MessageType.Info,
-		)
-	except Exception as ex:
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			f"Legacy behavior refresh failed: {ex}",
-			Py4GW.Console.MessageType.Warning,
-		)
-
-
-def _refresh_heroai_build_after_skillbar_change() -> None:
+def _refresh_heroai_build() -> None:
+	"""Force HeroAI to re-evaluate its build contract after the dialog skillbar swap."""
 	try:
 		from Widgets.Automation.Multiboxing import HeroAI as HeroAI_Widget
 
-		# Force HeroAI build contract to be re-evaluated after the dialog skillbar swap.
 		HeroAI_Widget.heroai_build.ClearBuildContract()
 		HeroAI_Widget.build_contract_map_signature = None
 
 		try:
 			HeroAI_Widget.heroai_build.EnsureBuildContract(HeroAI_Widget.cached_data)
 		except Exception:
-			# If the widget is not fully initialized yet, it will rebuild on next normal tick.
-			pass
+			pass  # Will rebuild on next normal tick if not ready yet.
 
-		contract = HeroAI_Widget.heroai_build.GetBuildContract()
+		contract      = HeroAI_Widget.heroai_build.GetBuildContract()
 		contract_name = contract.build_name if contract is not None else "None"
 		Py4GW.Console.Log(
 			MODULE_NAME,
@@ -261,21 +98,7 @@ def _refresh_heroai_build_after_skillbar_change() -> None:
 			Py4GW.Console.MessageType.Warning,
 		)
 
-
-def _refresh_active_combat_widget_after_skillbar_change() -> None:
-	# Execute only the relevant refresh path for the currently active combat widget.
-	heroai_enabled = _is_any_widget_enabled(_HEROAI_WIDGET_NAME)
-
-	if heroai_enabled:
-		_refresh_heroai_build_after_skillbar_change()
-		return
-
-	Py4GW.Console.Log(
-		MODULE_NAME,
-		"No supported combat widget enabled (HeroAI). Skipping build refresh.",
-		Py4GW.Console.MessageType.Warning,
-	)
-
+# ── Widget entry points ───────────────────────────────────────────────────────
 
 def tooltip():
 	PyImGui.begin_tooltip()
@@ -288,16 +111,12 @@ def tooltip():
 	PyImGui.text("Auto rez at Dhuum for Multiboxaccounts")
 	PyImGui.end_tooltip()
 
+# ── Buff / skill resolution ───────────────────────────────────────────────────
 
 def _resolve_buff_skill_id() -> int:
 	global _warned_missing_skill
 
-	candidates = (
-		_TARGET_BUFF_NAME,
-		_TARGET_BUFF_NAME.replace(" ", "_"),
-	)
-
-	for name in candidates:
+	for name in (_TARGET_BUFF_NAME, _TARGET_BUFF_NAME.replace(" ", "_")):
 		try:
 			skill_id = int(GLOBAL_CACHE.Skill.GetID(name))
 		except Exception:
@@ -312,13 +131,13 @@ def _resolve_buff_skill_id() -> int:
 			f"Could not resolve buff skill id for '{_TARGET_BUFF_NAME}'.",
 			Py4GW.Console.MessageType.Warning,
 		)
-
 	return 0
 
+# ── NPC resolution ────────────────────────────────────────────────────────────
 
 def _find_nearby_max() -> int:
-	px, py = Player.GetXY()
-	nearest_id = 0
+	px, py      = Player.GetXY()
+	nearest_id  = 0
 	nearest_dist = 999999.0
 
 	for agent_id in AgentArray.GetNPCMinipetArray():
@@ -329,15 +148,15 @@ def _find_nearby_max() -> int:
 			name = (Agent.GetNameByID(aid) or "").strip().lower()
 		except Exception:
 			continue
-		if name != _TARGET_NPC_NAME.lower():
+		if name != _TARGET_NPC_NAME_LOWER:
 			continue
 
 		ax, ay = Agent.GetXY(aid)
-		dist = Utils.Distance((px, py), (ax, ay))
+		dist   = Utils.Distance((px, py), (ax, ay))
 		if dist > _NEARBY_NPC_RADIUS:
 			continue
 		if dist < nearest_dist:
-			nearest_id = aid
+			nearest_id   = aid
 			nearest_dist = float(dist)
 
 	return nearest_id
@@ -346,7 +165,6 @@ def _find_nearby_max() -> int:
 def _is_valid_target_npc(agent_id: int) -> bool:
 	if int(agent_id) <= 0:
 		return False
-
 	try:
 		npc_ids = AgentArray.GetNPCMinipetArray()
 		if int(agent_id) not in {int(npc_id) for npc_id in npc_ids}:
@@ -354,7 +172,7 @@ def _is_valid_target_npc(agent_id: int) -> bool:
 		if not Agent.IsValid(int(agent_id)):
 			return False
 		name = (Agent.GetNameByID(int(agent_id)) or "").strip().lower()
-		return name == _TARGET_NPC_NAME.lower()
+		return name == _TARGET_NPC_NAME_LOWER
 	except Exception:
 		return False
 
@@ -364,178 +182,167 @@ def _resolve_valid_target_npc(candidate_id: int) -> int:
 		return int(candidate_id)
 	return _find_nearby_max()
 
+# ── BT interaction tree ───────────────────────────────────────────────────────
 
-def _coro_interact_and_dialog(target_npc: int):
-	global _interaction_running
-	combat_widget_state = None
-	widgets_temporarily_disabled = False
+def _cleanup_interaction() -> None:
+	"""Resume following and clear target — called on both SUCCESS and FAILURE."""
+	_resume_following()
+	Player.ChangeTarget(0)
 
-	try:
-		# ── Step 1: Find NPC ────────────────────────────────────────────
-		for attempt in range(_MAX_NPC_FIND_RETRIES):
-			target_npc = _resolve_valid_target_npc(target_npc)
-			if target_npc > 0:
-				break
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				f"NPC not found, retrying {attempt + 1}/{_MAX_NPC_FIND_RETRIES} ...",
-				Py4GW.Console.MessageType.Info,
-			)
-			yield from Routines.Yield.wait(1000)
-			target_npc = _resolve_valid_target_npc(0)
 
-		if target_npc <= 0:
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				"NPC not found after all retries - aborting.",
-				Py4GW.Console.MessageType.Warning,
-			)
-			return
+def _build_interaction_tree(initial_npc_id: int) -> _BT:
+	"""
+	One-shot BT for the Dhuum dialog interaction:
+	  1. Wait until Mayor Alegheri is in range (up to 10 s).
+	  2. Pause Following — follower stops running back to team, HeroAI stays active.
+	  3. Move to NPC (up to 12 s).
+	  4. Interact until the NPC dialog opens (up to 16 s).
+	  5. Send dialog 0x84 and clear target (aftercast 800 ms for skillbar swap).
+	  6. Wait 2 s, then move to safe position.
+	  7. Resume Following, refresh HeroAI build, reset cooldown.
+	"""
+	exec_state: dict = {
+		'npc_id':         initial_npc_id,
+		'move_timer':     ThrottledTimer(1500),
+		'interact_timer': ThrottledTimer(2000),
+		'move_deadline':  None,
+		'dialog_deadline': None,
+	}
+	exec_state['move_timer'].Reset()
+	exec_state['interact_timer'].Reset()
 
-		# Disable HeroAI while approaching and interacting with the NPC so
-		# movement commands don't pull us away.
-		combat_widget_state = _disable_combat_widgets_for_dialog()
-		widgets_temporarily_disabled = True
-		_toggle_local_cb_movement(False)
+	# ── Step 1 ─────────────────────────────────────────────────────────────────
+	def _find_npc_condition() -> bool:
+		npc_id = _resolve_valid_target_npc(exec_state['npc_id'])
+		if npc_id > 0:
+			exec_state['npc_id'] = npc_id
+			return True
+		exec_state['npc_id'] = 0
+		return False
 
-		# ── Step 2: Move to NPC ─────────────────────────────────────────
-		target_npc = _resolve_valid_target_npc(target_npc)
-		if target_npc <= 0:
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				"NPC disappeared before targeting - aborting.",
-				Py4GW.Console.MessageType.Warning,
-			)
-			Player.ChangeTarget(0)
-			return
+	# ── Step 2 ─────────────────────────────────────────────────────────────────
+	def _pause_following_step(_node: _BT.Node) -> _BT.NodeState:
+		_pause_following()
+		return _BT.NodeState.SUCCESS
 
-		Player.ChangeTarget(target_npc)
-		yield from Routines.Yield.wait(100)
+	# ── Step 3 ─────────────────────────────────────────────────────────────────
+	def _move_to_npc_tick(_node: _BT.Node) -> _BT.NodeState:
+		now = _time.monotonic()
+		if exec_state['move_deadline'] is None:
+			exec_state['move_deadline'] = now + 12.0
+		elif now >= exec_state['move_deadline']:
+			Py4GW.Console.Log(MODULE_NAME, "Failed to reach NPC in time — aborting.", Py4GW.Console.MessageType.Warning)
+			exec_state['move_deadline'] = None
+			return _BT.NodeState.FAILURE
 
-		for attempt in range(_MAX_MOVE_RETRIES):
-			target_npc = _resolve_valid_target_npc(target_npc)
-			if target_npc <= 0:
-				Py4GW.Console.Log(
-					MODULE_NAME,
-					"NPC disappeared while moving - aborting.",
-					Py4GW.Console.MessageType.Warning,
-				)
-				Player.ChangeTarget(0)
-				return
+		npc_id = _resolve_valid_target_npc(exec_state['npc_id'])
+		if npc_id <= 0:
+			Py4GW.Console.Log(MODULE_NAME, "NPC disappeared while moving — aborting.", Py4GW.Console.MessageType.Warning)
+			return _BT.NodeState.FAILURE
+		exec_state['npc_id'] = npc_id
 
-			try:
-				ax, ay = Agent.GetXY(target_npc)
-			except Exception:
-				Py4GW.Console.Log(
-					MODULE_NAME,
-					"Failed to get NPC position - retrying.",
-					Py4GW.Console.MessageType.Warning,
-				)
-				yield from Routines.Yield.wait(300)
-				continue
+		try:
+			ax, ay = Agent.GetXY(npc_id)
+		except Exception:
+			return _BT.NodeState.RUNNING
 
-			px, py = Player.GetXY()
-			if Utils.Distance((px, py), (ax, ay)) <= _INTERACT_CLOSE_RANGE:
-				break
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				f"Moving to NPC, attempt {attempt + 1}/{_MAX_MOVE_RETRIES} ...",
-				Py4GW.Console.MessageType.Info,
-			)
+		px, py = Player.GetXY()
+		if Utils.Distance((px, py), (ax, ay)) <= _INTERACT_CLOSE_RANGE:
+			exec_state['move_deadline'] = None
+			return _BT.NodeState.SUCCESS
+
+		if exec_state['move_timer'].IsExpired():
+			exec_state['move_timer'].Reset()
+			Player.ChangeTarget(npc_id)
 			Player.Move(ax, ay)
-			yield from Routines.Yield.wait(1500)
-			# Re-resolve NPC id in case the agent slot changed after moving
-			new_id = _resolve_valid_target_npc(target_npc)
-			if new_id > 0:
-				target_npc = new_id
-				Player.ChangeTarget(target_npc)
+		return _BT.NodeState.RUNNING
 
-		# ── Step 3: Interact and send dialog ────────────────────────────
-		dialog_sent = False
-		for attempt in range(_MAX_DIALOG_RETRIES):
-			target_npc = _resolve_valid_target_npc(target_npc)
-			if target_npc <= 0:
-				Py4GW.Console.Log(
-					MODULE_NAME,
-					"NPC disappeared before interaction - aborting.",
-					Py4GW.Console.MessageType.Warning,
-				)
-				Player.ChangeTarget(0)
-				return
+	# ── Step 4 ─────────────────────────────────────────────────────────────────
+	def _interact_until_dialog_tick(_node: _BT.Node) -> _BT.NodeState:
+		if UIManager.IsNPCDialogVisible():
+			exec_state['dialog_deadline'] = None
+			return _BT.NodeState.SUCCESS
 
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				f"Interacting with NPC, attempt {attempt + 1}/{_MAX_DIALOG_RETRIES} ...",
-				Py4GW.Console.MessageType.Info,
-			)
-			Player.ChangeTarget(target_npc)
-			yield from Routines.Yield.wait(100)
-			Player.Interact(target_npc)
-			yield from Routines.Yield.wait(2000)
+		now = _time.monotonic()
+		if exec_state['dialog_deadline'] is None:
+			exec_state['dialog_deadline'] = now + 16.0
+		elif now >= exec_state['dialog_deadline']:
+			Py4GW.Console.Log(MODULE_NAME, "Dialog did not open in time — aborting.", Py4GW.Console.MessageType.Warning)
+			exec_state['dialog_deadline'] = None
+			return _BT.NodeState.FAILURE
 
-			if not UIManager.IsNPCDialogVisible():
-				continue
+		npc_id = _resolve_valid_target_npc(exec_state['npc_id'])
+		if npc_id <= 0:
+			Py4GW.Console.Log(MODULE_NAME, "NPC disappeared before interaction — aborting.", Py4GW.Console.MessageType.Warning)
+			return _BT.NodeState.FAILURE
+		exec_state['npc_id'] = npc_id
 
-			# Primary send path
-			Player.SendDialog(0x84)
-			yield from Routines.Yield.wait(150)
+		if exec_state['interact_timer'].IsExpired():
+			exec_state['interact_timer'].Reset()
+			Player.ChangeTarget(npc_id)
+			Player.Interact(npc_id)
+		return _BT.NodeState.RUNNING
 
-			# Fallback path
-			if UIManager.IsNPCDialogVisible():
-				UIManager.ClickDialogButton(0x84)
-				yield from Routines.Yield.wait(150)
-
-			dialog_sent = True
-			break
-
-		if not dialog_sent:
-			Py4GW.Console.Log(
-				MODULE_NAME,
-				"Failed to send dialog 0x84: NPC dialog did not open in time.",
-				Py4GW.Console.MessageType.Warning,
-			)
-			return
-
-		# Skillbar may change after this dialog - refresh HeroAI below.
-		yield from Routines.Yield.wait(800)
-		
-
-		# Clear target before Mayor Alegheri despawns to prevent AvSelect.cpp(780) crash.
-		# The assertion fires when manualAgentId is set but the agent is no longer
-		# in the AgentManager (despawning NPC after resurrection event completes).
+	# ── Step 5 ─────────────────────────────────────────────────────────────────
+	def _send_dialog_and_clear(_node: _BT.Node) -> _BT.NodeState:
+		Player.SendDialog(0x84)
+		if UIManager.IsNPCDialogVisible():
+			UIManager.ClickDialogButton(0x84)
 		Player.ChangeTarget(0)
+		return _BT.NodeState.SUCCESS
 
-		# Move to safe position after resurrection
-		yield from Routines.Yield.wait(2000)
+	# ── Step 6 ─────────────────────────────────────────────────────────────────
+	def _move_safe(_node: _BT.Node) -> _BT.NodeState:
 		Player.Move(-14374, 17261)
+		return _BT.NodeState.SUCCESS
 
-		if widgets_temporarily_disabled and combat_widget_state is not None:
-			_restore_combat_widgets_after_dialog(combat_widget_state)
-			_toggle_local_cb_movement(True)
-			widgets_temporarily_disabled = False
-
-		_refresh_active_combat_widget_after_skillbar_change()
+	# ── Step 7 ─────────────────────────────────────────────────────────────────
+	def _restore_and_finish(_node: _BT.Node) -> _BT.NodeState:
+		_cleanup_interaction()
+		_refresh_heroai_build()
 		_DIALOG_COOLDOWN_TIMER.Reset()
-	finally:
-		if widgets_temporarily_disabled and combat_widget_state is not None:
-			_restore_combat_widgets_after_dialog(combat_widget_state)
-			_toggle_local_cb_movement(True)
-		Player.ChangeTarget(0)
-		_interaction_running = False
+		return _BT.NodeState.SUCCESS
 
+	return _RoutinesBT.Composite.Sequence(
+		_BT(_BT.WaitUntilNode(
+			name='FindNPC',
+			condition_fn=_find_npc_condition,
+			throttle_interval_ms=500,
+			timeout_ms=10_000,
+		)),
+		_BT(_BT.ActionNode(name='PauseFollowing',      action_fn=_pause_following_step,      aftercast_ms=100)),
+		_BT(_BT.ActionNode(name='MoveToNPC',           action_fn=_move_to_npc_tick)),
+		_BT(_BT.ActionNode(name='InteractUntilDialog', action_fn=_interact_until_dialog_tick)),
+		_BT(_BT.ActionNode(name='SendDialog',          action_fn=_send_dialog_and_clear,     aftercast_ms=800)),
+		_RoutinesBT.Player.Wait(duration_ms=2000),
+		_BT(_BT.ActionNode(name='MoveSafe',            action_fn=_move_safe)),
+		_BT(_BT.ActionNode(name='RestoreAndFinish',    action_fn=_restore_and_finish)),
+		name='DhuumHelperInteraction',
+	)
+
+# ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
-	global _buff_skill_id, _handled_current_buff, _interaction_running, _armor_written_this_map
+	global _buff_skill_id, _handled_current_buff, _interaction_tree
 
 	if not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
 		_handled_current_buff = False
-		_armor_written_this_map = False
+		if _interaction_tree is not None:
+			_interaction_tree.reset()
+			_cleanup_interaction()
+			_interaction_tree = None
 		return
 
-	if not _armor_written_this_map:
-		_write_equipped_armor_json()
-		_armor_written_this_map = True
+	# Tick the active interaction tree every frame until it finishes.
+	if _interaction_tree is not None:
+		result = _interaction_tree.tick()
+		if result != _BT.NodeState.RUNNING:
+			if result == _BT.NodeState.FAILURE:
+				_cleanup_interaction()
+			_interaction_tree = None
+		return
 
+	# Throttled idle check — only search for triggers every 750 ms.
 	if not _CHECK_TIMER.IsExpired():
 		return
 	_CHECK_TIMER.Reset()
@@ -545,26 +352,22 @@ def main():
 		if _buff_skill_id <= 0:
 			return
 
-	player_id = Player.GetAgentID()
+	player_id      = Player.GetAgentID()
 	has_target_buff = bool(GLOBAL_CACHE.Effects.HasEffect(player_id, _buff_skill_id))
 
 	if not has_target_buff:
 		_handled_current_buff = False
 		return
 
-	if _handled_current_buff or _interaction_running:
-		return
-
-	if not _DIALOG_COOLDOWN_TIMER.IsExpired():
+	if _handled_current_buff or not _DIALOG_COOLDOWN_TIMER.IsExpired():
 		return
 
 	max_id = _find_nearby_max()
 	if max_id <= 0:
 		return
 
-	_interaction_running = True
 	_handled_current_buff = True
-	GLOBAL_CACHE.Coroutines.append(_coro_interact_and_dialog(max_id))
+	_interaction_tree = _build_interaction_tree(max_id)
 
 
 if __name__ == "__main__":
