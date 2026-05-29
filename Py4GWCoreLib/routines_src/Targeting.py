@@ -166,6 +166,10 @@ class Targeting:
         from .Checks import Checks
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
+        from ..GlobalCache.WhiteboardLocks import (
+            BLOOD_ENERGY_BUFF_LOCK_KEY,
+            filter_unlocked_buff_targets,
+        )
         from ..Agent import Agent
 
         BLOOD_IS_POWER = GLOBAL_CACHE.Skill.GetID("Blood_is_Power")
@@ -182,6 +186,7 @@ class Targeting:
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, BLOOD_IS_POWER))
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, BLOOD_RITUAL))
+        ally_array = filter_unlocked_buff_targets(ally_array, BLOOD_ENERGY_BUFF_LOCK_KEY)
         
         ally_array = AgentArray.Sort.ByCondition(ally_array, lambda agent_id: GetEnergyValues(agent_id))
         return Utils.GetFirstFromArray(ally_array)

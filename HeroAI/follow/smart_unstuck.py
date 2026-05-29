@@ -1324,6 +1324,84 @@ def _enter_detour(
     _log_tick_detail(state, current_xy, dist_to_follow, state.last_tick_ms, first_result)
 
 
+def force_front_detour(
+    state: SmartUnstuckState,
+    cfg: SmartUnstuckConfig,
+    *,
+    current_xy: tuple[float, float],
+    follow_xy: tuple[float, float],
+) -> None:
+    """Force the front-of-follower circular avoid path, bypassing enemy slalom."""
+    navmesh = _get_navmesh()
+    dist_to_follow = Utils.Distance(current_xy, follow_xy)
+    candidates: list[tuple[int, tuple[float, float], tuple[tuple[float, float], ...], bool]] = []
+    for side in (-1, 1):
+        if side in state.sides_tried:
+            continue
+        center, wps, total = _generate_arc_waypoints(current_xy, follow_xy, cfg, side, navmesh=navmesh)
+        walkable_count = len(wps)
+        is_walkable = total > 0 and (walkable_count / total) >= cfg.arc_walkability_required_fraction
+        if hero_globals.show_stuck_avoidance_debug:
+            first_wp_str = f"first_wp=({wps[0][0]:.0f},{wps[0][1]:.0f})" if wps else "first_wp=(none)"
+            _log(
+                f"stuck.force_probe side={side} walkable={walkable_count}/{total} "
+                f"required>={cfg.arc_walkability_required_fraction:.0%} accepted={is_walkable} "
+                f"{first_wp_str} center=({center[0]:.0f},{center[1]:.0f})"
+            )
+        candidates.append((side, center, wps, is_walkable))
+
+    walkable_candidates = [c for c in candidates if c[3]]
+    if not walkable_candidates:
+        _log("stuck.force_no_walkable_side -> idle")
+        reset_smart_unstuck(state)
+        return
+
+    if len(walkable_candidates) == 2:
+        chosen = next(
+            (c for c in walkable_candidates if c[0] == cfg.preferred_side_when_both_walkable),
+            walkable_candidates[0],
+        )
+    else:
+        chosen = walkable_candidates[0]
+
+    side, center, wps, _ = chosen
+    state.mode = "detouring"
+    state.circle_center = center
+    state.slalom_centers = ()
+    state.slalom_union_boundaries = ()
+    state.waypoints = wps
+    state.waypoint_idx = 0
+    state.abort_waypoint_idx = -1
+    now = _now_ms()
+    state.detour_started_ms = now
+    state.waypoint_started_ms = now
+    state.detour_start_dist = dist_to_follow
+    state.sides_tried.add(side)
+    state.detour_tree = _build_detour_tree(wps, cfg)
+    state.tick_count = 0
+    state.last_tick_ms = 0
+    state.last_tick_xy = None
+    state.waypoint_enter_ms = now
+    _log(
+        f"stuck.force_detour start mode=single side={side} center=({center[0]:.0f},{center[1]:.0f}) "
+        f"dist={dist_to_follow:.0f} waypoints={len(wps)} waypoint_smoothing={cfg.waypoint_smoothing:.1f} "
+        f"radius={cfg.touch_radius:.0f}"
+    )
+    _log_detour_init(state, cfg, current_xy, follow_xy, side, center, wps)
+
+    first_result = _tick_tree_safe(state.detour_tree)
+    state.tick_count += 1
+    state.last_tick_ms = _now_ms()
+    state.last_tick_xy = current_xy
+    if state.detour_tree is not None:
+        bb_idx = state.detour_tree.blackboard.get("move_current_waypoint_index", -1)
+        if isinstance(bb_idx, int) and bb_idx >= 0 and bb_idx != state.waypoint_idx:
+            _log_waypoint_advance(state, bb_idx, state.last_tick_ms, current_xy)
+            state.waypoint_idx = bb_idx
+            state.waypoint_enter_ms = state.last_tick_ms
+    _log_tick_detail(state, current_xy, dist_to_follow, state.last_tick_ms, first_result)
+
+
 def update_smart_unstuck(
     state: SmartUnstuckState,
     cfg: SmartUnstuckConfig,

@@ -1,6 +1,6 @@
 GardenOfSeborhin = [
     {
-        "bless": (-4495.0, 15817.0),
+        "bless": (4032.00, -14621.00),
         "path": [
             (1130.0, -13809.0),
             (-535.0, -10938.0),
@@ -109,10 +109,26 @@ GardenOfSeborhin = [
 ]
 
 GardenOfSeborhin_outpost_path = [
-    (-1896, 14429), (-2029, 14479), (-2100, 14479)
+    (-1398,14343), (-2100, 14479)
+]
+
+GardenOfSeborhin_transit_path = [
+    {
+        "path": [
+            (-4507,15730)
+        ],
+    },
+    {
+        "npc":  (-4552.00, 15863.00),
+        "dialog": 0x80,
+    },
+    {
+        "dialog": 0x84,        
+    },
 ]
 
 GardenOfSeborhin_ids = {
     "outpost_id": 428,
-    "map_id": 399
+    "transit_id": 399,
+    "map_id" : 394
 }

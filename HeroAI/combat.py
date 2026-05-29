@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Protocol
 
 import Py4GW
-from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
+from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray, Utils
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from Py4GWCoreLib.GlobalCache.HexRemovalPriority import get_hexed_ally_for_removal
@@ -55,6 +55,7 @@ VOW_SPELL_TYPES: tuple[int, ...] = (
 )
 
 SKILL_LOCK_MIN_LEASE_MS = 500
+ALCOHOL_RECHECK_DELAY_MS = 500
 
 
 # Level 3 alcohol: each drink gives +3 or more — one drink reaches target level
@@ -138,6 +139,10 @@ class CombatClass:
         self.energy_tap = GLOBAL_CACHE.Skill.GetID("Energy_Tap")
         self.ether_feast = GLOBAL_CACHE.Skill.GetID("Ether_Feast")
         self.ether_lord = GLOBAL_CACHE.Skill.GetID("Ether_Lord")
+        self.blood_is_power = GLOBAL_CACHE.Skill.GetID("Blood_is_Power")
+        self.blood_ritual = GLOBAL_CACHE.Skill.GetID("Blood_Ritual")
+        self.vocal_minority = GLOBAL_CACHE.Skill.GetID("Vocal_Minority")
+        self.well_of_silence = GLOBAL_CACHE.Skill.GetID("Well_of_Silence")
         self.essence_strike = GLOBAL_CACHE.Skill.GetID("Essence_Strike")
         self.glowing_signet = GLOBAL_CACHE.Skill.GetID("Glowing_Signet")
         self.clamor_of_souls = GLOBAL_CACHE.Skill.GetID("Clamor_of_Souls")
@@ -228,6 +233,7 @@ class CombatClass:
             GLOBAL_CACHE.Skill.GetID("Dwarven_Stability"),
             GLOBAL_CACHE.Skill.GetID("Feel_No_Pain")
         ]
+        self._next_alcohol_recheck_ms: int = 0
         
         #junundu
         self.junundu_wail = GLOBAL_CACHE.Skill.GetID("Junundu_Wail")
@@ -663,7 +669,12 @@ class CombatClass:
             if current_target != party_target:
                 if Agent.IsLiving(party_target) and not self._is_blacklisted_enemy_target(party_target):
                     _, alliegeance = Agent.GetAllegiance(party_target)
-                    if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
+                    if (
+                        alliegeance != 'Ally'
+                        and alliegeance != 'NPC/Minipet'
+                        and self.is_combat_enabled
+                        and self._is_target_within_guard_anchor_range(party_target)
+                    ):
                         self.SafeChangeTarget(party_target)
                         return party_target
         return 0
@@ -673,7 +684,50 @@ class CombatClass:
             return False
         return EnemyBlacklist().is_blacklisted(agent_id)
 
+    def _get_guard_anchor_xy(self) -> tuple[float, float] | None:
+        if self.cached_data is None or self.cached_data.data.is_leader:
+            return None
+
+        options = self.cached_data.account_options
+        if options is None or not bool(getattr(options, 'IsFlagged', False)):
+            return None
+
+        try:
+            from .follow.follower_runtime import get_follow_destination_xy
+
+            anchor_xy = get_follow_destination_xy(self.cached_data)
+        except Exception:
+            anchor_xy = None
+
+        if anchor_xy is not None:
+            return (float(anchor_xy[0]), float(anchor_xy[1]))
+
+        flag_x = float(getattr(options.FlagPos, 'x', 0.0))
+        flag_y = float(getattr(options.FlagPos, 'y', 0.0))
+        if abs(flag_x) > 0.001 or abs(flag_y) > 0.001:
+            return (flag_x, flag_y)
+        return None
+
+    def _is_guarding_flag_anchor(self) -> bool:
+        return self._get_guard_anchor_xy() is not None
+
+    def _is_target_within_guard_anchor_range(self, target_id: int, max_range: float = float(Range.Spirit.value)) -> bool:
+        if target_id == 0 or not Agent.IsValid(target_id):
+            return False
+
+        anchor_xy = self._get_guard_anchor_xy()
+        if anchor_xy is None:
+            return True
+
+        try:
+            target_xy = Agent.GetXY(target_id)
+        except Exception:
+            return False
+        return float(Utils.Distance(anchor_xy, target_xy)) <= float(max_range)
+
     def get_combat_distance(self) -> float:
+        if self._is_guarding_flag_anchor():
+            return float(Range.Spirit.value)
         if self.cached_data is not None:
             return self.cached_data.GetActiveScanRange()
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
@@ -700,6 +754,7 @@ class CombatClass:
             and Agent.IsLiving(party_target)
             and not Agent.IsDead(party_target)
             and not self._is_blacklisted_enemy_target(party_target)
+            and self._is_target_within_guard_anchor_range(party_target)
         ):
             preferred_enemy_target = party_target
 
@@ -1537,6 +1592,13 @@ class CombatClass:
         if skill_type in VOW_SPELL_TYPES and Routines.Checks.Effects.HasBuff(player_id, 1517):
             self.in_casting_routine = False
             return False, 0
+        if skill_type == SkillType.Shout.value:
+            if (
+                self.HasEffect(player_id, self.vocal_minority)
+                or self.HasEffect(player_id, self.well_of_silence)
+            ):
+                self.in_casting_routine = False
+                return False, 0
 
         # Check if there is enough energy
         current_hp = Agent.GetHealth(Player.GetAgentID())
@@ -1631,6 +1693,11 @@ class CombatClass:
         ):
             self.in_casting_routine = False
             return False, v_target
+
+        if skill_id in (self.blood_is_power, self.blood_ritual):
+            if self.HasEffect(v_target, self.blood_is_power) or self.HasEffect(v_target, self.blood_ritual):
+                self.in_casting_routine = False
+                return False, v_target
 
         # Check if the skill has the required conditions
         if not self.AreCastConditionsMet(slot, v_target):
@@ -1778,6 +1845,8 @@ class CombatClass:
             if not self.IsSkillReady(slot):
                 continue
 
+            skill_id = self.skills[slot].skill_id
+
             if ooc and not self.IsOOCSkill(slot):
                 continue
 
@@ -1809,23 +1878,25 @@ class CombatClass:
         Returns True if alcohol was used, False otherwise.
         """
         try:
+            now_ms = int(Utils.GetBaseTimestamp())
             target_drunk_level = 2
             drunk_level = self.GetDrunkLevel()
             Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
 
             if drunk_level >= target_drunk_level:
+                self._next_alcohol_recheck_ms = 0
                 Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
                 return False
 
-            drinks_needed = target_drunk_level - drunk_level
+            if now_ms < self._next_alcohol_recheck_ms:
+                return False
+
+            drinks_needed = 2 if drunk_level <= 0 else max(0, target_drunk_level - drunk_level)
             drinks_used = 0
 
             while drinks_needed > 0:
                 item_used = False
-                if drinks_needed == 1:
-                    candidate_model_ids = ALCOHOL_L1_MODEL_IDS + ALCOHOL_L3_MODEL_IDS
-                else:
-                    candidate_model_ids = ALCOHOL_L3_MODEL_IDS + ALCOHOL_L1_MODEL_IDS
+                candidate_model_ids = ALCOHOL_L1_MODEL_IDS + ALCOHOL_L3_MODEL_IDS
 
                 for alcohol_model_id in candidate_model_ids:
                     if GLOBAL_CACHE.Inventory.GetModelCount(alcohol_model_id) <= 0:
@@ -1836,7 +1907,7 @@ class CombatClass:
                     Py4GW.Console.Log("HeroAI", f"Using alcohol item_id {item_id}", Py4GW.Console.MessageType.Info)
                     GLOBAL_CACHE.Inventory.UseItem(item_id)
                     drinks_used += 1
-                    drinks_needed -= 3 if alcohol_model_id in ALCOHOL_L3_MODEL_IDS else 1
+                    drinks_needed -= 1
                     item_used = True
                     break
 
@@ -1844,12 +1915,20 @@ class CombatClass:
                     break
 
             if drinks_used > 0:
+                self._next_alcohol_recheck_ms = now_ms + ALCOHOL_RECHECK_DELAY_MS
                 return True
 
+            self._next_alcohol_recheck_ms = 0
             Py4GW.Console.Log("HeroAI", "No alcohol found in inventory", Py4GW.Console.MessageType.Debug)
         except Exception as e:
             Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
         return False
+
+    def IsAlcoholTopoffPending(self) -> bool:
+        try:
+            return int(Utils.GetBaseTimestamp()) < int(self._next_alcohol_recheck_ms)
+        except Exception:
+            return False
 
     def _skill_lock_enabled(self, skill: SkillData) -> bool:
         custom_skill = getattr(skill, "custom_skill_data", None)
@@ -1946,19 +2025,15 @@ class CombatClass:
             self.ResetSkillPointer()
             return self.HandleAutoAttack(cached_data) if not ooc else False
 
-        self.SetSkillPointer(slot)
         skill_id = self.skills[slot].skill_id
+        self.SetSkillPointer(slot)
         
-        # Auto-use alcohol before alcohol-dependent PVE skills for optimal effect
-        if skill_id in self.alcohol_skills:
-            #Py4GW.Console.Log("HeroAI", f"Detected alcohol-dependent skill, checking for alcohol...", Py4GW.Console.MessageType.Info)
-            self.UseAlcoholIfAvailable()
-            
         self.in_casting_routine = True
         self.aftercast = 250
         skill = self.skills[slot]
         if skill.custom_skill_data.Nature == SkillNature.Resurrection.value:
             self.aftercast = 500
+            
 
         if self._skill_lock_is_blocked(skill):
             self.ResetSkillPointer()
@@ -1967,6 +2042,26 @@ class CombatClass:
         self.aftercast_timer.Reset()
         self._apply_spike_lock(skill, target_agent_id)
         self._skill_lock_post(skill)
+
+        if skill_id in self.alcohol_skills:
+            drunk_level = self.GetDrunkLevel()
+            if drunk_level <= 1:
+                if self.UseAlcoholIfAvailable():
+                    self.ResetSkillPointer()
+                    return False
+
+                if self.IsAlcoholTopoffPending():
+                    self.ResetSkillPointer()
+                    return False
+
+                Py4GW.Console.Log(
+                    "HeroAI",
+                    f"Skipping alcohol skill {skill_id}: drunk level {drunk_level} is below 2 and no alcohol was consumed",
+                    Py4GW.Console.MessageType.Debug,
+                )
+                self.ResetSkillPointer()
+                return False
+
         GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)
         self.ResetSkillPointer()
         return True

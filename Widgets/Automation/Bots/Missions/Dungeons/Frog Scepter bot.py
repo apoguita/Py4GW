@@ -34,7 +34,6 @@ MODULE_TAGS = ["Frog Scepter", "BOG", "Frog", "Asura", "Drawf", "Rep"]
 WIDGETS_TO_ENABLE: tuple[str, ...] = (
     "HeroAI",
     "LootManager",
-    "ResurrectionScroll",
     "Return to outpost on defeat",
 )
 WIDGETS_TO_DISABLE: tuple[str, ...] = ()
