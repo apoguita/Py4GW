@@ -38,11 +38,11 @@ class Ether_Renewal_Bonder(BuildMgr):
             required_secondary=Profession.Monk,
             template_code="OgNTw4284hkAA0iAA6xBpWQLA",
             required_skills=[
-                Life_Attunement_ID,
                 Ether_Renewal_ID,
                 Aura_of_Restoration_ID,
             ],
             optional_skills=[
+                Life_Attunement_ID,
                 Protective_Bond_ID,
                 Infuse_Health_ID,
                 Breath_of_the_Great_Dwarf_ID,
