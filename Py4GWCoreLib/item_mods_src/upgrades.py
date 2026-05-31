@@ -154,8 +154,8 @@ def _humanize_identifier(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", " ", name).strip()
 
 def _get_property_factory():
-    from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
-    return get_property_factory()
+    from Py4GWCoreLib.item_mods_src.upgrade_parser import UpgradeParser
+    return UpgradeParser.get_property_factory()
 
 @dataclass(eq=False)
 class Upgrade:
@@ -435,18 +435,7 @@ class Upgrade:
     
     #region Encoded String Generation
     def get_text_color(self, name : bool = False) -> bytes:
-        match self.rarity:
-            case Rarity.Blue | Rarity.White:
-                return GWEncoded.ITEM_ENHANCE if name else GWEncoded.ITEM_BONUS
-            
-            case Rarity.Purple:
-                return GWEncoded.ITEM_UNCOMMON
-            
-            case Rarity.Gold:
-                return GWEncoded.ITEM_RARE
-            
-            case Rarity.Green:
-                return GWEncoded.ITEM_UNIQUE
+        return GWStringEncoded.get_rarity_bytes(self.rarity, name)
             
     def create_upgrade_name(self, item_type: ItemType) -> GWStringEncoded:
         encoded_name = self.create_encoded_name()

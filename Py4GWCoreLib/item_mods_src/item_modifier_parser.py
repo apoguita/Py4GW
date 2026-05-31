@@ -24,12 +24,12 @@ class ItemModifierParser:
 
     def _build_properties(self):
         from Py4GWCoreLib.item_mods_src.upgrades import _INHERENT_UPGRADES
-        from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
+        from Py4GWCoreLib.item_mods_src.upgrade_parser import UpgradeParser
         handled_modifiers : list[DecodedModifier] = []    
         
         try:
             for mod in self.modifiers:
-                factory = get_property_factory().get(mod.identifier)
+                factory = UpgradeParser.get_property_factory().get(mod.identifier)
                 if factory:
                     prop = factory(mod, self.modifiers, self.rarity)
                         
