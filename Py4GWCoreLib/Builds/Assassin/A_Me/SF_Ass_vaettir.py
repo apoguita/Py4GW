@@ -81,9 +81,18 @@ class SF_Ass_vaettir(BuildMgr):
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
             if (yield from self._CastSkillID(self.deadly_paradox,extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=100)):
                 ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
-            if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1750)):
+            if (yield from self._CastSkillID(self.shadow_form, extra_condition=(has_deadly_paradox), log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
+            if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1750)):
+                ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
                 
+    def UpkeepShroudOfDistress(self, low_upkeep_threshold: int = 3000):
+        player_agent_id = Player.GetAgentID()
+        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) > low_upkeep_threshold
+        if not has_shroud_of_distress:
+            if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1750)):
+                ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
+
     def CastShroudOfDistress(self):
         player_agent_id = Player.GetAgentID()
         if Agent.GetHealth(player_agent_id) < 0.45:
@@ -138,13 +147,17 @@ class SF_Ass_vaettir(BuildMgr):
             
             
     def ProcessSkillCasting(self):
-        def GetNotHexedEnemy():
+        def GetWastrelsTarget():
             player_pos = Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
             for enemy in enemy_array:
                 if Agent.IsDead(enemy):
                     continue
+                
                 if Agent.IsHexed(enemy):
+                    continue
+                
+                if not Agent.IsEnchanted(enemy):
                     continue
                 return enemy
 
@@ -152,6 +165,8 @@ class SF_Ass_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
+        low_upkeep_threshold = 3000
+        
         if not Map.GetMapID() == Map.GetMapIDByName("Jaga Moraine"):
             from Py4GWCoreLib import AgentArray
             from Py4GWCoreLib.enums import AgentModelID
@@ -163,7 +178,12 @@ class SF_Ass_vaettir(BuildMgr):
                     
             if Routines.Checks.Agents.InDanger(Range.Earshot):
                 yield from self.DefensiveActions()
+                
+            if Routines.Checks.Agents.InDanger(2000):
+                yield from self.UpkeepShroudOfDistress(low_upkeep_threshold)
+                
             yield from Routines.Yield.wait(1000)
+            
             return
 
         if Agent.IsDead(Player.GetAgentID()):
@@ -181,6 +201,8 @@ class SF_Ass_vaettir(BuildMgr):
         player_agent_id = Player.GetAgentID()
         has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_form)
         shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shadow_form) if has_shadow_form else 0
+        has_shadow_form = has_shadow_form and shadow_form_buff_time_remaining > 1500
+        
 
         if Routines.Checks.Agents.InDanger(Range.Spellcast):
             has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
@@ -188,27 +210,29 @@ class SF_Ass_vaettir(BuildMgr):
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 if (yield from self._CastSkillID(self.deadly_paradox, extra_condition=(not has_deadly_paradox), log=False, aftercast_delay=200)):
                     ConsoleLog(self.build_name, "Casting Deadly Paradox.", Py4GW.Console.MessageType.Info, log=False)
+                    
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 if (yield from self._CastSkillID(self.shadow_form, log=False, aftercast_delay=1950)):
                     ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                     return
 
-        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress)
+        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) > low_upkeep_threshold
         if not has_shroud_of_distress:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
             if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1950)):
                 return
 
-        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id, self.channeling)
+        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id, self.channeling) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.channeling) > low_upkeep_threshold
         if not has_channeling:
             ConsoleLog(self.build_name, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=False)
             if (yield from self._CastSkillID(self.channeling, log=False, aftercast_delay=1850)):
                 return
 
-        if (yield from self._CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000)):
-            ConsoleLog(self.build_name, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=False)
-            return
+        if has_shadow_form:
+            if (yield from self._CastSkillID(self.way_of_perfection, log=False, aftercast_delay=1000)):
+                ConsoleLog(self.build_name, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=False)
+                return
 
         if not self.in_killing_routine or Agent.GetHealth(player_agent_id) < 0.05:
             health = Agent.GetHealth(player_agent_id)
@@ -249,7 +273,7 @@ class SF_Ass_vaettir(BuildMgr):
 
         if self.in_killing_routine and has_shadow_form and has_shroud_of_distress and has_channeling:
             both_ready = Routines.Checks.Skills.IsSkillSlotReady(self.wastrels_demise_slot) and Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot)
-            target = GetNotHexedEnemy()
+            target = GetWastrelsTarget()
             if target and shadow_form_buff_time_remaining >= 5000:
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 Player.ChangeTarget(target)
@@ -261,7 +285,7 @@ class SF_Ass_vaettir(BuildMgr):
                         Player.Interact(target, False)
                         ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
 
-            target = GetNotHexedEnemy()
+            target = GetWastrelsTarget()
             if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot):
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 Player.ChangeTarget(target)
