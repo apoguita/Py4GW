@@ -12,6 +12,7 @@ from .native_src.context.AgentContext import AgentStruct
 class AgentArray:
     #region Agent
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetAgentArray")
     def GetAgentArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
         from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
@@ -30,6 +31,7 @@ class AgentArray:
     
     #region Ally
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetAllyArray")
     def GetAllyArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
         from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
@@ -47,6 +49,7 @@ class AgentArray:
     
     #region Neutral
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetNeutralArray")
     def GetNeutralArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by neutrals."""
         from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
@@ -63,6 +66,7 @@ class AgentArray:
     
     #region Enemy
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetEnemyArray")
     def GetEnemyArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by enemies."""
         from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
@@ -79,6 +83,7 @@ class AgentArray:
 
     #region SpiritPet
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetSpiritPetArray")
     def GetSpiritPetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by spirit & pets."""
         from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
@@ -96,6 +101,7 @@ class AgentArray:
     
     #region Minion
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetMinionArray")
     def GetMinionArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by minions."""
         
@@ -113,6 +119,7 @@ class AgentArray:
     
     #region NPCMinipet
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetNPCMinipetArray")
     def GetNPCMinipetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by NPC & minipets."""
         
@@ -130,6 +137,7 @@ class AgentArray:
     
     #region Item
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetItemArray")
     def GetItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre-filtered by items."""
         
@@ -147,6 +155,7 @@ class AgentArray:
     
     #region OwnedItem
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetOwnedItemArray")
     def GetOwnedItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by owned items."""
         
@@ -165,6 +174,7 @@ class AgentArray:
 
     #region Gadget
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetGadgetArray")
     def GetGadgetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by gadgets."""
         
@@ -183,6 +193,7 @@ class AgentArray:
     
     #region DeadAlly
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetDeadAllyArray")
     def GetDeadAllyArray() -> list[int]:
         """Purpose: Retrieve the dead ally agent array."""
         
@@ -202,6 +213,7 @@ class AgentArray:
     
     #region DeadEnemy
     @staticmethod
+    @frame_cache(category="AgentArray", source_lib="GetDeadEnemyArray")
     def GetDeadEnemyArray() -> list[int]:
         """Purpose: Retrieve the dead enemy agent array."""
         
@@ -217,7 +229,7 @@ class AgentArray:
         agent_array = agent_array_ctx.GetDeadEnemyArray()
         return agent_array
     
-    @staticmethod
+    @staticmethod    
     def GetAgentByID(agent_id: int) -> AgentStruct | None:
         """Purpose: Get an agent by its AgentID."""
         from .native_src.context.AgentContext import AgentArray as AgentArrayContext

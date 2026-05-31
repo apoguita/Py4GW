@@ -1,6 +1,8 @@
 from typing import List, Optional, Tuple
 
 import PyAgent
+
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
 from .native_src.internals.helpers import encoded_wstr_to_str
@@ -332,6 +334,7 @@ class Agent:
         return living.model_state 
 
     @staticmethod
+    @frame_cache(category="Agent", source_lib="GetModelID")
     def GetModelID(agent_id : int) -> int:
         """Retrieve the model of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -418,6 +421,7 @@ class Agent:
         return living.owner
 
     @staticmethod
+    @frame_cache(category="Agent", source_lib="GetXY")
     def GetXY(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the X and Y coordinates of an agent.
