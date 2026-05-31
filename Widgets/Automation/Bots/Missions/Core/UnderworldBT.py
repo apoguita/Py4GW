@@ -3234,15 +3234,16 @@ def _build_priority_target_service() -> _BT:
 
     Port of UnderworldV2 ``BuildPriorityTargetService`` / ``CallPriorityTarget``.
     Uses HeroAI ``CallTarget`` on the party leader via ``_party_call_or_change_target``.
-    Matches enemies by model ID only (no GetNameByID — TextParser crash on dying agents).
+    Priority lookup is name-based (GetNameByID, already called for blacklist checks).
+    ModelData is too sparse for UW enemies and is not used here.
     """
-    priority_by_model = _build_uw_priority_model_map()
+    priority_map: dict[str, int] = {name.strip().lower(): idx for idx, name in enumerate(UW_TARGET_PRIORITY)}
     sentinel_priority = len(UW_TARGET_PRIORITY)
     range_sq = float(_UW_PRIORITY_TARGET_RANGE) * float(_UW_PRIORITY_TARGET_RANGE)
     state: dict = {'last_call_ms': 0.0, 'last_scan_ms': 0.0}
 
-    def _agent_priority_from_model(model_id: int) -> int:
-        return priority_by_model.get(int(model_id), -1)
+    def _agent_priority(agent_name: str) -> int:
+        return priority_map.get(agent_name, -1) if agent_name else -1
 
     def _blacklist_names_snapshot() -> frozenset[str]:
         try:
@@ -3285,7 +3286,6 @@ def _build_priority_target_service() -> _BT:
         px, py = float(player_pos[0]), float(player_pos[1])
         best_agent_id = 0
         best_priority = sentinel_priority
-        best_model_id = 0
         try:
             enemy_ids = list(_AgentArray.GetEnemyArray() or [])
         except Exception:
@@ -3296,14 +3296,13 @@ def _build_priority_target_service() -> _BT:
                 agent_id = int(raw_agent_id)
                 if not Agent.IsAlive(agent_id):
                     continue
-                model_id = int(Agent.GetModelID(agent_id))
                 try:
                     agent_name = (Agent.GetNameByID(agent_id) or '').strip().lower()
                 except Exception:
                     agent_name = ''
                 if agent_name and agent_name in blacklist_names:
                     continue
-                prio = _agent_priority_from_model(model_id)
+                prio = _agent_priority(agent_name)
                 if prio == -1 or prio >= best_priority:
                     continue
                 ax, ay = Agent.GetXY(agent_id)
@@ -3314,7 +3313,6 @@ def _build_priority_target_service() -> _BT:
                 continue
             best_priority = prio
             best_agent_id = agent_id
-            best_model_id = model_id
 
         if best_agent_id == 0:
             return _BT.NodeState.RUNNING
@@ -3326,10 +3324,9 @@ def _build_priority_target_service() -> _BT:
         if current_target_id != 0:
             current_prio = sentinel_priority
             try:
-                current_model_id = int(Agent.GetModelID(current_target_id))
                 current_target_name = (Agent.GetNameByID(current_target_id) or '').strip().lower()
                 if not (current_target_name and current_target_name in blacklist_names):
-                    current_prio = _agent_priority_from_model(current_model_id)
+                    current_prio = _agent_priority(current_target_name)
                     if current_prio == -1:
                         current_prio = sentinel_priority
             except Exception:
