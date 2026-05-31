@@ -1,6 +1,8 @@
 import PyParty
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar, c_uint8
+
+from Py4GWCoreLib.enums_src.GameData_enums import Profession
 from ..internals.types import Vec2f
 from ..internals.gw_array import GW_Array, GW_Array_Value_View, GW_Array_View
 from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
@@ -32,6 +34,13 @@ class HeroPartyMember(Structure):
         ("level", c_uint32),             # +0x14
     ]  
     
+    agent_id: int
+    owner_player_id: int
+    hero_id: int
+    level: int
+    # primary: "Profession"
+    # secondary: "Profession"
+    
 class HenchmanPartyMember(Structure):
     _pack_ = 1
     _fields_ = [
@@ -40,6 +49,10 @@ class HenchmanPartyMember(Structure):
         ("profession", c_uint32),       # +0x2C
         ("level", c_uint32),             # +0x30
     ]
+    
+    agent_id: int
+    profession: "Profession"
+    level: int
 
 
 class PartyInfoStruct(Structure):
