@@ -29,6 +29,7 @@ class FollowExecutionState:
     last_recovery_follow_command_ms: int = 0
     recovery_detour_attempted: bool = False
     pet_recovery_notified: bool = False
+    relocating_to_flag: bool = False
     stuck: SmartUnstuckState = field(default_factory=SmartUnstuckState)
 
 
@@ -54,11 +55,13 @@ def get_follow_destination_xy(cached_data: CacheData) -> tuple[float, float] | N
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
 
     published_follow_xy = (float(options.FollowPos.x), float(options.FollowPos.y))
+    flag_xy = (float(options.FlagPos.x), float(options.FlagPos.y))
+    is_flagged = bool(getattr(options, "IsFlagged", False))
     if _is_nonzero_xy(*published_follow_xy):
         return published_follow_xy
 
-    if bool(getattr(options, "IsFlagged", False)) and _is_nonzero_xy(float(options.FlagPos.x), float(options.FlagPos.y)):
-        return (float(options.FlagPos.x), float(options.FlagPos.y))
+    if is_flagged and _is_nonzero_xy(*flag_xy):
+        return flag_xy
 
     return None
 
@@ -151,6 +154,7 @@ def execute_follower_follow(
         state.last_follow_assigned_point = None
         state.last_recovery_follow_command_ms = 0
         state.recovery_detour_attempted = False
+        state.relocating_to_flag = False
         reset_smart_unstuck(state.stuck)
 
     def _account_map_signature(account) -> tuple[int, int, int, int, int] | None:
@@ -304,6 +308,14 @@ def execute_follower_follow(
         state.last_follow_move_point = None
     state.last_follow_assigned_point = assigned_point
 
+    # A flag re-position (assigned point moved) takes priority over combat: the
+    # follower must walk to the new flag even mid-fight. Latch a relocation
+    # state that is cleared once the follower arrives, so it keeps moving across
+    # ticks instead of re-yielding to local aggro after the one-tick
+    # assigned_changed pulse.
+    if (own_flag_active or all_flag_active) and assigned_changed:
+        state.relocating_to_flag = True
+
     # Upstream "follow recovery": when the follower is far from its destination,
     # tighten the tolerance to FOLLOW_RECOVERY_RELEASE_DISTANCE so it keeps
     # closing the gap instead of stopping at the normal slot threshold.
@@ -314,10 +326,35 @@ def execute_follower_follow(
     # radius of Adjacent so followers that have reached the flag can fight.
     if (own_flag_active or all_flag_active) and effective_follow_distance < float(Range.Adjacent.value):
         effective_follow_distance = float(Range.Adjacent.value)
-    if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= effective_follow_distance:
+    dist_to_follow = Utils.Distance((follow_x, follow_y), Player.GetXY())
+    if dist_to_follow <= effective_follow_distance:
         state.last_recovery_follow_command_ms = 0
         state.recovery_detour_attempted = False
+        state.relocating_to_flag = False
         reset_smart_unstuck(state.stuck)
+        return BehaviorTree.NodeState.FAILURE
+
+    # Flagged followers: yield to HandleCombat only while there are enemies in
+    # range of THIS follower (local aggro), not party-wide aggro. Holding
+    # position makes Follow win the selector, which both blocks combat AND
+    # leaves the follower idle once the engine move is interrupted by aggro.
+    # Gating on local aggro (instead of the party-driven `in_aggro`) lets a
+    # follower with no nearby enemies walk back to its flag even while the rest
+    # of the party fights elsewhere. While relocating to a freshly moved flag,
+    # do NOT yield — the flag move must win over combat. Recovery (dist >=
+    # Spirit) is handled below and also takes priority over fighting.
+    if (
+        (own_flag_active or all_flag_active)
+        and bool(cached_data.data.local_in_aggro)
+        and not recovery_active
+        and not state.relocating_to_flag
+    ):
+        # Drop the cached move point so that once combat ends the arrival/move
+        # path below re-issues Player.Move toward the flag instead of skipping
+        # it via the "already moved here" dedup — otherwise a follower that
+        # chased an enemy away stays put after combat instead of returning.
+        state.last_follow_move_point = None
+        cached_data.follow_throttle_timer.Reset()
         return BehaviorTree.NodeState.FAILURE
 
     if follow_z == 0 and not own_flag_active:
@@ -340,6 +377,17 @@ def execute_follower_follow(
         return follow_active_state
 
     if recovery_active:
+        if own_flag_active or all_flag_active:
+            # Flagged followers have a fixed world destination (the flag), so
+            # recover by walking straight to it. The detour/engine-follow
+            # recovery below is meant for leader-following; for the flag case it
+            # never issues a move command, leaving a far-flagged follower
+            # standing still even when the leader is far away.
+            if ActionQueueManager().IsEmpty("ACTION"):
+                Player.Move(follow_x, follow_y)
+                state.last_follow_move_point = (follow_x, follow_y)
+            cached_data.follow_throttle_timer.Reset()
+            return follow_active_state
         if not state.recovery_detour_attempted:
             force_front_detour(
                 state.stuck,
@@ -349,9 +397,6 @@ def execute_follower_follow(
             )
             state.recovery_detour_attempted = True
             state.last_recovery_follow_command_ms = 0
-            cached_data.follow_throttle_timer.Reset()
-            return follow_active_state
-        if own_flag_active or all_flag_active:
             cached_data.follow_throttle_timer.Reset()
             return follow_active_state
         now_ms = int(Utils.GetBaseTimestamp())
