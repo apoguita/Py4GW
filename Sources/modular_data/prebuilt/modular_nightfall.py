@@ -1,19 +1,10 @@
-"""
-modular_nightfall module
-
-This module is part of the modular runtime surface.
-"""
+"""Nightfall campaign BT recipe runner."""
 from __future__ import annotations
 
-from typing import Optional
-
-from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib.enums_src.Title_enums import TITLE_TIERS, TitleID
-from Py4GWCoreLib.modular import ModularBot
-from Py4GWCoreLib.modular.phase import Phase
-from Py4GWCoreLib.modular.recipes.modular_block import (
-    build_modular_block_phase,
-)
+from Py4GWCoreLib.modular import BTRecipeRunner
+from Py4GWCoreLib.modular import RecipeSpec
+from Py4GWCoreLib.modular import specs_from_campaign_rows
 
 
 SUNSPEAR_REPEAT_FARM_KEY = "sunspear/yohlon_insects"
@@ -89,148 +80,18 @@ SUNSPEAR_POINTS_REQUIRED = int(TITLE_TIERS[int(TitleID.Sunspear)][SUNSPEAR_RANK_
 
 
 class NightfallCampaignOptions:
-    """
-    N ig ht fa ll Ca mp ai gn Op ti on s class.
-    
-    Meta:
-      Expose: true
-      Audience: advanced
-      Display: Nightfall Campaign Options
-      Purpose: Provide explicit modular runtime behavior and metadata.
-      UserDescription: Internal class used by modular orchestration and step execution.
-      Notes: Keep behavior explicit and side effects contained.
-    """
     def __init__(
         self,
         *,
         start_phase_index: int = 0,
         loop: bool = False,
-        team_selection: str = "priority",
-        debug_logging: bool = False,
     ) -> None:
         self.start_phase_index = int(start_phase_index)
         self.loop = bool(loop)
-        mode = str(team_selection or "priority").strip().lower()
-        if mode not in ("priority", "exact", "henchman"):
-            mode = "priority"
-        self.team_selection = mode
-        self.debug_logging = bool(debug_logging)
 
 
-def _nightfall_load_party_overrides(team_selection: str) -> dict:
-    mode = str(team_selection or "priority").strip().lower()
-    if mode == "exact":
-        return {"team_mode": "exact", "fill_with_henchmen": False}
-    if mode == "henchman":
-        return {"team_mode": "henchman", "fill_with_henchmen": True}
-    # priority (default): use priority list first, then fill missing slots with henchmen.
-    return {"hero_team": "priority", "fill_with_henchmen": True}
-
-
-def build_nightfall_campaign_phases(team_selection: str = "priority") -> list:
-    from Py4GWCoreLib import Player
-    load_party_overrides = _nightfall_load_party_overrides(team_selection)
-
-    def _sunspear_points() -> int:
-        try:
-            title = Player.GetTitle(int(TitleID.Sunspear))
-            return int(getattr(title, "current_points", 0) or 0) if title is not None else 0
-        except Exception:
-            return 0
-
-    def _repeat_phase_by_name(bot, phase_name: str) -> bool:
-        owner = getattr(bot, "_modular_owner", None)
-        if owner is not None and hasattr(owner, "restart_from_phase"):
-            try:
-                if owner.restart_from_phase(phase_name, reason="Sunspear gate repeat"):
-                    if bool(getattr(owner, "is_debug_logging_enabled", lambda: False)()):
-                        ConsoleLog("NightfallCampaign", f"Sunspear gate: repeating phase {phase_name!r}.")
-                    return True
-            except Exception:
-                pass
-        return False
-
-    def _farm_phase_with_sunspear_gate(farm_key: str, phase_name: str, party_overrides: dict):
-        def _gate(bot):
-            owner = getattr(bot, "_modular_owner", None)
-            debug_enabled = bool(getattr(owner, "is_debug_logging_enabled", lambda: False)())
-            points = _sunspear_points()
-            if points >= SUNSPEAR_POINTS_REQUIRED:
-                if debug_enabled:
-                    ConsoleLog(
-                        "NightfallCampaign",
-                        f"Sunspear gate passed ({points}/{SUNSPEAR_POINTS_REQUIRED}). Continuing campaign.",
-                    )
-                return
-            if debug_enabled:
-                ConsoleLog(
-                    "NightfallCampaign",
-                    f"Sunspear gate not met ({points}/{SUNSPEAR_POINTS_REQUIRED}). Repeating farm phase.",
-                )
-            if not _repeat_phase_by_name(bot, phase_name):
-                if debug_enabled:
-                    ConsoleLog(
-                        "NightfallCampaign",
-                        f"Sunspear gate could not find header for {phase_name!r}; continuing without repeat.",
-                    )
-
-        return build_modular_block_phase(
-            farm_key,
-            name=phase_name,
-            kind="farms",
-            recipe_name="Farm",
-            anchor=True,
-            load_party_overrides=party_overrides,
-            post_run_hook=_gate,
-            post_run_name=f"{phase_name}: Sunspear Rank Gate",
-        )
-
-    def _farm_phase_without_gate(farm_key: str, phase_name: str, party_overrides: dict):
-        return build_modular_block_phase(
-            farm_key,
-            name=phase_name,
-            kind="farms",
-            recipe_name="Farm",
-            anchor=True,
-            load_party_overrides=party_overrides,
-        )
-
-    def _mission_phase(mission_key: str, phase_name: str, party_overrides: dict):
-        return build_modular_block_phase(
-            mission_key,
-            name=phase_name,
-            kind="missions",
-            recipe_name="Mission",
-            anchor=True,
-            load_party_overrides=party_overrides,
-        )
-
-    def _quest_phase(quest_key: str, phase_name: str, party_overrides: dict):
-        return build_modular_block_phase(
-            quest_key,
-            name=phase_name,
-            kind="quests",
-            recipe_name="Quest",
-            anchor=True,
-            load_party_overrides=party_overrides,
-        )
-
-    phases: list[Phase] = []
-    for idx, spec in enumerate(NIGHTFALL_PHASE_SPECS):
-        kind = spec[KIND_IDX]
-        key = spec[KEY_IDX]
-        title = spec[TITLE_IDX]
-        phase_name = f"{idx + 1:02d}. {kind.title()}: {title}"
-        if kind == "mission":
-            phases.append(_mission_phase(key, phase_name, load_party_overrides))
-        elif kind == "farm":
-            if key == SUNSPEAR_REPEAT_FARM_KEY:
-                phases.append(_farm_phase_with_sunspear_gate(key, phase_name, load_party_overrides))
-            else:
-                phases.append(_farm_phase_without_gate(key, phase_name, load_party_overrides))
-        else:
-            phases.append(_quest_phase(key, phase_name, load_party_overrides))
-    return phases
+def build_nightfall_campaign_specs() -> list[RecipeSpec]:
+    return specs_from_campaign_rows(NIGHTFALL_PHASE_SPECS)
 
 
 def derive_nightfall_region_spans(
@@ -255,42 +116,25 @@ def derive_nightfall_region_spans(
 NIGHTFALL_REGION_SPANS = derive_nightfall_region_spans()
 
 
-def apply_nightfall_start_index(phases: list[Phase], start_index: int) -> int:
-    if not phases:
+def apply_nightfall_start_index(specs: list[RecipeSpec], start_index: int) -> int:
+    if not specs:
         return 0
-    return max(0, min(int(start_index), len(phases) - 1))
+    return max(0, min(int(start_index), len(specs) - 1))
 
 
 def create_nightfall_campaign_bot(
     *,
     options: NightfallCampaignOptions | None = None,
-    main_ui=None,
-    settings_ui=None,
-    help_ui=None,
     name: str = "Modular Nightfall",
-) -> ModularBot:
+    debug_hook=None,
+) -> BTRecipeRunner:
     opts = options or NightfallCampaignOptions()
-    all_phases = build_nightfall_campaign_phases(opts.team_selection)
-    clamped_start = apply_nightfall_start_index(all_phases, opts.start_phase_index)
-    phases = all_phases[clamped_start:] if all_phases else []
-
-    restart_target: Optional[str] = phases[0].name if phases else None
-
-    return ModularBot(
+    specs = build_nightfall_campaign_specs()
+    clamped_start = apply_nightfall_start_index(specs, opts.start_phase_index)
+    return BTRecipeRunner(
         name=name,
-        phases=phases,
+        specs=specs,
+        start_index=clamped_start,
         loop=bool(opts.loop),
-        # Modular Nightfall is locked to HeroAI runtime behavior.
-        template="multibox_aggressive_no_inventory",
-        on_party_wipe=restart_target,
-        # Nightfall flow should only recover on true party wipe.
-        # Player-only deaths can be resurrected in-place without phase rewind.
-        on_death=None,
-        main_ui=main_ui,
-        settings_ui=settings_ui,
-        help_ui=help_ui,
-        upkeep_hero_ai_active=True,
-        manage_auto_inventory_management=False,
-        enforce_local_native_engine=False,
-        debug_logging=bool(opts.debug_logging),
+        debug_hook=debug_hook,
     )

@@ -1,22 +1,21 @@
 {
   "name": "Defend da forge",
   "steps": [
-    {"type": "dialog_multibox", "name": "Start Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA01"},
-    {"type": "dialog_multibox", "name": "Start Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA01"},
-    {"type": "emote", "command": "stuck"},
-    {"type": "auto_path", "name": "Clear North", "points": [[1853, 2303], [1412, -884]]},
-    {"type": "auto_path", "name": "clear South", "points": [[1755, -2670], [1922, -2937]]},
-    {"type": "auto_path", "name": "To ForgeMaster", "points": [[1840, -179]], "ms": 2000},
-    {"type": "dialog_multibox", "name": "Reward Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA07"},
-    {"type": "dialog_multibox", "name": "Reward Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA07"},
-    {"type": "emote", "command": "stuck"},
-    {"type": "dialog_multibox", "name": "Start Khobay", "npc": "ETERNAL_FORGEMASTER", "id": ["0x80E003", "0x80E001"]},
-    {"type": "dialog_multibox", "name": "Start Restore", "npc": "ETERNAL_FORGEMASTER", "id": ["0x80CF03", "0x80CF01"]},
-    {"type": "emote", "command": "stuck"},
-    {"type": "interact_gadget", "target": "CHEST", "repeat": 2},
-    {"type": "auto_path", "name": "To Taeras", "points": [[265, -1966]]},
-    {"type": "dialog_multibox", "name": "Start ToS", "npc": "ETERNAL_LORD_TAERES", "id": "0x80D301"},
-    {"type": "dialog_multibox", "name": "Start ToS", "npc": "ETERNAL_LORD_TAERES", "id": "0x80D301"}
+    {"type": "interact", "name": "Start Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA01", "action": "dialog", "target": "npc"},
+    {"type": "interact", "name": "Start Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA01", "action": "dialog", "target": "npc"},
+    {"type": "wait", "command": "stuck", "action": "emote"},
+    {"type": "route", "name": "Clear North", "points": [[1853, 2303], [1412, -884]], "mode": "kill"},
+    {"type": "route", "name": "clear South", "points": [[1755, -2670], [1922, -2937]], "mode": "kill"},
+    {"type": "route", "name": "To ForgeMaster", "points": [[1840, -179]], "ms": 2000, "mode": "kill"},
+    {"type": "interact", "name": "Reward Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA07", "action": "dialog", "target": "npc"},
+    {"type": "interact", "name": "Reward Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA07", "action": "dialog", "target": "npc"},
+    {"type": "wait", "command": "stuck", "action": "emote"},
+    {"type": "interact", "name": "Start Khobay", "npc": "ETERNAL_FORGEMASTER", "id": ["0x80E003", "0x80E001"], "action": "dialog", "target": "npc"},
+    {"type": "interact", "name": "Start Restore", "npc": "ETERNAL_FORGEMASTER", "id": ["0x80CF03", "0x80CF01"], "action": "dialog", "target": "npc"},
+    {"type": "wait", "command": "stuck", "action": "emote"},
+    {"type": "interact", "target": "gadget", "repeat": 2, "selector": "CHEST"},
+    {"type": "route", "name": "To Taeras", "points": [[265, -1966]], "mode": "kill"},
+    {"type": "interact", "name": "Start ToS", "npc": "ETERNAL_LORD_TAERES", "id": "0x80D301", "action": "dialog", "target": "npc"},
+    {"type": "interact", "name": "Start ToS", "npc": "ETERNAL_LORD_TAERES", "id": "0x80D301", "action": "dialog", "target": "npc"}
   ]
 }
-

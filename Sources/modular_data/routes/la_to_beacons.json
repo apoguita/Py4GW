@@ -1,17 +1,16 @@
-﻿{
+{
   "name": "Lion's Arch to Beacons Perch",
   "steps": [
-    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 55},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 6, "team": "party_6"},
-    {"type": "exit_map", "name": "Leave Lion's Arch", "point": [292, 12443], "target_map_id": 58},
-    {"type": "auto_path", "name": "North Kryta to Scoundrel's Rise", "points": [[6202, -18031], [11673, -10051], [14864, 11661], [19275, 10826], [20300, 11377]]},
-    {"type": "wait_map_load", "map_id": 54},
-    {"type": "auto_path", "name": "Scoundrel's Rise to Griffon's Mouth", "points": [[-7232, 8380], [-1379, 7598], [3519, 6648], [7437, 7633], [7624, 8200]]},
-    {"type": "wait_map_load", "map_id": 27},
-    {"type": "auto_path", "name": "Griffon's Mouth to Deldrimor Bowl", "points": [[-7077, -6441], [-2283, -2144], [-1020, 4597], [3813, 7841], [7514, 7308], [7683, 7958]]},
-    {"type": "wait_map_load", "map_id": 100},
-    {"type": "auto_path", "name": "Deldrimor Bowl to Beacons", "points": [[-13556, -22347], [-6928, -19974], [2527, -20407], [10051, -14518], [15587, -17156], [13671, -22583], [13906, -23051]]},
-    {"type": "wait_map_load", "map_id": 133}
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 55, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "name": "Leave Lion's Arch", "point": [292, 12443], "target_map_id": 58, "mode": "exit"},
+    {"type": "route", "name": "North Kryta to Scoundrel's Rise", "points": [[6202, -18031], [11673, -10051], [14864, 11661], [19275, 10826], [20300, 11377]], "mode": "kill"},
+    {"type": "map", "map_id": 54, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Scoundrel's Rise to Griffon's Mouth", "points": [[-7232, 8380], [-1379, 7598], [3519, 6648], [7437, 7633], [7624, 8200]], "mode": "kill"},
+    {"type": "map", "map_id": 27, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Griffon's Mouth to Deldrimor Bowl", "points": [[-7077, -6441], [-2283, -2144], [-1020, 4597], [3813, 7841], [7514, 7308], [7683, 7958]], "mode": "kill"},
+    {"type": "map", "map_id": 100, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Deldrimor Bowl to Beacons", "points": [[-13556, -22347], [-6928, -19974], [2527, -20407], [10051, -14518], [15587, -17156], [13671, -22583], [13906, -23051]], "mode": "kill"},
+    {"type": "map", "map_id": 133, "action": "wait_for_map_load"}
   ]
 }
-

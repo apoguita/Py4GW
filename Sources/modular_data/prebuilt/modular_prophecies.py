@@ -1,15 +1,9 @@
-"""
-modular_prophecies module
-
-This module is part of the modular runtime surface.
-"""
+"""Prophecies campaign BT recipe runner."""
 from __future__ import annotations
 
-from typing import Optional
-
-from Py4GWCoreLib.modular import ModularBot
-from Py4GWCoreLib.modular.phase import Phase
-from Py4GWCoreLib.modular.recipes import Mission, Quest, Route
+from Py4GWCoreLib.modular import BTRecipeRunner
+from Py4GWCoreLib.modular import RecipeSpec
+from Py4GWCoreLib.modular import specs_from_campaign_rows
 
 
 # tuple format: (region, kind, key, title)
@@ -59,45 +53,18 @@ TITLE_IDX = 3
 
 
 class PropheciesCampaignOptions:
-    """
-    P ro ph ec ie sC am pa ig nO pt io ns class.
-    
-    Meta:
-      Expose: true
-      Audience: advanced
-      Display: Prophecies Campaign Options
-      Purpose: Provide explicit modular runtime behavior and metadata.
-      UserDescription: Internal class used by modular orchestration and step execution.
-      Notes: Keep behavior explicit and side effects contained.
-    """
     def __init__(
         self,
         *,
         start_phase_index: int = 0,
         loop: bool = False,
-        template: str = "multibox_aggressive_no_inventory",
-        debug_logging: bool = False,
     ) -> None:
         self.start_phase_index = int(start_phase_index)
         self.loop = bool(loop)
-        self.template = str(template)
-        self.debug_logging = bool(debug_logging)
 
 
-def build_prophecies_campaign_phases() -> list[Phase]:
-    phases: list[Phase] = []
-    for idx, spec in enumerate(PROPHECIES_PHASE_SPECS):
-        kind = spec[KIND_IDX]
-        key = spec[KEY_IDX]
-        title = spec[TITLE_IDX]
-        phase_name = f"{idx + 1:02d}. {kind.title()}: {title}"
-        if kind == "mission":
-            phases.append(Mission(key, phase_name, anchor=True))
-        elif kind == "quest":
-            phases.append(Quest(key, phase_name, anchor=True))
-        else:
-            phases.append(Route(key, phase_name, anchor=True))
-    return phases
+def build_prophecies_campaign_specs() -> list[RecipeSpec]:
+    return specs_from_campaign_rows(PROPHECIES_PHASE_SPECS)
 
 
 def derive_prophecies_region_spans(
@@ -122,37 +89,25 @@ def derive_prophecies_region_spans(
 PROPHECIES_REGION_SPANS = derive_prophecies_region_spans()
 
 
-def apply_prophecies_start_index(phases: list[Phase], start_index: int) -> int:
-    if not phases:
+def apply_prophecies_start_index(specs: list[RecipeSpec], start_index: int) -> int:
+    if not specs:
         return 0
-    return max(0, min(int(start_index), len(phases) - 1))
+    return max(0, min(int(start_index), len(specs) - 1))
 
 
 def create_prophecies_campaign_bot(
     *,
     options: PropheciesCampaignOptions | None = None,
-    main_ui=None,
-    settings_ui=None,
-    help_ui=None,
     name: str = "Modular Prophecies",
-) -> ModularBot:
+    debug_hook=None,
+) -> BTRecipeRunner:
     opts = options or PropheciesCampaignOptions()
-    all_phases = build_prophecies_campaign_phases()
-    clamped_start = apply_prophecies_start_index(all_phases, opts.start_phase_index)
-    phases = all_phases[clamped_start:] if all_phases else []
-
-    restart_target: Optional[str] = phases[0].name if phases else None
-
-    return ModularBot(
+    specs = build_prophecies_campaign_specs()
+    clamped_start = apply_prophecies_start_index(specs, opts.start_phase_index)
+    return BTRecipeRunner(
         name=name,
-        phases=phases,
+        specs=specs,
+        start_index=clamped_start,
         loop=bool(opts.loop),
-        template=str(opts.template or "multibox_aggressive_no_inventory"),
-        on_party_wipe=restart_target,
-        on_death=restart_target,
-        main_ui=main_ui,
-        settings_ui=settings_ui,
-        help_ui=help_ui,
-        manage_auto_inventory_management=False,
-        debug_logging=bool(opts.debug_logging),
+        debug_hook=debug_hook,
     )

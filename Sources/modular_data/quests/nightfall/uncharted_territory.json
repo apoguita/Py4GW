@@ -1,21 +1,20 @@
-﻿{
+{
   "name": "Uncharted Territory",
   "required_hero": ["Dunkoro"],
   "steps": [
-    {"type": "travel", "name": "Travel to Gate of Torment", "target_map_id": 450},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Dunkoro"]},
-    {"type": "auto_path", "name": "To Pehai", "points": [[-972, 8443]]},
-    {"type": "dialog", "id": "0x82BD01", "npc": "PEHAI", "name": "Dialog - Pehai"},
-    {"type": "auto_path", "name": "To Exit", "points": [[-8124, 12271]]},
-    {"type": "exit_map", "name": "Leave Gate of Torment", "point": [-7849, 13854], "target_map_id": 465},
-    {"type": "auto_path", "name": "To Kormir", "points": [[-2475, -14276]]},
-    {"type": "dialog", "id": "0x82BD04", "npc": "KORMIR", "name": "Dialog - Kormir"},
-    {"type": "auto_path", "name": "to rez shrine", "points": [[3241, -1519]]},
-    {"type": "set_anchor", "phase": "Shrine"},
-    {"type": "auto_path", "name": "To Tortured Sunspear", "points": [[19690, 16090]]},
-    {"type": "dialog", "id": "0x85", "npc": "TORTURED_SUNSPEAR", "name": "Dialog - Tortured Sunspear"},
-    {"type": "wait_for_map_load", "map_id": 494},
-    {"type": "dialog", "id": "0x82BD07", "npc": "JARINDOK", "name": "Dialog - Jarindok"}
+    {"type": "map", "name": "Travel to Gate of Torment", "target_map_id": 450, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "required_hero": ["Dunkoro"], "action": "load"},
+    {"type": "route", "name": "To Pehai", "points": [[-972, 8443]], "mode": "kill"},
+    {"type": "interact", "id": "0x82BD01", "npc": "PEHAI", "name": "Dialog - Pehai", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[-8124, 12271]], "mode": "kill"},
+    {"type": "route", "name": "Leave Gate of Torment", "point": [-7849, 13854], "target_map_id": 465, "mode": "exit"},
+    {"type": "route", "name": "To Kormir", "points": [[-2475, -14276]], "mode": "kill"},
+    {"type": "interact", "id": "0x82BD04", "npc": "KORMIR", "name": "Dialog - Kormir", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "to rez shrine", "points": [[3241, -1519]], "mode": "kill"},
+    {"type": "wait", "ms": 0, "name": "Set Anchor: Shrine", "action": "wait", "anchor": true},
+    {"type": "route", "name": "To Tortured Sunspear", "points": [[19690, 16090]], "mode": "kill"},
+    {"type": "interact", "id": "0x85", "npc": "TORTURED_SUNSPEAR", "name": "Dialog - Tortured Sunspear", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 494, "action": "wait_for_map_load"},
+    {"type": "interact", "id": "0x82BD07", "npc": "JARINDOK", "name": "Dialog - Jarindok", "action": "dialog", "target": "npc"}
   ]
 }
-

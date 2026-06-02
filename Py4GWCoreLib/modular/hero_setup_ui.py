@@ -5,43 +5,25 @@ import PyImGui
 
 from .hero_setup_model import (
     DEFAULT_HERO_PRIORITY,
-    DEFAULT_HERO_TEAMS,
-    HERO_ID_TO_INDEX,
     HERO_ID_TO_NAME,
-    HERO_IDS,
-    HERO_LABELS,
-    HERO_TEMPLATE_IDS,
-    TEAM_LABELS,
-    TEAM_SLOT_COUNTS,
     load_hero_priority,
-    load_hero_teams,
-    load_hero_templates,
     normalize_priority,
-    normalize_teams,
-    normalize_templates,
     save_hero_priority,
-    save_hero_teams,
-    save_hero_templates,
 )
 
 
-_ui_teams: dict[str, list[int]] = {}
-_ui_templates: dict[str, str] = {}
 _ui_priority: list[int] = []
 _ui_loaded = False
 _ui_status = ""
 _ui_setup_visible_by_id: dict[str, bool] = {}
-_ui_active_section_by_id: dict[str, str] = {}
 _ui_priority_drag_from: int | None = None
 _ui_priority_drag_to: int | None = None
 
 
 def _ensure_loaded() -> None:
-    global _ui_teams, _ui_templates, _ui_priority, _ui_loaded
+    global _ui_priority, _ui_loaded
     if _ui_loaded:
         return
-    _ui_teams = load_hero_teams()
-    _ui_templates = load_hero_templates()
     _ui_priority = load_hero_priority()
     _ui_loaded = True
 
@@ -160,58 +142,8 @@ def draw_priority_tab() -> None:
         PyImGui.end_child()
 
 
-def draw_exact_tab() -> None:
-    global _ui_teams, _ui_status
-    _ensure_loaded()
-    PyImGui.text("Exact Team Setup")
-    PyImGui.text("Set exact hero IDs for static team profiles. Use 0 to leave a slot empty.")
-
-    for team_key in TEAM_SLOT_COUNTS:
-        PyImGui.separator()
-        PyImGui.text(TEAM_LABELS[team_key])
-        _ui_teams.setdefault(team_key, list(DEFAULT_HERO_TEAMS[team_key]))
-        slots = TEAM_SLOT_COUNTS[team_key]
-        while len(_ui_teams[team_key]) < slots:
-            _ui_teams[team_key].append(0)
-        for idx in range(slots):
-            selected = HERO_ID_TO_INDEX.get(int(_ui_teams[team_key][idx]), 0)
-            selected = PyImGui.combo(f"Hero {idx + 1}##{team_key}_{idx}", selected, HERO_LABELS)
-            selected = max(0, min(selected, len(HERO_IDS) - 1))
-            _ui_teams[team_key][idx] = int(HERO_IDS[selected])
-
-    PyImGui.separator()
-    if PyImGui.button("Save Exact Setup"):
-        save_hero_teams(_ui_teams)
-        _ui_status = "Exact setup saved."
-    if PyImGui.button("Reload Exact Setup"):
-        _ui_teams = load_hero_teams()
-        _ui_status = "Exact setup reloaded."
-    if PyImGui.button("Reset Exact Defaults"):
-        _ui_teams = normalize_teams(DEFAULT_HERO_TEAMS)
-        _ui_status = "Exact setup reset to defaults (not saved yet)."
-    if _ui_status:
-        PyImGui.text(_ui_status)
-
-
-def _draw_templates_tab(ui_id: str = "default") -> None:
-    global _ui_templates
-    _ensure_loaded()
-    PyImGui.text("Hero Templates")
-    PyImGui.text("Set optional template code per hero. Leave empty to skip.")
-    PyImGui.separator()
-    for row_idx, hero_id in enumerate(HERO_TEMPLATE_IDS):
-        color = (0.90, 0.90, 0.90, 1.0) if (row_idx % 2) == 0 else (0.72, 0.86, 0.98, 1.0)
-        hero_name = HERO_ID_TO_NAME.get(int(hero_id), f"Hero {hero_id}")
-        key = str(hero_id)
-        PyImGui.text_colored(f"{hero_name} ({hero_id})", color)
-        PyImGui.same_line(260, 8)
-        _ui_templates[key] = _ui_input_text(f"##hero_template_{ui_id}_{hero_id}", _ui_templates.get(key, ""), 512)
-
-
 def draw_setup_tab() -> None:
     draw_priority_tab()
-    PyImGui.separator()
-    draw_exact_tab()
 
 
 def show_team_configuration_window(ui_id: str = "default") -> None:
@@ -229,7 +161,6 @@ def is_team_configuration_window_visible(ui_id: str = "default") -> bool:
 
 
 def draw_team_configuration_window(ui_id: str = "default", title: str = "Team Configuration") -> None:
-    global _ui_templates, _ui_status
     if not is_team_configuration_window_visible(ui_id):
         return
     _ensure_loaded()
@@ -239,51 +170,17 @@ def draw_team_configuration_window(ui_id: str = "default", title: str = "Team Co
         PyImGui.end()
         return
 
-    active = str(_ui_active_section_by_id.get(ui_id, "priority") or "priority").strip().lower()
-    if active not in ("priority", "exact", "templates"):
-        active = "priority"
-
     if PyImGui.button(f"Close##team_config_close_top_{ui_id}"):
         _ui_setup_visible_by_id[ui_id] = False
         PyImGui.end()
         return
-    PyImGui.same_line(0, 12)
-    if PyImGui.button(f"Priority##team_config_priority_{ui_id}"):
-        active = "priority"
-    PyImGui.same_line(0, 6)
-    if PyImGui.button(f"Exact##team_config_exact_{ui_id}"):
-        active = "exact"
-    PyImGui.same_line(0, 6)
-    if PyImGui.button(f"Templates##team_config_templates_{ui_id}"):
-        active = "templates"
-    _ui_active_section_by_id[ui_id] = active
     PyImGui.separator()
-
-    if active == "priority":
-        draw_priority_tab()
-    elif active == "exact":
-        draw_exact_tab()
-    else:
-        _draw_templates_tab(ui_id=ui_id)
-        PyImGui.separator()
-        if PyImGui.button(f"Save Templates##{ui_id}"):
-            save_hero_templates(_ui_templates)
-            _ui_status = "Templates saved."
-        PyImGui.same_line(0, -1)
-        if PyImGui.button(f"Reload Templates##{ui_id}"):
-            _ui_templates = load_hero_templates()
-            _ui_status = "Templates reloaded."
-        PyImGui.same_line(0, -1)
-        if PyImGui.button(f"Clear Templates##{ui_id}"):
-            _ui_templates = normalize_templates({})
-            _ui_status = "Templates cleared (not saved yet)."
-        if _ui_status:
-            PyImGui.text(_ui_status)
+    draw_priority_tab()
 
     PyImGui.end()
 
 
-def draw_configure_teams_section(ui_id: str = "default", button_label: str = "Configure Teams") -> None:
+def draw_configure_teams_section(ui_id: str = "default", button_label: str = "Configure Priority") -> None:
     visible = bool(_ui_setup_visible_by_id.get(ui_id, False))
     if PyImGui.button(f"{button_label}##team_setup_btn_{ui_id}"):
         visible = not visible

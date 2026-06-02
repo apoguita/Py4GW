@@ -30,9 +30,9 @@ from Sources.marks_sources.mods_parser import ModDatabase
 from Sources.marks_sources.mods_parser import MatchedRuneInfo
 from Sources.marks_sources.mods_parser import MatchedWeaponModInfo
 from Sources.marks_sources.mods_parser import parse_modifiers
-from Py4GWCoreLib.modular.actions import DEFAULT_NPC_SELECTORS
-from Py4GWCoreLib.modular.actions import SUPPORTED_MAP_NPC_SELECTORS
-from Py4GWCoreLib.modular.actions import resolve_agent_xy_from_step
+from Py4GWCoreLib.modular.selectors import resolve_agent_xy_from_step
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory import DEFAULT_NPC_SELECTORS
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory import SUPPORTED_MAP_NPC_SELECTORS
 
 
 MODULE_NAME = "Merchant Rules"
