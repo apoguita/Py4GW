@@ -22,6 +22,21 @@ def run() -> None:
     assert "PyImGui.text(f'Successful runs: {runtime.completed_runs}')" in source
     assert "PyImGui.text(f'Failed runs: {runtime.failed_runs}')" in source
     assert 'bot.UI.draw_window(icon_path=BOT_TEXTURE, additional_ui=main_window_extra_ui)' in source
+    for borrowed_inventory_marker in (
+        'from Py4GWCoreLib import Inventory',
+        'MIN_FREE_SLOTS',
+        'MERCHANT_RULES_',
+        'upkeep_auto_inventory_management_active',
+        "Properties.Disable('auto_inventory_management')",
+        "'Check Inventory'",
+        'def check_inventory_gate(',
+        'def _get_merchant_rules_widget(',
+        'def run_merchant_rules_checkpoint(',
+        'MerchantRules',
+        'Guild Hall',
+        'Map.TravelGH()',
+    ):
+        assert borrowed_inventory_marker not in source
 
     print('Passed Tower of Courage main-window counter regression check.')
 
