@@ -20,6 +20,7 @@ from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Py4GW
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib.enums import ItemType
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.enums import name_to_map_id
 import PyImGui
@@ -1019,10 +1020,12 @@ def should_pick_up(agent_id: int) -> bool:
         return False
 
     model_id = int(Item.GetModelID(item_id) or 0)
-    is_weapon = bool(Item.Type.IsWeapon(item_id))
+    is_weapon = bool(Item.IsWeapon(item_id))
+    item_type, _ = Item.GetItemType(item_id)
+    is_shield = item_type == ItemType.Shield.value
     _, requirement = Item.Properties.GetRequirement(item_id)
     _, rarity_name = Item.Rarity.GetRarity(item_id)
-    return loot_policy.should_pick_up_item(model_id, is_weapon, int(requirement or 0), rarity_name)
+    return loot_policy.should_pick_up_item(model_id, is_weapon, is_shield, int(requirement or 0), rarity_name)
 
 
 create_bot_routine(bot)
@@ -1056,7 +1059,7 @@ def tooltip():
     PyImGui.text_colored('Ground loot', title_color.to_tuple_normalized())
     PyImGui.bullet_text('Obsidian Shards, Dark Remains, Rubies, Sapphires, and FoW passage scrolls')
     PyImGui.bullet_text('Purple or gold q7 and q8 weapons')
-    PyImGui.bullet_text('q9 Chaos Axes only')
+    PyImGui.bullet_text('Gold q9 shields and Chaos Axes')
     PyImGui.bullet_text('All other drops are left on the ground')
 
     PyImGui.spacing()

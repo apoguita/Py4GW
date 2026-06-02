@@ -16,14 +16,14 @@ ALWAYS_PICK_UP_MODEL_IDS = {
 }
 
 
-def should_pick_up_item(model_id: int, is_weapon: bool, requirement: int, rarity_name: str) -> bool:
+def should_pick_up_item(model_id: int, is_weapon: bool, is_shield: bool, requirement: int, rarity_name: str) -> bool:
     if model_id in ALWAYS_PICK_UP_MODEL_IDS:
         return True
 
-    if not is_weapon:
+    if not is_weapon or rarity_name not in {'Purple', 'Gold'}:
         return False
 
-    if requirement in {7, 8} and rarity_name in {'Purple', 'Gold'}:
+    if requirement in {7, 8}:
         return True
 
-    return model_id == CHAOS_AXE_MODEL_ID and requirement == 9
+    return rarity_name == 'Gold' and requirement == 9 and (is_shield or model_id == CHAOS_AXE_MODEL_ID)

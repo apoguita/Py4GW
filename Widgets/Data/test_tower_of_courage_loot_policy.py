@@ -28,27 +28,35 @@ from Sources.tower_of_courage.loot_policy import should_pick_up_item
 
 def run() -> None:
     cases = [
-        ('obsidian shard', OBSIDIAN_SHARD_MODEL_ID, False, 0, '', True),
-        ('dark remains', DARK_REMAINS_MODEL_ID, False, 0, '', True),
-        ('ruby', RUBY_MODEL_ID, False, 0, '', True),
-        ('sapphire', SAPPHIRE_MODEL_ID, False, 0, '', True),
-        ('FoW passage scroll', PASSAGE_SCROLL_FOW_MODEL_ID, False, 0, '', True),
-        ('white q7 weapon', 50001, True, 7, 'White', False),
-        ('blue q7 weapon', 50002, True, 7, 'Blue', False),
-        ('purple q7 weapon', 50003, True, 7, 'Purple', True),
-        ('gold q7 weapon', 50004, True, 7, 'Gold', True),
-        ('white q8 weapon', 50005, True, 8, 'White', False),
-        ('blue q8 weapon', 50006, True, 8, 'Blue', False),
-        ('purple q8 weapon', 50007, True, 8, 'Purple', True),
-        ('gold q8 weapon', 50008, True, 8, 'Gold', True),
-        ('white q9 Chaos Axe', CHAOS_AXE_MODEL_ID, True, 9, 'White', True),
-        ('generic q9 weapon', 50009, True, 9, 'Gold', False),
-        ('q10 Chaos Axe', CHAOS_AXE_MODEL_ID, True, 10, 'Gold', False),
-        ('unrelated material', 929, False, 0, '', False),
+        ('obsidian shard', OBSIDIAN_SHARD_MODEL_ID, False, False, 0, '', True),
+        ('dark remains', DARK_REMAINS_MODEL_ID, False, False, 0, '', True),
+        ('ruby', RUBY_MODEL_ID, False, False, 0, '', True),
+        ('sapphire', SAPPHIRE_MODEL_ID, False, False, 0, '', True),
+        ('FoW passage scroll', PASSAGE_SCROLL_FOW_MODEL_ID, False, False, 0, '', True),
+        ('white q7 weapon', 50001, True, False, 7, 'White', False),
+        ('blue q7 weapon', 50002, True, False, 7, 'Blue', False),
+        ('purple q7 weapon', 50003, True, False, 7, 'Purple', True),
+        ('gold q7 weapon', 50004, True, False, 7, 'Gold', True),
+        ('white q8 weapon', 50005, True, False, 8, 'White', False),
+        ('blue q8 weapon', 50006, True, False, 8, 'Blue', False),
+        ('purple q8 weapon', 50007, True, False, 8, 'Purple', True),
+        ('gold q8 weapon', 50008, True, False, 8, 'Gold', True),
+        ('white q9 Chaos Axe', CHAOS_AXE_MODEL_ID, True, False, 9, 'White', False),
+        ('blue q9 Chaos Axe', CHAOS_AXE_MODEL_ID, True, False, 9, 'Blue', False),
+        ('purple q9 Chaos Axe', CHAOS_AXE_MODEL_ID, True, False, 9, 'Purple', False),
+        ('gold q9 Chaos Axe', CHAOS_AXE_MODEL_ID, True, False, 9, 'Gold', True),
+        ('white q9 shield', 50009, True, True, 9, 'White', False),
+        ('blue q9 shield', 50010, True, True, 9, 'Blue', False),
+        ('purple q9 shield', 50011, True, True, 9, 'Purple', False),
+        ('gold q9 shield', 50012, True, True, 9, 'Gold', True),
+        ('generic gold q9 weapon', 50013, True, False, 9, 'Gold', False),
+        ('gold q10 Chaos Axe', CHAOS_AXE_MODEL_ID, True, False, 10, 'Gold', False),
+        ('gold q10 shield', 50014, True, True, 10, 'Gold', False),
+        ('unrelated material', 929, False, False, 0, '', False),
     ]
 
-    for name, model_id, is_weapon, requirement, rarity_name, expected in cases:
-        actual = should_pick_up_item(model_id, is_weapon, requirement, rarity_name)
+    for name, model_id, is_weapon, is_shield, requirement, rarity_name, expected in cases:
+        actual = should_pick_up_item(model_id, is_weapon, is_shield, requirement, rarity_name)
         assert actual is expected, f'{name}: expected {expected}, got {actual}'
 
     farmer_source = FARMER_PATH.read_text(encoding='utf-8')
