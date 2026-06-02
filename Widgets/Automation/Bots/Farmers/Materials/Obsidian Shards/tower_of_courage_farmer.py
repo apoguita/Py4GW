@@ -11,6 +11,7 @@ from Py4GWCoreLib import Botting
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Inventory
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import Map
 from Py4GWCoreLib import Party
@@ -86,6 +87,7 @@ RANGER_KILL_PATH = [
 ]
 RANGER_LOOT_COORD = (-14506.0, -2633.0)
 
+MIN_FREE_SLOTS = 5
 MOVE_TOLERANCE = 125.0
 MOVEMENT_TIMEOUT_MS = 30000
 MAP_LOAD_TIMEOUT_MS = 30000
@@ -105,6 +107,11 @@ LOOT_COMPLETION_TIMEOUT_MS = 8000
 LOOT_CLEAR_POLLS_REQUIRED = 2
 LOOT_RANGE = 2500.0
 KILL_CONFIRM_RANGE = Range.Earshot.value
+MERCHANT_RULES_GH_TIMEOUT_MS = 60000
+MERCHANT_RULES_EXECUTE_TIMEOUT_MS = 180000
+MERCHANT_RULES_POLL_MS = 500
+
+
 class FarmRuntime:
     def __init__(self) -> None:
         self.completed_runs = 0
@@ -253,6 +260,7 @@ bot = Botting(
     custom_build=build,
     config_movement_timeout=MOVEMENT_TIMEOUT_MS,
     config_movement_tolerance=MOVE_TOLERANCE,
+    upkeep_auto_inventory_management_active=False,
     upkeep_auto_loot_active=False,
 )
 
@@ -262,6 +270,7 @@ def initialize_bot(bot_instance: Botting) -> None:
     bot_instance.Events.OnPartyWipeCallback(lambda: on_party_wipe(bot_instance))
     bot_instance.Events.OnPartyDefeatedCallback(lambda: on_party_defeated(bot_instance))
     bot_instance.States.AddHeader('Initialize Bot')
+    bot_instance.Properties.Disable('auto_inventory_management')
     bot_instance.Properties.Disable('auto_loot')
     bot_instance.Properties.Disable('hero_ai')
     bot_instance.Properties.Enable('build_ticker')
@@ -274,6 +283,7 @@ def create_bot_routine(bot_instance: Botting) -> None:
 
     bot_instance.States.AddHeader('Main Loop')
     bot_instance.States.AddCustomState(lambda: ensure_temple(bot_instance), 'Ensure Temple')
+    bot_instance.States.AddCustomState(lambda: check_inventory_gate(bot_instance), 'Check Inventory')
 
     bot_instance.States.AddHeader('Prepare Run')
     bot_instance.States.AddCustomState(lambda: load_skillbar(bot_instance), 'Load Skillbar')
@@ -411,11 +421,93 @@ def ensure_temple(bot_instance: Botting):
     yield from recover_to_temple(resign_if_alive=True)
 
 
+def check_inventory_gate(bot_instance: Botting):
+    if Inventory.GetFreeSlotCount() >= MIN_FREE_SLOTS:
+        yield
+        return
+
+    yield from run_merchant_rules_checkpoint(bot_instance)
+
+
+def _get_merchant_rules_widget():
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+        widget_handler = get_widget_handler()
+        for widget_name in ('MerchantRules', 'Merchant Rules'):
+            widget_info = widget_handler.get_widget_info(widget_name)
+            if not widget_info or not getattr(widget_info, 'module', None):
+                continue
+            instance = getattr(widget_info.module, 'WIDGET_INSTANCE', None)
+            if instance is not None:
+                return instance
+    except Exception:
+        pass
+    return None
+
+
 def stop_safely(bot_instance: Botting, reason: str) -> None:
     runtime.stop_reason = reason
     build.EnableUpkeep(False)
     ConsoleLog(BOT_NAME, reason, Py4GW.Console.MessageType.Error)
     bot_instance.Stop()
+
+
+def run_merchant_rules_checkpoint(bot_instance: Botting):
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+    build.EnableUpkeep(False)
+    yield from recover_to_temple(resign_if_alive=True)
+
+    widget_handler = get_widget_handler()
+    if not widget_handler.is_widget_enabled('MerchantRules'):
+        widget_handler.enable_widget('MerchantRules')
+        yield from Routines.Yield.wait(1000)
+
+    ConsoleLog(BOT_NAME, 'Traveling to Guild Hall for MerchantRules checkpoint.', Py4GW.Console.MessageType.Info)
+    Map.TravelGH()
+    if not (
+        yield from wait_for_condition(
+            lambda: Map.IsMapReady() and Map.IsGuildHall(),
+            timeout_ms=MERCHANT_RULES_GH_TIMEOUT_MS,
+            step_ms=MERCHANT_RULES_POLL_MS,
+        )
+    ):
+        stop_safely(bot_instance, 'MerchantRules checkpoint stopped: Guild Hall travel timed out.')
+        return
+
+    widget = _get_merchant_rules_widget()
+    if widget is None:
+        stop_safely(bot_instance, 'MerchantRules checkpoint stopped: MerchantRules widget was not found.')
+        return
+
+    ConsoleLog(BOT_NAME, 'Starting MerchantRules Execute Here.', Py4GW.Console.MessageType.Info)
+    widget._queue_execute_here()
+    yield from Routines.Yield.wait(MERCHANT_RULES_POLL_MS)
+
+    elapsed = 0
+    while widget.execution_running and elapsed < MERCHANT_RULES_EXECUTE_TIMEOUT_MS:
+        yield from Routines.Yield.wait(MERCHANT_RULES_POLL_MS)
+        elapsed += MERCHANT_RULES_POLL_MS
+
+    if widget.execution_running:
+        stop_safely(bot_instance, 'MerchantRules checkpoint stopped: execution timed out.')
+        return
+
+    if widget.last_error:
+        stop_safely(bot_instance, f'MerchantRules checkpoint stopped: {widget.last_error}')
+        return
+
+    if Inventory.GetFreeSlotCount() < MIN_FREE_SLOTS:
+        stop_safely(bot_instance, f'MerchantRules checkpoint stopped: fewer than {MIN_FREE_SLOTS} free slots remain.')
+        return
+
+    ConsoleLog(BOT_NAME, 'MerchantRules checkpoint completed.', Py4GW.Console.MessageType.Success)
+    yield from Routines.Yield.Map.TravelToOutpost(
+        TEMPLE_OF_THE_AGES,
+        log=True,
+        timeout=MAP_LOAD_TIMEOUT_MS,
+    )
 
 
 def load_skillbar(bot_instance: Botting):
@@ -957,6 +1049,7 @@ def tooltip():
     PyImGui.text_colored('Requirements', title_color.to_tuple_normalized())
     PyImGui.bullet_text('Primary / Secondary: Ranger / Assassin (R/A)')
     PyImGui.bullet_text(f'Skill template: {SKILL_TEMPLATE}')
+    PyImGui.bullet_text('MerchantRules configured to retain materials and protect q7/q8/q9 candidates')
     PyImGui.bullet_text('Recommended: enchanted armor, enchanting weapon, piercing shield, rank 5+ PvE titles')
 
     PyImGui.spacing()
@@ -969,6 +1062,8 @@ def tooltip():
     PyImGui.spacing()
     PyImGui.text_colored('Recovery', title_color.to_tuple_normalized())
     PyImGui.bullet_text('Returns to Temple after each run or recoverable failure')
+    PyImGui.bullet_text(f'Runs MerchantRules in Guild Hall below {MIN_FREE_SLOTS} free inventory slots')
+    PyImGui.bullet_text('Stops safely in Guild Hall when the inventory checkpoint fails')
 
 
 bot.UI.override_draw_help(tooltip)
