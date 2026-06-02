@@ -15,6 +15,7 @@ FARMER_PATH = (
 
 def run() -> None:
     source = FARMER_PATH.read_text(encoding='utf-8')
+    assert "MODULE_ICON = 'Textures\\\\Module_Icons\\\\Tower of Courage Obsidian Shard Farmer.png'" in source
     assert 'def main_window_extra_ui() -> None:' in source
     assert "PyImGui.text('Run statistics')" in source
     assert "PyImGui.text(f'Successful runs: {runtime.completed_runs}')" in source

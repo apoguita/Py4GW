@@ -28,6 +28,7 @@ from Sources.tower_of_courage import loot_policy
 loot_policy = importlib.reload(loot_policy)
 
 BOT_NAME = 'Tower of Courage Obsidian Shard Farmer'
+MODULE_ICON = 'Textures\\Module_Icons\\Tower of Courage Obsidian Shard Farmer.png'
 
 TEMPLE_OF_THE_AGES = name_to_map_id['Temple of the Ages']
 FISSURE_OF_WOE = name_to_map_id['The Fissure of Woe']
