@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import Agent
@@ -29,6 +30,7 @@ loot_policy = importlib.reload(loot_policy)
 
 BOT_NAME = 'Tower of Courage Obsidian Shard Farmer'
 MODULE_ICON = 'Textures\\Module_Icons\\Tower of Courage Obsidian Shard Farmer.png'
+BOT_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON)
 
 TEMPLE_OF_THE_AGES = name_to_map_id['Temple of the Ages']
 FISSURE_OF_WOE = name_to_map_id['The Fissure of Woe']
@@ -1077,7 +1079,7 @@ def main():
     advance_failure_recovery(bot)
     run_failure_watchdog(bot)
     bot.Update()
-    bot.UI.draw_window(additional_ui=main_window_extra_ui)
+    bot.UI.draw_window(icon_path=BOT_TEXTURE, additional_ui=main_window_extra_ui)
 
 
 if __name__ == '__main__':

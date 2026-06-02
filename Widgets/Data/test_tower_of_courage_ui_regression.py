@@ -16,11 +16,12 @@ FARMER_PATH = (
 def run() -> None:
     source = FARMER_PATH.read_text(encoding='utf-8')
     assert "MODULE_ICON = 'Textures\\\\Module_Icons\\\\Tower of Courage Obsidian Shard Farmer.png'" in source
+    assert 'BOT_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON)' in source
     assert 'def main_window_extra_ui() -> None:' in source
     assert "PyImGui.text('Run statistics')" in source
     assert "PyImGui.text(f'Successful runs: {runtime.completed_runs}')" in source
     assert "PyImGui.text(f'Failed runs: {runtime.failed_runs}')" in source
-    assert 'bot.UI.draw_window(additional_ui=main_window_extra_ui)' in source
+    assert 'bot.UI.draw_window(icon_path=BOT_TEXTURE, additional_ui=main_window_extra_ui)' in source
 
     print('Passed Tower of Courage main-window counter regression check.')
 
