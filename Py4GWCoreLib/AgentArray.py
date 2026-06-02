@@ -217,7 +217,7 @@ class AgentArray:
         agent_array = agent_array_ctx.GetDeadEnemyArray()
         return agent_array
     
-    @staticmethod
+    @staticmethod    
     def GetAgentByID(agent_id: int) -> AgentStruct | None:
         """Purpose: Get an agent by its AgentID."""
         from .native_src.context.AgentContext import AgentArray as AgentArrayContext
