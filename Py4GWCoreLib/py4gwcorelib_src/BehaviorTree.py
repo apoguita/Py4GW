@@ -2020,6 +2020,27 @@ class BehaviorTree:
     def __init__(self, root: Node):
         self.root: BehaviorTree.Node = root
         self.blackboard = {} # Shared data storage for the tree
+
+    def _ensure_blackboard_data(self) -> None:
+        """
+        Best-effort population of common runtime context that callers expect to exist.
+        Add new shared blackboard values here as they become tree-level guarantees.
+        """
+        if not isinstance(self.blackboard, dict):
+            return
+
+        try:
+            from Py4GWCoreLib.Agent import Agent
+            from Py4GWCoreLib.Player import Player
+
+            player_agent_id = Player.GetAgentID()
+            if player_agent_id:
+                primary_name, secondary_name = Agent.GetProfessionNames(player_agent_id)
+                self.blackboard["player_primary_profession_name"] = primary_name
+                self.blackboard["player_secondary_profession_name"] = secondary_name
+        except Exception:
+            # Blackboard seeding must never break tree execution.
+            return
         
     def _propagate_blackboard(self, node: "BehaviorTree.Node"):
         """
@@ -2034,6 +2055,7 @@ class BehaviorTree:
         """
         Ticks the root node once and returns its resulting NodeState.
         """
+        self._ensure_blackboard_data()
         self._propagate_blackboard(self.root)
         result = self.Node._normalize_state(self.root.tick())
         if result is None:

@@ -449,13 +449,7 @@ class FollowFormationPublisher:
     def _ensure_cached_navmesh_is_sane(self, leader_x: float, leader_y: float) -> bool:
         navmesh = self.state.cached_navmesh
         if navmesh is not None:
-            try:
-                if navmesh.contains(leader_x, leader_y, self.tuning.navmesh_recovery_contains_margin):
-                    self.state.navmesh_recovery_attempts = 0
-                    return True
-            except Exception:
-                self.state.cached_navmesh = None
-                navmesh = None
+            return True
 
         navmesh = _get_navmesh()
         if navmesh is None:
@@ -742,6 +736,8 @@ class FollowFormationPublisher:
     def publish(self, force: bool = False) -> None:
         account_email = Player.GetAccountEmail()
         if not account_email:
+            return
+        if Party.GetPartySize() <= 1:
             return
 
         all_accounts: AllAccounts = self.shared_memory_manager.GetAllAccounts()

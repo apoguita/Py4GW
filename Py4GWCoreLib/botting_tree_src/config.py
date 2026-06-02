@@ -269,14 +269,16 @@ class _BottingTreeConfig:
     def ConfigureUpkeep(
         self,
         *,
-        disable_looting: bool = False,
+        looting_enabled: bool = True,
         resurrection_scroll: bool = False,
         restore_isolation_on_stop: bool = True,
+        auto_inventory_handler_enabled: bool | None = None,
+        restore_auto_inventory_handler_on_stop: bool = True,
+        activate_widget_list: list[str] | tuple[str, ...] | None = None,
+        deactivate_widget_list: list[str] | tuple[str, ...] | None = None,
+        restore_widget_states_on_stop: bool = True,
         enable_outpost_imp_service: bool = False,
         enable_explorable_imp_service: bool = False,
-        imp_target_bag: int = 1,
-        imp_slot: int = 0,
-        imp_log: bool = False,
         consumable_upkeeps: list[int] | tuple[int, ...] | None = None,
         enable_party_wipe_recovery: bool = True,
         party_wipe_default_step_name: str | None = None,
@@ -286,10 +288,10 @@ class _BottingTreeConfig:
     ) -> 'BottingTree':
         upkeep_steps: list[tuple[str, object]] = []
 
-        if disable_looting:
-            self.parent.DisableLooting()
-        else:
+        if looting_enabled:
             self.parent.EnableLooting()
+        else:
+            self.parent.DisableLooting()
 
         if resurrection_scroll:
             self.parent.EnableResurrectionScroll()
@@ -301,16 +303,21 @@ class _BottingTreeConfig:
             enabled=heroai_state_logging,
             interval_ms=heroai_state_log_interval_ms,
         )
+        self.parent.ConfigureAutoInventoryHandler(
+            auto_inventory_handler_enabled,
+            restore_on_stop=restore_auto_inventory_handler_on_stop,
+        )
+        self.parent.ConfigureWidgets(
+            activate_widget_list=activate_widget_list,
+            deactivate_widget_list=deactivate_widget_list,
+            restore_on_stop=restore_widget_states_on_stop,
+        )
 
         if enable_outpost_imp_service:
             upkeep_steps.append(
                 (
                     'OutpostImpService',
-                    lambda: RoutinesBT.Upkeepers.OutpostImpService(
-                        target_bag=imp_target_bag,
-                        slot=imp_slot,
-                        log=imp_log,
-                    ),
+                    lambda: RoutinesBT.Upkeepers.OutpostImpService(),
                 )
             )
 
@@ -318,9 +325,7 @@ class _BottingTreeConfig:
             upkeep_steps.append(
                 (
                     'ExplorableImpService',
-                    lambda: RoutinesBT.Upkeepers.ExplorableImpService(
-                        log=imp_log,
-                    ),
+                    lambda: RoutinesBT.Upkeepers.ExplorableImpService(),
                 )
             )
 
@@ -343,14 +348,16 @@ class _BottingTreeConfig:
     def ConfigureUpkeepNode(
         self,
         *,
-        disable_looting: bool = True,
+        looting_enabled: bool = False,
         resurrection_scroll: bool = False,
         restore_isolation_on_stop: bool = True,
+        auto_inventory_handler_enabled: bool | None = None,
+        restore_auto_inventory_handler_on_stop: bool = True,
+        activate_widget_list: list[str] | tuple[str, ...] | None = None,
+        deactivate_widget_list: list[str] | tuple[str, ...] | None = None,
+        restore_widget_states_on_stop: bool = True,
         enable_outpost_imp_service: bool = True,
         enable_explorable_imp_service: bool = True,
-        imp_target_bag: int = 1,
-        imp_slot: int = 0,
-        imp_log: bool = False,
         consumable_upkeeps: list[int] | tuple[int, ...] | None = None,
         enable_party_wipe_recovery: bool = True,
         party_wipe_default_step_name: str | None = None,
@@ -361,14 +368,16 @@ class _BottingTreeConfig:
     ) -> BehaviorTree:
         def _configure(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
             self.ConfigureUpkeep(
-                disable_looting=disable_looting,
+                looting_enabled=looting_enabled,
                 resurrection_scroll=resurrection_scroll,
                 restore_isolation_on_stop=restore_isolation_on_stop,
+                auto_inventory_handler_enabled=auto_inventory_handler_enabled,
+                restore_auto_inventory_handler_on_stop=restore_auto_inventory_handler_on_stop,
+                activate_widget_list=activate_widget_list,
+                deactivate_widget_list=deactivate_widget_list,
+                restore_widget_states_on_stop=restore_widget_states_on_stop,
                 enable_outpost_imp_service=enable_outpost_imp_service,
                 enable_explorable_imp_service=enable_explorable_imp_service,
-                imp_target_bag=imp_target_bag,
-                imp_slot=imp_slot,
-                imp_log=imp_log,
                 consumable_upkeeps=consumable_upkeeps,
                 enable_party_wipe_recovery=enable_party_wipe_recovery,
                 party_wipe_default_step_name=party_wipe_default_step_name,

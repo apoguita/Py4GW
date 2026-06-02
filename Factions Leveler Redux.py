@@ -282,17 +282,6 @@ OTHER_MASTER_COORDS_BY_PROFESSION: dict[str, list[PointOrPath]] = {
 
 
 #region helpers
-def _trace_step(name: str, tree: BehaviorTree) -> BehaviorTree:
-    return BT.Sequence(
-            name=f"Trace<{name}>",
-            children=[
-                BT.LogMessage(f"BEGIN: {name}", module_name=MODULE_NAME, print_to_console=True, print_to_blackboard=False),
-                BT.Node(tree),
-                BT.LogMessage(f"OK: {name}", module_name=MODULE_NAME, print_to_console=True, print_to_blackboard=False),
-            ],
-        )
-    
-    
 def Aggressive():
     bot = ensure_botting_tree()
     return bot.Config.Aggressive(auto_loot=LOOTING_ACTIVE)
@@ -327,7 +316,7 @@ def PrepareForBattle() -> BehaviorTree:
     restock_honeycomb_qty = 0# 20
     
     def _add_henchmen_from_blackboard(node: BehaviorTree.Node) -> BehaviorTree:
-        return BT.CreateParty(henchman_ids=node.blackboard["current_map_henchmen"])
+        return BT.CreateParty(henchman_ids=node.blackboard.get("current_map_henchmen", []))
 
     
     restock_list = [
@@ -361,34 +350,27 @@ def Exit_Monastery_Overlook() -> BehaviorTree:
     }
     LUDO_GREETING_COORDS = (-7048,5817)
 
-    def _move_to_profession_coords(node: BehaviorTree.Node) -> BehaviorTree:
-        return BT.Sequence(
-            name="MoveToProfessionCoords",
-            children=[
-                BT.GetValuesByProfession( profession_values=MASTER_COORDS_BY_PROFESSION,target_key="profession_coords",),
-                BT.HandleAutoQuest( pos=node.blackboard["profession_coords"],buttons=[0, 0],)
-            ]
-        )
+    def _handle_profession_autoquest(node: BehaviorTree.Node) -> BehaviorTree:
+        return BT.HandleAutoQuest(pos=node.blackboard.get("profession_coords"), buttons=[0, 0])
           
-    def _equip_starter_weapon_by_profession(node: BehaviorTree.Node) -> BehaviorTree:
-        return BT.Sequence(
-            name="EquipStarterWeaponByProfession",
-                children=[
-                    BT.GetValuesByProfession(
-                    profession_values=STARTER_WEAPON_MODEL_IDS,
-                    target_key="starter_weapon_model_id",
-                ),
-                BT.EquipItemByModelID(node.blackboard["starter_weapon_model_id"])
-            ]
-        )
+    def _equip_starter_weapon_from_blackboard(node: BehaviorTree.Node) -> BehaviorTree:
+        starter_weapon_model_id = node.blackboard.get("starter_weapon_model_id")
+        if starter_weapon_model_id is None:
+            return BT.Failer(name="MissingStarterWeaponModelId")
+        return BT.EquipItemByModelID(starter_weapon_model_id)
 
     return BT.Sequence(
             name="Exit Monastery Overlook",
             children=[
                 BT.HandleAutoQuest(pos=LUDO_GREETING_COORDS, buttons=[0, 0, 1, 0, 0]),
                 BT.WaitForMapLoad(map_id=SHING_JEA_MONASTERY),
-                BT.Subtree(name="MoveToProfessionCoords",subtree_fn=_move_to_profession_coords,),
-                BT.Subtree( name="EquipWeaponByProfession", subtree_fn=_equip_starter_weapon_by_profession,),
+                BT.GetValuesByProfession(profession_values=MASTER_COORDS_BY_PROFESSION, target_key="profession_coords"),
+                BT.Subtree(name="MoveToProfessionCoords", subtree_fn=_handle_profession_autoquest),
+                BT.GetValuesByProfession(
+                    profession_values=STARTER_WEAPON_MODEL_IDS,
+                    target_key="starter_weapon_model_id",
+                ),
+                BT.Subtree(name="EquipWeaponByProfession", subtree_fn=_equip_starter_weapon_from_blackboard),
             ],
         )
     
@@ -1111,12 +1093,14 @@ def BuyAndCraftMonasteryArmor() -> BehaviorTree:
                 BT.MoveAndInteract(ARMOR_CRAFTER_COORDS),
                 BT.CraftItemsByProfession(
                     profession_craft_steps=MONASTERY_ARMOR_CRAFT_BY_PROFESSION,
+                    equip_log=False,
                 ),
                 DestroyTrash(),
                 BT.Travel(TSUMEI_VILLAGE),
                 BT.MoveAndInteract(WEAPON_CRAFTER_COORDS),
                 BT.CraftItemsByProfession(
                     profession_craft_steps=TSUMEI_WEAPON_CRAFT_BY_PROFESSION,
+                    equip_log=False,
                 ),
             ],
         )
@@ -1124,10 +1108,11 @@ def BuyAndCraftMonasteryArmor() -> BehaviorTree:
 
 
 def _talk_with_other_masters(node: BehaviorTree.Node) -> BehaviorTree:
-    master_coords = node.blackboard["other_master_coords"]
+    master_coords = node.blackboard.get("other_master_coords", [])
     
     return BT.Sequence(
         name="Talk With Other Masters",
+        map_id_or_name=SHING_JEA_MONASTERY,
         children=[
             BT.HandleAutoQuest(pos=coords, buttons=[0, 0] if index == 0 else [0, 0, 0])
             for index, coords in enumerate(master_coords)
@@ -1142,7 +1127,7 @@ def Talk_With_Masters() -> BehaviorTree:
 
     def _equip_empty_skillbar(node: BehaviorTree.Node) -> BehaviorTree:
         def _load_empty_skillbar_from_blackboard(inner_node: BehaviorTree.Node) -> BehaviorTree:
-            empty_skillbar = inner_node.blackboard["empty_skillbar"]
+            empty_skillbar = inner_node.blackboard.get("empty_skillbar")
             if empty_skillbar is None:
                 return BT.Succeeder(name="NoEmptySkillbarToEquip")
 
@@ -1167,12 +1152,12 @@ def Talk_With_Masters() -> BehaviorTree:
         map_id_or_name=SHING_JEA_MONASTERY,
         map_prep=PrepareForBattle(),
         children=[
-            BT.Subtree(name="Equip Empty Skillbar", subtree_fn=_equip_empty_skillbar, ),
-            BT.GetValuesByProfession( profession_values=OTHER_MASTER_COORDS_BY_PROFESSION, target_key="other_master_coords",),
-            BT.Subtree( name="Talk With Masters Subtree", subtree_fn=_talk_with_other_masters,),
+            BT.Subtree(name="Equip Empty Skillbar", subtree_fn=_equip_empty_skillbar),
+            BT.GetValuesByProfession(profession_values=OTHER_MASTER_COORDS_BY_PROFESSION, target_key="other_master_coords"),
+            BT.Subtree(name="Talk With Masters Subtree", subtree_fn=_talk_with_other_masters),
             DestroyTrash(),
-            BT.HandleAutoQuest(NEING_THE_TANNER_COORDS), #a blet pouch
-            BT.HandleAutoQuest(CAPTAIN_ZINGHU_COORDS), #appearance of the naga
+            BT.HandleAutoQuest(NEING_THE_TANNER_COORDS),
+            BT.HandleAutoQuest(CAPTAIN_ZINGHU_COORDS),
             PrepareForBattle(),
             BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
         ],
@@ -1218,10 +1203,10 @@ def R_Mo_Me_A_secondaries_and_Appearance_of_the_naga() -> BehaviorTree:
             BT.MoveAndExitMap(FROM_TSUMEI_VILLAGE_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
             BT.MoveAndKill(PATH_TO_NAGA_KILLSPOT), #kill the naga
             BT.MoveAndKill(PATH_TO_WULK), #wulk Cragfist
-            #BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=WULK_ENC_STR, require_quest_marker=False), #revenge of the yeti
-            #BT.FollowModel(WULK_ENC_STR, exit_condition=_escort_complete, exit_by_area=((-13717.04, 7714.01), Range.Earshot.value)),
-            #BT.ClearEnemiesInArea((-13717.04, 7714.01)),
-            #BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=WULK_ENC_STR, require_quest_marker=True), 
+            BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=WULK_ENC_STR, require_quest_marker=False), #revenge of the yeti
+            BT.FollowModel(WULK_ENC_STR, exit_condition=_escort_complete, exit_by_area=((-13717.04, 7714.01), Range.Earshot.value)),
+            BT.ClearEnemiesInArea((-13717.04, 7714.01)),
+            BT.HandleAutoQuest(pos=None, use_npc_model_or_enc_str=WULK_ENC_STR, require_quest_marker=True), 
             BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_KINYA_PROVINCE, target_map_id=KINYA_PROVINCE),
             BT.Move(ZHO_COORDS),
             BT.SkipNodeByProfession("Ranger", RangerPrimaryStarterQuestsPart2()), 
@@ -1541,14 +1526,12 @@ def ensure_botting_tree() -> BottingTree:
             pause_on_combat=True,
             multi_account=False,
             configure_fn=lambda tree: tree.Config.ConfigureUpkeep(
-                disable_looting=not LOOTING_ACTIVE,
+                looting_enabled=LOOTING_ACTIVE,
                 restore_isolation_on_stop=True,
+                auto_inventory_handler_enabled=False,
                 enable_outpost_imp_service=True,
                 enable_explorable_imp_service=True,
                 heroai_state_logging=False,
-                imp_target_bag=1,
-                imp_slot=0,
-                imp_log=False,
                 consumable_upkeeps=[
                     ModelID.Candy_Apple.value,
                     ModelID.War_Supplies.value,

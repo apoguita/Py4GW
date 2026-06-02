@@ -814,6 +814,9 @@
     "enc:\\\\x3E39\\\\xD6A2\\\\x8960\\\\x4990": [
       "Am Fah Marksman"
     ],
+    "enc:\\\\x3E6F\\\\xADD9\\\\x618F": [
+      "Kurzick Warrior"
+    ],
     "enc:\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA": [
       "Bone Horror"
     ],
@@ -1678,6 +1681,9 @@
     "enc:\\\\x8101\\\\x08C7\\\\xD747\\\\x5C9A": [
       "Corsair Berserker"
     ],
+    "enc:\\\\x8101\\\\x08D7\\\\xB678\\\\xCFA7\\\\x0193": [
+      "Kournan Phalanx"
+    ],
     "enc:\\\\x8101\\\\x08D9\\\\x97FF\\\\xC7ED\\\\x6AE9": [
       "Kournan Spotter"
     ],
@@ -2419,6 +2425,9 @@
     "enc:\\\\x8101\\\\x57FA\\\\x91ED\\\\x9721\\\\x2151": [
       "Torment Claw"
     ],
+    "enc:\\\\x8101\\\\x5D31\\\\xC46B\\\\x2E1B": [
+      "Corsair Admiral"
+    ],
     "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": [
       "Elder Crocodile"
     ],
@@ -2680,6 +2689,27 @@
     "enc:\\\\x8102\\\\x141C\\\\xAB55\\\\xAE8D\\\\x38D8": [
       "Carrion Feeder"
     ],
+    "enc:\\\\x8102\\\\x18E7\\\\xFAD2\\\\x3807": [
+      "Alesia"
+    ],
+    "enc:\\\\x8102\\\\x1903\\\\xEEF6\\\\xBAA8\\\\x0AE6": [
+      "Lo Sha"
+    ],
+    "enc:\\\\x8102\\\\x1908\\\\x9126\\\\xB52B\\\\x4538": [
+      "Magni the Bison"
+    ],
+    "enc:\\\\x8102\\\\x190E\\\\x8ED4\\\\x8F03\\\\x52F2": [
+      "Morgahn"
+    ],
+    "enc:\\\\x8102\\\\x1914\\\\xEF47\\\\x035E": [
+      "Onyx"
+    ],
+    "enc:\\\\x8102\\\\x191E\\\\xB8ED\\\\xEEDD\\\\x10C3": [
+      "Talon Silverwing"
+    ],
+    "enc:\\\\x8102\\\\x192C\\\\xAD98\\\\xB165\\\\x7E8C": [
+      "Zho"
+    ],
     "enc:\\\\x8102\\\\x2044\\\\xC97B\\\\xB5B1\\\\x09F9": [
       "Avarr the Fallen"
     ],
@@ -2697,6 +2727,9 @@
     ],
     "enc:\\\\x8102\\\\x20AB\\\\xAB9A\\\\xA02E\\\\x68E5": [
       "Scourge Vaettir"
+    ],
+    "enc:\\\\x8102\\\\x20AE\\\\xFE30\\\\x9F20\\\\x237E": [
+      "Stone Summit Carver"
     ],
     "enc:\\\\x8102\\\\x21EF\\\\xF2C0\\\\xC21A\\\\x7694": [
       "Arctic Wolf"
@@ -2751,6 +2784,9 @@
     ],
     "enc:\\\\x8102\\\\x2898\\\\x88AF\\\\xD080\\\\x10AC": [
       "Agari Cuicani"
+    ],
+    "enc:\\\\x8102\\\\x289E\\\\xE35F\\\\xE9D9\\\\x5133": [
+      "Hylek Cuicana"
     ],
     "enc:\\\\x8102\\\\x28A4\\\\xBD1F\\\\xF8ED\\\\x2741": [
       "Brynn Earthporter"

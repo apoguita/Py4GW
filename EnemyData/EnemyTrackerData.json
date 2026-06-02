@@ -10081,6 +10081,38 @@
         }
       }
     },
+    "enc:\\\\x3E6F\\\\xADD9\\\\x618F": {
+      "encoded_names": [
+        "\\\\x3E6F\\\\xADD9\\\\x618F"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        3406
+      ],
+      "observed_maps": {
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
+        }
+      },
+      "observed_skills": {
+        "322": {
+          "id": 322,
+          "name": "Power Attack",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "386": {
+          "id": 386,
+          "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
     "enc:\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA": {
       "encoded_names": [
         "\\\\x3F25\\\\x8B58\\\\xD13B\\\\x0EFA"
@@ -11755,6 +11787,12 @@
           "id": 210,
           "instance_type": "Explorable",
           "name": "Ferndale"
+        },
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
         }
       },
       "observed_skills": {
@@ -20763,6 +20801,12 @@
           "id": 406,
           "instance_type": "Explorable",
           "name": "Vehtendi Valley"
+        },
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
         }
       },
       "observed_skills": {
@@ -22697,6 +22741,32 @@
           "name": "Armor of Sanctity",
           "profession": "Dervish",
           "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x08D7\\\\xB678\\\\xCFA7\\\\x0193": {
+      "encoded_names": [
+        "\\\\x8101\\\\x08D7\\\\xB678\\\\xCFA7\\\\x0193"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        5405
+      ],
+      "observed_maps": {
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
+        }
+      },
+      "observed_skills": {
+        "1547": {
+          "id": 1547,
+          "name": "Mighty Throw",
+          "profession": "Paragon",
+          "profession_id": 9
         }
       }
     },
@@ -26441,6 +26511,12 @@
           "id": 375,
           "instance_type": "Explorable",
           "name": "Barbarous Shore"
+        },
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
         }
       },
       "observed_skills": {
@@ -34061,6 +34137,44 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x5D31\\\\xC46B\\\\x2E1B": {
+      "encoded_names": [
+        "\\\\x8101\\\\x5D31\\\\xC46B\\\\x2E1B"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        5168
+      ],
+      "observed_maps": {
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
+        }
+      },
+      "observed_skills": {
+        "1549": {
+          "id": 1549,
+          "name": "Harrier's Toss",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1554": {
+          "id": 1554,
+          "name": "Crippling Anthem",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1584": {
+          "id": 1584,
+          "name": "Leader's Comfort",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": {
       "encoded_names": [
         "\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747"
@@ -35000,8 +35114,8 @@
       "encoded_names": [
         "\\\\x8101\\\\x743D\\\\xEC98\\\\x990C\\\\x78F8"
       ],
-      "inferred_primary": "",
-      "inferred_secondary": "",
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "None",
       "model_ids": [
         6526
       ],
@@ -35011,9 +35125,46 @@
           "id": 513,
           "instance_type": "Explorable",
           "name": "Drakkar Lake"
+        },
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1415": {
+          "id": 1415,
+          "name": "Crippling Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "2088": {
+          "id": 2088,
+          "name": "Trample",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "386": {
+          "id": 386,
+          "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "810": {
+          "id": 810,
+          "name": "Protector's Defense",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x8101\\\\x7495\\\\x81EA\\\\xD0F2\\\\x62D2": {
       "encoded_names": [
@@ -37947,6 +38098,307 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x18E7\\\\xFAD2\\\\x3807": {
+      "encoded_names": [
+        "\\\\x8102\\\\x18E7\\\\xFAD2\\\\x3807"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "Monk",
+      "model_ids": [
+        7019
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {
+        "285": {
+          "id": 285,
+          "name": "Healing Hands",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "382": {
+          "id": 382,
+          "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "384": {
+          "id": 384,
+          "name": "Gash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "385": {
+          "id": 385,
+          "name": "Final Thrust",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x1903\\\\xEEF6\\\\xBAA8\\\\x0AE6": {
+      "encoded_names": [
+        "\\\\x8102\\\\x1903\\\\xEEF6\\\\xBAA8\\\\x0AE6"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7013
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {
+        "1055": {
+          "id": 1055,
+          "name": "Recurring Insecurity",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "899": {
+          "id": 899,
+          "name": "Images of Remorse",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x1908\\\\x9126\\\\xB52B\\\\x4538": {
+      "encoded_names": [
+        "\\\\x8102\\\\x1908\\\\x9126\\\\xB52B\\\\x4538"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "None",
+      "model_ids": [
+        7046
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {
+        "2494": {
+          "id": 2494,
+          "name": "Bear_Form",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "352": {
+          "id": 352,
+          "name": "Crushing Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "355": {
+          "id": 355,
+          "name": "Devastating Hammer",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "356": {
+          "id": 356,
+          "name": "Irresistible Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "905": {
+          "id": 905,
+          "name": "Auspicious Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x190E\\\\x8ED4\\\\x8F03\\\\x52F2": {
+      "encoded_names": [
+        "\\\\x8102\\\\x190E\\\\x8ED4\\\\x8F03\\\\x52F2"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "Ranger",
+      "model_ids": [
+        7036
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {
+        "1557": {
+          "id": 1557,
+          "name": "Anthem of Flame",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1600": {
+          "id": 1600,
+          "name": "Barbed Spear",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1783": {
+          "id": 1783,
+          "name": "Slayer's Spear",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x1914\\\\xEF47\\\\x035E": {
+      "encoded_names": [
+        "\\\\x8102\\\\x1914\\\\xEF47\\\\x035E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        3012
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x191E\\\\xB8ED\\\\xEEDD\\\\x10C3": {
+      "encoded_names": [
+        "\\\\x8102\\\\x191E\\\\xB8ED\\\\xEEDD\\\\x10C3"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        7040
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "1144": {
+          "id": 1144,
+          "name": "Silverwing Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "332": {
+          "id": 332,
+          "name": "Bull's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "851": {
+          "id": 851,
+          "name": "Sun and Moon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x192C\\\\xAD98\\\\xB165\\\\x7E8C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x192C\\\\xAD98\\\\xB165\\\\x7E8C"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "Warrior",
+      "model_ids": [
+        7028
+      ],
+      "observed_maps": {
+        "700": {
+          "base_id": 700,
+          "id": 700,
+          "instance_type": "Explorable",
+          "name": "The Norn Fighting Tournament"
+        }
+      },
+      "observed_skills": {
+        "331": {
+          "id": 331,
+          "name": "Hammer Bash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "436": {
+          "id": 436,
+          "name": "Comfort Animal",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x2044\\\\xC97B\\\\xB5B1\\\\x09F9": {
       "encoded_names": [
         "\\\\x8102\\\\x2044\\\\xC97B\\\\xB5B1\\\\x09F9"
@@ -38246,6 +38698,25 @@
           "profession_id": 3
         }
       }
+    },
+    "enc:\\\\x8102\\\\x20AE\\\\xFE30\\\\x9F20\\\\x237E": {
+      "encoded_names": [
+        "\\\\x8102\\\\x20AE\\\\xFE30\\\\x9F20\\\\x237E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6743
+      ],
+      "observed_maps": {
+        "704": {
+          "base_id": 704,
+          "id": 704,
+          "instance_type": "Explorable",
+          "name": "Fronis Irontoe's Lair"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8102\\\\x21EF\\\\xF2C0\\\\xC21A\\\\x7694": {
       "encoded_names": [
@@ -38868,6 +39339,62 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x289E\\\\xE35F\\\\xE9D9\\\\x5133": {
+      "encoded_names": [
+        "\\\\x8102\\\\x289E\\\\xE35F\\\\xE9D9\\\\x5133"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6366
+      ],
+      "observed_maps": {
+        "726": {
+          "base_id": 726,
+          "id": 726,
+          "instance_type": "Explorable",
+          "name": "Kilroy's Punchout Tournament"
+        }
+      },
+      "observed_skills": {
+        "1447": {
+          "id": 1447,
+          "name": "Ehzah_from_Above",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "1562": {
+          "id": 1562,
+          "name": "Aria of Zeal",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1575": {
+          "id": 1575,
+          "name": "Blazing Finale",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1578": {
+          "id": 1578,
+          "name": "Mending Refrain",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1584": {
+          "id": 1584,
+          "name": "Leader's Comfort",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1771": {
+          "id": 1771,
+          "name": "Song of Restoration",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
     },
     "enc:\\\\x8102\\\\x28A4\\\\xBD1F\\\\xF8ED\\\\x2741": {
       "encoded_names": [
