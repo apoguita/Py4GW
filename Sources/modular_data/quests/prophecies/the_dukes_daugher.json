@@ -1,14 +1,14 @@
-﻿{
+{
   "name": "The Duke's Daughter",
   "steps": [
-    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40},
-    {"type": "dialog", "id": "0x808101", "npc": "VIGGO", "name": "Dialog - Viggo"},
-    {"type": "travel", "name": "Travel to Grendich Courthouse", "target_map_id": 36},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "team": "heroes_3"},
-    {"type": "exit_map", "name": "Leave Grendich Courthouse", "point": [1926, 13682], "target_map_id": 13},
-    {"type": "auto_path", "name": "To Ghost Of Althea", "points": [[10503, -7820]]},
-    {"type": "dialog", "id": "0x808104", "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea"},
-    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40},
-    {"type": "dialog", "id": "0x808107", "npc": "DUKE_BARRADIN", "name": "Dialog - Duke Barradin"}
+    {"type": "map", "name": "Travel to Piken Square", "target_map_id": 40, "action": "travel"},
+    {"type": "interact", "id": "0x808101", "npc": "VIGGO", "name": "Dialog - Viggo", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Grendich Courthouse", "target_map_id": 36, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 4, "action": "load"},
+    {"type": "route", "name": "Leave Grendich Courthouse", "point": [1926, 13682], "target_map_id": 13, "mode": "exit"},
+    {"type": "route", "name": "To Ghost Of Althea", "points": [[10503, -7820]], "mode": "kill"},
+    {"type": "interact", "id": "0x808104", "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Piken Square", "target_map_id": 40, "action": "travel"},
+    {"type": "interact", "id": "0x808107", "npc": "DUKE_BARRADIN", "name": "Dialog - Duke Barradin", "action": "dialog", "target": "npc"}
   ]
 }

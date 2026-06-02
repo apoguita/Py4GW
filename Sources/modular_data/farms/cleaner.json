@@ -1,7 +1,4 @@
-
 {
   "name": "inventory_cleaner",
-  "steps": [
-    {"type": "inventory_cleanup"}
-  ]
+  "steps": []
 }

@@ -1,15 +1,15 @@
 {
   "name": "The Big Unfriendly Yotun",
   "steps": [
-    {"type": "travel", "name": "Travel to Sifhalla", "target_map_id": 643},
-    {"type": "auto_path", "name": "To Undrath Blastrock", "points": [[12222, 24571]]},
-    {"type": "dialogs", "id": ["0x837E03", "0x837E01"], "npc": "UNDRATH_BLASTROCK", "name": "Dialog - Undrath Blastrock"},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "auto_path", "name": "To Exit", "points": [[13360, 19952]]},
-    {"type": "exit_map", "name": "Leave Sifhalla", "point": [13568, 19423], "target_map_id": 513},
-    {"type": "auto_path", "name": "To Travel", "points": [[15058, 14305], [15077, 11936]]},
-    {"type": "travel", "name": "Travel to Sifhalla", "target_map_id": 643},
-    {"type": "auto_path", "name": "To Undrath Blastrock", "points": [[12191, 24580]]},
-    {"type": "dialog", "id": "0x837E07", "npc": "UNDRATH_BLASTROCK", "name": "Dialog - Undrath Blastrock"}
+    {"type": "map", "name": "Travel to Sifhalla", "target_map_id": 643, "action": "travel"},
+    {"type": "route", "name": "To Undrath Blastrock", "points": [[12222, 24571]], "mode": "kill"},
+    {"type": "interact", "npc": "UNDRATH_BLASTROCK", "name": "Dialog - Undrath Blastrock", "action": "dialog", "ids": ["0x837E03", "0x837E01"], "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[13360, 19952]], "mode": "kill"},
+    {"type": "route", "name": "Leave Sifhalla", "point": [13568, 19423], "target_map_id": 513, "mode": "exit"},
+    {"type": "route", "name": "To Travel", "points": [[15058, 14305], [15077, 11936]], "mode": "kill"},
+    {"type": "map", "name": "Travel to Sifhalla", "target_map_id": 643, "action": "travel"},
+    {"type": "route", "name": "To Undrath Blastrock", "points": [[12191, 24580]], "mode": "kill"},
+    {"type": "interact", "id": "0x837E07", "npc": "UNDRATH_BLASTROCK", "name": "Dialog - Undrath Blastrock", "action": "dialog", "target": "npc"}
   ]
 }

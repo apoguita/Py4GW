@@ -1,0 +1,8 @@
+{
+  "name": "New Recording",
+  "steps": [
+    {"type": "map", "action": "wait_for_map_load", "map_id": 28},
+    {"type": "map", "name": "Travel", "action": "travel", "target_map_id": 81},
+    {"type": "route", "name": "Route", "mode": "kill", "points": [[12895, 13169]]}
+  ]
+}

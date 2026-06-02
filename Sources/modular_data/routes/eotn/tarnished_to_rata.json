@@ -1,13 +1,13 @@
 {
   "name": "Tarnished Haven to Rata Sum",
   "steps": [
-    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 641},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "auto_path", "name": "To Exit", "points": [[22425, -12046]]},
-    {"type": "exit_map", "name": "Leave Tarnished Haven", "point": [19089, -10621], "target_map_id": 572},
-    {"type": "auto_path", "name": "Alcazia Tangle to Riven Earth", "points": [[18184, -7413], [17945, -5154], [16707, -3236], [19499, 7], [20078, 1566], [20919, 7808], [18432, 7579], [16062, 8801], [14848, 8332], [12101, 9560], [9699, 10557], [7245, 11574], [4707, 12059], [1915, 13594], [-657, 14760], [-2543, 14793], [-3038, 15199], [-4057, 16237]]},
-    {"type": "exit_map", "name": "Leave Alcazia Tangle", "point": [-3987, 16860], "target_map_id": 501},
-    {"type": "auto_path", "name": "Riven Earth to Rata Sum", "points": [[-11733, -11176], [-16270, -9512], [-20738, -7199], [-24031, -5271], [-25487, -4223]]},
-    {"type": "exit_map", "name": "Leave Riven Earth", "point": [-26256, -4119], "target_map_id": 640}
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 641, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[22425, -12046]], "mode": "kill"},
+    {"type": "route", "name": "Leave Tarnished Haven", "point": [19089, -10621], "target_map_id": 572, "mode": "exit"},
+    {"type": "route", "name": "Alcazia Tangle to Riven Earth", "points": [[18184, -7413], [17945, -5154], [16707, -3236], [19499, 7], [20078, 1566], [20919, 7808], [18432, 7579], [16062, 8801], [14848, 8332], [12101, 9560], [9699, 10557], [7245, 11574], [4707, 12059], [1915, 13594], [-657, 14760], [-2543, 14793], [-3038, 15199], [-4057, 16237]], "mode": "kill"},
+    {"type": "route", "name": "Leave Alcazia Tangle", "point": [-3987, 16860], "target_map_id": 501, "mode": "exit"},
+    {"type": "route", "name": "Riven Earth to Rata Sum", "points": [[-11733, -11176], [-16270, -9512], [-20738, -7199], [-24031, -5271], [-25487, -4223]], "mode": "kill"},
+    {"type": "route", "name": "Leave Riven Earth", "point": [-26256, -4119], "target_map_id": 640, "mode": "exit"}
   ]
 }

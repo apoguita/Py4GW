@@ -398,18 +398,80 @@ Goal:
 - confidence level
 - notes on alternate entry behavior if observed
 
-## Current Conclusion
-The current `CreateWindow(...)` path is still only a thin native construction wrapper. It creates a frame, applies rect, and triggers redraw, but the chosen proc remains responsible for shell policy and payload setup.
+## Current Conclusion (Updated 2026-05-31)
 
-The main correction from the newer WASM pass is this:
+### ✅ REGRESSION FIXED (2026-05-31)
 
-- the true semantic source of truth is `Gw.wasm`
-- arbitrary native windows should be modeled from `DialogShow(...)` and inventory-style shell families, not from DevText cloning alone
+**Root cause**: The `ResolveCompositeRootControlProc` byte-pattern scan failed because the EXE was patched on 2026-05-30. The CRProc stack frame changed from `SUB ESP, 0x11C` to `SUB ESP, 0x120` (prologue bytes: `55 8B EC 81 EC 20 01 00 00`). The old Ghidra analysis was stale. Additionally, `FindAssertion` with a non-zero line number fails due to PUSH instruction encoding mismatch in the scanner algorithm.
 
-The current best empty-window candidate is no longer DevText. It is the inventory aggregate family:
+**Fix**: Replace byte-pattern-only resolution with a two-layer strategy:
+1. **Primary**: `FindAssertion("UiCtlDlg.cpp", "!s_imgList", 0, 0)` — string-based, portable across patches
+2. **Fallback**: Byte-pattern `\x81\xEC\x20\x01\x00\x00...` with 24-char mask and prologue validation
 
-- keep the root shell and child `0` content host
-- preserve resize/title/container behavior
-- suppress or replace `CAggregateInv::UpdateBags()`
+No hardcoded addresses. Runtime base differs from Ghidra static `0x00400000` — all resolution must use runtime-safe patterns.
 
-That is the cleanest currently known route toward an empty titled resizable native host that can later accept custom child UI elements.
+**Proven resolution** (from Python diagnostic):
+```
+Scanner.FindAssertion("UiCtlDlg.cpp", "!s_imgList", 0, 0) → 0x00EB697B
+Scanner.ToFunctionStart(assertion, 0x110) → 0x00EB6880 (CRProc)
+```
+Runtime slide: `0x00EB6880 - 0x00851180 = 0x00665600` (EXE loaded at non-standard base).
+
+### Working (Current — 2026-05-31)
+1. **`CreateContainerWindow()`** (existing GWCA) creates a bare `CContainerFrame` — works.
+2. **`FrameNewSubclass(frame, Ui_CompositeRootControlProc, 0x59)`** — works via `FindAssertion` resolution.
+3. **Mouse interaction**: `FrameMouseEnable(frame, 0xFFFFFFFF, 0)` after `FrameNewSubclass`.
+4. **Python-only window creation**: Proven — CRProc resolved via Scanner + NativeFunction, chrome installed with `directCall()` on game thread.
+
+### Resolution Method (Canonical)
+
+| Function | Method | Parameters |
+|----------|--------|------------|
+| `Ui_CompositeRootControlProc` | `FindAssertion` | `("UiCtlDlg.cpp", "!s_imgList", 0, 0)` |
+| `CContainerFrame::FrameProc` | `FindAssertion` | `("UiPlacementContainer.cpp", "itemFrame", 0x43, 0)` |
+| `FrameNewSubclass` | `FindAssertion` | `("FrApi.cpp", "frameId", 0x467, 0)` |
+| `FrameMouseEnable` | `FindAssertion` | `("FrApi.cpp", "frameId", 0x540, 0)` |
+
+### ⚠️ REGRESSION (2026-05-31 — Old)
+
+**An unauthorized `git checkout` reverted all uncommitted working-tree changes for py_ui.h**, losing the proven mouse-fix code. The functions were reconstructed from documentation but had incorrect byte patterns (stale Ghidra data) and wrong line numbers for FindAssertion. See `docs/RE/title_rendering_research.md` for full regression details.
+
+### Working (Before Regression — 2026-05-30)
+1. **`CreateContainerWindow()`** (existing GWCA) creates a bare `CContainerFrame` with no content, no chrome — cold-startable with no state dependencies.
+2. **`FrameNewSubclass(frame, Ui_CompositeRootControlProc, 0x59)`** (exposed via `ResolveFrameNewSubclass`) installs the window chrome — title bar, close button, resize handles.
+3. **Mouse interaction**: Fixed via `FrameMouseEnable(frame, 0xFFFFFFFF, 0)` called AFTER `FrameNewSubclass`. `CContainerFrame::FrameProc` clears CMouse flags (`frame+0x98`) to 0 on msg 9 (twice: during FrameCreate and forwarded via `Ui_DispatchToFrameHierarchy` in CRProc). `FrameMouseEnable` (= `Ui_UpdateFrameFlagMaskById` at EXE `0x0060ffd0`) restores all flags. Function resolvable via `FindAssertion("FrApi.cpp", "frameId", 0x540, 0)` with byte-pattern fallback.
+
+### NOT Working (Fundamental Issue — Unresolved)
+4. **Title/caption text**: Text IS stored correctly (`SetFrameTitleByFrameId` returns ok=True), but the CRProc's msg 0x08 handler never renders it. Root cause identified: `Ui_SetFrameText` stores text in the attached-text table but invalidation goes to a GLOBAL context (not the frame-specific CContent). The frame is never enqueued into the per-frame CContent dirty linked list (`DAT_ram_005a02f8`), so the paint loop never dispatches msg 0x08. See `docs/RE/title_rendering_research.md` for comprehensive analysis.
+
+### Title Rendering Pipeline (2026-05-31 Findings)
+
+The title rendering chain has 4 requirements:
+1. ✅ Text stored via `Ui_SetFrameText` → attached-text table (Path B)
+2. ✅ CRProc installed on frame via `FrameNewSubclass`
+3. ❌ **CContent element 4 invalidation + per-frame dirty list enqueue** — MISSING
+4. ✅ Frame shown via GWCA `ShowFrame` or native `Ui_ShowFrame`
+
+Step 3 requires `CContent::Invalidate(frame+4, element=4, flags=0xFFFFFFFF)` which both sets the paint mask AND enqueues the frame into the per-frame dirty linked list. `Ui_SetFrameText` uses `Ui_QueueGlobalUiUpdate` which writes to the GLOBAL context (`DAT_00bb55e0`), not the frame-specific CContent.
+
+The only native path that performs per-frame CContent invalidation is `CNonclient::OnTitleResolved`, which is triggered by `CNonclient::SetTitle` during `FrameCreate`. DevText clones get this automatically; cold-created containers do not.
+
+### Proven Portable Patterns (No Absolute Addresses)
+
+| Function | Method | Parameters |
+|----------|--------|------------|
+| `Ui_CompositeRootControlProc` | `FindAssertion` | `("UiCtlDlg.cpp", "!s_imgList", 0, 0)` |
+| `Ui_CreateEncodedText` | `Find` | `\x55\x8B\xEC\x51\x56\x57\xE8\x00\x00\x00\x00\x8B\x48\x18\xE8\x00\x00\x00\x00\x8B\xF8` / `xxxxxxx????xxxx????xx` |
+| `Ui_SetFrameText` | `Find` | `\x55\x8B\xEC\x53\x56\x57\x8B\x7D\x08\x8B\xF7\xF7\xDE\x1B\xF6\x85` / `xxxxxxxxxxxxxxxx` |
+| `FrameMouseEnable` | `FindAssertion` | `("FrApi.cpp", "frameId", 0x540, 0)` |
+| `FrameNewSubclass` | `FindAssertion` | `("FrApi.cpp", "frameId", 0x467, 0)` |
+| `CContainerFrame::FrameProc` | `FindAssertion` | `("UiPlacementContainer.cpp", "itemFrame", 0x43, 0)` |
+
+**IMPORTANT**: Byte-pattern scans on function prologues are fragile across EXE patches (e.g., stack frame size can change: `0x11C`→`0x120`). **Always prefer `FindAssertion` as the primary strategy**. Byte patterns should only be fallbacks.
+
+### Known Issues
+
+- **`[X]` close button**: Works — handled by CNonclient framework, not msg 0x0A.
+- **Mouse interaction**: Works — fixed via `FrameMouseEnable(0xFFFFFFFF, 0)` after `FrameNewSubclass`.
+- **Title rendering**: NOT WORKING — ongoing. Text stored but paint mask bit 8 never set. See `docs/RE/title_rendering_research.md`.
+- **Byte pattern fragility**: Byte patterns encoding stack frame sizes break across EXE patches. `FindAssertion` is immune. The 2026-05-30 EXE patch changed CRProc from `SUB ESP, 0x11C` to `SUB ESP, 0x120`, breaking all byte-pattern-based resolution.

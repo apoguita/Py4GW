@@ -1,0 +1,8 @@
+{
+  "name": "tt",
+  "steps": [
+    {"type": "interact", "name": "Interact Storm Beacon", "target": "gadget", "point": [19547, 1503], "gadget": "STORM_BEACON"},
+    {"type": "route", "name": "Route", "mode": "kill", "points": [[20042, 1515], [20574, 1275]]},
+    {"type": "interact", "ms": 1000, "action": "drop_bundle"}
+  ]
+}
