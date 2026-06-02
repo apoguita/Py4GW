@@ -86,9 +86,9 @@ class SF_Ass_vaettir(BuildMgr):
             if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
                 
-    def UpkeepShroudOfDistress(self, low_upkeep_threshold: int = 3000):
+    def UpkeepShroudOfDistress(self, min_remaining_buff_duration: int = 3000):
         player_agent_id = Player.GetAgentID()
-        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) > low_upkeep_threshold
+        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) > min_remaining_buff_duration
         if not has_shroud_of_distress:
             if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1750)):
                 ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
@@ -165,7 +165,7 @@ class SF_Ass_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        low_upkeep_threshold = 3000
+        min_remaining_buff_duration = 3000
         
         if not Map.GetMapID() == Map.GetMapIDByName("Jaga Moraine"):
             from Py4GWCoreLib import AgentArray
@@ -180,7 +180,7 @@ class SF_Ass_vaettir(BuildMgr):
                 yield from self.DefensiveActions()
                 
             if Routines.Checks.Agents.InDanger(2000):
-                yield from self.UpkeepShroudOfDistress(low_upkeep_threshold)
+                yield from self.UpkeepShroudOfDistress(min_remaining_buff_duration)
                 
             yield from Routines.Yield.wait(1000)
             
@@ -216,14 +216,14 @@ class SF_Ass_vaettir(BuildMgr):
                     ConsoleLog(self.build_name, "Casting Shadow Form.", Py4GW.Console.MessageType.Info, log=False)
                     return
 
-        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) > low_upkeep_threshold
+        has_shroud_of_distress = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) > min_remaining_buff_duration
         if not has_shroud_of_distress:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
             if (yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1950)):
                 return
 
-        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id, self.channeling) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.channeling) > low_upkeep_threshold
+        has_channeling = Routines.Checks.Effects.HasBuff(player_agent_id, self.channeling) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.channeling) > min_remaining_buff_duration
         if not has_channeling:
             ConsoleLog(self.build_name, "Casting Channeling.", Py4GW.Console.MessageType.Info, log=False)
             if (yield from self._CastSkillID(self.channeling, log=False, aftercast_delay=1850)):
