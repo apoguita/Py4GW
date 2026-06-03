@@ -1053,6 +1053,7 @@ _BEHEMOTH_ENGAGE_RADIUS = 500.0
 
 # Toggled by _behemoth_guard_start / _stop nodes; read every tick by the service.
 _behemoth_guard_active: bool = False
+_soulkeeper_call_active: bool = False
 
 
 def _build_behemoth_guard_service() -> _BT:
@@ -1387,9 +1388,14 @@ def _disable_heroai_combat_all() -> _BT:
     No Routines.BT equivalent — HeroAI Combat toggle via SharedMemory options.
     """
     def _tick(node: _BT.Node) -> _BT.NodeState:
-        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            options.Combat = False
-        ConsoleLog(BOT_NAME, '[Dhuum] HeroAI combat disabled for all accounts.', Py4GW.Console.MessageType.Info)
+        updated = 0
+        for account, _ in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            email = str(getattr(account, 'AccountEmail', '') or '').strip().lower()
+            if not email:
+                continue
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'Combat', False)
+            updated += 1
+        ConsoleLog(BOT_NAME, f'[Dhuum] HeroAI combat disabled for {updated} account(s).', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
 
     return _BT(_BT.ActionNode(name='DisableHeroAICombatAll', action_fn=_tick))
@@ -1399,9 +1405,14 @@ def _enable_heroai_combat_all() -> _BT:
     No Routines.BT equivalent — HeroAI Combat toggle via SharedMemory options.
     """
     def _tick(node: _BT.Node) -> _BT.NodeState:
-        for _, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
-            options.Combat = True
-        ConsoleLog(BOT_NAME, '[Dhuum] HeroAI combat enabled for all accounts.', Py4GW.Console.MessageType.Info)
+        updated = 0
+        for account, _ in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+            email = str(getattr(account, 'AccountEmail', '') or '').strip().lower()
+            if not email:
+                continue
+            GLOBAL_CACHE.ShMem.SetHeroAIPropertyByEmail(email, 'Combat', True)
+            updated += 1
+        ConsoleLog(BOT_NAME, f'[Dhuum] HeroAI combat enabled for {updated} account(s).', Py4GW.Console.MessageType.Info)
         return _BT.NodeState.SUCCESS
 
     return _BT(_BT.ActionNode(name='EnableHeroAICombatAll', action_fn=_tick))
@@ -1667,9 +1678,18 @@ def _party_call_or_change_target(agent_id: int) -> None:
     local_id = int(Player.GetAgentID() or 0)
 
     if CallTarget is not None and leader_id and local_id == leader_id:
-        if CallTarget(int(agent_id), interact=False):
-            return
-    Player.ChangeTarget(int(agent_id))
+        # Leader: only ever issue Call Target. Do NOT fall through to
+        # ChangeTarget when CallTarget rejects the agent (invalid/dead/
+        # despawned) — calling ChangeTarget on an agent that no longer exists
+        # crashes the client (AvSelect.cpp assertion) during fast despawns such
+        # as the Dhuum fight (dying Minions/Champions of Dhuum).
+        CallTarget(int(agent_id), interact=False)
+        return
+    # Non-leader (or CallTarget unavailable): re-validate immediately before
+    # ChangeTarget to minimize the despawn race that triggers the assertion.
+    if _Agent.IsValid(agent_id):
+        Player.ChangeTarget(int(agent_id))
+
 
 # ── Entry / scroll ───────────────────────────────────────────────────────────
 
@@ -2482,9 +2502,9 @@ def _restore_pools_tree() -> _BT:
         BT.Movement.Move(x=-9916,  y=-17417),
         BT.Movement.Move(x=-9452,  y=-20098),
         BT.Movement.Move(x=-5736,  y=-20005),
-        BT.Movement.Move(x=-5736,  y=-18904),
-        BT.Movement.Move(x=-7156,  y=-18930),
-        BT.Movement.Move(x=-7050,  y=-19448),
+        BT.Movement.Move(x=-5736,  y=-18904, pause_on_combat=False),
+        BT.Movement.Move(x=-7156,  y=-18930, pause_on_combat=False),
+        BT.Movement.Move(x=-7050,  y=-19448, pause_on_combat=False),
         name='RestorePools',
     )
 
@@ -2713,6 +2733,14 @@ def _unwanted_guests_tree() -> _BT:
     BT = Routines.BT
     _fx, _fy = -2816.0, 10036.0
 
+    def _set_soulkeeper_call_active(enabled: bool) -> _BT:
+        def _tick(_node: _BT.Node) -> _BT.NodeState:
+            global _soulkeeper_call_active
+            _soulkeeper_call_active = bool(enabled)
+            return _BT.NodeState.SUCCESS
+
+        return _BT(_BT.ActionNode(name=f"{'Enable' if enabled else 'Disable'}SoulkeeperCall", action_fn=_tick))
+
     def _set_follower_flags_at_hold(node: _BT.Node) -> _BT.NodeState:
         from Py4GWCoreLib import Agent as _Agent
         facing_angle = _Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
@@ -2733,6 +2761,7 @@ def _unwanted_guests_tree() -> _BT:
         _force_local_skills_on(),
         BT.Movement.Move(x=_fx, y=_fy),
         _BT(_BT.ActionNode(name='SetFollowerFlagsUnwantedGuests', action_fn=_set_follower_flags_at_hold)),
+        _set_soulkeeper_call_active(True),
         BT.Movement.Move(x=-5850, y=12818),
         _dialog_until_quest_active(
             x=-5850, y=12818,
@@ -2741,7 +2770,9 @@ def _unwanted_guests_tree() -> _BT:
             label='UnwantedGuests',
         ),
         BT.Movement.Move(x=_fx, y=_fy),
+        _set_soulkeeper_call_active(False),
         BT.Movement.Move(x=-5850, y=12818),
+        
         _clear_follower_flags(),
         BT.Agents.MoveTargetInteractAndDialog(
             x=-5850, y=12818,
@@ -2885,9 +2916,11 @@ def _dhuum_tree() -> _BT:
         _flag_dhuum_accounts(),
         _enable_dhuum_helper_on_all_accounts(),
         BT.Player.Wait(10000),
-        BT.Movement.Move(-15373, 17298, pause_on_combat=False),
+        BT.Movement.Move(-14440,17383, pause_on_combat=False),
         _wait_for_spirit_forms(),
+        _force_local_skills_on(),
         _enable_heroai_combat_all(),
+        
         _wait_for_uw_chest(),
         name='Dhuum',
     )
@@ -3359,6 +3392,79 @@ def _build_priority_target_service() -> _BT:
     )
 
 
+def _build_soulkeeper_call_service() -> _BT:
+    """Call Keeper of Souls while the Unwanted Guests quest pickup window is active."""
+    target_name = 'keeper of souls'
+    range_sq = 3000.0 * 3000.0
+    scan_interval_ms = 500.0
+    call_cooldown_ms = 1500.0
+    state: dict = {'last_call_ms': 0.0, 'last_scan_ms': 0.0}
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        from Py4GWCoreLib.AgentArray import AgentArray as _AgentArray
+
+        if not _soulkeeper_call_active:
+            return _BT.NodeState.RUNNING
+        if _skip_background_upkeep(node.blackboard):
+            return _BT.NodeState.RUNNING
+
+        now_ms = time.monotonic() * 1000.0
+        if (now_ms - state['last_scan_ms']) < scan_interval_ms:
+            return _BT.NodeState.RUNNING
+        state['last_scan_ms'] = now_ms
+
+        try:
+            if not Map.IsExplorable() or int(Map.GetMapID()) != int(UW_MAP_ID):
+                return _BT.NodeState.RUNNING
+            leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+            local_id = int(Player.GetAgentID() or 0)
+        except Exception:
+            return _BT.NodeState.RUNNING
+        if leader_id > 0 and local_id > 0 and local_id != leader_id:
+            return _BT.NodeState.RUNNING
+
+        player_pos = Player.GetXY()
+        if not player_pos:
+            return _BT.NodeState.RUNNING
+        px, py = float(player_pos[0]), float(player_pos[1])
+        best_agent_id = 0
+        best_dist_sq = range_sq
+
+        try:
+            enemy_ids = list(_AgentArray.GetEnemyArray() or [])
+        except Exception:
+            return _BT.NodeState.RUNNING
+        for raw_agent_id in enemy_ids:
+            try:
+                agent_id = int(raw_agent_id)
+                if not Agent.IsValid(agent_id) or not Agent.IsAlive(agent_id):
+                    continue
+                agent_name = (Agent.GetNameByID(agent_id) or '').strip().lower()
+                if agent_name != target_name:
+                    continue
+                ax, ay = Agent.GetXY(agent_id)
+                dx = px - float(ax)
+                dy = py - float(ay)
+                dist_sq = dx * dx + dy * dy
+            except Exception:
+                continue
+            if dist_sq <= best_dist_sq:
+                best_dist_sq = dist_sq
+                best_agent_id = agent_id
+
+        if best_agent_id and (now_ms - state['last_call_ms']) >= call_cooldown_ms:
+            _party_call_or_change_target(best_agent_id)
+            state['last_call_ms'] = now_ms
+        return _BT.NodeState.RUNNING
+
+    return _BT(
+        _BT.RepeaterForeverNode(
+            child=_BT.ActionNode(name='SoulkeeperCallServiceTick', action_fn=_tick),
+            name='SoulkeeperCallService',
+        )
+    )
+
+
 def _build_consolidated_consumable_upkeep_service() -> _BT:
     """Single background service that round-robins the per-item ConsumableService trees.
 
@@ -3432,6 +3538,7 @@ else:
 
 bot.AddServiceTree('StepTimer',               _build_step_timer_service)
 bot.AddServiceTree('PriorityTargetService',   _build_priority_target_service)
+bot.AddServiceTree('SoulkeeperCallService',   _build_soulkeeper_call_service)
 bot.AddServiceTree('ConsumableUpkeep', _build_consolidated_consumable_upkeep_service)
 bot.AddServiceTree('BehemothGuard', _build_behemoth_guard_service)
 
