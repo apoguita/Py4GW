@@ -2916,11 +2916,11 @@ def _dhuum_tree() -> _BT:
         _flag_dhuum_accounts(),
         _enable_dhuum_helper_on_all_accounts(),
         BT.Player.Wait(10000),
-        BT.Movement.Move(-14440,17383, pause_on_combat=False),
+        BT.Movement.Move(-13799,17274, pause_on_combat=False),
         _wait_for_spirit_forms(),
         _force_local_skills_on(),
+        BT.Movement.Move(-14440,17383, pause_on_combat=False),
         _enable_heroai_combat_all(),
-        
         _wait_for_uw_chest(),
         name='Dhuum',
     )
