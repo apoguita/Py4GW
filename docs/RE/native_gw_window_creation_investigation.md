@@ -441,8 +441,17 @@ Runtime slide: `0x00EB6880 - 0x00851180 = 0x00665600` (EXE loaded at non-standar
 2. **`FrameNewSubclass(frame, Ui_CompositeRootControlProc, 0x59)`** (exposed via `ResolveFrameNewSubclass`) installs the window chrome — title bar, close button, resize handles.
 3. **Mouse interaction**: Fixed via `FrameMouseEnable(frame, 0xFFFFFFFF, 0)` called AFTER `FrameNewSubclass`. `CContainerFrame::FrameProc` clears CMouse flags (`frame+0x98`) to 0 on msg 9 (twice: during FrameCreate and forwarded via `Ui_DispatchToFrameHierarchy` in CRProc). `FrameMouseEnable` (= `Ui_UpdateFrameFlagMaskById` at EXE `0x0060ffd0`) restores all flags. Function resolvable via `FindAssertion("FrApi.cpp", "frameId", 0x540, 0)` with byte-pattern fallback.
 
-### NOT Working (Fundamental Issue — Unresolved)
-4. **Title/caption text**: Text IS stored correctly (`SetFrameTitleByFrameId` returns ok=True), but the CRProc's msg 0x08 handler never renders it. Root cause identified: `Ui_SetFrameText` stores text in the attached-text table but invalidation goes to a GLOBAL context (not the frame-specific CContent). The frame is never enqueued into the per-frame CContent dirty linked list (`DAT_ram_005a02f8`), so the paint loop never dispatches msg 0x08. See `docs/RE/title_rendering_research.md` for comprehensive analysis.
+### NOT Working (Fundamental Issue — RESOLVED 2026-06-02) ✅
+
+4. **Title/caption text**: **RESOLVED.** The root cause was non-unique byte patterns for `Ui_SetFrameText` — the function prologue matches 16 locations in FrApi.cpp. `Scanner::Find` returned wrong function. **Fix:** Derive `Ui_SetFrameText` from DevText's call site (find "DlgDevText" string → scan forward for CALLs → second CALL = `Ui_SetFrameText`). Combined with `PerFrameInvalidate(0xFFFFFFFF)`, this stores text and triggers full per-frame CContent invalidation.
+
+**Working API**: `PyUIManager.UIManager.send_title_msg_5e(frame_id, title)` — delegates to `SetFrameTitleAndInvalidate()` which:
+1. Calls `Ui_CreateEncodedText(8, 7, "title", 0)` → encoded wchar_t*
+2. Calls `Ui_SetFrameText(frame, encoded)` → stores text at frame+0xCC
+3. Calls `PerFrameInvalidate(frame_id, 0xFFFFFFFF)` → sets all paint mask bits + dirty list enqueue
+4. CRProc msg 0x08 renders the title ✅
+
+See `docs/RE/title_rendering_research.md` for the complete investigation and all 11 failed approaches.
 
 ### Title Rendering Pipeline (2026-05-31 Findings)
 
@@ -462,16 +471,17 @@ The only native path that performs per-frame CContent invalidation is `CNonclien
 |----------|--------|------------|
 | `Ui_CompositeRootControlProc` | `FindAssertion` | `("UiCtlDlg.cpp", "!s_imgList", 0, 0)` |
 | `Ui_CreateEncodedText` | `Find` | `\x55\x8B\xEC\x51\x56\x57\xE8\x00\x00\x00\x00\x8B\x48\x18\xE8\x00\x00\x00\x00\x8B\xF8` / `xxxxxxx????xxxx????xx` |
-| `Ui_SetFrameText` | `Find` | `\x55\x8B\xEC\x53\x56\x57\x8B\x7D\x08\x8B\xF7\xF7\xDE\x1B\xF6\x85` / `xxxxxxxxxxxxxxxx` |
+| `Ui_SetFrameText` | **DevText call-site derivation** | Find "DlgDevText" string → first CALL = UiCreateEncodedText → second CALL = UiSetFrameText. Do NOT use byte pattern (matches 16 functions). |
 | `FrameMouseEnable` | `FindAssertion` | `("FrApi.cpp", "frameId", 0x540, 0)` |
 | `FrameNewSubclass` | `FindAssertion` | `("FrApi.cpp", "frameId", 0x467, 0)` |
 | `CContainerFrame::FrameProc` | `FindAssertion` | `("UiPlacementContainer.cpp", "itemFrame", 0x43, 0)` |
+| `PerFrameInvalidate` | `Find` | `\x8D\x48\x04\x53\x6A\x04\xE8` / `xxxxxxx` → ToFunctionStart(-0x57) |
 
-**IMPORTANT**: Byte-pattern scans on function prologues are fragile across EXE patches (e.g., stack frame size can change: `0x11C`→`0x120`). **Always prefer `FindAssertion` as the primary strategy**. Byte patterns should only be fallbacks.
+**IMPORTANT**: Byte-pattern scans on function prologues are fragile across EXE patches (e.g., stack frame size can change: `0x11C`→`0x120`). **Always prefer `FindAssertion` as the primary strategy**. `Ui_SetFrameText` MUST be resolved via DevText call-site derivation, NOT byte pattern.
 
 ### Known Issues
 
 - **`[X]` close button**: Works — handled by CNonclient framework, not msg 0x0A.
 - **Mouse interaction**: Works — fixed via `FrameMouseEnable(0xFFFFFFFF, 0)` after `FrameNewSubclass`.
-- **Title rendering**: NOT WORKING — ongoing. Text stored but paint mask bit 8 never set. See `docs/RE/title_rendering_research.md`.
-- **Byte pattern fragility**: Byte patterns encoding stack frame sizes break across EXE patches. `FindAssertion` is immune. The 2026-05-30 EXE patch changed CRProc from `SUB ESP, 0x11C` to `SUB ESP, 0x120`, breaking all byte-pattern-based resolution.
+- **Title rendering**: ✅ RESOLVED (2026-06-02) — via `send_title_msg_5e` → `SetFrameTitleAndInvalidate`. Key fix: DevText call-site derived `Ui_SetFrameText` instead of broken byte pattern.
+- **Byte pattern fragility**: Byte patterns encoding stack frame sizes break across EXE patches. `FindAssertion` is immune. The 2026-05-30 EXE patch changed CRProc from `SUB ESP, 0x11C` to `SUB ESP, 0x120`.

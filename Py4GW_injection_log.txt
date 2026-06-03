@@ -1,3 +1,14 @@
 2026-05-31 00:33:26 [INFO] STOC_HEADER_COUNT [487]
 2026-05-31 00:33:26 [INFO] ############ StoCMgr initialization completed ############
 2026-05-31 01:22:40 [INFO] Terminating DLL...
+2026-06-01 22:49:21 [INFO] Terminating DLL...
+2026-06-01 22:49:48 [INFO] STOC_HEADER_COUNT [487]
+2026-06-01 22:49:48 [INFO] ############ StoCMgr initialization completed ############
+2026-06-01 22:50:38 [INFO] Terminating DLL...
+2026-06-02 21:06:12 [INFO] Terminating DLL...
+2026-06-02 22:05:48 [INFO] STOC_HEADER_COUNT [487]
+2026-06-02 22:05:48 [INFO] ############ StoCMgr initialization completed ############
+2026-06-02 22:06:54 [INFO] STOC_HEADER_COUNT [487]
+2026-06-02 22:06:54 [INFO] ############ StoCMgr initialization completed ############
+2026-06-02 22:43:42 [INFO] STOC_HEADER_COUNT [487]
+2026-06-02 22:43:42 [INFO] ############ StoCMgr initialization completed ############

@@ -514,7 +514,53 @@ Always pass `program="Gw.wasm"` or `program="Gw.exe"` explicitly when both progr
 
 ---
 
-## 10. Document Index
+## 10. Window Title Rendering System (2026-06-02 RESOLVED)
+
+After 3 RE sessions and 11 failed approaches, the window title rendering pipeline for cold-created containers has been resolved.
+
+### Working Pipeline
+
+```
+send_title_msg_5e(frame_id, "title")
+  → SetFrameTitleAndInvalidate()
+    → Ui_CreateEncodedText(8, 7, title, 0) → encoded wchar_t*
+    → Ui_SetFrameText(frame, encoded)        → stores text at frame+0xCC
+    → PerFrameInvalidate(frame_id, 0xFFFFFFFF) → sets paint mask + dirty list
+  → CRProc msg 0x08 renders title ✅
+```
+
+### 05-30-2026 Key Addresses
+
+| Function | Address | Resolution |
+|----------|---------|------------|
+| `Ui_CreateEncodedText` | `0x007c3be0` | Wildcarded pattern (2 matches, first=correct) |
+| `Ui_SetFrameText` | `0x0062fab0` | **DevText call-site derived** — do NOT use byte pattern |
+| `PerFrameInvalidate` | `0x0062bd80` | Pattern: `8D 48 04 53 6A 04 E8` → ToFunctionStart(-0x57) |
+| DevText proc | `0x0088a870` | `FindNthUseOfString(L"DlgDevText")` |
+| CALL UiCreateEncodedText | `0x0088a9fc` | Return: `0x0088aa01` |
+| CALL UiSetFrameText | `0x0088aa03` | Return: `0x0088aa08` |
+
+### Critical Pattern Pitfall
+
+The `Ui_SetFrameText` prologue pattern (`55 8B EC 53 56 57 ... 75 14 68 ?? ?? ?? ??`) matches **16 functions** in `FrApi.cpp`. `Scanner::Find` always returns the wrong function (lowest address match). **Always derive `Ui_SetFrameText` from DevText's call site** — find the "DlgDevText" string use, scan forward for CALLs: first CALL = `Ui_CreateEncodedText`, second CALL = `Ui_SetFrameText`.
+
+### Python API
+
+```python
+# Create container
+fid = PyUIManager.UIManager.create_titled_container_window(
+    x, y, w, h, "", 9, 0, 0x20, 0x6, 0x59)
+# Set title
+PyUIManager.UIManager.send_title_msg_5e(fid, "My Custom Title")
+```
+
+### Complete investigation in:
+- `docs/RE/title_rendering_research.md` — all 11 failed approaches + working solution
+- `docs/RE/native_gw_window_creation_investigation.md` — window creation pipeline
+
+---
+
+## 11. Document Index
 
 All files in `docs/RE/`:
 

@@ -1172,6 +1172,119 @@ class GWUI:
         )
 
     @staticmethod
+    def CreateTitledWindow(
+        title: str,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = "",
+        parent_frame_id: int = 9,
+        child_index: int = 0,
+        frame_flags: int = 0,
+        create_param: int = 0,
+        frame_callback: int = 0,
+        anchor_flags: int = 0x6,
+        ensure_devtext_source: bool = True,
+    ) -> int:
+        """Create a DevText-backed composite window with a custom title via clone-title override (Path A).
+
+        The title is substituted during FrameCreate so FrameSetTitle → CNonclient::SetTitle → per-frame
+        CContent::Invalidate fires, giving proper title-bar rendering. DevText body content is cleared
+        after creation, leaving an empty window with a working title.
+
+        Args:
+            title: Window title text displayed in the title bar.
+            x, y: Window position (engine coordinates; y is from bottom).
+            width, height: Window dimensions.
+            frame_label: Unique label for this frame (used for GetFrameIDByLabel lookup).
+            parent_frame_id: Parent frame id (default 9 = root).
+            child_index: Child offset slot (0 = auto-find available slot).
+            frame_flags: Frame creation flags (default 0).
+            create_param: Optional create parameter (default 0).
+            frame_callback: Dialog proc override (0 = auto-resolve DevText proc).
+            anchor_flags: Anchor flags (default 0x6 = horizontal + vertical).
+            ensure_devtext_source: Auto-open DevText specimen if not present (default True).
+
+        Returns:
+            The new root frame id, or 0 on failure.
+        """
+        return int(
+            PyUIManager.UIManager.create_titled_window_clone(
+                str(title or ""),
+                float(x),
+                float(y),
+                float(width),
+                float(height),
+                str(frame_label or ""),
+                int(parent_frame_id),
+                int(child_index),
+                int(frame_flags),
+                int(create_param),
+                int(frame_callback),
+                int(anchor_flags),
+                bool(ensure_devtext_source),
+            )
+            or 0
+        )
+
+    @staticmethod
+    def CreateTitledEmptyWindow(
+        title: str,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = "CustomWindow",
+        parent_frame_id: int = 9,
+        child_index: int = 0,
+        frame_flags: int = 0,
+        create_param: int = 0,
+        frame_callback: int = 0,
+        anchor_flags: int = 0x6,
+        ensure_devtext_source: bool = True,
+    ) -> int:
+        """Create a titled empty composite window via CreateEmptyWindowClone with title override (Path A).
+
+        Same Path A title rendering as CreateTitledWindow but uses the simpler CreateEmptyWindowClone
+        path which clears content immediately as part of creation.
+
+        Args:
+            title: Window title text displayed in the title bar.
+            x, y: Window position (engine coordinates; y is from bottom).
+            width, height: Window dimensions.
+            frame_label: Unique label for this frame (default 'CustomWindow').
+            parent_frame_id: Parent frame id (default 9 = root).
+            child_index: Child offset slot (0 = auto-find available slot).
+            frame_flags: Frame creation flags (default 0).
+            create_param: Optional create parameter (default 0).
+            frame_callback: Dialog proc override (0 = auto-resolve DevText proc).
+            anchor_flags: Anchor flags (default 0x6 = horizontal + vertical).
+            ensure_devtext_source: Auto-open DevText specimen if not present (default True).
+
+        Returns:
+            The new root frame id, or 0 on failure.
+        """
+        return int(
+            PyUIManager.UIManager.create_titled_empty_window(
+                str(title or ""),
+                float(x),
+                float(y),
+                float(width),
+                float(height),
+                str(frame_label or ""),
+                int(parent_frame_id),
+                int(child_index),
+                int(frame_flags),
+                int(create_param),
+                int(frame_callback),
+                int(anchor_flags),
+                bool(ensure_devtext_source),
+            )
+            or 0
+        )
+
+    @staticmethod
     def CreateNativeWindow(
         x: float,
         y: float,
@@ -1206,6 +1319,55 @@ class GWUI:
     @staticmethod
     def SetNativeWindowTitleByFrameId(frame_id: int, title: str) -> bool:
         return GWUI.SetWindowTitle(frame_id, title)
+
+    @staticmethod
+    def InvalidateFrameContent(frame_id: int, flags: int = 0xFFFFFFFF) -> bool:
+        """Invalidates per-frame CContent by element and flags.
+
+        This triggers the per-frame dirty-list enqueue (Path A equivalent in the
+        native paint system). Default flags=0xFFFFFFFF for full invalidation.
+        Use this after SetFrameTitleByFrameId to force title rendering on
+        cold-created windows.
+
+        Args:
+            frame_id: Target frame id.
+            flags: Invalidation flags. 0xFFFFFFFF = full redraw.
+
+        Returns:
+            True if the invalidation was enqueued successfully.
+        """
+        return bool(PyUIManager.UIManager.frame_content_invalidate(int(frame_id), int(flags)))
+
+    @staticmethod
+    def FrameContentRedraw(frame_id: int) -> bool:
+        """Convenience wrapper for a full frame content redraw.
+
+        Equivalent to InvalidateFrameContent(frame_id, 0xFFFFFFFF).
+
+        Args:
+            frame_id: Target frame id.
+
+        Returns:
+            True if the redraw was enqueued successfully.
+        """
+        return bool(PyUIManager.UIManager.frame_content_redraw(int(frame_id)))
+
+    @staticmethod
+    def SetFrameTitleRendered(frame_id: int, title: str) -> bool:
+        """Sets a window title that actually renders.
+
+        Combines Path B text storage (SetFrameTitleByFrameId) with Path A
+        per-frame CContent invalidation (FrameContentInvalidate). This is the
+        one-stop fix for displaying titles on cold-created native GW windows.
+
+        Args:
+            frame_id: Target frame id.
+            title: Display title string.
+
+        Returns:
+            True if both the title set and invalidation were enqueued.
+        """
+        return bool(PyUIManager.UIManager.set_frame_title_and_invalidate(int(frame_id), str(title or "")))
 
     @staticmethod
     def CreateTextLabel(
