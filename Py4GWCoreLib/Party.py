@@ -653,6 +653,27 @@ class Party:
             Party.party_instance().UseHeroSkill(hero_agent_id, slot, target_id)
 
         @staticmethod
+        def SetSkillAIEnabled(hero_agent_id, slot, enabled):
+            """
+            Enable or disable native hero AI use for one hero skill slot.
+            Args:
+                hero_agent_id (int): The hero agent ID.
+                slot (int): The public skill slot, 1-8.
+                enabled (bool): True lets native hero AI use the skill; False locks it.
+            """
+            return Party.party_instance().SetHeroSkillAIEnabled(hero_agent_id, slot, enabled)
+
+        @staticmethod
+        def DisableSkillAI(hero_agent_id, slot):
+            """
+            Lock one hero skill slot from native hero AI auto-use.
+            Args:
+                hero_agent_id (int): The hero agent ID.
+                slot (int): The public skill slot, 1-8.
+            """
+            return Party.Heroes.SetSkillAIEnabled(hero_agent_id, slot, False)
+
+        @staticmethod
         def FlagHero (hero_id, x, y):
             """
             Flag a hero to a specific location.
