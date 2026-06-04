@@ -14,6 +14,68 @@ def _noop_log(_message: str) -> None:
     return
 
 
+def hero_id_from_member(hero_member) -> int:
+    try:
+        hero_id_obj = getattr(hero_member, "hero_id", None)
+        if hero_id_obj is None:
+            return 0
+        if hasattr(hero_id_obj, "GetID"):
+            return int(hero_id_obj.GetID() or 0)
+        return int(hero_id_obj or 0)
+    except Exception:
+        return 0
+
+
+def current_hero_ids(party_api=None) -> set[int]:
+    if party_api is None:
+        from Py4GWCoreLib import Party as party_api
+
+    hero_ids: set[int] = set()
+    for hero in party_api.GetHeroes() or []:
+        hero_id = hero_id_from_member(hero)
+        if hero_id > 0:
+            hero_ids.add(hero_id)
+    return hero_ids
+
+
+def hero_party_index_one_based(hero_id: int, party_api=None) -> int:
+    if party_api is None:
+        from Py4GWCoreLib import Party as party_api
+
+    heroes = party_api.GetHeroes() or []
+    for idx, hero in enumerate(heroes, start=1):
+        if hero_id_from_member(hero) == int(hero_id):
+            return int(idx)
+    return 0
+
+
+def hero_slot_capacity(*, map_api=None, party_api=None, default: int = 7) -> int:
+    if map_api is None or party_api is None:
+        from Py4GWCoreLib import Map
+        from Py4GWCoreLib import Party
+
+        map_api = map_api or Map
+        party_api = party_api or Party
+
+    try:
+        map_size = int(map_api.GetMaxPartySize() or 0)
+    except Exception:
+        map_size = 0
+    if map_size <= 0:
+        try:
+            map_size = int(party_api.GetPartySize() or 0)
+        except Exception:
+            map_size = 0
+    try:
+        player_count = int(party_api.GetPlayerCount() or 1)
+    except Exception:
+        player_count = 1
+
+    if map_size <= 0:
+        return max(0, int(default))
+    return max(0, min(int(default), map_size - max(1, player_count)))
+
+
 def add_load_party_state(
     bot,
     *,
@@ -64,24 +126,6 @@ def add_load_party_state(
 
     def _npc_count() -> int:
         return int(Party.GetHeroCount() or 0) + int(_hench_count())
-
-    def _hero_id_from_member(hero_member) -> int:
-        try:
-            hero_id_obj = getattr(hero_member, "hero_id", None)
-            if hero_id_obj is None:
-                return 0
-            if hasattr(hero_id_obj, "GetID"):
-                return int(hero_id_obj.GetID() or 0)
-            return int(hero_id_obj or 0)
-        except Exception:
-            return 0
-
-    def _hero_party_index_one_based(hero_id: int) -> int:
-        heroes = Party.GetHeroes() or []
-        for idx, hero in enumerate(heroes, start=1):
-            if _hero_id_from_member(hero) == int(hero_id):
-                return int(idx)
-        return 0
 
     def _load_party():
         use_priority_team = raw_hero_team.lower() == "priority"
@@ -153,7 +197,7 @@ def add_load_party_state(
 
         existing_hero_ids: set[int] = set()
         for hero in Party.GetHeroes() or []:
-            hero_id = _hero_id_from_member(hero)
+            hero_id = hero_id_from_member(hero)
             if hero_id > 0:
                 existing_hero_ids.add(hero_id)
 
@@ -186,7 +230,7 @@ def add_load_party_state(
                 existing_hero_ids.add(resolved_id)
                 if apply_hero_templates:
                     template_code = str((hero_templates or {}).get(str(resolved_id), "") or "").strip()
-                    hero_index = _hero_party_index_one_based(resolved_id) if template_code else 0
+                    hero_index = hero_party_index_one_based(resolved_id, party_api=Party) if template_code else 0
                     if hero_index > 0:
                         try:
                             yield from Routines.Yield.Skills.LoadHeroSkillbar(int(hero_index), template_code, log=False)
