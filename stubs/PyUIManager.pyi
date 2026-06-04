@@ -303,9 +303,6 @@ class UIManager:
     ) -> int: ...
 
     @staticmethod
-    def resolve_devtext_dialog_proc() -> int: ...
-
-    @staticmethod
     def ensure_devtext_source() -> Tuple[int, bool]: ...
 
     @staticmethod
@@ -325,9 +322,28 @@ class UIManager:
 
     @staticmethod
     def clear_window_contents_by_frame_id(root_frame_id: int) -> bool: ...
+    
+    @staticmethod
+    def CreateNativeWindow(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        title: str = ...,
+        parent_frame_id: int = 9,
+        child_index: int = 0,
+        frame_flags: int = 0,
+        create_param: int = 0x20,
+        anchor_flags: int = 0x06,
+        subclass_flags: int = 0x59
+    ) -> int: ...
+
+    
+    
+    
 
     @staticmethod
-    def create_window(
+    def CreateWindowClone(
         x: float,
         y: float,
         width: float,
@@ -343,7 +359,7 @@ class UIManager:
     ) -> int: ...
 
     @staticmethod
-    def create_empty_window(
+    def CreateEmptyWindowClone(
         x: float,
         y: float,
         width: float,
