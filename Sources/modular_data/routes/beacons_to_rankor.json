@@ -1,10 +1,9 @@
-﻿{
+{
   "name": "Beacons to Camp Rankor",
   "steps": [
-    {"type": "auto_path", "name": "Dreadnought's Drift to Snake Dance", "points": [[-6850, 4881], [-2906, 156], [-1932, -5887], [-6047, -6092], [-7323, -7153], [-7347, -7629]]},
-    {"type": "wait_map_load", "map_id": 91},
-    {"type": "auto_path", "name": "Snake Dance to Camp Rankor", "points": [[-5645, 41872], [2714, 38619], [2291, 32756], [-2178, 24582], [-148, 3311], [-3159, -8177], [-3500, -30102], [3340, -39165], [5815, -41288], [6229, -41568]]},
-    {"type": "wait_map_load", "map_id": 155}
+    {"type": "route", "name": "Dreadnought's Drift to Snake Dance", "points": [[-6850, 4881], [-2906, 156], [-1932, -5887], [-6047, -6092], [-7323, -7153], [-7347, -7629]], "mode": "kill"},
+    {"type": "map", "map_id": 91, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Snake Dance to Camp Rankor", "points": [[-5645, 41872], [2714, 38619], [2291, 32756], [-2178, 24582], [-148, 3311], [-3159, -8177], [-3500, -30102], [3340, -39165], [5815, -41288], [6229, -41568]], "mode": "kill"},
+    {"type": "map", "map_id": 155, "action": "wait_for_map_load"}
   ]
 }
-

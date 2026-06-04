@@ -63,6 +63,7 @@ _MAPS_REQUIRING_EXTRA_CONFIRM: set[int] = {
     21,   # The Frost Gate
     14,   # Gates of Kryta
 }
+_ENTER_CHALLENGE_CONFIRM_TIMEOUT_MS = 1000
 
 
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
@@ -308,7 +309,7 @@ class BTMap:
         return BehaviorTree(tree)
 
     @staticmethod
-    def TravelToRegion(outpost_id, region, district, language=0, log:bool=False, timeout: int = 10000):
+    def TravelToRegion(outpost_id, region:int, district:int =1, language:int=0, log:bool=False, timeout: int = 10000):
         """
         Build a tree that travels to a specific outpost, region, district, and language combination.
 
@@ -320,6 +321,8 @@ class BTMap:
           UserDescription: Use this when you need to travel to a map with a specific region, district, or language.
           Notes: Treats matching map id, region, district, and language as early success.
         """
+        _real_district = district -1
+        #district = district +1
         target_region = int(region)
         target_district = int(district)
         target_language = int(language)
@@ -360,7 +363,7 @@ class BTMap:
               Notes: Returns success immediately after dispatching the travel request.
             """
             _log("TravelToRegion", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
-            Map.TravelToRegion(outpost_id, region, district, language)
+            Map.TravelToRegion(outpost_id, region, _real_district, language)
             return BehaviorTree.NodeState.SUCCESS
         # 3. ARRIVAL CHECK
         def map_arrival() -> BehaviorTree.NodeState:
@@ -616,9 +619,9 @@ class BTMap:
             if not Map.IsOutpost():
                 return BehaviorTree.NodeState.SUCCESS
 
-            if state["confirm_elapsed_ms"] >= 5000:
-                _fail_log("EnterChallenge", "Timed out waiting for the extra confirm dialog.")
-                return BehaviorTree.NodeState.FAILURE
+            if state["confirm_elapsed_ms"] >= _ENTER_CHALLENGE_CONFIRM_TIMEOUT_MS:
+                _log("EnterChallenge", "Extra confirm dialog did not appear; continuing to map-load wait.", log=True)
+                return BehaviorTree.NodeState.SUCCESS
 
             Map.ConfirmEnterChallenge()
             state["confirm_elapsed_ms"] += 100

@@ -856,7 +856,7 @@ class NecromancerSkills:
         skill.TargetAllegiance = Skilltarget.Minion.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.LessLife = 0.35
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

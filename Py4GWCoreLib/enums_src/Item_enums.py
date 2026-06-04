@@ -1,8 +1,15 @@
-from enum import Enum, auto
+import datetime
+from enum import Enum, Flag, auto
 from enum import IntEnum
+from typing import Literal, TypeAlias, TypeIs, cast, get_args
 from .Model_enums import ModelID
 
 MAX_STACK_SIZE = 250
+MAX_GOLD_STORAGE = 1_000_000
+MAX_GOLD_CHARACTER = 100_000
+
+NICK_CYCLE_START_DATE = datetime.datetime(2009, 4, 20)
+NICK_CYCLE_COUNT = 137
 
 # region Rarity
 class Rarity(IntEnum):
@@ -57,13 +64,26 @@ class Bags(IntEnum):
     Storage13 = 20
     Storage14 = 21
     EquippedItems = 22
+    
+    Max = 23
 
-INVENTORY_BAGS = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2, Bags.EquipmentPack]
+INVENTORY_BAGS = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2]
+INVENTORY_WITH_EQUIPMENT_BAGS = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2, Bags.EquipmentPack]
 STORAGE_BAGS = [
     Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4, Bags.Storage5, Bags.Storage6,
     Bags.Storage7, Bags.Storage8, Bags.Storage9, Bags.Storage10, Bags.Storage11, Bags.Storage12,
     Bags.Storage13, Bags.Storage14
 ]
+
+BAG_ROW_SLOTS = 5
+MAX_BAG_SIZES = {
+    Bags.Backpack: 20,
+    Bags.BeltPouch: 10,
+    Bags.Bag1: 15,
+    Bags.Bag2: 15,
+    Bags.EquipmentPack: 20,
+} 
+MAX_BAG_SIZES.update({bag: 25 for bag in STORAGE_BAGS})
 # endregion
 # region ItemType
 class ItemType(IntEnum):
@@ -131,32 +151,15 @@ class ItemType(IntEnum):
     def is_armor_type(self) -> bool:
         return self in ARMOR_TYPES
 
-WEAPON_TYPES = frozenset(
-    {
-        ItemType.Axe,
-        ItemType.Bow,
-        ItemType.Daggers,
-        ItemType.Hammer,
-        ItemType.Offhand,
-        ItemType.Scythe,
-        ItemType.Shield,
-        ItemType.Spear,
-        ItemType.Staff,
-        ItemType.Sword,
-        ItemType.Wand,
-    }
-)
+WeaponType: TypeAlias = Literal[ItemType.Axe, ItemType.Bow, ItemType.Daggers, ItemType.Hammer, ItemType.Offhand, ItemType.Scythe, ItemType.Shield, ItemType.Spear, ItemType.Staff, ItemType.Sword, ItemType.Wand]
+WEAPON_TYPES: frozenset[ItemType] = frozenset(cast(tuple[ItemType, ...], get_args(WeaponType)))
 
-ARMOR_TYPES = frozenset(
-    {
-        ItemType.Headpiece,
-        ItemType.Chestpiece,
-        ItemType.Gloves,
-        ItemType.Leggings,
-        ItemType.Boots,
-        ItemType.Salvage,
-    }
-)
+
+def is_weapon_type_literal(item_type: ItemType) -> TypeIs[WeaponType]:
+    return item_type in WEAPON_TYPES
+
+ArmorType: TypeAlias = Literal[ItemType.Headpiece, ItemType.Chestpiece, ItemType.Gloves, ItemType.Leggings, ItemType.Boots, ItemType.Salvage]
+ARMOR_TYPES = frozenset(cast(tuple[ItemType, ...], get_args(ArmorType)))
 
 ITEM_TYPE_META_TYPES: dict[ItemType, list[ItemType]] = {
     ItemType.Weapon: [
@@ -203,6 +206,20 @@ ITEM_TYPE_META_TYPES: dict[ItemType, list[ItemType]] = {
 }
 
 # endregion
+
+class TradingNPCType(IntEnum):
+    Unknown = auto()
+    Merchant = auto()
+    Crafter = auto()
+    Collector = auto()
+    Trader = auto()
+    
+class TraderType(IntEnum):
+    Dye = auto()
+    Rune = auto()
+    Scroll = auto()
+    Material = auto()
+    RareMaterial = auto()
 
 class ItemAction(IntEnum):
     NONE = 0

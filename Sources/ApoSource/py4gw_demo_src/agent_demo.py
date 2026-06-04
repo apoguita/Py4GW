@@ -7,6 +7,7 @@ from Py4GWCoreLib import Color
 from typing import Tuple
 from Py4GWCoreLib import AgentArray, Agent, Player
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
+from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded
 
 MODULE_NAME = "Agent Info Viewer"
 LOG_ACTIONS = True
@@ -58,6 +59,13 @@ def draw_agents_view():
         _AGENT_ID = agent_id
         PyImGui.text(f"ID: {_AGENT_ID}")
         PyImGui.text(f"Name: {Agent.GetNameByID(_AGENT_ID)}")
+        PyImGui.text(f"Encoded Name: {GWStringEncoded._format_name_encoded(Agent.GetEncNameByID(_AGENT_ID))}")
+        
+        if PyImGui.button("Copy Encoded Name to Clipboard"):
+            PyImGui.set_clipboard_text(GWStringEncoded._format_name_encoded(Agent.GetEncNameByID(_AGENT_ID)))
+        
+        PyImGui.same_line(0, 5)
+            
         if PyImGui.button("Target Agent"):
             Player.ChangeTarget(_AGENT_ID)
         PyImGui.separator()

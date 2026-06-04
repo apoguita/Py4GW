@@ -281,6 +281,42 @@ def _send_multibox_take_dialog_with_target(
     )
 
 
+def _send_multibox_get_blessing_with_target(
+    buttons: int | list[int] | tuple[int, ...],
+    *,
+    target_blackboard_key: str = _MULTIBOX_DIALOG_TARGET_KEY,
+    log: bool = False,
+    aftercast_ms: int = 100,
+) -> BehaviorTree:
+    if isinstance(buttons, int):
+        resolved_buttons = [int(buttons)]
+    else:
+        resolved_buttons = [int(button) for button in buttons]
+
+    buttons_csv = ','.join(str(button) for button in resolved_buttons)
+    first_button = resolved_buttons[0] if resolved_buttons else 0
+
+    return BehaviorTree(
+        BehaviorTree.SubtreeNode(
+            name='SendMultiboxGetBlessingWithTarget',
+            subtree_fn=lambda node: RoutinesBT.Shared.SendAndWait(
+                command=SharedCommandType.GetBlessing,
+                params=(
+                    float(int(node.blackboard.get(target_blackboard_key, 0) or 0)),
+                    float(first_button),
+                    0.0,
+                    0.0,
+                ),
+                extra_data=('auto', buttons_csv, '', ''),
+                timeout_ms=5000,
+                poll_interval_ms=100,
+                log=log,
+                aftercast_ms=aftercast_ms,
+            ),
+        )
+    )
+
+
 def _final_point(pos: PointOrPath) -> Vec2f:
     point = PointPath.final_point(pos)
     if point is None:

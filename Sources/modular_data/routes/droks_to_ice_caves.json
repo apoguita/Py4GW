@@ -1,11 +1,11 @@
 {
   "name": "Droknar's Forge to Ice Caves",
   "steps": [
-    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 20},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8"},
-    {"type": "auto_path", "name": "Exit Droknar's", "points": [[844, 9625]]},
-    {"type": "exit_map", "name": "Exit Droknar's", "point": [-324, 10936], "target_map_id": 26},
-    {"type": "auto_path", "name": "to Ice Caves", "points": [[6543, -13584], [10734, -9478], [18536, -8461], [19649, -12416], [22608, -11858]]},
-    {"type": "exit_map", "name": "Enter Ice Caves", "point": [23217, -11592], "target_map_id": 22}
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 20, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "Exit Droknar's", "points": [[844, 9625]], "mode": "kill"},
+    {"type": "route", "name": "Exit Droknar's", "point": [-324, 10936], "target_map_id": 26, "mode": "exit"},
+    {"type": "route", "name": "Witman's Folly to Ice Caves", "points": [[6543, -13584], [10734, -9478], [18536, -8461], [19649, -12416], [22608, -11858]], "mode": "kill"},
+    {"type": "route", "name": "Enter Ice Caves", "point": [23217, -11592], "target_map_id": 22, "mode": "exit"}
   ]
 }

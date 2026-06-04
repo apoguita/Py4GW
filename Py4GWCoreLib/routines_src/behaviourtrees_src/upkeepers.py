@@ -836,17 +836,7 @@ class BTUpkeepers:
 
     @staticmethod
     def _find_inventory_item_by_model_id(model_id: int) -> int:
-        bags_to_check = [
-            Bag.Backpack,
-            Bag.Belt_Pouch,
-            Bag.Bag_1,
-            Bag.Bag_2,
-            Bag.Equipment_Pack,
-        ]
-        for item_id in GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check):
-            if int(GLOBAL_CACHE.Item.GetModelID(item_id) or 0) == int(model_id):
-                return int(item_id)
-        return 0
+        return int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id)) or 0)
 
     @staticmethod
     def _tick_service_subtree(
@@ -922,8 +912,6 @@ class BTUpkeepers:
 
     @staticmethod
     def OutpostImpService(
-        target_bag: int = 1,
-        slot: int = 0,
         exclude_list: list[int] | None = None,
         log: bool = False,
     ) -> BehaviorTree:
@@ -1032,8 +1020,6 @@ class BTUpkeepers:
                     return BehaviorTree.NodeState.RUNNING
 
                 state["spawn_tree"] = BTUpkeepers.SpawnImp(
-                    target_bag=target_bag,
-                    slot=slot,
                     exclude_list=effective_exclude_list,
                     log=log,
                     move_to_slot=False,

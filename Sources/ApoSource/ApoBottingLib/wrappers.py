@@ -10,11 +10,13 @@ from .helpers import _movement_with_runtime_pause
 from .helpers import _pause_heroai_for_action
 from .helpers import _POST_MOVEMENT_SETTLE_MS
 from .helpers import _send_multibox_auto_dialog
+from .helpers import _send_multibox_get_blessing_with_target
 from .helpers import _send_multibox_dialog_to_target
 from .helpers import _send_multibox_manual_dialog
 from .helpers import _send_multibox_take_dialog_with_target
 from .helpers import _wait_special
 from .helpers import _wait_until_player_stops_moving
+from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
 from Py4GWCoreLib.routines_src.behaviourtrees_src.player import BT
@@ -81,10 +83,8 @@ def Sequence(name: str,
                           )] if map_id_or_name else []
 
     prep_child = [BehaviorTree(Node(map_prep))] if map_prep is not None else []
-    
-    data_child = [StoreProfessionNames()]
 
-    resolved_children = travel_child + prep_child + data_child + resolved_children
+    resolved_children = travel_child + prep_child + resolved_children
     
     return BehaviorTree(
         BehaviorTree.SequenceNode(
@@ -159,6 +159,30 @@ def Failer(name: str = "Failer") -> BehaviorTree:
         BehaviorTree.FailerNode(name=name)
     )
 
+
+def ActivateWidget(widget_name: str, name: str | None = None) -> BehaviorTree:
+    return BottingTree.ActivateWidgetTree(widget_name, name=name)
+
+
+def DeactivateWidget(widget_name: str, name: str | None = None) -> BehaviorTree:
+    return BottingTree.DeactivateWidgetTree(widget_name, name=name)
+
+
+def SetWidgetActive(widget_name: str, enabled: bool, name: str | None = None) -> BehaviorTree:
+    return BottingTree.GetWidgetSetEnabledTree(widget_name, enabled, name=name)
+
+
+def EnableAutoInventoryHandler(name: str | None = None) -> BehaviorTree:
+    return BottingTree.EnableAutoInventoryHandlerTree() if name is None else BottingTree.GetAutoInventoryHandlerSetEnabledTree(True, name=name)
+
+
+def DisableAutoInventoryHandler(name: str | None = None) -> BehaviorTree:
+    return BottingTree.DisableAutoInventoryHandlerTree() if name is None else BottingTree.GetAutoInventoryHandlerSetEnabledTree(False, name=name)
+
+
+def SetAutoInventoryHandlerActive(enabled: bool, name: str | None = None) -> BehaviorTree:
+    return BottingTree.GetAutoInventoryHandlerSetEnabledTree(enabled, name=name)
+
 def GetNodeByProfession(
     WarriorNode: BehaviorTree | BehaviorTree.Node | None = None,
     RangerNode: BehaviorTree | BehaviorTree.Node | None = None,
@@ -174,9 +198,8 @@ def GetNodeByProfession(
     """
     Select a profession-specific node at runtime from the blackboard.
 
-    This helper first stores the current player profession names into the
-    blackboard, then reads `player_primary_profession_name`, and finally returns
-    the node mapped to that profession.
+    This helper reads `player_primary_profession_name` from the blackboard and
+    returns the node mapped to that profession.
 
     Parameters
     ----------
@@ -187,8 +210,7 @@ def GetNodeByProfession(
     Returns
     -------
     BehaviorTree
-        A wrapper sequence that stores profession names and resolves the
-        matching node at tick time.
+        A wrapper sequence that resolves the matching node at tick time.
 
     Notes
     -----
@@ -219,7 +241,6 @@ def GetNodeByProfession(
     return Sequence(
             name="GetNodeByProfession",
             children=[
-                StoreProfessionNames(),
                 Subtree(
                     name="GetNodeByProfessionSubtree",
                     subtree_fn=_profession_specific_node,
@@ -233,7 +254,6 @@ def SkipNodeByProfession(profession_name: str, NodeToRun: BehaviorTree) -> Behav
         subtree_fn=lambda node: Sequence(
             name=f"{profession_name} Profession Skip Decision",
             children=[
-                StoreProfessionNames(),
                 NodeToRun
                 if node.blackboard.get("player_primary_profession_name") != profession_name
                 else Succeeder(name=f"Skip{profession_name}ProfessionSpecificQuests")
@@ -247,7 +267,6 @@ def ExecuteIfProfession(profession_name: str, NodeToRun: BehaviorTree) -> Behavi
         subtree_fn=lambda node: Sequence(
             name=f"{profession_name} Profession Execution Decision",
             children=[
-                StoreProfessionNames(),
                 NodeToRun
                 if node.blackboard.get("player_primary_profession_name") == profession_name
                 else Succeeder(name=f"SkipNon{profession_name}ProfessionSpecificQuests")
@@ -264,9 +283,8 @@ def GetValuesByProfession(
     """
     Resolve a profession-specific value and store it on the blackboard.
 
-    This helper first stores the current player profession names into the
-    blackboard, then reads `player_primary_profession_name`, looks up the value
-    in `profession_values`, and writes the resolved value to `target_key`.
+    This helper reads `player_primary_profession_name`, looks up the value in
+    `profession_values`, and writes the resolved value to `target_key`.
 
     Parameters
     ----------
@@ -282,8 +300,7 @@ def GetValuesByProfession(
     Returns
     -------
     BehaviorTree
-        A wrapper sequence that stores profession names and writes the resolved
-        value to the blackboard.
+        A wrapper sequence that writes the resolved value to the blackboard.
 
     Notes
     -----
@@ -303,7 +320,6 @@ def GetValuesByProfession(
     return Sequence(
             name="GetValuesByProfession",
             children=[
-                StoreProfessionNames(),
                 BehaviorTree.ActionNode(
                     name="GetValuesByProfessionAction",
                     action_fn=_store_profession_value,
@@ -862,9 +878,10 @@ def StoreFactionData(
     )
 
 
-def TakeFactionBlessing(
+def TakeBlessing(
     pos: PointOrPath,
-    faction: str = 'luxon',
+    faction: str | None = None,
+    buttons: int | SequenceABC[int] = 0,
     blessing_dialog_id: int | str = 0x86,
     bribe_dialog_id: int | str = 0x84,
     multi_account: bool = False,
@@ -872,52 +889,91 @@ def TakeFactionBlessing(
     pre_dialog_wait_ms: int = 125,
     post_dialog_wait_ms: int = 125,
 ) -> BehaviorTree:
-    faction_name = str(faction or 'luxon').strip().lower()
-    if faction_name not in {'luxon', 'kurzick'}:
-        raise ValueError("faction must be 'luxon' or 'kurzick'.")
+    faction_name = str(faction or '').strip().lower()
+    if faction_name and faction_name not in {'luxon', 'kurzick'}:
+        raise ValueError("faction must be 'luxon', 'kurzick', or empty.")
 
-    bribe_key = f'{faction_name}_blessing_bribe_priest'
+    if faction_name:
+        bribe_key = f'{faction_name}_blessing_bribe_priest'
 
-    def _set_bribe_flag(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        current_luxon = int(node.blackboard.get('current_luxon_faction', 0) or 0)
-        current_kurzick = int(node.blackboard.get('current_kurzick_faction', 0) or 0)
-        node.blackboard[bribe_key] = (
-            current_kurzick >= current_luxon if faction_name == 'luxon' else current_luxon >= current_kurzick
-        )
-        return BehaviorTree.NodeState.SUCCESS
-
-    def _maybe_bribe(node: BehaviorTree.Node) -> BehaviorTree:
-        if bool(node.blackboard.get(bribe_key, False)):
-            return InteractTargetAndSendDialog(
-                dialog_id=bribe_dialog_id,
-                log=log,
-                multi_account=multi_account,
+        def _set_bribe_flag(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_luxon = int(node.blackboard.get('current_luxon_faction', 0) or 0)
+            current_kurzick = int(node.blackboard.get('current_kurzick_faction', 0) or 0)
+            node.blackboard[bribe_key] = (
+                current_kurzick >= current_luxon if faction_name == 'luxon' else current_luxon >= current_kurzick
             )
-        return Succeeder(name=f'Skip{faction_name.title()}BlessingBribe')
+            return BehaviorTree.NodeState.SUCCESS
+
+        def _maybe_bribe(node: BehaviorTree.Node) -> BehaviorTree:
+            if bool(node.blackboard.get(bribe_key, False)):
+                return InteractTargetAndSendDialog(
+                    dialog_id=bribe_dialog_id,
+                    log=log,
+                    multi_account=multi_account,
+                )
+            return Succeeder(name=f'Skip{faction_name.title()}BlessingBribe')
+
+        return Sequence(
+            name=f'Take {faction_name.title()} Blessing',
+            children=[
+                StoreFactionData(log=log),
+                BehaviorTree(
+                    BehaviorTree.ActionNode(
+                        name=f'Set{faction_name.title()}BlessingBribeFlag',
+                        action_fn=_set_bribe_flag,
+                    )
+                ),
+                MoveAndInteract(pos=pos, log=log),
+                LogMessage(message=f"Obtaining {faction_name.title()} blessing"),
+                Wait(pre_dialog_wait_ms, log=log),
+                Subtree(name=f'MaybeBribe{faction_name.title()}Priest', subtree_fn=_maybe_bribe),
+                InteractTargetAndSendDialog(
+                    dialog_id=blessing_dialog_id,
+                    log=log,
+                    multi_account=multi_account,
+                ),
+                Wait(post_dialog_wait_ms, log=log),
+            ],
+        )
 
     return Sequence(
-        name=f'Take {faction_name.title()} Blessing',
+        name='Take Blessing',
         children=[
-            StoreFactionData(log=log),
-            BehaviorTree(
-                BehaviorTree.ActionNode(
-                    name=f'Set{faction_name.title()}BlessingBribeFlag',
-                    action_fn=_set_bribe_flag,
-                )
-            ),
             MoveAndInteract(pos=pos, log=log),
-            LogMessage(message=f"Obtaining {faction_name.title()} blessing"),
+            LogMessage(message='Obtaining blessing'),
             Wait(pre_dialog_wait_ms, log=log),
-            Subtree(name=f'MaybeBribe{faction_name.title()}Priest',subtree_fn=_maybe_bribe,),
-            InteractTargetAndSendDialog(
-                dialog_id=blessing_dialog_id,
-                log=log,
-                multi_account=multi_account,
+            *(
+                [
+                    _capture_current_target(),
+                    RoutinesBT.Composite.Sequence(
+                        *[
+                            RoutinesBT.Player.SendAutomaticDialog(
+                                button_number=int(button),
+                                log=log,
+                            )
+                            for button in ([buttons] if isinstance(buttons, int) else list(buttons))
+                        ],
+                        _send_multibox_get_blessing_with_target(
+                            buttons=[buttons] if isinstance(buttons, int) else list(buttons),
+                            log=log,
+                        ),
+                        name='TakeBlessingMultiboxSequence',
+                    ),
+                ]
+                if multi_account
+                else [
+                    *[
+                        RoutinesBT.Player.SendAutomaticDialog(
+                            button_number=int(button),
+                            log=log,
+                        )
+                        for button in ([buttons] if isinstance(buttons, int) else list(buttons))
+                    ]
+                ]
             ),
             Wait(post_dialog_wait_ms, log=log),
         ],
     )
-
 
 def DonateFaction(
     faction: str = 'luxon',
@@ -1019,6 +1075,23 @@ def TravelGH() -> BehaviorTree:
 
 def LeaveGH() -> BehaviorTree:
     return RoutinesBT.Map.LeaveGH()
+
+def TravelToRegion(
+    outpost_id: int,
+    region: int,
+    district: int,
+    language: int = 0,
+    log: bool = False,
+    timeout_ms: int = 10000,
+) -> BehaviorTree:
+    return RoutinesBT.Map.TravelToRegion(
+        outpost_id=outpost_id,
+        region=region,
+        district=district,
+        language=language,
+        log=log,
+        timeout=timeout_ms,
+    )
 
 def EnterChallenge(
     delay_ms: int = 3000,

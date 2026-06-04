@@ -1,5 +1,7 @@
 
 import PyParty
+
+from Py4GWCoreLib.enums_src.Hero_enums import HeroType
 from .Player import Player
 from .Agent import Agent
 from typing import List, Tuple
@@ -154,6 +156,24 @@ class Party:
         """
         return Party.party_instance().party_player_count
 
+    @staticmethod
+    @frame_cache(category="Party", source_lib="GetHeroIndex")
+    def GetHeroIndex(hero_id : HeroType | int):
+        """
+        Purpose: Retrieve the index of a hero in the party.
+        Args:
+            hero_id (int): The ID of the hero.
+        Returns: int: The index of the hero in the party, or -1 if not found.
+        """
+        hero_id = hero_id.value if isinstance(hero_id, HeroType) else hero_id
+        party_heroes = Party.GetHeroes()
+        player_id = Player.GetLoginNumber()
+        hero_index = next((i for i, h in enumerate(party_heroes) if h.hero_id.GetID() == hero_id and h.owner_player_id == player_id), None)
+        if hero_index is not None:
+            return hero_index + 1 
+        
+        return 0
+    
     @staticmethod
     @frame_cache(category="Party", source_lib="GetHeroCount")
     def GetHeroCount():
@@ -631,6 +651,17 @@ class Party:
             """
             #return #function is not working atm
             Party.party_instance().UseHeroSkill(hero_agent_id, slot, target_id)
+
+        @staticmethod
+        def SetSkillAIEnabled(hero_agent_id, slot, enabled):
+            """
+            Enable or disable native hero AI use for one hero skill slot.
+            Args:
+                hero_agent_id (int): The hero agent ID.
+                slot (int): The public skill slot, 1-8.
+                enabled (bool): True lets native hero AI use the skill; False locks it.
+            """
+            return Party.party_instance().SetHeroSkillAIEnabled(hero_agent_id, slot, enabled)
 
         @staticmethod
         def FlagHero (hero_id, x, y):

@@ -1,4 +1,4 @@
-
+from enum import Enum
 #region Color
 class Color:
     def __init__(self, r: int = 255, g: int = 255, b: int = 255, a: int = 255):
@@ -286,105 +286,125 @@ class Color:
             b=random.randint(0, 255),
             a=a
         )
+
+   
+class ColorPalette(Enum):
+    Markdown_White = Color(255, 255, 255, 255)
+    Markdown_Blue = Color(153, 238, 255, 255)
+    Markdown_Green = Color(0, 255, 0, 255)
+    Markdown_Purple = Color(187, 136, 238, 255)
+    Markdown_Gold = Color(255, 204, 85, 255)
+    Markdown_Red = Color(255, 0, 0, 255)
+    Markdown_Dull = Color(120, 120, 120, 255)
     
-class ColorPalette:
-    _colors: dict[str, Color] = {
-        "aqua": Color(0, 255, 255),
-        "azure": Color(240, 255, 255),
-        "beige": Color(245, 245, 220),
-        "black": Color(0, 0, 0),
-        "blue": Color(0, 0, 255),
-        "bright_green": Color(0, 255, 0),
-        "brown": Color(165, 42, 42),
-        "chocolate": Color(210, 105, 30),
-        "coral": Color(255, 127, 80),
-        "creme": Color(255, 238, 187),
-        "crimson": Color(220, 20, 60),
-        "cyan": Color(0, 255, 255),
-        "dark_blue": Color(0, 0, 139),
-        "dark_cyan": Color(0, 139, 139),
-        "dark_gray": Color(169, 169, 169),
-        "dark_green": Color(0, 100, 0),
-        "dark_magenta": Color(139, 0, 139),
-        "dark_orange": Color(255, 140, 0),
-        "dark_red": Color(139, 0, 0),
-        "dark_violet": Color(148, 0, 211),
-        "deep_pink": Color(255, 20, 147),
-        "dodger_blue": Color(30, 144, 255),
-        "firebrick": Color(178, 34, 34),
-        "fuchsia": Color(255, 0, 255),
-        "gold": Color(255, 215, 0),
-        "gray": Color(128, 128, 128),
-        "green": Color(0, 128, 0),
-        "gw_blue": Color(0, 170, 255, 255),
-        "gw_disabled":  Color(26, 26, 26, 255),
-        "gw_gold": Color(225, 150, 0, 255),
-        "gw_green": Color(25, 200, 0, 255),
-        "gw_purple": Color(110, 65, 200, 255),
-        "gw_white": Color(255, 255, 255, 255),
-        "gw_warrior": Color(222, 185, 104, 255), 
-        "gw_ranger": Color(147, 194, 74, 255),
-        "gw_monk": Color(171, 215, 229, 255),
-        "gw_necromancer": Color(87, 174, 112, 255),
-        "gw_mesmer": Color(161, 84, 146, 255),
-        "gw_elementalist": Color(197, 75, 75, 255),
-        "gw_assassin": Color(234, 18, 125, 255),
-        "gw_ritualist": Color(39, 234, 204, 255),
-        "gw_paragon": Color(208, 122, 14, 255),
-        "gw_dervish": Color(97, 115, 163, 255),
-        "indigo": Color(75, 0, 130),
-        "ivory": Color(255, 255, 240),
-        "khaki": Color(240, 230, 140),
-        "lavender": Color(230, 230, 250),
-        "light_blue": Color(173, 216, 230),
-        "light_coral": Color(240, 128, 128),
-        "light_cyan": Color(224, 255, 255),
-        "light_gray": Color(211, 211, 211),
-        "light_gold": Color(255, 233, 123, 255),
-        "light_green": Color(144, 238, 144),
-        "light_pink": Color(255, 182, 193),
-        "light_yellow": Color(255, 255, 224),
-        "lime": Color(0, 255, 0),
-        "magenta": Color(255, 0, 255),
-        "maroon": Color(128, 0, 0),
-        "midnight_violet": Color(75, 0, 130), 
-        "navy": Color(0, 0, 128),
-        "olive": Color(128, 128, 0),
-        "orange": Color(255, 165, 0),
-        "orchid": Color(218, 112, 214),
-        "peru": Color(205, 133, 63),
-        "pink": Color(255, 192, 203),
-        "plum": Color(221, 160, 221),
-        "purple": Color(128, 0, 128),
-        "red": Color(255, 0, 0),
-        "rosy_brown": Color(188, 143, 143),
-        "salmon": Color(250, 128, 114),
-        "sienna": Color(160, 82, 45),
-        "silver": Color(192, 192, 192),
-        "sky_blue": Color(135, 206, 235),
-        "slate_blue": Color(106, 90, 205),
-        "slate_gray": Color(112, 128, 144),
-        "tan": Color(210, 180, 140),
-        "teal": Color(0, 128, 128),
-        "thistle": Color(216, 191, 216),
-        "tomato": Color(255, 99, 71),
-        "turquoise": Color(64, 224, 208),
-        "violet": Color(238, 130, 238),
-        "wheat": Color(245, 222, 179),
-        "white": Color(255, 255, 255),
-        "yellow": Color(200, 155, 0, 255)
-    }
+    Aqua = Color(0, 255, 255)
+    Azure = Color(240, 255, 255)
+    Beige = Color(245, 245, 220)
+    Black = Color(0, 0, 0)
+    Blue = Color(0, 0, 255)
+    BrightGreen = Color(0, 255, 0)
+    Brown = Color(165, 42, 42)
+    Chocolate = Color(210, 105, 30)
+    Coral = Color(255, 127, 80)
+    Creme = Color(255, 238, 187)
+    Crimson = Color(220, 20, 60)
+    Cyan = Color(0, 255, 255)
+    DarkBlue = Color(0, 0, 139)
+    DarkCyan = Color(0, 139, 139)
+    DarkGray = Color(169, 169, 169)
+    DarkGreen = Color(0, 100, 0)
+    DarkMagenta = Color(139, 0, 139)
+    DarkOrange = Color(255, 140, 0)
+    DarkRed = Color(139, 0, 0)
+    DarkViolet = Color(148, 0, 211)
+    DeepPink = Color(255, 20, 147)
+    DodgerBlue = Color(30, 144, 255)
+    Firebrick = Color(178, 34, 34)
+    Fuchsia = Color(255, 0, 255)
+    Gold = Color(255, 215, 0)
+    Gray = Color(128, 128, 128)
+    Green = Color(0, 128, 0)
+    GwBlue = Color(0, 170, 255, 255)
+    GwDisabled = Color(26, 26, 26, 255)
+    GwGold = Color(225, 150, 0, 255)
+    GwGreen = Color(25, 200, 0, 255)
+    GwPurple = Color(110, 65, 200, 255)
+    GwWhite = Color(255, 255, 255, 255)
+    GwWarrior = Color(222, 185, 104, 255)
+    GwRanger = Color(147, 194, 74, 255)
+    GwMonk = Color(171, 215, 229, 255)
+    GwNecromancer = Color(87, 174, 112, 255)
+    GwMesmer = Color(161, 84, 146, 255)
+    GwElementalist = Color(197, 75, 75, 255)
+    GwAssassin = Color(234, 18, 125, 255)
+    GwRitualist = Color(39, 234, 204, 255)
+    GwParagon = Color(208, 122, 14, 255)
+    GwDervish = Color(97, 115, 163, 255)
+    Indigo = Color(75, 0, 130)
+    Ivory = Color(255, 255, 240)
+    Khaki = Color(240, 230, 140)
+    Lavender = Color(230, 230, 250)
+    LightBlue = Color(173, 216, 230)
+    LightCoral = Color(240, 128, 128)
+    LightCyan = Color(224, 255, 255)
+    LightGray = Color(211, 211, 211)
+    LightGold = Color(255, 233, 123, 255)
+    LightGreen = Color(144, 238, 144)
+    LightPink = Color(255, 182, 193)
+    LightYellow = Color(255, 255, 224)
+    Lime = Color(0, 255, 0)
+    Magenta = Color(255, 0, 255)
+    Maroon = Color(128, 0, 0)
+    MidnightViolet = Color(75, 0, 130)
+    Navy = Color(0, 0, 128)
+    Olive = Color(128, 128, 0)
+    Orange = Color(255, 165, 0)
+    Orchid = Color(218, 112, 214)
+    Peru = Color(205, 133, 63)
+    Pink = Color(255, 192, 203)
+    Plum = Color(221, 160, 221)
+    Purple = Color(128, 0, 128)
+    Red = Color(255, 0, 0)
+    RosyBrown = Color(188, 143, 143)
+    Salmon = Color(250, 128, 114)
+    Sienna = Color(160, 82, 45)
+    Silver = Color(192, 192, 192)
+    SkyBlue = Color(135, 206, 235)
+    SlateBlue = Color(106, 90, 205)
+    SlateGray = Color(112, 128, 144)
+    Tan = Color(210, 180, 140)
+    Teal = Color(0, 128, 128)
+    Thistle = Color(216, 191, 216)
+    Tomato = Color(255, 99, 71)
+    Turquoise = Color(64, 224, 208)
+    Violet = Color(238, 130, 238)
+    Wheat = Color(245, 222, 179)
+    White = Color(255, 255, 255)
+    Yellow = Color(200, 155, 0, 255)
+
+    @property
+    def color(self) -> Color:
+        return self.value
+
+    @classmethod
+    def _normalize_name(cls, name: str) -> str:
+        return ''.join(ch for ch in str(name or '').strip().lower() if ch.isalnum())
+
+    @classmethod
+    def _member_map_lower(cls) -> dict[str, 'ColorPalette']:
+        return {cls._normalize_name(member.name): member for member in cls}
 
     @staticmethod
     def GetColor(name: str) -> Color:
-        return ColorPalette._colors.get(name.lower(), Color())
+        member = ColorPalette._member_map_lower().get(ColorPalette._normalize_name(name))
+        return member.color if member else Color()
 
     @staticmethod
     def ListColors() -> list[str]:
-        return list(ColorPalette._colors.keys())
+        return [member.name for member in ColorPalette]
 
     @staticmethod
     def HasColor(name: str) -> bool:
-        return name.lower() in ColorPalette._colors
+        return ColorPalette._normalize_name(name) in ColorPalette._member_map_lower()
 
 #endregion

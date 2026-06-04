@@ -1,13 +1,13 @@
 {
   "name": "Sifhalla to Olafstead",
   "steps": [
-    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 643},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "auto_path", "name": "To Exit", "points": [[13511, 19647]]},
-    {"type": "exit_map", "name": "Leave Sifhalla", "point": [13596, 19212], "target_map_id": 513},
-    {"type": "auto_path", "name": "Drakkar Lake to Varajar Fells", "points": [[13946, 14287], [14388, 10508], [14100, 8500], [14288, 6756], [14684, 3461], [13005, 2702], [10141, 2868], [5936, 3486], [3749, 3286], [-12, -245], [-2285, -2268], [-2515, -3421], [-3937, -3302], [-5991, -4153], [-6873, -7715], [-7917, -9408], [-9268, -10470], [-9944, -13188], [-10744, -16592], [-12095, -20022], [-11484, -22223], [-11179, -24669], [-11041, -25654]]},
-    {"type": "exit_map", "name": "Leave Drakkar Lake", "point": [-11020, -26164], "target_map_id": 553},
-    {"type": "auto_path", "name": "Varajar Fells to Olafstead", "points": [[-997, 15641], [-1723, 11580], [-2496, 7633], [-1901, 4041], [-3998, 972], [-4223, -2591], [-4014, -4621], [-2510, -3570], [-2980, -2797], [-3477, -1458], [-2889, 134], [-1891, 1086], [-1394, 1212]]},
-    {"type": "exit_map", "name": "Leave Varajar Fells", "point": [-1090, 1276], "target_map_id": 645}
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 643, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[13511, 19647]], "mode": "kill"},
+    {"type": "route", "name": "Leave Sifhalla", "point": [13596, 19212], "target_map_id": 513, "mode": "exit"},
+    {"type": "route", "name": "Drakkar Lake to Varajar Fells", "points": [[13946, 14287], [14388, 10508], [14100, 8500], [14288, 6756], [14684, 3461], [13005, 2702], [10141, 2868], [5936, 3486], [3749, 3286], [-12, -245], [-2285, -2268], [-2515, -3421], [-3937, -3302], [-5991, -4153], [-6873, -7715], [-7917, -9408], [-9268, -10470], [-9944, -13188], [-10744, -16592], [-12095, -20022], [-11484, -22223], [-11179, -24669], [-11041, -25654]], "mode": "kill"},
+    {"type": "route", "name": "Leave Drakkar Lake", "point": [-11020, -26164], "target_map_id": 553, "mode": "exit"},
+    {"type": "route", "name": "Varajar Fells to Olafstead", "points": [[-997, 15641], [-1723, 11580], [-2496, 7633], [-1901, 4041], [-3998, 972], [-4223, -2591], [-4014, -4621], [-2510, -3570], [-2980, -2797], [-3477, -1458], [-2889, 134], [-1891, 1086], [-1394, 1212]], "mode": "kill"},
+    {"type": "route", "name": "Leave Varajar Fells", "point": [-1090, 1276], "target_map_id": 645, "mode": "exit"}
   ]
 }
