@@ -446,6 +446,16 @@ If you want, the next handoff artifact I can produce is a stricter “developer 
 - clone creation pipeline
 - Python API mapping to native calls.
 
+### 2026-06-03 Update: Canonical Container Window API
+
+As of 2026-06-03, cleanup has been completed on the C++ side:
+
+- **`create_container_window_with_title(x, y, w, h, title)`** — New canonical Python API. Creates a cold `CContainerFrame`, installs window chrome via `FrameNewSubclass(Ui_CompositeRootControlProc, 0x59)`, enables mouse interaction, and sets the title — all in one call. No DevText dependency.
+- **`create_titled_container_window(x, y, w, h, title)`** — Equivalent older name (same implementation).
+- **`create_window(...)`** — The legacy DevText clone path, now deprecated for new code but retained.
+
+C++ side: Shared resolvers `ResolveCreateEncodedText()` and `ResolveSetFrameText()` consolidate previously duplicated byte-pattern scans. All hardcoded address comments removed. Stubs in `stubs/PyUIManager.pyi` now include all C++ bindings.
+
 diff --git a/docs/native_ui_title_and_encoded_string_reference.md b/docs/native_ui_title_and_encoded_string_reference.md
 new file mode 100644
 --- /dev/null
