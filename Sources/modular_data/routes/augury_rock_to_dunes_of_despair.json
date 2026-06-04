@@ -1,12 +1,12 @@
 {
   "name": "Augury Rock to Dunes of Despair",
   "steps": [
-    {"type": "travel", "name": "Travel to Augury Rock outpost", "target_map_id": 38},
-    {"type": "auto_path", "name": "To Exit", "points": [[-18302, -652]]},
-    {"type": "exit_map", "name": "Leave Augury Rock outpost", "point": [-20027, -464], "target_map_id": 113},
-    {"type": "auto_path", "name": "To Exit", "points": [[2187, -11202], [-3588, -13863], [1243, -19123]]},
-    {"type": "exit_map", "name": "Leave Prophet's Path", "point": [1269, -19679], "target_map_id": 111},
-    {"type": "auto_path", "name": "To Exit", "points": [[-4964, -12682]]},
-    {"type": "exit_map", "name": "Leave Vulture Drifts", "point": [-4744, -12271], "target_map_id": 116}
+    {"type": "map", "name": "Travel to Augury Rock outpost", "target_map_id": 38, "action": "travel"},
+    {"type": "route", "name": "To Exit", "points": [[-18302, -652]], "mode": "kill"},
+    {"type": "route", "name": "Leave Augury Rock outpost", "point": [-20027, -464], "target_map_id": 113, "mode": "exit"},
+    {"type": "route", "name": "To Exit", "points": [[2187, -11202], [-3588, -13863], [1243, -19123]], "mode": "kill"},
+    {"type": "route", "name": "Leave Prophet's Path", "point": [1269, -19679], "target_map_id": 111, "mode": "exit"},
+    {"type": "route", "name": "To Exit", "points": [[-4964, -12682]], "mode": "kill"},
+    {"type": "route", "name": "Leave Vulture Drifts", "point": [-4744, -12271], "target_map_id": 116, "mode": "exit"}
   ]
 }

@@ -1,13 +1,13 @@
 {
   "name": "The Final Vision",
   "steps": [
-    {"type": "travel", "name": "Travel to Eye of the North outpost", "target_map_id": 642},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "auto_path", "name": "To Exit", "points": [[-3717, 4387]]},
-    {"type": "exit_map", "name": "Leave Eye of the North outpost", "point": [-4596, 5017], "target_map_id": 646},
-    {"type": "auto_path", "name": "To Scrying Pool", "points": [[-6462, 6448]]},
-    {"type": "dialogs", "id": ["0x63A", "0x63C"], "npc": "SCRYING_POOL", "name": "Dialog - Scrying Pool"},
+    {"type": "map", "name": "Travel to Eye of the North outpost", "target_map_id": 642, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-3717, 4387]], "mode": "kill"},
+    {"type": "route", "name": "Leave Eye of the North outpost", "point": [-4596, 5017], "target_map_id": 646, "mode": "exit"},
+    {"type": "route", "name": "To Scrying Pool", "points": [[-6462, 6448]], "mode": "kill"},
+    {"type": "interact", "npc": "SCRYING_POOL", "name": "Dialog - Scrying Pool", "action": "dialog", "ids": ["0x63A", "0x63C"], "target": "npc"},
     {"type": "wait", "ms": 11800},
-    {"type": "wait_for_map_load", "map_id": 646}
+    {"type": "map", "map_id": 646, "action": "wait_for_map_load"}
   ]
 }

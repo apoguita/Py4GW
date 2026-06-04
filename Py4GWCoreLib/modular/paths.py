@@ -1,8 +1,4 @@
-"""
-paths module
-
-This module is part of the modular runtime surface.
-"""
+"""Path helpers for BT-native modular recipe tooling."""
 from __future__ import annotations
 
 import os

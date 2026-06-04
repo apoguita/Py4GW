@@ -485,7 +485,25 @@ class Items:
         return bool(allow_missing)
 
     @staticmethod
-    def CraftItem(output_model_id: int, cost: int, trade_model_ids: list[int], quantity_list: list[int]) -> Generator[Any, Any, bool]:
+    def _wait_for_crafter_item(output_model_id: int, timeout_ms: int = 2500, step_ms: int = 50):
+        wait_elapsed_ms = 0
+        while wait_elapsed_ms < timeout_ms:
+            for offered_item_id in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems():
+                if int(GLOBAL_CACHE.Item.GetModelID(offered_item_id)) == int(output_model_id):
+                    return offered_item_id
+            wait_elapsed_ms += step_ms
+            yield from wait(step_ms)
+        return 0
+
+    @staticmethod
+    def CraftItem(
+        output_model_id: int,
+        cost: int,
+        trade_model_ids: list[int],
+        quantity_list: list[int],
+        inventory_timeout_ms: int = 2500,
+        inventory_step_ms: int = 50,
+    ) -> Generator[Any, Any, bool]:
         k = min(len(trade_model_ids), len(quantity_list))
         if k == 0:
             return False
@@ -500,11 +518,11 @@ class Items:
         if any(i == 0 for i in trade_item_ids):
             return False
 
-        target_item_id = 0
-        for offered_item_id in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems():
-            if GLOBAL_CACHE.Item.GetModelID(offered_item_id) == output_model_id:
-                target_item_id = offered_item_id
-                break
+        target_item_id = yield from Items._wait_for_crafter_item(
+            output_model_id,
+            timeout_ms=inventory_timeout_ms,
+            step_ms=inventory_step_ms,
+        )
         if target_item_id == 0:
             return False
 

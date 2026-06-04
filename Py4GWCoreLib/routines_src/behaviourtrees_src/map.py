@@ -63,6 +63,7 @@ _MAPS_REQUIRING_EXTRA_CONFIRM: set[int] = {
     21,   # The Frost Gate
     14,   # Gates of Kryta
 }
+_ENTER_CHALLENGE_CONFIRM_TIMEOUT_MS = 1000
 
 
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
@@ -618,9 +619,9 @@ class BTMap:
             if not Map.IsOutpost():
                 return BehaviorTree.NodeState.SUCCESS
 
-            if state["confirm_elapsed_ms"] >= 5000:
-                _fail_log("EnterChallenge", "Timed out waiting for the extra confirm dialog.")
-                return BehaviorTree.NodeState.FAILURE
+            if state["confirm_elapsed_ms"] >= _ENTER_CHALLENGE_CONFIRM_TIMEOUT_MS:
+                _log("EnterChallenge", "Extra confirm dialog did not appear; continuing to map-load wait.", log=True)
+                return BehaviorTree.NodeState.SUCCESS
 
             Map.ConfirmEnterChallenge()
             state["confirm_elapsed_ms"] += 100

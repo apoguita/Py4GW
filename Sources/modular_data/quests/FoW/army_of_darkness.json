@@ -1,18 +1,15 @@
-﻿{
+{
   "name": "Naughty Priest",
   "steps": [
-    {"type": "auto_path", "name": "To the Priest", "points": [[2361, 14877]]},
-    {"type": "auto_path", "name": "book spot 1", "points": [[4200, 15193]]},
-    {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
-    {"type": "auto_path", "name": "book spot 2", "points": [[2482, 14749]]},
-    {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
-    {"type": "auto_path", "name": "book spot 3", "points": [[1184, 15347]]},
-    {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
-    {"type": "auto_path", "name": "Wolf scan spot", "points": [[-762, 11836]]},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "auto_path", "name": "Bring the book", "points": [[-7154, 11644]]},
-    {"type": "dialog_multibox", "name": "Reward menzies", "point": [-7382, 11942], "id": "0x80CB07"}
+    {"type": "route", "name": "To the Priest", "points": [[2361, 14877]], "mode": "kill"},
+    {"type": "route", "name": "book spot 1", "points": [[4200, 15193]], "mode": "kill"},
+    {"type": "interact", "model_id": "UNHOLY_TEXT", "target": "item"},
+    {"type": "route", "name": "book spot 2", "points": [[2482, 14749]], "mode": "kill"},
+    {"type": "interact", "model_id": "UNHOLY_TEXT", "target": "item"},
+    {"type": "route", "name": "book spot 3", "points": [[1184, 15347]], "mode": "kill"},
+    {"type": "interact", "model_id": "UNHOLY_TEXT", "target": "item"},
+    {"type": "route", "name": "Wolf scan spot", "points": [[-762, 11836]], "mode": "kill"},
+    {"type": "route", "name": "Bring the book", "points": [[-7154, 11644]], "mode": "kill"},
+    {"type": "interact", "name": "Reward menzies", "point": [-7382, 11942], "id": "0x80CB07", "action": "dialog", "target": "npc"}
   ]
 }
-
-

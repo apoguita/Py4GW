@@ -1,12 +1,12 @@
 {
   "name": "EotN to Jalis",
   "steps": [
-    {"type": "travel", "name": "Travel to Eye of the North outpost", "target_map_id": 642},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "auto_path", "name": "To Exit", "points": [[-8723, -3870]]},
-    {"type": "exit_map", "name": "Leave Ice Cliff Chasms", "point": [-10008, -3860], "target_map_id": 625},
-    {"type": "auto_path", "name": "Path", "points": [[-4884, 17746]]},
-    {"type": "auto_path", "name": "Path", "points": [[-4884, 17746]]},
-    {"type": "auto_path", "name": "Path", "points": [[-4884, 17746]]}
+    {"type": "map", "name": "Travel to Eye of the North outpost", "target_map_id": 642, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-8723, -3870]], "mode": "kill"},
+    {"type": "route", "name": "Leave Ice Cliff Chasms", "point": [-10008, -3860], "target_map_id": 625, "mode": "exit"},
+    {"type": "route", "name": "Path", "points": [[-4884, 17746]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-4884, 17746]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-4884, 17746]], "mode": "kill"}
   ]
 }

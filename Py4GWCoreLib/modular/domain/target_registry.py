@@ -1,8 +1,4 @@
-"""
-target_registry module
-
-This module is part of the modular runtime surface.
-"""
+"""Named target registry for BT-native modular recipes."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -85,6 +81,10 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "MIKO_THE_UNCHAINED": (((153, 60, 144, 135, 227, 178, 148, 90, 0, 0),), "Miko the Unchained"),
     "NIMROS_THE_HUNTER": (((151, 60, 106, 254, 155, 244, 189, 59, 0, 0),), "Nimros the Hunter"),
     "NIKA": (((203, 94, 0, 243, 160, 248, 38, 109, 0, 0),), "Nika"),
+    "LUXON_SCAVENGER_FACTION_REWARDS": (
+        ((2, 129, 60, 4, 48, 199, 144, 181, 174, 19, 0, 0),),
+        "Luxon Scavenger [Faction Rewards]",
+    ),
     "FISHMONGER_BIHZUN": (((113, 96, 50, 191, 11, 216, 178, 28, 0, 0),), "Fishmonger Bihzun"),
     "LOUD_KOU": (((213, 95, 115, 159, 143, 243, 151, 49, 0, 0),), "Loud Kou"),
     "ADEPT_NAI": (((173, 76, 22, 253, 52, 170, 169, 27, 0, 0),), "Adept Nai"),
@@ -269,6 +269,7 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "GUARDSMAN_CHOW": AgentTargetDefinition(display_name="Guardsman Chow"),
     "GUARDSMAN_CHOW_OUTPOST": AgentTargetDefinition(display_name="Guardsman Chow"),
     "KAHDASH": AgentTargetDefinition(display_name="Kahdash"),
+    "TABOR_WOOLRIDGE":  (((143, 59, 195, 195, 158, 255, 240, 115, 0, 0),), "Tabor Woolridge"),
     "MICHIKO_SKILLS": (((2, 110, 190, 167, 165, 179, 120, 49, 0, 0),), "Michiko [Skills]"),
     "NPC": (((2, 129, 155, 34, 73, 236, 154, 195, 76, 124, 0, 0),), ""),
     "OGDEN_STONEHEALER": (((2, 129, 86, 6, 0, 0),), "Ogden Stonehealer"),
@@ -282,7 +283,51 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "WHISPERS_ACOLYTE": (((1, 129, 230, 24, 20, 173, 107, 164, 59, 115, 0, 0),), "Whispers Acolyte"),
     "ZHED_SHADOWHOOF": (((1, 129, 177, 56, 0, 0),), "Zhed Shadowhoof"),
     "WAILING_LORD": (((40, 31, 154, 140, 42, 223, 196, 52, 0, 0),), "Wailing Lord"),
-    # "TOWER_OF_COURAGE_NPC": (((1, 129, 216, 71, 88, 179, 225, 255, 119, 64, 0, 0),), "Tower of Courage NPC"),
+    "ZAISHEN_SCOUT": (((2, 129, 217, 110, 78, 217, 104, 191, 9, 68, 0, 0),), "Zaishen Scout"),
+    "BARTHOLOS": AgentTargetDefinition(display_name="Bartholos"),
+    "BEAR_SPIRIT": AgentTargetDefinition(display_name="Bear Spirit"),
+    "BLIMM": AgentTargetDefinition(display_name="Blimm"),
+    "BONWOR_FIERCEBLADE": AgentTargetDefinition(display_name="Bonwor Fierceblade"),
+    "BUDGER_BLACKPOWDER": AgentTargetDefinition(display_name="Budger Blackpowder"),
+    "CAPTAIN_LANGMAR": AgentTargetDefinition(display_name="Captain Langmar"),
+    "CEMBRIEN": AgentTargetDefinition(display_name="Cembrien"),
+    "CREVASSE": AgentTargetDefinition(display_name="Crevasse"),
+    "EGIL_FIRETELLER": AgentTargetDefinition(display_name="Egil Fireteller"),
+    "EXPERIMENT_KREWE_MEMBER": AgentTargetDefinition(display_name="Experiment Krewe Member"),
+    "GADD": AgentTargetDefinition(display_name="Gadd"),
+    "GRON_FIERCECLAW": AgentTargetDefinition(display_name="Gron Fierceclaw"),
+    "GRON_FIERCECLAW_MERCHANT": AgentTargetDefinition(display_name="Gron Fierceclaw [Merchant]"),
+    "GUNNAR_POUNDFIST": AgentTargetDefinition(display_name="Gunnar Poundfist"),
+    "G_O_L_E_M_2_0_DEFENSE": AgentTargetDefinition(display_name="G.O.L.E.M. 2.0 [Defense]"),
+    "G_O_L_E_M_2_0_MELEE": AgentTargetDefinition(display_name="G.O.L.E.M. 2.0 [Melee]"),
+    "G_O_L_E_M_2_0_RANGED": AgentTargetDefinition(display_name="G.O.L.E.M. 2.0 [Ranged]"),
+    "HIGH_PRIEST_ALKAR": AgentTargetDefinition(display_name="High Priest Alkar"),
+    "INSCRIPTION_STONE": AgentTargetDefinition(display_name="Inscription Stone"),
+    "JALIS_IRONHAMMER": AgentTargetDefinition(display_name="Jalis Ironhammer"),
+    "JORA": AgentTargetDefinition(display_name="Jora"),
+    "LEFT_SIEGE_DEVOURER": AgentTargetDefinition(display_name="Left Siege Devourer"),
+    "LEN_CALDORON": AgentTargetDefinition(display_name="Len Caldoron"),
+    "LIVIA": AgentTargetDefinition(display_name="Livia"),
+    "LORK": AgentTargetDefinition(display_name="Lork"),
+    "MACHINE_KREWE_MEMBER": AgentTargetDefinition(display_name="Machine Krewe Member"),
+    "MAMP": AgentTargetDefinition(display_name="Mamp"),
+    "OLAF_OLAFSON": AgentTargetDefinition(display_name="Olaf Olafson"),
+    "OLFUN_LONGEYE": AgentTargetDefinition(display_name="Olfun Longeye"),
+    "PLAXX": AgentTargetDefinition(display_name="Plaxx"),
+    "PYRE_FIERCESHOT": AgentTargetDefinition(display_name="Pyre Fierceshot"),
+    "RENK": AgentTargetDefinition(display_name="Renk"),
+    "RIGHT_SIEGE_DEVOURER": AgentTargetDefinition(display_name="Right Siege Devourer"),
+    "ROAN_FIERCEHEART": AgentTargetDefinition(display_name="Roan Fierceheart"),
+    "SEER_FIERCEREIGN": AgentTargetDefinition(display_name="Seer Fiercereign"),
+    "SHRINE_OF_THE_BEAR_SPIRIT": AgentTargetDefinition(display_name="Shrine of the Bear Spirit"),
+    "SHRINE_OF_THE_RAVEN_SPIRIT": AgentTargetDefinition(display_name="Shrine of the Raven Spirit"),
+    "SIF_SHADOWHUNTER": AgentTargetDefinition(display_name="Sif Shadowhunter"),
+    "SILISS_YASSITH": AgentTargetDefinition(display_name="Siliss Yassith"),
+    "SKY_KREWE_MEMBER": AgentTargetDefinition(display_name="Sky Krewe Member"),
+    "SOKKA": AgentTargetDefinition(display_name="Sokka"),
+    "VANGUARD_HELMET": AgentTargetDefinition(display_name="Vanguard Helmet"),
+    "WORKER_GOLEM": AgentTargetDefinition(display_name="Worker Golem"),
+    "YODS": AgentTargetDefinition(display_name="Yods"),
 }
 
 ENEMY_TARGETS: dict[str, AgentTargetValue] = {
@@ -305,6 +350,14 @@ ENEMY_TARGETS: dict[str, AgentTargetValue] = {
     "THE_HUNGER": (((1, 129, 138, 17, 190, 204, 108, 226, 48, 123, 0, 0),), "The Hunger"),
     "SOLITARY_COLOSSUS": (((1, 129, 142, 37, 81, 233, 163, 236, 14, 127, 0, 0),), "Solitary Colossus"),
     "APOCRYPHA": AgentTargetDefinition(display_name="Apocrypha"),
+    "ARMORED_SAURUS": AgentTargetDefinition(display_name="Armored Saurus"),
+    "ASURA_UNDERGATE": AgentTargetDefinition(display_name="Asura Undergate"),
+    "CHARR_PRISON_GUARD": AgentTargetDefinition(display_name="Charr Prison Guard"),
+    "CYNDR_THE_MOUNTAIN_HEART": AgentTargetDefinition(display_name="Cyndr the Mountain Heart"),
+    "INDESTRUCTIBLE_GOLEM": AgentTargetDefinition(display_name="Indestructible Golem"),
+    "INSCRIBED_ETTIN": AgentTargetDefinition(display_name="Inscribed Ettin"),
+    "INSCRIBED_SENTRY": AgentTargetDefinition(display_name="Inscribed Sentry"),
+    "THE_GREAT_DESTROYER": AgentTargetDefinition(display_name="The Great Destroyer"),
     # "FANGED_IBOGA": (((1, 2, 3, 4),), "Fanged Iboga"),
 }
 
@@ -313,6 +366,8 @@ GADGET_TARGETS: dict[str, AgentTargetValue] = {
     "CHEST": (((123, 32, 56, 239, 111, 184, 88, 49, 0, 0),), "Chest"),
     "CHEST_OF_WOE": (((2, 129, 148, 49, 154, 172, 124, 229, 33, 98, 0, 0),), "Chest of Woe"),
     "CHEST_OF_BURROWS": (((2, 129, 87, 40, 105, 234, 7, 193, 85, 122, 0, 0),), "Chest of Burrows"),
+    "COMMAND_POST": (((1, 129, 55, 3, 0, 0),), "Command Post"),
+    "STORM_BEACON": (((127, 33, 77, 227, 132, 167, 10, 92, 0, 0),), "Storm Beacon"),
     "MAZ_S_CHEST": (((2, 129, 115, 60, 0, 0),), "Maz's Chest"),
     "ZEALOT_S_CHEST": (((2, 129, 217, 61, 0, 0),), "Zealot's Chest"),
     "TOME_PEDESTAL": (((47, 33, 132, 139, 29, 194, 165, 113, 0, 0),), "Tome Pedestal"),
@@ -322,6 +377,12 @@ GADGET_TARGETS: dict[str, AgentTargetValue] = {
     "BOSS_LOCK": (((2, 129, 129, 25, 72, 206, 22, 143, 238, 93, 0, 0),), "Boss Lock"),
     "DUNGEON_LOCK": (((2, 129, 128, 25, 89, 218, 32, 206, 95, 122, 0, 0),), "Dungeon Lock"),
     "STONE_PEDESTAL": AgentTargetDefinition(display_name="Stone Pedestal"),
+    "CHARR_PRISON_LOCK": AgentTargetDefinition(display_name="Charr Prison Lock"),
+    "GOLEM_DISABLING_LEVER": AgentTargetDefinition(display_name="Golem Disabling Lever"),
+    "INSCRIPTION_STONE": AgentTargetDefinition(display_name="Inscription Stone"),
+    "MOUNTAIN_HEART_CHEST": AgentTargetDefinition(display_name="Mountain Heart Chest"),
+    "MYSTICAL_KEYHOLDER": AgentTargetDefinition(display_name="Mystical Keyholder"),
+    "UNSTABLE_MAGICAL_ENERGY_STORAGE": AgentTargetDefinition(display_name="Unstable Magical Energy Storage"),
 }
 
 def _normalize_agent_target(value: AgentTargetValue | None) -> AgentTargetDefinition | None:
@@ -342,17 +403,50 @@ def _normalize_agent_target(value: AgentTargetValue | None) -> AgentTargetDefini
     )
 
 
-def get_named_agent_target(kind: str, key: Any) -> AgentTargetDefinition | None:
-    key_str = str(key or "").strip()
-    if not key_str:
-        return None
+def normalize_target_key(value: object) -> str:
+    return str(value or "").strip().casefold().replace(" ", "_").replace("-", "_")
 
+
+def _registry_for_kind(kind: str) -> dict[str, AgentTargetValue]:
     registries = {
         TargetRegistryKind.NPC.value: NPC_TARGETS,
         TargetRegistryKind.ENEMY.value: ENEMY_TARGETS,
         TargetRegistryKind.GADGET.value: GADGET_TARGETS,
     }
-    return _normalize_agent_target(registries.get(kind, {}).get(key_str))
+    return registries.get(str(kind or "").strip(), {})
+
+
+def get_named_agent_target(kind: str, key: Any) -> AgentTargetDefinition | None:
+    key_str = str(key or "").strip()
+    if not key_str:
+        return None
+
+    registry = _registry_for_kind(kind)
+    target = _normalize_agent_target(registry.get(key_str))
+    if target is not None:
+        return target
+
+    normalized_key = normalize_target_key(key_str)
+    for registry_key, value in registry.items():
+        definition = _normalize_agent_target(value)
+        if definition is None:
+            continue
+        if normalize_target_key(registry_key) == normalized_key:
+            return definition
+        if normalize_target_key(definition.display_name) == normalized_key:
+            return definition
+        for encoded_name in definition.encoded_names:
+            if normalize_target_key(encoded_name) == normalized_key:
+                return definition
+    return None
+
+
+def has_named_agent_target(kind: str, key: Any) -> bool:
+    return get_named_agent_target(kind, key) is not None
+
+
+def get_target_registry_keys(kind: str) -> tuple[str, ...]:
+    return tuple(_registry_for_kind(kind).keys())
 
 
 def get_target_registry() -> dict[str, dict[str, AgentTargetValue]]:

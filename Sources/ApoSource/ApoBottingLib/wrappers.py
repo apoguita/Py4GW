@@ -16,6 +16,7 @@ from .helpers import _send_multibox_manual_dialog
 from .helpers import _send_multibox_take_dialog_with_target
 from .helpers import _wait_special
 from .helpers import _wait_until_player_stops_moving
+from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
 from Py4GWCoreLib.routines_src.behaviourtrees_src.player import BT
@@ -82,10 +83,8 @@ def Sequence(name: str,
                           )] if map_id_or_name else []
 
     prep_child = [BehaviorTree(Node(map_prep))] if map_prep is not None else []
-    
-    data_child = [StoreProfessionNames()]
 
-    resolved_children = travel_child + prep_child + data_child + resolved_children
+    resolved_children = travel_child + prep_child + resolved_children
     
     return BehaviorTree(
         BehaviorTree.SequenceNode(
@@ -160,6 +159,30 @@ def Failer(name: str = "Failer") -> BehaviorTree:
         BehaviorTree.FailerNode(name=name)
     )
 
+
+def ActivateWidget(widget_name: str, name: str | None = None) -> BehaviorTree:
+    return BottingTree.ActivateWidgetTree(widget_name, name=name)
+
+
+def DeactivateWidget(widget_name: str, name: str | None = None) -> BehaviorTree:
+    return BottingTree.DeactivateWidgetTree(widget_name, name=name)
+
+
+def SetWidgetActive(widget_name: str, enabled: bool, name: str | None = None) -> BehaviorTree:
+    return BottingTree.GetWidgetSetEnabledTree(widget_name, enabled, name=name)
+
+
+def EnableAutoInventoryHandler(name: str | None = None) -> BehaviorTree:
+    return BottingTree.EnableAutoInventoryHandlerTree() if name is None else BottingTree.GetAutoInventoryHandlerSetEnabledTree(True, name=name)
+
+
+def DisableAutoInventoryHandler(name: str | None = None) -> BehaviorTree:
+    return BottingTree.DisableAutoInventoryHandlerTree() if name is None else BottingTree.GetAutoInventoryHandlerSetEnabledTree(False, name=name)
+
+
+def SetAutoInventoryHandlerActive(enabled: bool, name: str | None = None) -> BehaviorTree:
+    return BottingTree.GetAutoInventoryHandlerSetEnabledTree(enabled, name=name)
+
 def GetNodeByProfession(
     WarriorNode: BehaviorTree | BehaviorTree.Node | None = None,
     RangerNode: BehaviorTree | BehaviorTree.Node | None = None,
@@ -175,9 +198,8 @@ def GetNodeByProfession(
     """
     Select a profession-specific node at runtime from the blackboard.
 
-    This helper first stores the current player profession names into the
-    blackboard, then reads `player_primary_profession_name`, and finally returns
-    the node mapped to that profession.
+    This helper reads `player_primary_profession_name` from the blackboard and
+    returns the node mapped to that profession.
 
     Parameters
     ----------
@@ -188,8 +210,7 @@ def GetNodeByProfession(
     Returns
     -------
     BehaviorTree
-        A wrapper sequence that stores profession names and resolves the
-        matching node at tick time.
+        A wrapper sequence that resolves the matching node at tick time.
 
     Notes
     -----
@@ -220,7 +241,6 @@ def GetNodeByProfession(
     return Sequence(
             name="GetNodeByProfession",
             children=[
-                StoreProfessionNames(),
                 Subtree(
                     name="GetNodeByProfessionSubtree",
                     subtree_fn=_profession_specific_node,
@@ -234,7 +254,6 @@ def SkipNodeByProfession(profession_name: str, NodeToRun: BehaviorTree) -> Behav
         subtree_fn=lambda node: Sequence(
             name=f"{profession_name} Profession Skip Decision",
             children=[
-                StoreProfessionNames(),
                 NodeToRun
                 if node.blackboard.get("player_primary_profession_name") != profession_name
                 else Succeeder(name=f"Skip{profession_name}ProfessionSpecificQuests")
@@ -248,7 +267,6 @@ def ExecuteIfProfession(profession_name: str, NodeToRun: BehaviorTree) -> Behavi
         subtree_fn=lambda node: Sequence(
             name=f"{profession_name} Profession Execution Decision",
             children=[
-                StoreProfessionNames(),
                 NodeToRun
                 if node.blackboard.get("player_primary_profession_name") == profession_name
                 else Succeeder(name=f"SkipNon{profession_name}ProfessionSpecificQuests")
@@ -265,9 +283,8 @@ def GetValuesByProfession(
     """
     Resolve a profession-specific value and store it on the blackboard.
 
-    This helper first stores the current player profession names into the
-    blackboard, then reads `player_primary_profession_name`, looks up the value
-    in `profession_values`, and writes the resolved value to `target_key`.
+    This helper reads `player_primary_profession_name`, looks up the value in
+    `profession_values`, and writes the resolved value to `target_key`.
 
     Parameters
     ----------
@@ -283,8 +300,7 @@ def GetValuesByProfession(
     Returns
     -------
     BehaviorTree
-        A wrapper sequence that stores profession names and writes the resolved
-        value to the blackboard.
+        A wrapper sequence that writes the resolved value to the blackboard.
 
     Notes
     -----
@@ -304,7 +320,6 @@ def GetValuesByProfession(
     return Sequence(
             name="GetValuesByProfession",
             children=[
-                StoreProfessionNames(),
                 BehaviorTree.ActionNode(
                     name="GetValuesByProfessionAction",
                     action_fn=_store_profession_value,

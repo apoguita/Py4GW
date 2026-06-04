@@ -82,6 +82,19 @@ class Merchant:
         return trader_items
 
     @staticmethod
+    def _wait_for_trader_item(model_id: int, timeout_ms: int = 2500, step_ms: int = 50):
+        trader_items = []
+        wait_elapsed_ms = 0
+        while wait_elapsed_ms < timeout_ms:
+            trader_items = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+            for item_id in trader_items:
+                if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id):
+                    return item_id, trader_items
+            wait_elapsed_ms += step_ms
+            yield from wait(step_ms)
+        return 0, trader_items
+
+    @staticmethod
     def _wait_for_quote(request_fn, request_id: int, timeout_ms: int, step_ms: int):
         matched_quote = -1
         request_fn(request_id)
@@ -520,55 +533,49 @@ class Merchant:
             ConsoleLog("BuySalvageKits", f"Bought {kits_to_buy} Salvage Kits.", Console.MessageType.Info)
 
     @staticmethod
-    def BuyMaterial(model_id: int):
+    def BuyMaterial(
+        model_id: int,
+        inventory_timeout_ms: int = 2500,
+        inventory_step_ms: int = 50,
+        quote_timeout_ms: int = 750,
+        quote_step_ms: int = 50,
+        transaction_timeout_ms: int = 750,
+        transaction_step_ms: int = 50,
+    ):
         from ...Py4GWcorelib import ConsoleLog, Console
         MODULE_NAME = "Inventory + Buy Material"
 
-        def _is_material_trader():
-            merchant_models = [
-                GLOBAL_CACHE.Item.GetModelID(item_id)
-                for item_id in GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
-            ]
-            return ModelID.Wood_Plank.value in merchant_models
-
-        def _get_minimum_quantity():
-            return 10 if _is_material_trader() else 1
-
-        required_quantity = _get_minimum_quantity()
-        merchant_item_list = GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
-
-        item_id = None
-        for candidate in merchant_item_list:
-            if GLOBAL_CACHE.Item.GetModelID(candidate) == model_id:
-                item_id = candidate
-                break
-
-        if item_id is None:
+        item_id, merchant_item_list = yield from Merchant._wait_for_trader_item(
+            model_id,
+            timeout_ms=inventory_timeout_ms,
+            step_ms=inventory_step_ms,
+        )
+        if item_id == 0:
             ConsoleLog(MODULE_NAME, f"Model {model_id} not sold here.", Console.MessageType.Warning)
             return False
 
-        GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
-
-        while True:
-            yield from wait(50)
-            cost = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
-            if cost >= 0:
-                break
-
-        if cost == 0:
+        cost = yield from Merchant._wait_for_quote(
+            GLOBAL_CACHE.Trading.Trader.RequestQuote,
+            item_id,
+            timeout_ms=quote_timeout_ms,
+            step_ms=quote_step_ms,
+        )
+        if cost <= 0:
             ConsoleLog(MODULE_NAME, f"Item {item_id} has no price.", Console.MessageType.Warning)
             return False
 
         GLOBAL_CACHE.Trading.Trader.BuyItem(item_id, cost)
-
-        while True:
-            yield from wait(50)
-            if GLOBAL_CACHE.Trading.IsTransactionComplete():
-                break
+        completed = yield from Merchant._wait_for_transaction(
+            timeout_ms=transaction_timeout_ms,
+            step_ms=transaction_step_ms,
+        )
+        if not completed:
+            ConsoleLog(MODULE_NAME, f"Timed out buying model {model_id}.", Console.MessageType.Warning)
+            return False
 
         ConsoleLog(
             MODULE_NAME,
-            f"Bought {required_quantity} units of model {model_id} for {cost} gold.",
+            f"Bought {Merchant._get_trader_batch_size(merchant_item_list)} units of model {model_id} for {cost} gold.",
             Console.MessageType.Success
         )
         return True
