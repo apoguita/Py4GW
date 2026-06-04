@@ -1638,9 +1638,28 @@ def _party_call_or_change_target(agent_id: int) -> None:
     No Routines.BT equivalent — HeroAI CallTarget + Player.ChangeTarget.
     """
     from Py4GWCoreLib.Agent import Agent as _Agent
+    from Py4GWCoreLib.enums_src.GameData_enums import Allegiance as _Allegiance
 
     if not agent_id or not _Agent.IsValid(agent_id):
         return
+
+    def _is_enemy_living_target(target_id: int) -> bool:
+        """Allow party-call only for valid, living enemy agents."""
+        try:
+            if not _Agent.IsValid(target_id):
+                return False
+            if not _Agent.IsLiving(target_id):
+                return False
+            if not _Agent.IsAlive(target_id):
+                return False
+            allegiance_value, _ = _Agent.GetAllegiance(target_id)
+            return int(allegiance_value) == int(_Allegiance.Enemy)
+        except Exception:
+            return False
+
+    if not _is_enemy_living_target(int(agent_id)):
+        return
+
     try:
         from HeroAI.call_target import CallTarget
     except Exception:
