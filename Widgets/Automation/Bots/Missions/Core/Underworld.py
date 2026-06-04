@@ -340,9 +340,6 @@ _QUEST_ORDER: list[str] = [
     'Dhuum',
     'Loot Chest',
 ]
-
-
-
 class UWQuestID(enum.IntEnum):
     """GW quest IDs for the Underworld quest chain."""
     ClearTheChamber           = 101
@@ -441,9 +438,6 @@ def _append_run_log(message: str) -> None:
             f.write(f'[{ts}] {message}\n')
     except OSError:
         pass
-
-
-
 # ╔══════════════════════════════════════════════════════════════════════════════
 # ║  HELPERS
 # ╚══════════════════════════════════════════════════════════════════════════════
@@ -513,6 +507,41 @@ def _draw_enter_settings() -> None:
 
 def _draw_inventory_settings() -> None:
     changed = False
+    _scroll_input_w = 56.0
+
+    def _draw_scroll_min_max_row(
+        min_input_id: str,
+        max_input_id: str,
+        current_min: int,
+        current_max: int,
+        model_id: int,
+    ) -> tuple[int, int]:
+        PyImGui.text('Min')
+        PyImGui.same_line(0, 4)
+        PyImGui.push_item_width(_scroll_input_w)
+        new_min = max(0, _input_int_val(PyImGui.input_int(min_input_id, current_min, 0, 0, 0), current_min))
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, 12)
+        PyImGui.text('Max')
+        PyImGui.same_line(0, 4)
+        PyImGui.push_item_width(_scroll_input_w)
+        new_max = max(0, _input_int_val(PyImGui.input_int(max_input_id, current_max, 0, 0, 0), current_max))
+        PyImGui.pop_item_width()
+
+        current_count = int(GLOBAL_CACHE.Inventory.GetModelCount(int(model_id)) or 0)
+        PyImGui.same_line(0, 12)
+        now_label = f'Now: {current_count}'
+        if current_count < new_min:
+            PyImGui.text_colored(now_label, Utils.RGBToNormal(255, 80, 80, 255))
+        elif current_count >= new_max:
+            PyImGui.text_colored(now_label, Utils.RGBToNormal(100, 255, 100, 255))
+        else:
+            PyImGui.text_colored(now_label, Utils.RGBToNormal(200, 200, 200, 255))
+
+        if new_max < new_min:
+            new_max = new_min
+        return new_min, new_max
+
     new_val = PyImGui.checkbox('Enable Inventory Refill', InventorySettings.RefillEnabled)
     if new_val != InventorySettings.RefillEnabled:
         InventorySettings.RefillEnabled = new_val
@@ -539,29 +568,13 @@ def _draw_inventory_settings() -> None:
         InventorySettings.BuyUWScrolls = new_val
         changed = True
     PyImGui.begin_disabled(not InventorySettings.BuyUWScrolls)
-    _uw_scroll_input_w = 56.0
-    PyImGui.text('Min')
-    PyImGui.same_line(0, 4)
-    PyImGui.push_item_width(_uw_scroll_input_w)
-    new_min = max(0, _input_int_val(PyImGui.input_int('##uw_scroll_min', InventorySettings.UWScrollMin, 0, 0, 0), InventorySettings.UWScrollMin))
-    PyImGui.pop_item_width()
-    PyImGui.same_line(0, 12)
-    PyImGui.text('Max')
-    PyImGui.same_line(0, 4)
-    PyImGui.push_item_width(_uw_scroll_input_w)
-    new_max = max(0, _input_int_val(PyImGui.input_int('##uw_scroll_max', InventorySettings.UWScrollMax, 0, 0, 0), InventorySettings.UWScrollMax))
-    PyImGui.pop_item_width()
-    current_uw_scrolls = int(GLOBAL_CACHE.Inventory.GetModelCount(int(UW_SCROLL_MODEL_ID)) or 0)
-    PyImGui.same_line(0, 12)
-    _scroll_now_label = f'Now: {current_uw_scrolls}'
-    if current_uw_scrolls < new_min:
-        PyImGui.text_colored(_scroll_now_label, Utils.RGBToNormal(255, 80, 80, 255))
-    elif current_uw_scrolls >= new_max:
-        PyImGui.text_colored(_scroll_now_label, Utils.RGBToNormal(100, 255, 100, 255))
-    else:
-        PyImGui.text_colored(_scroll_now_label, Utils.RGBToNormal(200, 200, 200, 255))
-    if new_max < new_min:
-        new_max = new_min
+    new_min, new_max = _draw_scroll_min_max_row(
+        '##uw_scroll_min',
+        '##uw_scroll_max',
+        InventorySettings.UWScrollMin,
+        InventorySettings.UWScrollMax,
+        UW_SCROLL_MODEL_ID,
+    )
     if new_min != InventorySettings.UWScrollMin:
         InventorySettings.UWScrollMin = new_min
         changed = True
@@ -575,40 +588,13 @@ def _draw_inventory_settings() -> None:
         InventorySettings.BuyRezScrolls = new_val
         changed = True
     PyImGui.begin_disabled(not InventorySettings.BuyRezScrolls)
-    PyImGui.text('Min')
-    PyImGui.same_line(0, 4)
-    PyImGui.push_item_width(_uw_scroll_input_w)
-    new_min = max(
-        0,
-        _input_int_val(
-            PyImGui.input_int('##rez_scroll_min', InventorySettings.RezScrollMin, 0, 0, 0),
-            InventorySettings.RezScrollMin,
-        ),
+    new_min, new_max = _draw_scroll_min_max_row(
+        '##rez_scroll_min',
+        '##rez_scroll_max',
+        InventorySettings.RezScrollMin,
+        InventorySettings.RezScrollMax,
+        RES_SCROLL_MODEL_ID,
     )
-    PyImGui.pop_item_width()
-    PyImGui.same_line(0, 12)
-    PyImGui.text('Max')
-    PyImGui.same_line(0, 4)
-    PyImGui.push_item_width(_uw_scroll_input_w)
-    new_max = max(
-        0,
-        _input_int_val(
-            PyImGui.input_int('##rez_scroll_max', InventorySettings.RezScrollMax, 0, 0, 0),
-            InventorySettings.RezScrollMax,
-        ),
-    )
-    PyImGui.pop_item_width()
-    current_rez_scrolls = int(GLOBAL_CACHE.Inventory.GetModelCount(int(RES_SCROLL_MODEL_ID)) or 0)
-    PyImGui.same_line(0, 12)
-    _rez_scroll_now_label = f'Now: {current_rez_scrolls}'
-    if current_rez_scrolls < new_min:
-        PyImGui.text_colored(_rez_scroll_now_label, Utils.RGBToNormal(255, 80, 80, 255))
-    elif current_rez_scrolls >= new_max:
-        PyImGui.text_colored(_rez_scroll_now_label, Utils.RGBToNormal(100, 255, 100, 255))
-    else:
-        PyImGui.text_colored(_rez_scroll_now_label, Utils.RGBToNormal(200, 200, 200, 255))
-    if new_max < new_min:
-        new_max = new_min
     if new_min != InventorySettings.RezScrollMin:
         InventorySettings.RezScrollMin = new_min
         changed = True
@@ -1152,17 +1138,6 @@ def _unblacklist_name(name: str) -> None:
     _update_blacklist_names(remove=(name,))
 
 
-def _is_agent_blacklisted(agent_id: int) -> bool:
-    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL
-
-    if not agent_id:
-        return False
-    try:
-        return _EBL().is_blacklisted(int(agent_id))
-    except Exception:
-        return False
-
-
 def _behemoth_guard_start() -> _BT:
     """Enable the BehemothGuard service and blacklist Obsidian Behemoth + Spirit of Nature's Renewal."""
     def _tick(node: _BT.Node) -> _BT.NodeState:
@@ -1507,7 +1482,7 @@ def _wait_for_spirit_forms() -> _BT:
             if getattr(acct.AgentData.Map, 'MapID', 0) != UW_MAP_ID:
                 continue
             try:
-                if any(b.SkillId == _SPIRIT_FORM_BUFF_ID for b in acct.AgentData.Buffs.Buffs if b.SkillId != 0):
+                if any(b.SkillId == _SPIRIT_FORM_SKILL_ID for b in acct.AgentData.Buffs.Buffs if b.SkillId != 0):
                     count += 1
             except Exception:
                 pass
@@ -2214,18 +2189,6 @@ def _clear_the_chamber_tree() -> _BT:
         ApoBT.MoveAndAutoDialog(pos=(-5834, 12812), buttons=[2, 0], multi_account=True),
         name='ClearTheChamber',
     )
-
-
-
-
-
-
-
-
-
-
-
-
 def _pass_the_mountains_tree() -> _BT:
     BT = Routines.BT
     return BT.Composite.Sequence(
@@ -2883,17 +2846,6 @@ def _servants_of_grenth_tree() -> _BT:
 
 
 
-_SPIRIT_FORM_BUFF_ID = 3134
-
-
-
-
-
-
-
-
-
-
 def _dhuum_tree() -> _BT:
     """
     Dhuum / The Nightmare Cometh.
@@ -2924,15 +2876,6 @@ def _dhuum_tree() -> _BT:
         _wait_for_uw_chest(),
         name='Dhuum',
     )
-
-
-def _get_local_party_slot_index() -> int:
-    """Return the 0-based party-slot index of the local player, or 0 on any error."""
-    try:
-        slot = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-        return max(0, int(slot))
-    except Exception:
-        return 0
 
 
 def _loot_chest_tree() -> _BT:
@@ -3244,23 +3187,6 @@ def _skip_background_upkeep(blackboard: dict) -> bool:
     return False
 
 
-
-
-def _build_uw_priority_model_map() -> dict[int, int]:
-    """Map model_id -> priority index without runtime GetNameByID."""
-    from Py4GWCoreLib.model_data import ModelData
-
-    name_prio = {name.strip().lower(): idx for idx, name in enumerate(UW_TARGET_PRIORITY)}
-    model_map: dict[int, int] = {}
-    for model_id, data in ModelData.items():
-        model_name = str(data.get('name', '') or '').strip().lower()
-        prio = name_prio.get(model_name)
-        if prio is None:
-            continue
-        mid = int(model_id)
-        if mid not in model_map or prio < model_map[mid]:
-            model_map[mid] = prio
-    return model_map
 
 
 def _build_priority_target_service() -> _BT:
