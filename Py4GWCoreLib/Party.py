@@ -664,16 +664,6 @@ class Party:
             return Party.party_instance().SetHeroSkillAIEnabled(hero_agent_id, slot, enabled)
 
         @staticmethod
-        def DisableSkillAI(hero_agent_id, slot):
-            """
-            Lock one hero skill slot from native hero AI auto-use.
-            Args:
-                hero_agent_id (int): The hero agent ID.
-                slot (int): The public skill slot, 1-8.
-            """
-            return Party.Heroes.SetSkillAIEnabled(hero_agent_id, slot, False)
-
-        @staticmethod
         def FlagHero (hero_id, x, y):
             """
             Flag a hero to a specific location.

@@ -17,7 +17,6 @@ from ...Map import Map
 from ...Party import Party
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
-from ...Skill import Skill
 from ...Skillbar import SkillBar
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from .composite import BTComposite
@@ -495,23 +494,23 @@ class BTParty:
         )
 
     @staticmethod
-    def SetHeroSkillAIByName(
+    def SetHeroSkillAI(
         hero_positions: int | Sequence[int],
-        skill_names: str | int | Sequence[str | int],
+        skill_ids: int | Sequence[int],
         enabled: bool = False,
         log: bool = False,
         aftercast_ms: int = 125,
     ) -> BehaviorTree:
         """
-        Build an action tree that enables or disables native hero AI use for named skills.
+        Build an action tree that enables or disables native hero AI use for skill ids.
 
         Meta:
           Expose: true
           Audience: intermediate
-          Display: Set Hero Skill AI By Name
-          Purpose: Enable or disable native hero AI auto-use for named skills on selected heroes.
+          Display: Set Hero Skill AI
+          Purpose: Enable or disable native hero AI auto-use for selected skill ids on selected heroes.
           UserDescription: Use this when heroes should keep a skill on their bar but native hero AI must not auto-cast it.
-          Notes: Hero positions are 1-7. Skill names may use spaces or underscores; skill ids are also accepted.
+          Notes: Hero positions are 1-7. Resolve skill names before calling, e.g. Skill.GetID("Gaze_of_Fury").
         """
 
         def _as_positions(value: int | Sequence[int]) -> list[int]:
@@ -519,59 +518,41 @@ class BTParty:
                 return [int(value)]
             return [int(position) for position in value]
 
-        def _as_skill_ids(value: str | int | Sequence[str | int]) -> dict[int, str]:
-            values: list[str | int]
-            if isinstance(value, (str, int)):
+        def _as_skill_ids(value: int | Sequence[int]) -> list[int]:
+            if isinstance(value, int):
                 values = [value]
             else:
                 values = list(value)
 
-            skill_ids: dict[int, str] = {}
-            for item in values:
-                if isinstance(item, int):
-                    if item > 0:
-                        skill_ids[int(item)] = str(item)
-                    continue
-                skill_name = str(item).strip()
-                if not skill_name:
-                    continue
-                normalized_name = skill_name.replace(" ", "_")
-                skill_id = int(Skill.GetID(normalized_name) or 0)
-                if skill_id <= 0 and normalized_name != skill_name:
-                    skill_id = int(Skill.GetID(skill_name) or 0)
-                if skill_id <= 0:
-                    _fail_log("BTParty.SetHeroSkillAIByName", f"Unknown skill: {skill_name}.")
-                    continue
-                skill_ids[skill_id] = skill_name
-            return skill_ids
+            return [int(skill_id) for skill_id in values if int(skill_id) > 0]
 
         def _set_hero_skill_ai() -> BehaviorTree.NodeState:
             positions = _as_positions(hero_positions)
-            skill_ids = _as_skill_ids(skill_names)
-            if not positions or not skill_ids:
+            desired_skill_ids = _as_skill_ids(skill_ids)
+            if not positions or not desired_skill_ids:
                 return BehaviorTree.NodeState.FAILURE
 
             desired_enabled = bool(enabled)
             matched = 0
             for hero_position in positions:
                 if hero_position < 1 or hero_position > 7:
-                    _fail_log("BTParty.SetHeroSkillAIByName", f"Invalid hero position: {hero_position}.")
+                    _fail_log("BTParty.SetHeroSkillAI", f"Invalid hero position: {hero_position}.")
                     return BehaviorTree.NodeState.FAILURE
 
                 hero_agent_id = int(Party.Heroes.GetHeroAgentIDByPartyPosition(hero_position) or 0)
                 if hero_agent_id <= 0:
-                    _fail_log("BTParty.SetHeroSkillAIByName", f"No hero agent id for position {hero_position}.")
+                    _fail_log("BTParty.SetHeroSkillAI", f"No hero agent id for position {hero_position}.")
                     return BehaviorTree.NodeState.FAILURE
 
                 hero_skillbar = SkillBar.GetHeroSkillbar(hero_position)
                 found_for_hero = False
                 for slot, hero_skill in enumerate(hero_skillbar, start=1):
                     hero_skill_id = int(getattr(getattr(hero_skill, "id", None), "id", 0) or 0)
-                    if hero_skill_id not in skill_ids:
+                    if hero_skill_id not in desired_skill_ids:
                         continue
                     if not Party.Heroes.SetSkillAIEnabled(hero_agent_id, slot, desired_enabled):
                         _fail_log(
-                            "BTParty.SetHeroSkillAIByName",
+                            "BTParty.SetHeroSkillAI",
                             f"Failed to update hero {hero_position} skill slot {slot}.",
                         )
                         return BehaviorTree.NodeState.FAILURE
@@ -579,17 +560,17 @@ class BTParty:
                     matched += 1
 
                 if not found_for_hero:
-                    names = ", ".join(skill_ids.values())
-                    _fail_log("BTParty.SetHeroSkillAIByName", f"Hero {hero_position} does not have: {names}.")
+                    ids = ", ".join(str(skill_id) for skill_id in desired_skill_ids)
+                    _fail_log("BTParty.SetHeroSkillAI", f"Hero {hero_position} does not have skill id(s): {ids}.")
                     return BehaviorTree.NodeState.FAILURE
 
             state = "enabled" if desired_enabled else "disabled"
-            _log("BTParty.SetHeroSkillAIByName", f"{state} {matched} hero skill AI flag(s).", log=log)
+            _log("BTParty.SetHeroSkillAI", f"{state} {matched} hero skill AI flag(s).", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
             BehaviorTree.ActionNode(
-                name="SetHeroSkillAIByName",
+                name="SetHeroSkillAI",
                 action_fn=_set_hero_skill_ai,
                 aftercast_ms=max(0, int(aftercast_ms)),
             )
