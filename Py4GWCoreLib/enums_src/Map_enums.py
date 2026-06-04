@@ -440,7 +440,7 @@ explorables = {
     371: "Marga Coast",
     373: "Sunward Marches",
     375: "Barbarous Shore",
-    377: "Badhok Caverns",
+    377: "Bahdok Caverns",
     379: "Dejarin Estate",
     380: "Arkjok Ward",
     382: "Gandara, the Moon Fortress",

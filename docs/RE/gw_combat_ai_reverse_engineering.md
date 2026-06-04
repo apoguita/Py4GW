@@ -1,6 +1,6 @@
 # Guild Wars Combat AI Reverse Engineering
 
-Date: 2026-05-20 (updated with WASM pass)
+Date: 2026-05-20 (updated with WASM pass — 2026-05-30: combat agent data structures, EXE↔WASM mapping, callback system, pressure state)
 Program: `/Gw.exe(Symbols)` and `/Gw.wasm`
 Tooling: REVA / Ghidra MCP
 
@@ -399,6 +399,170 @@ Interpretation:
 - it turns a chosen action into immediate state plus staged follow-up records
 - timed ids such as `6`, `7`, and `8` look like shared trigger buckets / phase buckets
 
+### Combat Agent VTable Layout (New — 2026-05-30)
+
+Decompiled from `UpdateCombatAgentSequences` (0x007d8dc0), `EnumerateMatchingCombatAgents` (0x007b8110), and `RunScheduledCombatCallbacks` (0x007c0880):
+
+```
+CombatAgentVTable:
+  +0x0C    AI_Tick(float delta_time)          — Called EVERY frame per agent; decision-making entry
+  +0x10    CongestionHandler()                — Called when sequence queue backs up (type==0xDB only)
+  +0x1C    MatchFilter(uint flags, void*)     — Returns bool: does agent match enumeration flags?
+  +0x20    CallbackHandler(void* callback)    — Handles scheduled callbacks for this agent
+```
+
+### Combat Agent Data Structure (New — 2026-05-30)
+
+Inferred layout from multiple decompilations of `UpdateCombatAgentSequences`, `EnumerateMatchingCombatAgents`, `UpdateCombatPressureState`, and `SetCombatTargetSelection`:
+
+```
+CombatAgentView (size ≥ ~0x1C0 bytes):
+  +0x00    vtable*                  → CombatAgentVTable
+  +0x2C    agent_id                 → (offset 0xB*4, from EnumerateMatchingCombatAgents)
+  +0x84    position.x               → world position (FUN_007b8c20 called at 0x84 in pressure)
+  +0x88    position.y
+  +0x8C    position.z               
+  +0x9C    type?                    → checked for 0xDB in congestion handler (likely "combat-capable agent")
+  +0x110   threat_value             → (byte) contribution to combat pressure calculation
+  +0x15C   flags                    → (uint) tested for 0x20000 (enemy?), 0x800 (ranged?)
+  +0x1B5   combat_category          → (byte) 0x03 check in SetCombatTargetSelection (boss/elite?)
+```
+
+### RunScheduledCombatCallbacks — The AI Action Dispatcher (New — 2026-05-30)
+
+`RunScheduledCombatCallbacks` @ `0x007c0880` is the execution engine for scheduled AI actions.
+Every skill cast, movement command, and combat action initiated by the AI flows through here.
+
+**Callback structure** (inferred from decompilation):
+```
+CombatCallback (size 0x28+):
+  +0x00    next*              → linked list pointer (priority queue)
+  +0x0C    timestamp          → float: execution time (compared against DAT_01045ee8 accumulator)
+  +0x18    agent_id           → if non-zero, dispatch via GetAgentViewByAgentId → IAgentView::vtable[+0x20]
+  +0x1C    executed_flag      → set to 1 after execution
+  +0x24    func_ptr           → function to call when agent_id == 0
+```
+
+**Dispatch logic:**
+```
+If agent_id != 0:
+    agent_view = GetAgentViewByAgentId(agent_id)
+    agent_view->vtable[0x20](callback)    // Per-agent callback handler
+else:
+    callback->func_ptr(callback)           // Direct function call
+```
+
+**Key globals:**
+- `DAT_00bb9060` / `DAT_00bb9068` — Priority queue of pending callbacks
+- `DAT_01045ee8` — Cumulative time accumulator
+
+### UpdateCombatPressureState — Threat Evaluation (New — 2026-05-30)
+
+`UpdateCombatPressureState` @ `0x007c5730` evaluates combat pressure to drive combat music transitions
+and behavioral state changes.
+
+**Algorithm:**
+1. Enumerate enemy agents via flags `0x1f981`
+2. Count enemy threat: sum `agent[+0x110]` for each enemy (double weight for ranged, at `+0x15C & 0x800`)
+3. Enumerate friendly agents via flags `0x1f808`
+4. Count friendly strength: distance-adjusted sum of `agent[+0x110]` values
+5. Compute ratio: `friendly_strength / enemy_threat`
+6. Compare against thresholds to enter/exit combat music state
+
+**Key globals:**
+- `DAT_01046464` — Current pressure ratio
+- `DAT_01046468` — Combat music active flag
+- `DAT_010463e4` — Time accumulator for pressure evaluation
+- `DAT_01046460` — Frame accumulator (triggers evaluation at 1.0 sec intervals)
+
+### Updated Combat Subsystem Tick Pipeline (New — 2026-05-30)
+
+```
+UpdateCombatSubsystemTick(delta_time) @ 0x007b69c0
+  │
+  ├── 1. DispatchCombatSequenceSetupQueue()         0x007cb0c0
+  │       Processes linked-list queue of pending combat behavior sequences
+  │
+  ├── 2. UpdateCombatTimedEffects(dt)               0x007b8dd0
+  │       Updates buffs, conditions, timed effects
+  │
+  ├── 3. guard_check_icall(dt)                      (unnamed, internal)
+  │       Guard/integrity validation
+  │
+  ├── 4. UpdateCombatPressureState(dt)              0x007c5730
+  │       Evaluates threat ratio → combat music transitions
+  │       Enumerates enemies (0x1f981) and friendlies (0x1f808)
+  │
+  ├── 5. RunScheduledCombatCallbacks(dt)            0x007c0880
+  │       ★★★ Executes scheduled AI actions (skill casts, movements)
+  │       Priority queue dispatch via callback structs
+  │
+  ├── 6. UpdateCombatAgentSequences(dt)             0x007d8dc0
+  │       ★★★ Master per-agent AI tick:
+  │       ├── AdvanceCombatSequenceQueues(dt)
+  │       ├── Congestion check → vtable[+0x10] for type 0xDB agents
+  │       └── For each agent: vtable[+0x0C](dt) + movement update
+  │
+  ├── 7. TickAutoTargetSelection(dt)                0x007bda80
+  │       Throttled (every ~3 ticks):
+  │       └── UpdateAutoTargetSelection()           0x007bd610
+  │             Mode 0: EnumerateMatchingCombatAgents → closest enemy
+  │             Mode 1: UpdateAutoTargetSelectionMode1()
+  │             → SetCombatTargetSelection(mode, agent)
+  │
+  └── 8. FlushCombatSequenceVisualState(dt)         0x007c78c0
+        Renders combat sequence visual effects
+```
+
+### EXE → WASM Symbol Mapping Table (New — 2026-05-30)
+
+| EXE (Symbols) | WASM | WASM Address | Confidence |
+|--------------|------|-------------|-----------|
+| `TryUseSkillOnBestAvailableTarget` @ 0x004f4d00 | `IUi::Game::SkillOrderActivation(unsigned long, unsigned int)` | `ram:812475a1` | **100%** |
+| `TryUseCombatSkillBySlot` @ 0x007edbc0 | `CharCliPlayerOrderSkill(unsigned long, unsigned int, unsigned long, int)` | `ram:80c4e74c` | **100%** |
+| `ExecuteCombatContextAction` @ 0x004dc630 | `IUi::Game::ExecuteDefaultWorldAction(unsigned int, int, unsigned int)` | `ram:815e996e` | **95%** |
+| `DoWorldAction_Func` @ 0x0050e5e0 | `IUi::Game::CoreActionExecuteWorldAction(IUi::Game::EWorldAction, unsigned long, int)` | `ram:81260cda` | **100%** |
+| `CharCliAgentGetControlled()` thunk | `CharCliAgentGetControlled()` | `ram:80c13a2c` | **100%** |
+| `CharCliSkillGetHotKey()` thunk | `CharCliSkillGetHotKey(unsigned long, unsigned int, unsigned int*, int*)` | `ram:80c52126` | **100%** |
+| `ConstGetSkill()` thunk | `ConstGetSkill(ESkill)` | `ram:818b3d99` | **100%** |
+| `CharCliPlayerCheckTargetType()` thunk | `CharCliPlayerCheckTargetType(ECharTarget, unsigned long)` | `ram:80c47c38` | **100%** |
+| `AvSelectGetAuto()` thunk | `AvSelectGetAuto()` | `ram:80bc2a0a` | **100%** |
+| `AvSelectGetManual()` thunk | `AvSelectGetManual()` | `ram:80bc2a40` | **100%** |
+| `AvSelectHasAutoIntent()` thunk | `AvSelectHasAutoIntent()` | `ram:80bc2a5b` | **100%** |
+| `AvValidate()` thunk | `AvValidate(unsigned long)` | `ram:80bba0f5` | **100%** |
+| `SetPrimaryCombatTarget` @ 0x007b89e0 | `AvSelectSetManual(unsigned long)` | `ram:80bc35d7` | **100%** |
+| `SendUseCombatSkillPacket` @ 0x008eb900 | *(EXE-specific wrapper — WASM calls CharMsgSendOrderSkill directly)* | N/A | EXE-only |
+| `CharMsgSendOrderAttackSkill` thunk | `CharMsgSendOrderAttackSkill(unsigned int, int, unsigned long, int)` | `ram:80a13bed` | **100%** |
+| `CharMsgSendOrderSkill` thunk | `CharMsgSendOrderSkill(unsigned int, int, unsigned long, int)` | `ram:80a16931` | **100%** |
+| Combat AI orchestration functions (`UpdateCombatSubsystemTick`, `UpdateCombatAgentSequences`, etc.) | *(unnamed in WASM — exists under different namespace)* | N/A | Unnamed |
+| `FUN_004e3320` (Combat context dispatcher) | `IUi::Game::OnKeyDown(unsigned int, FrameMsgKey const&)` | `ram:815bf776` | **70%** |
+
+**Note:** The combat AI orchestration layer (`UpdateCombatSubsystemTick`, `UpdateCombatAgentSequences`, `UpdateCombatAgentView`, etc.) does NOT appear under those names in WASM. The WASM namespacing uses `IAgentView::` and `IUi::Game::` conventions. The EXE names are from `/Gw.exe(Symbols)` with custom annotations.
+
+### Agent Enumeration Flags Reference (New — 2026-05-30)
+
+| Flag | Purpose | Used In |
+|------|---------|---------|
+| `0x1f981` | Enemy agents | `UpdateCombatPressureState` (threat calculation) |
+| `0x1f808` | Friendly agents | `UpdateCombatPressureState` (friendly strength) |
+| `DAT_00bb9038 & 0x680 \| 0x301f800` | Auto-target candidates | `UpdateAutoTargetSelection` |
+| *(param from TryUseSkillOnBestAvailableTarget)* | Skill-valid targets | Skill dispatch |
+
+### Key Global Variables (New — 2026-05-30)
+
+| Global | Address | Description |
+|--------|---------|-------------|
+| `DAT_00bb92d4` / `DAT_00bb92dc` | `00bb92d4` | Combat agent table (array of CombatAgentView pointers) |
+| `DAT_00bb9060` / `DAT_00bb9068` | `00bb9060` | Scheduled callback priority queue |
+| `DAT_00bb9038` | `00bb9038` | Auto-target filter flags |
+| `DAT_00bb910c` / `DAT_00bb9114` | `00bb910c` | Temporary agent enumeration buffer |
+| `DAT_01045e5c` | `01045e5c` | Current auto-target agent_id |
+| `DAT_01045e64` | `01045e64` | Current combat mode target agent_id |
+| `DAT_01045e80` | `01045e80` | Auto-target mode (0=nearest, 1=priority) |
+| `DAT_01046468` | `01046468` | Combat music active flag |
+| `DAT_01046464` | `01046464` | Current pressure/threat ratio |
+| `DAT_01045ee8` | `01045ee8` | Cumulative callback time accumulator |
+
 ## Current Best Architecture Model
 
 Current best model:
@@ -415,25 +579,42 @@ Current best model:
 
 ## Best Current Hook Candidates
 
-Decision-side:
+### ★★★ Recommended: `PlanCombatActionTimeline` @ `0x007cb500`
 
-- `0x007caa00` `UpdateCombatAgentView`
-- `0x007cb500` `PlanCombatActionTimeline`
+**Single choke-point for ALL AI combat actions.** Every skill cast and auto-attack from every combat agent
+(heroes, henchmen, NPCs, monsters) flows through this function. It translates action decisions into
+staged timed trigger records. Hook here to:
 
-Internal output-state:
+- Inspect every AI action before execution (action code, target, timing)
+- Identify skills: action_code == `0x2D` (with skill_id in param3)
+- Identify attacks: action_code in range `0x0C-0x15` (weapon-type-specific)
+- Modify parameters or suppress execution entirely
 
-- `0x007d3370` `ApplyCombatAgentActionState`
-- `0x007d2ff0` `QueueCombatTimedActionRecord`
+### Action Record Handlers (per-type interception)
+
+Decision-side (where AI decides what to do):
+
+- `0x007caa00` `UpdateCombatAgentView` — per-agent AI tick, calls `ComputeCombatAgentMovementActionCode`
+- `0x007cb500` `PlanCombatActionTimeline` ★★★ — action-to-timeline translator, ALL actions converge here
+
+Execution-side (where decisions turn into staged records):
+
+- `0x007d3370` `ApplyCombatAgentActionState` — applies action state to agent
+- `0x007d2ff0` `QueueCombatTimedActionRecord` — enqueues a timed trigger record
+
+Per-agent entry point:
+
+- `0x007d8dc0` `UpdateCombatAgentSequences` — iterates all combat agents, dispatches vtable[+0x0C]
 
 Skill-side:
 
-- `0x007d0d10` `ProcessCombatSkillActionRecord`
-- `0x007d1070` `ProcessCombatTimedSkillActionRecord`
+- `0x007d0d10` `ProcessCombatSkillActionRecord` — handles skill records, calls PlanCombatActionTimeline(0x2D)
+- `0x007d1070` `ProcessCombatTimedSkillActionRecord` — timed skill phase handler
 
 Attack / coordination-side:
 
-- `0x007cfa20` `ProcessCombatAttackActionRecord`
-- `0x007d4a70` `MergeCombatActionEventIntoTimedPhases`
+- `0x007cfa20` `ProcessCombatAttackActionRecord` — handles attack records with weapon-type mapping
+- `0x007d4a70` `MergeCombatActionEventIntoTimedPhases` — merges events into timed trigger phases
 
 Target-evaluation-side:
 
@@ -441,6 +622,11 @@ Target-evaluation-side:
 - `0x007cda20` `EvaluateCombatAgentSelectionScore`
 - `0x007bd610` `UpdateAutoTargetSelection`
 - `0x007be240` `SetCombatTargetSelection`
+
+Top-level subsystem:
+
+- `0x007b69c0` `UpdateCombatSubsystemTick` — top-level orchestrator
+- `0x007c0880` `RunScheduledCombatCallbacks` — executes timed callback queue
 
 ## Why Hooking Still Looks Better Than Replication
 
@@ -466,6 +652,15 @@ Still unproven:
 - where it finally reaches public skill execution
 - full semantics of every action code
 - full semantics of each timed trigger id
+
+Resolved (2026-05-30):
+
+- ✅ Combat agent vtable layout confirmed: `+0x0C`=AI_Tick, `+0x10`=Congestion, `+0x1C`=MatchFilter, `+0x20`=CallbackHandler
+- ✅ Combat agent data structure partially mapped (position at +0x84, agent_id at +0x2C, threat at +0x110, flags at +0x15C)
+- ✅ RunScheduledCombatCallbacks callback structure understood (linked list, timestamp dispatch, agent_id routing)
+- ✅ UpdateCombatPressureState algorithm decoded (enemy/friendly enumeration, threat ratio, combat music state machine)
+- ✅ EXE→WASM mapping for ~16 key functions confirmed with high confidence
+- ✅ Agent enumeration flags identified (0x1f981=enemies, 0x1f808=friendlies)
 
 Important negative result:
 
@@ -646,3 +841,599 @@ Current judgment:
 
 - wiki scraping should no longer be treated as the primary strategy
 - the likely real source of truth is already present in-client and already partially exposed by this project
+
+## AI Combat Path — Complete Pseudo-Code (2026-05-30)
+
+### Overview
+
+The AI combat system runs entirely client-side via a per-frame tick on registered `CombatAgentView` objects.
+Each agent (hero, henchman, NPC, monster) evaluates its state, computes an action, and enqueues
+it for staged execution through a timed trigger system.
+
+### Architecture Layers
+
+```
+Layer 1: CombatAgentView Update     — per-agent AI tick (what should I do?)
+Layer 2: Action Code Computation    — movement/action selection
+Layer 3: Action Record Dispatch     — translate action into staged records
+Layer 4: PlanCombatActionTimeline   — build timed trigger schedule
+Layer 5: Timed Trigger Execution    — fire triggers at scheduled times
+Layer 6: HandleCombatAgentActionEvent — process each trigger event
+```
+
+### Layer 1: UpdateCombatAgentView(agent, dt) @ 0x007caa00
+
+```python
+def UpdateCombatAgentView(agent: CombatAgentView, dt: float):
+    # ---- State validation ----
+    if agent.field_0x184 == 0 or agent.field_0xFC == 0:
+        return  # agent not active
+    if agent.field_0x104 != should_be_combat_mode:
+        agent.field_0x104 = should_be_combat_mode
+        reset_combat_state()
+
+    # ---- Pressure/combat state init ----
+    update_combat_pressure_state_agent(agent, dt)
+
+    # ---- Altitude check ----
+    agent_height = agent.field_0x8C
+    ground_height = get_ground_height()
+    if agent_height <= ground_height + THRESHOLD:
+        agent.field_0x15C &= ~0x8000   # grounded
+    else:
+        agent.field_0x15C |= 0x8000    # airborne
+    if agent_height <= ground_height:
+        agent.field_0x15C &= ~0x4000   # on ground
+
+    # ---- Process queued actions ----
+    TickCombatActionCharQueue()        # process action records at agent+0xCC
+    post_action_cleanup()
+
+    # ---- Compute action code ----
+    action_code = ComputeCombatAgentMovementActionCode(agent)  # @ 0x007d30e0
+    if action_code == 0x3F:  # idle
+        if agent.field_0x158 & 0x08:
+            if agent.field_0x184:
+                notify_action_update()
+            fallback = SelectCombatAgentFallbackActionCode(agent)  # @ 0x007d32a0
+            ApplyActionState(agent, fallback)  # via FUN_007d3310
+        # grounded cleanup
+    else:
+        # Check priority of new action vs current
+        current_action = agent.field_0xDC
+        new_priority = ACTION_PRIORITY_TABLE[action_code]
+        old_priority = ACTION_PRIORITY_TABLE[current_action]
+        if new_priority <= old_priority:
+            ApplyActionState(agent, action_code)  # via FUN_007d3310
+
+    # ---- Movement/animation advance ----
+    advance_combat_sequence(agent, dt)
+    advance_combat_sequence(agent, dt)
+    # Speed check
+    speed = agent.field_0x130
+    if agent.field_0x134 < speed:
+        speed = agent.field_0x134
+    if speed >= 1.0:
+        return
+    if speed < EPSILON:
+        speed = 0.0
+    if speed > 1.0:
+        speed = 1.0
+    if abs(speed - agent.field_0x16C) > THRESHOLD:
+        agent.field_0x16C = speed
+        update_movement_blend()  # @ 0x007cb820
+```
+
+### Layer 2: ComputeCombatAgentMovementActionCode(agent) @ 0x007d30e0
+
+```python
+def ComputeCombatAgentMovementActionCode(agent: CombatAgentView) -> int:
+    """Returns action code 0x00-0x3F based on movement direction"""
+    # Read velocity and facing direction
+    vx = agent.field_0xA4      # velocity X
+    vy = agent.field_0xA0      # velocity Y
+    speed_sq = vy*vy + vx*vx
+
+    if speed_sq == 0.0:
+        # Agent is stationary
+        if agent.field_0x58 & 0x2000:
+            return 0x1F           # special stance A
+        if agent.field_0x58 & 0x4000:
+            return 0x3F           # idle
+        return 0x1E               # default stance
+
+    # Normalize velocity
+    divisor = fast_sqrt(speed_sq)
+    vx /= divisor
+    vy /= divisor
+
+    # Dot product with facing direction
+    fx = agent.field_0x50        # facing X
+    fy = agent.field_0x54        # facing Y
+    dot_forward = vx*fx + vy*fy
+
+    # Determine direction quadrant
+    if dot_forward <= THRESHOLD_BACKWARD:                       # DAT_00a5b6d8
+        direction_index = 0     # backward
+    elif dot_forward >= THRESHOLD_FORWARD:                      # DAT_00a5b720
+        direction_index = 4     # forward
+    else:
+        # Cross product for left/right
+        cross = fx*vx - fy*vy
+        is_right = cross > 0
+        if dot_forward <= THRESHOLD_MID_BACK:                   # DAT_00a5b6b0
+            if dot_forward <= THRESHOLD_NEUTRAL_BACK:           # DAT_00a5b718
+                direction_index = 3 if is_right else 2          # strafe back
+            else:
+                direction_index = 2 + is_right * 4              # mid strafe
+        else:
+            direction_index = 1 + (6 if is_right else 0)        # slight turn
+
+    # Look up final action code from movement table
+    if agent.field_0x13C & 0x08:
+        return MOVEMENT_TABLE_SPECIAL[direction_index]          # DAT_00a5b3f8
+    if agent.field_0x184 and speed_sq >= THRESHOLD_RUNNING:     # DAT_00a5b710
+        return MOVEMENT_TABLE_RUNNING[direction_index]          # DAT_00a5b418
+    if speed_sq < THRESHOLD_WALKING:                            # DAT_00a5b70c
+        return MOVEMENT_TABLE_WALKING[direction_index]          # DAT_00a5b478
+    if agent.field_0x15C & 0x01:
+        return MOVEMENT_TABLE_COMBAT[direction_index]           # DAT_00a5b458
+    return MOVEMENT_TABLE_DEFAULT[direction_index]              # DAT_00a5b438
+```
+
+### Layer 2b: SelectCombatAgentFallbackActionCode(agent) @ 0x007d32a0
+
+```python
+def SelectCombatAgentFallbackActionCode(agent: CombatAgentView) -> int:
+    """Returns stance/idle action code when no movement is chosen"""
+    if agent.field_0x15C & 0x08:
+        return 0x3D           # dead/disabled
+    if agent.field_0x13C & 0x4000:
+        return 0x00           # special stance
+    if agent.field_0x13C & 0x2000:
+        return 0x01           # alternate stance
+    if agent.field_0x15C & 0x01:
+        # In combat: random stance
+        r = rand() & 7
+        return 3 + (0 if r < 5 else 4)
+    # Out of combat: check weapon data
+    weapon_data = get_weapon_data(agent.field_0xF4)
+    if weapon_data.field_0x10 & 0x8000:
+        r = rand() & 3
+        if r == 3:
+            return 0x02
+    return 0x02           # default idle
+```
+
+### Layer 3: DispatchCombatActionCharQueue(agent) @ 0x007cfc70
+
+```python
+def DispatchCombatActionCharQueue(agent: CombatAgentView):
+    """Process action records linked at agent+0xCC"""
+    record = agent.field_0xCC          # ActionChar* linked list head
+    iteration_count = 0
+
+    while record != None and not (agent.field_0xCC & 1):
+        iteration_count += 1
+        if iteration_count > 500:
+            ERROR("Infinite loop in action queue")
+
+        action_type = record.field_0x00
+
+        if action_type in [0, 11, 17, 22]:     # 0x00, 0x0B, 0x11, 0x16
+            AttachCombatRecordToTimedTriggerPhaseA(record)
+
+        elif action_type in [1, 18]:            # 0x01, 0x12
+            AttachCombatRecordToTimedTriggerPhaseB(record)
+
+        elif action_type == 2:                  # Full action processing
+            # Clean up timed triggers
+            clean_timed_triggers([0, 2, 18, 8, 6, 7])
+            current_action = agent.field_0xDC
+            if current_action in [0x29, 0x2A, 0x2B, 0x2C, 0x23]:
+                # Mid-skill/attack: re-evaluate movement
+                if not agent.field_0x15C & 0x08:
+                    move_code = ComputeCombatAgentMovementActionCode(agent)
+                    if move_code == 0x3F:
+                        move_code = SelectCombatAgentFallbackActionCode(agent)
+                else:
+                    move_code = 0x3D
+                ResolveCombatActionVariant(agent.field_0x1BA, move_code, &variant_a, &variant_b)
+                ApplyCombatAgentActionState(agent, move_code, variant_a, variant_b, 0.0)
+
+        elif action_type == 3:                  # Auto-attack
+            ProcessCombatAttackActionRecord(agent, record)
+
+        elif action_type == 21:                 # 0x15: SKILL USAGE
+            ProcessCombatSkillActionRecord(agent, record)
+
+        elif action_type == 25:                 # 0x19: TIMED SKILL
+            ProcessCombatTimedSkillActionRecord(agent, record)
+
+        elif action_type == 23:                 # 0x17: Movement + cleanup
+            # Re-evaluate movement
+            if agent.field_0x158 & 0x200:
+                clean_timed_triggers([5])
+            clean_timed_triggers([6])
+            if agent.field_0x158 & 0x01:
+                if not agent.field_0x15C & 0x08:
+                    move_code = ComputeCombatAgentMovementActionCode(agent)
+                    if move_code == 0x3F:
+                        move_code = SelectCombatAgentFallbackActionCode(agent)
+                else:
+                    move_code = 0x3D
+                ResolveCombatActionVariant(agent.field_0x1BA, move_code, &variant_a, &variant_b)
+                ApplyCombatAgentActionState(agent, move_code, variant_a, variant_b, 0.0)
+            # Sound effect
+            play_combat_sound(agent, SOUND_TABLE)
+            # Broadcast UI message
+            Ui_BroadcastRegisteredFrameMessage(0x10000026)
+
+        # ---- Cleanup record ----
+        FUN_007ca430(record)             # dequeue and free
+        agent.field_0x1B8 = 0            # clear skill_id
+        agent.field_0x1B7 = 0            # clear action byte
+        record = agent.field_0xCC        # next record
+```
+
+### Layer 4: PlanCombatActionTimeline(...) @ 0x007cb500
+
+```python
+def PlanCombatActionTimeline(
+    agent: CombatAgentView,
+    action_code: int,           # 0x2D=skill, 0x0C-0x15=weapon attacks
+    variant_a: int,
+    variant_b: int,
+    skill_or_action_id: int,    # skill_id for skills, 0 for attacks
+    cast_time: float,           # total action duration
+    byte_flags: int,            # animation flags from skill data
+    trigger_id: int,            # base trigger ID for this action
+    out_warmup_end: float* = None,
+    out_completion: float* = None
+):
+    """Build staged timeline of QueueCombatTimedActionRecord calls"""
+    # Get timing values from skill/weapon data tables
+    warmup_duration = FUN_007db9f0(agent.field_0x60, action_code, WARMUP_TABLE)   # DAT_00a59570
+    if warmup_duration == 0.0:
+        warmup_duration = MINIMUM_WARMUP
+
+    offset_duration = 0.0
+    agent_type = agent.field_0x1BB
+    if agent_type in [0x05, 0x1C]:
+        offset_duration = FUN_007db9f0(agent.field_0x60, action_code, OFFSET_TABLE)  # DAT_00a59540
+
+    # Adjust cast_time based on flags
+    factor = 0.0 if byte_flags == 0 else THRESHOLD_VALUE
+    warmup_end = cast_time * factor - SUBTRACT_VALUE
+    mid_marker = warmup_end + ADD_VALUE
+    total_time = warmup_end + SUBTRACT_VALUE
+
+    # Get post-activation timing
+    post_activation = FUN_007db9f0(agent.field_0x60, action_code, POST_TABLE)  # DAT_00a5957c
+    if post_activation == 0.0 and byte_flags != 0:
+        post_activation = cast_time * FACTOR2 + total_time
+
+    # Check if action fits within warmup
+    if total_time <= warmup_duration + EPSILON:
+        # Action fits within warmup → apply immediately
+        progress = total_time / warmup_duration
+        atk_speed = FUN_007db8b0(agent.field_0x60, action_code)
+        scaled_timing = atk_speed * progress
+        scaled_offset = progress * offset_duration
+        scaled_post = progress * post_activation
+
+        ApplyCombatAgentActionState(agent, action_code, variant_a, variant_b, scaled_timing)
+
+        # Optional: animation speed modifier
+        if trigger_id != 0 and agent.field_0x70 != 0.0:
+            FUN_007cc8d0(trigger_id, warmup_end)
+    else:
+        # Action exceeds warmup → split into stages
+        gap = total_time - warmup_duration
+        fallback_timing = gap + offset_duration
+        fallback_post = post_activation + gap
+        has_sub_action = agent.field_0x100 != 0
+
+        ResolveCombatActionVariant(agent.field_0x1BA, 0x23, &variant_a2, &variant_b2)
+        ApplyCombatAgentActionState(agent, 0x23, variant_a2, variant_b2, 0.0)
+        QueueCombatTimedActionRecord(
+            timing=gap,
+            trigger_type=4,
+            skill_or_action_id=variant_a,
+            flags=(0x80 if not has_sub_action else 0) | (action_code << 8) | trigger_id << 16 | skill_or_action_id & 0xFFFF
+        )
+
+    # Always queue these timed triggers
+    QueueCombatTimedActionRecord(warmup_end + 0.0,   0x12, 0, 0)  # pre-action
+    QueueCombatTimedActionRecord(warmup_end + mid,   8,    0, 0)  # mid-action
+    QueueCombatTimedActionRecord(total_time,          6,    0, 0)  # action start
+    if offset_duration != 0.0:
+        QueueCombatTimedActionRecord(fallback_timing, 2,    0, 0)  # offset
+    if fallback_post != 0.0:
+        QueueCombatTimedActionRecord(fallback_post - EPSILON, 0x12, 0, 0)  # post-action marker
+        QueueCombatTimedActionRecord(fallback_post,          7,    0, 0)  # completion
+
+    if out_warmup_end:
+        *out_warmup_end = scaled_or_fallback_timing
+    if out_completion:
+        *out_completion = total_time
+```
+
+### Layer 5: QueueCombatTimedActionRecord(timing, trigger_type, data, flags) @ 0x007d2ff0
+
+```python
+def QueueCombatTimedActionRecord(timing: float, trigger_type: int, data: int, flags: int) -> TimedRecord:
+    """Enqueue a timed trigger record into the shared trigger queue"""
+    record = allocate_record()
+    record.timing = timing          # execution time offset from now
+    record.trigger_type = trigger_type
+    record.data = data
+    record.flags = flags
+    insert_into_priority_queue(TRIGGER_QUEUE, record)
+    return record
+```
+
+### Layer 5b: RunScheduledCombatCallbacks(dt) @ 0x007c0880
+
+```python
+def RunScheduledCombatCallbacks(dt: float):
+    """Execute timed callbacks whose time has arrived"""
+    CUMULATIVE_TIME += dt
+    queue = TRIGGER_QUEUE          # DAT_00bb9060 / DAT_00bb9068
+    if queue == None:
+        return
+
+    record = queue.head
+    while record != None and record.field_0x0C < CUMULATIVE_TIME:
+        record.field_0x1C = 1      # mark as executed
+        agent_id = record.field_0x18
+
+        if agent_id == 0:
+            # Direct function call
+            if record.field_0x24 != None:
+                record.field_0x24(record)
+        else:
+            # Dispatch via agent vtable
+            agent_view = GetAgentViewByAgentId(agent_id)
+            if agent_view != None:
+                agent_view.vtable[0x20](record)   # calls HandleCombatAgentActionEvent
+
+        process_record()
+        dequeue_record(record)
+        free_record(record)
+
+        record = queue.head
+        if record == None:
+            break
+```
+
+### Layer 6: HandleCombatAgentActionEvent(agent, event) @ 0x007d3e50
+
+```python
+def HandleCombatAgentActionEvent(agent: CombatAgentView, event: TimedRecord):
+    """Process a timed trigger event based on trigger_type"""
+    trigger_type = event.field_0x20
+
+    # Find existing record of same type in agent's linked list at agent+0x1B0
+    existing = find_existing(agent, trigger_type)
+    if existing and existing.field_0x1C == 0:
+        return  # already handled
+
+    # Clear flag for this trigger type
+    flag_mask = FLAG_TABLE[trigger_type]
+    agent.field_0x158 &= ~flag_mask
+
+    if trigger_type == 1:       # Initial setup
+        FUN_007cb1d0(1)
+
+    elif trigger_type == 2:     # Begin action
+        FUN_007cdb70(0, 0, DATA_TABLE, 1.0, 1)
+
+    elif trigger_type == 3:     # Action-specific
+        FUN_007d4560(event.field_0x28)
+
+    elif trigger_type == 4:     # ★ SKILL/ACTION DISPATCH
+        packed = event.field_0x2C           # packed data from QueueCombatTimedActionRecord
+        skill_or_action_id = packed & 0xFFFF
+        trigger_extra = (packed >> 16) & 0x7F
+        has_target = (packed >> 23) & 1
+        action_code = (packed >> 24) & 0xFF
+
+        target_agent_id = event.field_0x28   # target (if any)
+        if target_agent_id == 0:
+            target_agent_id = -1
+
+        # Resolve variant if sub-action flag differs
+        if (agent.field_0x100 != 0) != has_target:
+            ResolveCombatActionVariant(agent.field_0x1BA, action_code, &variant_a, &variant_b)
+            skill_or_action_id = variant_a
+            target_agent_id = variant_b
+
+        ApplyCombatAgentActionState(agent, action_code, skill_or_action_id, target_agent_id, 0.0)
+
+        # Animation speed modifier
+        if trigger_extra != 0:
+            trigger_6 = FindCombatTimedActionTriggerByType(6)
+            if trigger_6:
+                remaining = trigger_6.field_0x0C - CUMULATIVE_TIME
+                if remaining > 0 and agent.field_0x70 != 0:
+                    FUN_007cc8d0(trigger_extra, remaining)
+
+    elif trigger_type == 6:     # Action completion — process linked effects
+        agent.field_0x158 &= ~0x0400
+        linked_records = event.field_0x38
+        while linked_records:
+            record_type = linked_records.field_0x00
+            if record_type == 0:
+                FUN_007cde10(0, 0)
+            elif record_type == 11:
+                ProcessCombatLinkedEffectActionEvent(linked_records)
+            elif record_type in [17, 22]:
+                Ui_BroadcastRegisteredFrameMessage(0x10000024)
+            dequeue_and_free(linked_records)
+            linked_records = next_record
+        # Clear skill tracking
+        agent.field_0x1B8 = 0
+        agent.field_0x1B7 = 0
+
+    elif trigger_type == 7:     # Cleanup
+        if event.field_0x28:
+            FUN_007cc280(event.field_0x28, 0x10000, 0)
+        agent.field_0x158 &= ~0x0400
+        # Drain remaining records
+        while linked_records:
+            dequeue_and_free(linked_records)
+
+    elif trigger_type == 8:     # Mid-action merge
+        MergeCombatActionEventIntoTimedPhases(event)
+
+    elif trigger_type == 13:    # Clear stance flag
+        agent.field_0x15C &= ~0x2000
+        FUN_00750250(agent.field_0x60, 8)
+
+    elif trigger_type == 18:    # 0x12: death/defeat sound
+        if agent.field_0x58 & 0x02:
+            if agent.field_0x1BB == 0x2E:
+                sound_id = FUN_0046fa50(agent.field_0x60)
+            else:
+                sound_id = FUN_00804af0(agent.field_0xFC, 0, 0)
+            if sound_id:
+                FUN_007c5360(sound_id, 5, agent.field_0x84 + 0x00, agent.field_0x15C >> 22 & 1)
+                free_handle(sound_id)
+
+    elif trigger_type == 19:    # 0x13: special variant
+        if agent.field_0x158 & 0x10:
+            if ACTION_PRIORITY[agent.field_0xDC] <= THRESHOLD:
+                result = ResolveCombatActionVariant(agent.field_0x1BA, 0x3A, &a, &b)
+                if result == 0:
+                    fallback = SelectCombatAgentFallbackActionCode(agent)
+                    ApplyActionViaVariant(agent, fallback)
+                else:
+                    ApplyCombatAgentActionState(agent, 0x3A, a, b, event.field_0x28)
+```
+
+### Layer 6b: ApplyCombatAgentActionState(agent, action_code, variant_a, variant_b, timing) @ 0x007d3370
+
+```python
+def ApplyCombatAgentActionState(
+    agent: CombatAgentView,
+    action_code: int,
+    variant_a: int,
+    variant_b: int,
+    timing: float
+):
+    """Apply a new action state to the agent"""
+    assert action_code <= 0x3E
+
+    old_flags = agent.field_0x158
+    old_action = agent.field_0xDC
+
+    # Get flag mask/value for action transition
+    FUN_007c9050(old_action, action_code, &new_flags_mask, &new_flags_value)
+    agent.field_0x158 = (agent.field_0x158 & ~new_flags_value) | new_flags_mask
+
+    # Movement tracking toggle
+    was_moving = old_flags & 0x02
+    is_moving  = agent.field_0x158 & 0x02
+    if agent.field_0x184 and was_moving != is_moving:
+        if is_moving:
+            start_movement_tracking(agent.field_0x2C, agent.position, variant_b)
+        else:
+            stop_movement_tracking(agent.field_0x2C)
+
+    # Store new action code
+    agent.field_0xDC = action_code
+
+    # Update visual/action state
+    UpdateCombatAgentActionVisuals(agent, variant_a, variant_b, timing)
+```
+
+### ProcessCombatSkillActionRecord — Full Flow @ 0x007d0d10
+
+```python
+def ProcessCombatSkillActionRecord(agent: CombatAgentView, record):
+    """Process a skill action record — called from DispatchCombatActionCharQueue type 0x15"""
+    skill_id = record.field_0x38         # ID of the skill being used
+    target_id = record.field_0x30        # target agent ID
+    record_flag = record.field_0x3C       # flag (0 = normal, 1 = offhand?)
+
+    agent.field_0x1B8 = skill_id          # track current skill
+
+    # Get skill constant data
+    skill = ConstGetSkill(skill_id)
+    cast_time = skill.field_0x3C          # total cast time
+
+    # ---- Special skill type 0x1B (resurrection?) ----
+    if skill.field_0x0C == 0x1B:
+        # Plays special animation sound
+        ...
+
+    # ---- Skill type 0x0E (attack skill) ----
+    if skill.field_0x0C == 0x0E:
+        # Get animation timing
+        anim_byte = skill.field_0x32
+        if anim_byte == 0:
+            anim_byte = 2
+
+        # Resolve variant based on offhand flag
+        if record_flag == 0:
+            variant_code = 0x29        # main-hand skill
+        else:
+            variant_code = 0x2A        # off-hand skill
+        ResolveCombatActionVariant(agent.field_0x1BA, variant_code, &variant_a, &variant_b)
+
+        # Adjust cast time
+        adjusted_time = cast_time
+        if adjusted_time == 0.0:
+            adjusted_time = agent.field_0xEC          # base attack speed
+        adjusted_time *= agent.field_0xF0              # speed modifier
+        if record_flag:
+            adjusted_time *= OFFHAND_FACTOR             # DAT_0091de00
+
+        # ★★★ BUILD THE TIMELINE ★★★
+        PlanCombatActionTimeline(
+            agent,
+            action_code=0x2D,              # "use skill"
+            variant_a=variant_a,
+            variant_b=variant_b,
+            skill_id=record_flag,           # pass record flag as skill_id param
+            cast_time=adjusted_time,
+            byte_flags=anim_byte,
+            trigger_id=anim_byte,
+            out_warmup=warmup_ptr,
+            out_completion=completion_ptr
+        )
+        agent.field_0x1B7 = record.field_0x34
+
+    # ---- Notify target agent ----
+    target_agent = GetCombatAgentViewByAgentId(target_id)
+    if target_agent:
+        FUN_007cb270()                       # notify target of incoming action
+
+    # ---- Broadcast UI message ----
+    Ui_BroadcastRegisteredFrameMessage(0x10000027)     # "agent used skill" UI notification
+
+    # ---- Cleanup ----
+    FUN_007ca430(record)                     # dequeue record
+```
+
+### Callable Function Summary
+
+All these functions are designed to be called with a `CombatAgentView*` pointer. To call them from Python, you would need:
+
+1. **Get a CombatAgentView*** — via `GetCombatAgentViewByAgentId(agent_id)` @ 0x007d98b0
+2. **Check if agent is in combat** — via `agent.field_0x15C & flags`
+3. **Use the skill** — call `ProcessCombatSkillActionRecord` or directly call `PlanCombatActionTimeline`
+
+| Function | Address | Args | What it does |
+|----------|---------|------|-------------|
+| `GetCombatAgentViewByAgentId` | `0x007d98b0` | (id) → CombatAgentView* | Resolve agent |
+| `ComputeCombatAgentMovementActionCode` | `0x007d30e0` | (agent) → int | Get movement action code |
+| `SelectCombatAgentFallbackActionCode` | `0x007d32a0` | (agent) → int | Get idle stance code |
+| `ResolveCombatActionVariant` | `0x007c9270` | (type, code, &a, &b) | Resolve action variant |
+| `ApplyCombatAgentActionState` | `0x007d3370` | (agent, code, a, b, t) | Apply action state |
+| `PlanCombatActionTimeline` | `0x007cb500` | (agent, code, a, b, skill, time, flags, tid, ...) | Build trigger timeline |
+| `QueueCombatTimedActionRecord` | `0x007d2ff0` | (time, type, data, flags) → TimedRecord* | Enqueue trigger |
+| `ProcessCombatSkillActionRecord` | `0x007d0d10` | (agent, record*) | Process skill record |
+| `ProcessCombatAttackActionRecord` | `0x007cfa20` | (agent, record*) | Process attack record |
+

@@ -1,12 +1,12 @@
 {
   "name": "Abaddon's Mouth",
   "steps": [
-    {"type": "travel", "name": "Travel to Mission Outpost", "target_map_id": 123},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "enter_challenge", "name": "Enter Challenge", "delay_ms": 6000, "target_map_id": 123},
-    {"type": "auto_path", "name": "Initial valley", "points": [[16815, 10580], [11738, 5359], [6022, 947], [1999, 2820], [-4335, 627], [-1520, -2907]]},
-    {"type": "auto_path", "name": "Mid mission climb", "points": [[595, -5122], [2944, -7636], [7932, -6690], [11398, -7418], [15998, -6380], [19215, -5354]]},
-    {"type": "auto_path", "name": "Final approach", "points": [[19992, -4981], [20807, -5803]]},
-    {"type": "wait_map_change", "target_map_id": 124}
+    {"type": "map", "name": "Travel to Mission Outpost", "target_map_id": 123, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "map", "name": "Enter Challenge", "delay_ms": 6000, "target_map_id": 123, "action": "enter_challenge"},
+    {"type": "route", "name": "Initial valley", "points": [[16815, 10580], [11738, 5359], [6022, 947], [1999, 2820], [-4335, 627], [-1520, -2907]], "mode": "kill"},
+    {"type": "route", "name": "Mid mission climb", "points": [[595, -5122], [2944, -7636], [7932, -6690], [11398, -7418], [15998, -6380], [19215, -5354]], "mode": "kill"},
+    {"type": "route", "name": "Final approach", "points": [[19992, -4981], [20807, -5803]], "mode": "kill"},
+    {"type": "map", "target_map_id": 124, "action": "wait_for_map_load"}
   ]
 }

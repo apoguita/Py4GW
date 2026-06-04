@@ -1,25 +1,24 @@
-﻿{
+{
   "name": "dialog_recorded",
   "required_hero": ["Koss"],
   "steps": [
-    {"type": "travel", "name": "Travel to The Astralarium", "target_map_id": 502},
-    {"type": "auto_path", "name": "To Emissary Dajmir", "points": [[-1690, 3754]]},
-    {"type": "dialog", "id": "0x827A01", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"},
-    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true, "required_hero": ["Koss"]},
-    {"type": "auto_path", "name": "To Exit", "points": [[-4128, 859]]},
-    {"type": "exit_map", "name": "Leave The Astralarium", "point": [-4661, 178], "target_map_id": 483},
-    {"type": "auto_path", "name": "To Sunspear Scout", "points": [[19726, -4147]]},
-    {"type": "dialog", "id": "0x84", "npc": "SUNSPEAR_SCOUT", "name": "Dialog - Sunspear Scout"},
-    {"type": "auto_path", "name": "To Emissary Dajmir", "points": [[16647, -3808]]},
-    {"type": "dialog", "id": "0x827A04", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"},
-    {"type": "auto_path", "name": "To Melonni", "points": [[-2004, -13641]]},
-    {"type": "dialogs", "id": ["0x827A04", "0x84"], "npc": "MELONNI", "name": "Dialog - Melonni"},
-    {"type": "wait_for_map_load", "map_id": 483},
-    {"type": "auto_path", "name": "To Inscribed Wall", "points": [[-17887, -17582]]},
-    {"type": "dialogs", "id": ["0x827A04", "0x84", "0x85"], "npc": "INSCRIBED_WALL", "name": "Dialog - Inscribed Wall"},
-    {"type": "wait_for_map_load", "map_id": 491},
-    {"type": "auto_path", "name": "To Digmaster Gatah", "points": [[2943, 2079]]},
-    {"type": "dialog", "id": "0x827A07", "npc": "DIGMASTER_GATAH", "name": "Dialog - Digmaster Gatah"}
+    {"type": "map", "name": "Travel to The Astralarium", "target_map_id": 502, "action": "travel"},
+    {"type": "route", "name": "To Emissary Dajmir", "points": [[-1690, 3754]], "mode": "kill"},
+    {"type": "interact", "id": "0x827A01", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir", "action": "dialog", "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 4, "required_hero": ["Koss"], "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-4128, 859]], "mode": "kill"},
+    {"type": "route", "name": "Leave The Astralarium", "point": [-4661, 178], "target_map_id": 483, "mode": "exit"},
+    {"type": "route", "name": "To Sunspear Scout", "points": [[19726, -4147]], "mode": "kill"},
+    {"type": "interact", "id": "0x84", "npc": "SUNSPEAR_SCOUT", "name": "Dialog - Sunspear Scout", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Emissary Dajmir", "points": [[16647, -3808]], "mode": "kill"},
+    {"type": "interact", "id": "0x827A04", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Melonni", "points": [[-2004, -13641]], "mode": "kill"},
+    {"type": "interact", "id": ["0x827A04", "0x84"], "npc": "MELONNI", "name": "Dialog - Melonni", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 483, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Inscribed Wall", "points": [[-17887, -17582]], "mode": "kill"},
+    {"type": "interact", "id": ["0x827A04", "0x84", "0x85"], "npc": "INSCRIBED_WALL", "name": "Dialog - Inscribed Wall", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 491, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Digmaster Gatah", "points": [[2943, 2079]], "mode": "kill"},
+    {"type": "interact", "id": "0x827A07", "npc": "DIGMASTER_GATAH", "name": "Dialog - Digmaster Gatah", "action": "dialog", "target": "npc"}
   ]
 }
-

@@ -1,17 +1,9 @@
-"""
-modular_eotn module
-
-This module is part of the modular runtime surface.
-"""
+"""EotN campaign BT recipe runner."""
 from __future__ import annotations
 
-from typing import Optional
-
-from Py4GWCoreLib.modular import ModularBot
-from Py4GWCoreLib.modular.phase import Phase
-from Py4GWCoreLib.modular.recipes.modular_block import (
-    build_modular_block_phase,
-)
+from Py4GWCoreLib.modular import BTRecipeRunner
+from Py4GWCoreLib.modular import RecipeSpec
+from Py4GWCoreLib.modular import specs_from_campaign_rows
 
 
 # tuple format: (region, kind, key, title)
@@ -55,87 +47,21 @@ EOTN_PHASE_SPECS: list[tuple[str, str, str, str]] = [
 ]
 
 REGION_IDX = 0
-KIND_IDX = 1
-KEY_IDX = 2
-TITLE_IDX = 3
 
 
 class EotnCampaignOptions:
-    """
-    EotnCampaignOptions class.
-
-    Meta:
-      Expose: true
-      Audience: advanced
-      Display: EotN Campaign Options
-      Purpose: Provide explicit modular runtime behavior and metadata.
-      UserDescription: Internal class used by modular orchestration and step execution.
-      Notes: Keep behavior explicit and side effects contained.
-    """
-
     def __init__(
         self,
         *,
         start_phase_index: int = 0,
         loop: bool = False,
-        team_selection: str = "priority",
-        debug_logging: bool = False,
     ) -> None:
         self.start_phase_index = int(start_phase_index)
         self.loop = bool(loop)
-        mode = str(team_selection or "priority").strip().lower()
-        if mode not in ("priority", "exact", "henchman"):
-            mode = "priority"
-        self.team_selection = mode
-        self.debug_logging = bool(debug_logging)
 
 
-def _eotn_load_party_overrides(team_selection: str) -> dict:
-    mode = str(team_selection or "priority").strip().lower()
-    if mode == "exact":
-        return {"team_mode": "exact", "fill_with_henchmen": False}
-    if mode == "henchman":
-        return {"team_mode": "henchman", "fill_with_henchmen": True}
-    return {"hero_team": "priority", "fill_with_henchmen": True}
-
-
-def _block_kind_for_phase_kind(kind: str) -> str:
-    if kind == "mission":
-        return "missions"
-    if kind == "quest":
-        return "quests"
-    if kind == "route":
-        return "routes"
-    if kind == "dungeon":
-        return "dungeons"
-    return kind
-
-
-def _recipe_name_for_phase_kind(kind: str) -> str:
-    if not kind:
-        return "ModularBlock"
-    return kind.title()
-
-
-def build_eotn_campaign_phases(team_selection: str = "priority") -> list[Phase]:
-    load_party_overrides = _eotn_load_party_overrides(team_selection)
-    phases: list[Phase] = []
-    for idx, spec in enumerate(EOTN_PHASE_SPECS):
-        kind = spec[KIND_IDX]
-        key = spec[KEY_IDX]
-        title = spec[TITLE_IDX]
-        phase_name = f"{idx + 1:02d}. {kind.title()}: {title}"
-        phases.append(
-            build_modular_block_phase(
-                key,
-                name=phase_name,
-                kind=_block_kind_for_phase_kind(kind),
-                recipe_name=_recipe_name_for_phase_kind(kind),
-                anchor=True,
-                load_party_overrides=load_party_overrides,
-            )
-        )
-    return phases
+def build_eotn_campaign_specs() -> list[RecipeSpec]:
+    return specs_from_campaign_rows(EOTN_PHASE_SPECS)
 
 
 def derive_eotn_region_spans(
@@ -160,37 +86,25 @@ def derive_eotn_region_spans(
 EOTN_REGION_SPANS = derive_eotn_region_spans()
 
 
-def apply_eotn_start_index(phases: list[Phase], start_index: int) -> int:
-    if not phases:
+def apply_eotn_start_index(specs: list[RecipeSpec], start_index: int) -> int:
+    if not specs:
         return 0
-    return max(0, min(int(start_index), len(phases) - 1))
+    return max(0, min(int(start_index), len(specs) - 1))
 
 
 def create_eotn_campaign_bot(
     *,
     options: EotnCampaignOptions | None = None,
-    main_ui=None,
-    settings_ui=None,
-    help_ui=None,
     name: str = "Modular EotN",
-) -> ModularBot:
+    debug_hook=None,
+) -> BTRecipeRunner:
     opts = options or EotnCampaignOptions()
-    all_phases = build_eotn_campaign_phases(opts.team_selection)
-    clamped_start = apply_eotn_start_index(all_phases, opts.start_phase_index)
-    phases = all_phases[clamped_start:] if all_phases else []
-
-    restart_target: Optional[str] = phases[0].name if phases else None
-
-    return ModularBot(
+    specs = build_eotn_campaign_specs()
+    clamped_start = apply_eotn_start_index(specs, opts.start_phase_index)
+    return BTRecipeRunner(
         name=name,
-        phases=phases,
+        specs=specs,
+        start_index=clamped_start,
         loop=bool(opts.loop),
-        template="multibox_aggressive",
-        on_party_wipe=restart_target,
-        on_death=restart_target,
-        main_ui=main_ui,
-        settings_ui=settings_ui,
-        help_ui=help_ui,
-        upkeep_hero_ai_active=True,
-        debug_logging=bool(opts.debug_logging),
+        debug_hook=debug_hook,
     )
