@@ -335,7 +335,8 @@ class UIManager:
         frame_flags: int = 0,
         create_param: int = 0x20,
         anchor_flags: int = 0x06,
-        subclass_flags: int = 0x59
+        subclass_flags: int = 0x59,
+        layer: int = 0
     ) -> int: ...
 
     
