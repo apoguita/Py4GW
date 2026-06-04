@@ -76,11 +76,11 @@ def test_a():
 # ── Vector C: msg 0x5E ──────────────────────────────────────────
 
 def test_c_create():
-    global fid_a
+    global fid_a, TITLE
     if fid_a and _ex(fid_a): GWUI.DestroyUIComponentByFrameId(fid_a); fid_a = 0
-    print("─── C: Create Container ───")
-    fid_a = PyUIManager.UIManager.create_titled_container_window(
-        500, 500, 400, 300, "V3_C", 9, 0, 0x20, 0x6, 0x59) or 0
+    print("---- C: Create Container ----")
+    fid_a = PyUIManager.UIManager.CreateNativeWindow(
+        100, 250, 200, 250, TITLE, 9, 0, 0, 0x20, 0x6, 0x59) or 0
     mask = _mask(fid_a)
     t, r = _caps(fid_a)
     print(f"C: fid={fid_a} mask=0x{mask:08X} text='{t}' resource='{r}'")

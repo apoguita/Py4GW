@@ -544,15 +544,26 @@ send_title_msg_5e(frame_id, "title")
 
 The `Ui_SetFrameText` prologue pattern (`55 8B EC 53 56 57 ... 75 14 68 ?? ?? ?? ??`) matches **16 functions** in `FrApi.cpp`. `Scanner::Find` always returns the wrong function (lowest address match). **Always derive `Ui_SetFrameText` from DevText's call site** — find the "DlgDevText" string use, scan forward for CALLs: first CALL = `Ui_CreateEncodedText`, second CALL = `Ui_SetFrameText`.
 
-### Python API
+### Python API (Canonical, 2026-06-03)
 
 ```python
-# Create container
-fid = PyUIManager.UIManager.create_titled_container_window(
-    x, y, w, h, "", 9, 0, 0x20, 0x6, 0x59)
-# Set title
-PyUIManager.UIManager.send_title_msg_5e(fid, "My Custom Title")
+# Canonical one-call titled container window:
+fid = PyUIManager.UIManager.create_container_window_with_title(
+    x=100, y=100, width=400, height=300, title="My Custom Title")
+
+# Or the older two-step equivalent:
+# fid = PyUIManager.UIManager.create_titled_container_window(
+#     x, y, w, h, "", 9, 0, 0x20, 0x6, 0x59)
+# PyUIManager.UIManager.send_title_msg_5e(fid, "My Custom Title")
 ```
+
+### 2026-06-03 Cleanup — Shared Resolver Consolidation
+
+The resolution logic was consolidated into shared helpers in `py_ui.h`:
+- **`ResolveCreateEncodedText()`** — single shared resolver for `Ui_CreateEncodedText` with prologue validation.
+- **`ResolveSetFrameText()`** — shared helper for DevText call-site derived `Ui_SetFrameText`.
+
+All hardcoded address comments in `py_ui.h` were removed. All missing bindings added to `stubs/PyUIManager.pyi`.
 
 ### Complete investigation in:
 - `docs/RE/title_rendering_research.md` — all 11 failed approaches + working solution
@@ -573,6 +584,8 @@ All files in `docs/RE/`:
 | `native_gw_window_creation_investigation.md` | Window creation/proc RE investigation |
 | `native_ui_title_and_encoded_string_reference.md` | Native UI title and encoding reference |
 | `rosetta_stone.txt` | GwA2 (AutoIt) to Py4GW function mapping |
+| `title_rendering_research.md` | Title rendering investigation & working solution (11 approaches) |
+| `window_creation_architecture.md` | CContainerFrame window creation architecture reference |
 
 Other project docs remain in `docs/`:
 - `Py4GW_Conceptual_Model.md` — canonical architecture

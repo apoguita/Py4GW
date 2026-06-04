@@ -48,6 +48,21 @@ PyUIManager.UIManager.send_title_msg_5e(frame_id, "My Custom Title")
 1. `SetFrameTitleByFrameId()` — resolves `Ui_CreateEncodedText` (wildcarded) and `Ui_SetFrameText` (DevText-derived), creates encoded text, stores on frame
 2. `FrameContentInvalidate(0xFFFFFFFF)` — per-frame CContent invalidation, sets paint mask, enqueues dirty list
 
+### 2026-06-03 Update: Shared Resolver Consolidation
+
+The resolution logic documented above has been consolidated into shared helpers in `py_ui.h`:
+
+- **`ResolveCreateEncodedText()`** (~line 32 in `py_ui.h`): Single shared resolver for `Ui_CreateEncodedText`, used by all call sites. Includes prologue validation.
+- **`ResolveSetFrameText()`**: Shared helper for DevText call-site derived `Ui_SetFrameText`. Every consumer uses the same derivation.
+
+Canonical Python one-call API:
+```python
+frame_id = PyUIManager.UIManager.create_container_window_with_title(
+    x=100, y=100, width=400, height=300, title="My Window"
+)
+```
+Internally: `CreateContainerWindow` → `FrameNewSubclass(CRProc, 0x59)` → `FrameMouseEnable` → `SetFrameTitleAndInvalidate`.
+
 ---
 
 ## Original Investigation (2026-05-31 to 2026-06-02)

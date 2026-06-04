@@ -698,10 +698,6 @@ class GWUI:
         return 0
 
     @staticmethod
-    def ResolveDevTextDialogProc() -> int:
-        return int(PyUIManager.UIManager.resolve_devtext_dialog_proc() or 0)
-
-    @staticmethod
     def OpenDevTextWindow(timeout_ms: int = 750, poll_interval_ms: int = 25) -> int:
         import time
         from Py4GW import Game
@@ -1085,7 +1081,7 @@ class GWUI:
         ensure_devtext_source: bool = True,
     ) -> int:
         return int(
-            PyUIManager.UIManager.create_window(
+            PyUIManager.UIManager.CreateWindowClone(
                 x,
                 y,
                 width,

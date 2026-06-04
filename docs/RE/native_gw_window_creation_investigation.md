@@ -485,3 +485,21 @@ The only native path that performs per-frame CContent invalidation is `CNonclien
 - **Mouse interaction**: Works — fixed via `FrameMouseEnable(0xFFFFFFFF, 0)` after `FrameNewSubclass`.
 - **Title rendering**: ✅ RESOLVED (2026-06-02) — via `send_title_msg_5e` → `SetFrameTitleAndInvalidate`. Key fix: DevText call-site derived `Ui_SetFrameText` instead of broken byte pattern.
 - **Byte pattern fragility**: Byte patterns encoding stack frame sizes break across EXE patches. `FindAssertion` is immune. The 2026-05-30 EXE patch changed CRProc from `SUB ESP, 0x11C` to `SUB ESP, 0x120`.
+
+### ✅ 2026-06-03 Cleanup — Shared Resolver Consolidation
+
+The C++ code in `py_ui.h` was refactored to eliminate duplicated resolution logic:
+
+1. **`ResolveCreateEncodedText()`** — new shared resolver (~line 32 in `py_ui.h`, before `UIManagerTitleHook`). Single source of truth for `Ui_CreateEncodedText` pattern resolution with prologue validation. Used by `SetFrameTitleByFrameId`, `AttachCompositeRootToFrame`, and the title hook namespace. Replaces 3 previously duplicated inline scans.
+
+2. **`ResolveSetFrameText()`** — new shared helper that extracts the DevText call-site derivation for `Ui_SetFrameText`. Used by both `SetFrameTitleByFrameId` and `AttachCompositeRootToFrame`. Eliminates duplicated call-site-walking logic.
+
+3. **Static address comments removed** — All hardcoded-address-bearing comments (3 locations in `py_ui.h`) were removed. Function resolution is now exclusively via runtime assertion/pattern scanning.
+
+4. **`ProcessFrameControllerUpdateByFrameId()`** — `AttachCompositeRootToFrame` now calls the existing `ProcessFrameControllerUpdateByFrameId` rather than resolving a raw `layout_fn` pointer via a weak byte-pattern scan.
+
+5. **Canonical Python API** — `create_container_window_with_title(x, y, width, height, title)` added as a one-call titled container window creation. The older `create_window` (DevText clone path) is retained for backward compatibility.
+
+6. **Stubs updated** — `stubs/PyUIManager.pyi` now includes all ~22 previously-missing C++ binding signatures.
+
+See `docs/RE/window_creation_architecture.md` for the updated canonical API reference.

@@ -1,5 +1,9 @@
 # Arbitrary Window Creation — WASM Architecture Analysis
 
+> **Canonical API (2026-06-03):** `CreateTitledContainerWindow` (C++) / `create_container_window_with_title` (Python).
+> The CContainerFrame + FrameNewSubclass approach is now the recommended path for new window creation.
+> The DevText clone approach documented below is the legacy path.
+
 Date: 2026-05-30
 Source: `/Gw.wasm` via Ghidra MCP
 Context: Existing Python path clones DevText; goal is to find a cleaner or more direct way.
@@ -19,6 +23,46 @@ The Python `CreateWindowClone()` works by:
 - Creates unwanted content that must be cleared
 - Inherits DevText's lifecycle behavior
 - The proc assumes certain global state (string table, etc.)
+
+## Recommendation: CContainerFrame + FrameNewSubclass (Approach B)
+
+**This is the canonical approach for new window creation.** It uses `CContainerFrame::FrameProc` 
+(a minimal container with no content or state dependencies) combined with 
+`Ui_CompositeRootControlProc` (installed via `FrameNewSubclass` with flags `0x59`) 
+for full window chrome: title bar, close button, resize handles, and mouse interaction.
+
+No DevText dependency — works cold without requiring DevText to be open.
+
+Python API:
+```python
+# Canonical: one-call titled container window with chrome
+frame_id = PyUIManager.UIManager.create_container_window_with_title(
+    x=100, y=100, width=400, height=300, title="My Window"
+)
+
+# Or the older equivalent:
+frame_id = PyUIManager.UIManager.create_titled_container_window(
+    x=100, y=100, width=400, height=300, title="My Window"
+)
+```
+
+C++ API:
+```cpp
+auto frame_id = UIManager::CreateTitledContainerWindow(100, 100, 400, 300, L"My Window");
+```
+
+Internal pipeline:
+1. `CreateContainerWindow()` — bare CContainerFrame (no side effects)
+2. `FrameNewSubclass(frame, CRProc, 0x59)` — window chrome (title bar, close, resize)
+3. `FrameMouseEnable(frame, 0xFFFFFFFF, 0)` — mouse interaction
+4. `Ui_SetFrameText` + `PerFrameInvalidate` — title text storage + render invalidation
+
+All native function addresses resolved via assertion-based Scanner patterns at runtime — 
+no hardcoded addresses. The shared `ResolveCreateEncodedText()` resolver is the single 
+source of truth for the `Ui_CreateEncodedText` pattern.
+
+The older `create_window` (DevText clone path) remains available for backward compatibility 
+but is deprecated for new code.
 
 ## The Real Window Factory: DialogShow
 
@@ -222,18 +266,6 @@ The current approach works. Improvements:
 | `CAggregateInv::FrameProc` | ram:8154ad67 | Inner inventory proc |
 | `CAggregateInv::OnFrameCreate` | ram:81549948 | Inventory create handler |
 
-## Recommendation
-
-**Next step:** Decompile `CContainerFrame::FrameProc` to determine if it's minimal enough
-to cold-create without side effects. If it handles msg 9 without creating content or
-requiring global state, it could replace DevText as the clone source.
-
-If not feasible, improve the DevText clone path by:
-1. Caching the proc address (avoid temp open/close)
-2. Using a proc from the typed component family that's simpler
-
----
-
 ## ★ Solution Found: CContainerFrame::FrameProc
 
 ### Verification
@@ -280,18 +312,18 @@ Message dispatch behavior:
 ### How to Use in Python/GWCA
 
 ```python
-# Replace DevText clone with CContainerFrame
-frame_id = UIManager.CreateWindowByFrameId(
-    parent_frame_id=9,
-    child_index=child_slot,
-    frame_callback=0x00871b40,    # ★ CContainerFrame::FrameProc
-    x=100, y=100,
-    width=400, height=300,
-    frame_flags=0x20,              # title bar
-    frame_label="My Window"
+# Modern API (recommended):
+frame_id = PyUIManager.UIManager.create_container_window_with_title(
+    x=100, y=100, width=400, height=300, title="My Window"
 )
-# Frame is now a clean empty container — ready for children
-UIManager.TriggerFrameRedrawByFrameId(frame_id)
+
+# Legacy DevText-clone approach (deprecated):
+# frame_id = UIManager.CreateWindowByFrameId(
+#     parent_frame_id=9, child_index=child_slot,
+#     frame_callback=0x00871b40,  # CContainerFrame::FrameProc
+#     x=100, y=100, width=400, height=300,
+#     frame_flags=0x20, frame_label="My Window"
+# )
 ```
 
 ### Comparison: DevText Clone vs. CContainerFrame
