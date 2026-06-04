@@ -301,7 +301,10 @@ class PartyCache:
         
         def UseSkill(self, hero_agent_id, slot, target_id):
             self._parent._action_queue_manager.AddAction("ACTION", self._parent._party_instance.UseHeroSkill, hero_agent_id, slot, target_id)
-            
+
+        def SetSkillAIEnabled(self, hero_agent_id, slot, enabled):
+            self._parent._action_queue_manager.AddAction("ACTION", self._parent._party_instance.SetHeroSkillAIEnabled, hero_agent_id, slot, enabled)
+
         def FlagHero (self, hero_id, x, y): 
             self._parent._action_queue_manager.AddAction("ACTION", self._parent._party_instance.FlagHero, hero_id, x, y)  
             
