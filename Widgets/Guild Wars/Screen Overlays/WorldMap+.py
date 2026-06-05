@@ -19,6 +19,7 @@ import math
 import Py4GW
 import json
 import os
+import sys
 import time
 from collections import defaultdict
 
@@ -38,9 +39,19 @@ except NameError:
         "Widgets", "Guild Wars", "Screen Overlays"
     )
 
-import Py4GWCoreLib.WorldPathing as _WP
+# Shared adapter directory for all persisted data (portal cache + map boundaries)
+_ADAPTER_DIR = os.path.join(
+    Py4GW.Console.get_projects_path(),
+    "Sources", "sch0l0ka", "adapter", "Worldmap+"
+)
+
+# WorldPathing lives in the adapter directory; use sys.path so the + in the
+# folder name doesn't interfere with Python import syntax.
+if _ADAPTER_DIR not in sys.path:
+    sys.path.insert(0, _ADAPTER_DIR)
+import WorldPathing as _WP  # type: ignore[import-not-found]
 _WP.configure(_SCRIPT_DIR)
-from Py4GWCoreLib.WorldPathing import (
+from WorldPathing import (  # type: ignore[import-not-found]
     _MAP_ADJACENCY, _ALL_EDGES,
     _MAP_META,
     _GLOBAL_ID_TO_PORTAL, _PORTAL_TO_GLOBAL_ID, _PORTAL_LINKS,
@@ -67,12 +78,6 @@ _PORTAL_BUILT:     set[int] = set()
 _PORTAL_DEST_DATA: dict[int, list[dict]] = {}
 _PORTAL_ALL_DATA:  dict[int, list[dict]] = {}
 _live_portal_cache: dict = {}  # values are either list[dict] or dict with "portals"/"extents" keys
-
-# Shared adapter directory for all persisted data (portal cache + map boundaries)
-_ADAPTER_DIR = os.path.join(
-    Py4GW.Console.get_projects_path(),
-    "Sources", "sch0l0ka", "adapter", "Worldmap+"
-)
 _LIVE_PORTAL_CACHE_FILE = os.path.join(_ADAPTER_DIR, "portal_live_cache.json")
 _MAP_RECT_FILE          = os.path.join(_ADAPTER_DIR, "map_boundaries.json")
 _PORTAL_ALL_FILE        = os.path.join(_SCRIPT_DIR,  "portal_all.json")
