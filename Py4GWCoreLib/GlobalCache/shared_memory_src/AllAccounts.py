@@ -368,7 +368,7 @@ class AllAccounts(Structure):
         expired_slots = self.GetExpiredSlots()
         for index in expired_slots:
             account_data = self.AccountData[index]
-            if (account_data.IsHero and
+            if (account_data.IsHero and 
                 account_data.AgentData.HeroID == hero_data.hero_id.GetID() and
                 (
                     account_data.AccountEmail == owner_email or
@@ -580,7 +580,6 @@ class AllAccounts(Structure):
             return key_slot
         owner_agent_id = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
         owner_email = Player.GetAccountEmail()
-        stale_match = -1  # expired slot with matching HeroID but mismatched owner
         for i in range(SHMEM_MAX_PLAYERS):
             player = all_accounts[i]
             if not player.IsHero:
@@ -593,17 +592,8 @@ class AllAccounts(Structure):
             # If either is 0 (not yet resolved), trust HeroID alone.
             if (owner_agent_id != 0 and player.AgentData.OwnerAgentID != 0 and
                     player.AgentData.OwnerAgentID != owner_agent_id):
-                # Owner mismatch.  If this slot is already expired (stale from a
-                # previous map), record it as a fallback to reclaim rather than
-                # creating a fresh duplicate entry.
-                if stale_match == -1 and self._is_slot_expired(i):
-                    stale_match = i
                 continue
             return i
-
-        # Reclaim the stale slot from a prior map rather than creating a duplicate.
-        if stale_match != -1:
-            return stale_match
 
         #submit if not found
         return self.SubmitHeroData(hero_data)
