@@ -333,17 +333,21 @@ public class DumpMsgIds extends GhidraScript {
 
 Run with: `mcp__ghidra__run_script_inline` (requires `GHIDRA_MCP_ALLOW_SCRIPTS=1`)
 
-### FrApi Function Mapping (Updated 2026-05-21)
+### FrApi Function Mapping (Updated 2026-06-03)
 
 The Frame API functions (FrApi.cpp) in `UIMgr.cpp` map WASM symbols to EXE addresses.
-As of 2026-05-21, the following addresses were verified:
+After 4+ rounds of window-polish RE, all core positioning/chrome functions are now bridged:
 
-| FrApi Function | WASM Symbol | WASM Address | EXE Address (05-21-2026) | Status |
+| FrApi Function | WASM Symbol | WASM Address | EXE Address (05-30-2026) | Status |
 |---------------|-------------|-------------|--------------------------|--------|
+| FrameSetLayer | `FrameSetLayer` | `ram:809b060f` | **`0x0062f5a0`** | **Bridged** — `FindAssertion("FrApi.cpp","frameId",0xbfb,0)` |
+| FrameSetPosition | `FrameSetPosition` | `ram:809a9f40` | **`0x0062f7f0`** | **Bridged** — `FindAssertion("FrApi.cpp","frameId",0x85c,0)`. ⚠️ Takes Coord2f* not two floats. |
+| FrameSetSize | `FrameSetSize` | `ram:809a9c3e` | **`0x0062f9a0`** | **Bridged** — `FindAssertion("FrApi.cpp","frameId",0x880,0)` |
+| FrameGetClientBorder | `FrameGetClientBorder` | `ram:809a8164` | **`0x0062D000`** | **Bridged** — `FindAssertion("FrApi.cpp","frameId",0x7dd,0)`. Returns Rect4f* |
+| FrameActivate | `FrameActivate` | `ram:809b0e7f` | **`0x0062b000`** | **Bridged** — `FindAssertion("FrApi.cpp","frameId",0xC3E,0)` |
 | FrameGetTitle | `FrameGetTitle` | `ram:809b0790` | `0x0062????` (TBD) | **Stub** — vtable `CNonclient::GetTitle()`, no struct field |
 | FrameGetCode | `FrameGetCode` | `ram:809af832` | `0x0062????` (TBD) | **Struct** — `frame->frame_id` |
 | FrameGetMinSize | `FrameGetMinSize` | `ram:809aa2b3` | `0x0062????` (TBD) | **Stub** — msg 0x15 via controller |
-| FrameGetClientBorder | `FrameGetClientBorder` | `ram:809a8164` | `0x0062????` (TBD) | **Stub** — msg 0x15 via controller |
 | FrameGetClipRect | `FrameGetClipRect` | `ram:809a830a` | `0x0062????` (TBD) | **Stub** — msg 0x15 dispatch |
 | FrameGetPosition | `FrameGetPosition` | `ram:809a886b` | `0x0062????` (TBD) | **Partial** — screen w/h/flags from struct, x/y stubbed |
 | FrameGetNativeSize | `FrameGetNativeSize` | `ram:809a8482` | `0x0062????` (TBD) | **Stub** — method call on CRect |
@@ -514,7 +518,91 @@ Always pass `program="Gw.wasm"` or `program="Gw.exe"` explicitly when both progr
 
 ---
 
-## 10. Window Title Rendering System (2026-06-02 RESOLVED)
+## 10. Window Positioning System (2026-06-03)
+
+After 4+ rounds of RE, the cold-created window pipeline is fully functional. This section documents the complete coordinate system, chrome dimensions, and function catalog for correct window positioning.
+
+### Coordinate Spaces
+
+1. **Overlay (PIXEL)**: Top-left origin, (0,0) = top-left of render target
+2. **Game engine (LOGICAL)**: CRect stores position in top-left convention (flags=0x06), but **BuildRect inverts Y during rendering** — positions appear bottom-left on screen
+3. **Viewport scale**: `pixels / logical` from `IScaleSetWindowDims` — NOT always 1.0 (windowed mode, DPI scaling)
+
+### Chrome Dimensions (subclass 0x59, bit 9 NOT set)
+
+| Dimension | Value | Source |
+|-----------|-------|--------|
+| Title bar height | 20 px | CRProc 0x00876E05 |
+| Left/right border | 32 px | CRProc 0x00877148 |
+| Bottom border | 32 px | CRProc 0x00877148 |
+
+Frame dimensions from content dimensions:
+```
+frame_w = content_w + 64   // L+R borders
+frame_h = content_h + 52   // title + bottom border
+```
+
+### Coordinate Conversion Formula
+
+```python
+pixel_w, pixel_h = Overlay().GetDisplaySize()
+scale_x, scale_y = UIManager.GetViewPortScale(root_id)
+
+engine_px_x = content_x - LEFT_BORDER                          # 32
+engine_px_y = pixel_h - content_y - content_h - BOTTOM_BORDER   # 32
+frame_px_w = content_w + LEFT_BORDER + RIGHT_BORDER             # +64
+frame_px_h = content_h + TOP_TITLE + BOTTOM_BORDER              # +52
+
+engine_x = engine_px_x / scale_x
+engine_y = engine_px_y / scale_y
+engine_w = frame_px_w / scale_x
+engine_h = frame_px_h / scale_y
+```
+
+### Subclass and Frame Flags
+
+| Flag | Value | Effect |
+|------|-------|--------|
+| Subclass 0x59 | 0x01\|0x08\|0x10\|0x40 | Title bar, resize, chrome rendering |
+| frame_flags=0x20 | bit 5 | Popup registration in CRelation::Create() — required for click-to-raise |
+| frame_flags=0 | default | NO popup registration → click-to-raise silently fails |
+
+### Correct Lambda Order (game thread)
+
+```
+FrameNewSubclass → FrameMouseEnable → SetFrameText →
+ProcessFrameControllerUpdateByFrameId → FrameSetPosition →
+FrameSetLayer → FrameActivate → ShowFrame → TriggerFrameRedraw
+```
+
+### Bridged Functions
+
+| Function | EXE Address | Prototype | Assertion Line |
+|----------|-------------|-----------|---------------|
+| `FrameSetLayer` | **`0x0062f5a0`** | `void(uint frameId, int layer)` | FrApi.cpp line 0xbfb |
+| `FrameSetPosition` | **`0x0062f7f0`** | `void(uint frameId, Coord2f* pos)` | FrApi.cpp line 0x85c |
+| `FrameSetSize` | **`0x0062f9a0`** | `void(uint frameId, Coord2f* size)` | FrApi.cpp line 0x880 |
+| `FrameGetClientBorder` | **`0x0062D000`** | `Rect4f*(Rect4f* out, uint frameId)` | FrApi.cpp line 0x7dd |
+| `FrameActivate` | **`0x0062b000`** | `void(uint frameId)` | FrApi.cpp line 0xC3E |
+
+All resolved via `FindAssertion("P:\\Code\\Engine\\Frame\\FrApi.cpp", "frameId", <line>, 0)` + `ToFunctionStart`.
+
+### Pitfalls
+
+1. **FrameSetPosition takes `Coord2f*`** (pointer to packed `{float x, float y}`), NOT two floats
+2. **BuildRect inverts Y** — Y-inversion IS required despite CRect Normal-mode flags
+3. **Viewport scale ≠ 1.0** in windowed mode — divide by scale to convert pixel→logical
+4. **CRect flags 0x06 are STORAGE convention**, not rendering convention
+5. **UiGenerateFramePositionLockFlags** dynamically removes TOP anchor — bypass with FrameSetPosition
+6. **Without frame_flags=0x20**, click-to-raise silently fails (no popup hash table registration)
+
+### Full investigation in:
+- `.opencode/projects/re/window-polish/context_pool.md` — all 4 analysis reports + implementation
+- `docs/RE/window_creation_architecture.md` — Positioning and Chrome section
+
+---
+
+## 11. Window Title Rendering System (2026-06-02 RESOLVED)
 
 After 3 RE sessions and 11 failed approaches, the window title rendering pipeline for cold-created containers has been resolved.
 
@@ -571,7 +659,7 @@ All hardcoded address comments in `py_ui.h` were removed. All missing bindings a
 
 ---
 
-## 11. Document Index
+## 12. Document Index
 
 All files in `docs/RE/`:
 

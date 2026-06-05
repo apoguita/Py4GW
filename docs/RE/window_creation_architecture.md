@@ -350,3 +350,93 @@ frame_id = PyUIManager.UIManager.create_container_window_with_title(
 - ~~Does CContainerFrame need any special create_param?~~ → No — passes through to CreateUIComponent. Verified.
 - ~~What frame_flags?~~ → Use `0` for chrome-free; subclass_flags `0x59` provides all chrome.
 - ~~Does it need FramePlaceChildren?~~ → No — CContainerFrame::FrameProc handles msg 0x37 child layout directly.
+
+## Positioning and Chrome (2026-06-03)
+
+Complete window polish after 4+ rounds of RE. Covers Z-ordering, coordinate conversion, chrome dimensions, scale handling, and click-to-raise focus.
+
+### Chrome Dimensions
+
+From CRProc disassembly (subclass 0x59, bit 9 NOT set):
+
+| Dimension | Value | Source (EXE) |
+|-----------|-------|-------------|
+| Title bar height | **20 px** | `0x00876E05`: `AND EBX,0x12; ADD EBX,0x14` |
+| Left border | **32 px** | `0x00877148`: `AND EAX,0x200; OR EAX,0x400; SHR EAX,5` |
+| Right border | **32 px** | Same |
+| Bottom border | **32 px** | Same |
+| Close button width | **28 px** | Rightmost 28px of title bar |
+
+Frame size from content size:
+```
+frame_w = content_w + 64   // LEFT + RIGHT
+frame_h = content_h + 52   // TOP + BOTTOM
+```
+
+### Coordinate System
+
+Three coordinate spaces:
+
+1. **Overlay space** (PIXEL): top-left origin, (0,0) = top-left of render target
+2. **Game engine space** (LOGICAL): CRect stores in top-left convention (flags=0x06), but **BuildRect inverts Y during rendering**
+3. **Viewport scale**: `pixels / logical` from `IScaleSetWindowDims` — NOT always 1.0 (windowed mode, DPI scaling)
+
+**Critical**: CRect flags 0x06 (Normal mode) describe STORAGE convention, not rendering convention. BuildRect independently inverts Y for screen rendering. **Y-inversion IS required despite Normal mode flags.**
+
+### Correct Coordinate Conversion Formula
+
+```python
+pixel_w, pixel_h = Overlay().GetDisplaySize()
+scale_x, scale_y = UIManager.GetViewPortScale(root_id)
+
+# Engine-pixel coordinates (physical screen pixels):
+engine_px_x = content_x - LEFT_BORDER                          # 32
+engine_px_y = pixel_h - content_y - content_h - BOTTOM_BORDER   # 32
+
+# Frame pixel dimensions:
+frame_px_w = content_w + LEFT_BORDER + RIGHT_BORDER             # +64
+frame_px_h = content_h + TOP_TITLE + BOTTOM_BORDER              # +52
+
+# Convert pixel → logical (divide by viewport scale):
+engine_x = engine_px_x / scale_x
+engine_y = engine_px_y / scale_y
+engine_w = frame_px_w / scale_x
+engine_h = frame_px_h / scale_y
+```
+
+### Subclass and Frame Flags
+
+| Flag | Value | Effect |
+|------|-------|--------|
+| Subclass 0x59 | `0x01\|0x08\|0x10\|0x40` | Title bar, resize handles, chrome rendering |
+| frame_flags=0x20 | bit 5 | Enables popup registration in `CRelation::Create()` — required for click-to-raise |
+| frame_flags=0 | (default) | NO popup registration → click-to-raise silently fails |
+
+### Lambda Creation Order (game thread)
+
+```
+FrameNewSubclass → FrameMouseEnable → SetFrameText →
+ProcessFrameControllerUpdateByFrameId → FrameSetPosition →
+FrameSetLayer → FrameActivate → ShowFrame → TriggerFrameRedraw
+```
+
+### New Functions Bridged (05-30-2026 EXE)
+
+| Function | EXE Address | Prototype | Assertion Line |
+|----------|-------------|-----------|---------------|
+| FrameSetLayer | `0x0062f5a0` | `void(uint frameId, int layer)` | FrApi.cpp line 0xbfb |
+| FrameSetPosition | `0x0062f7f0` | `void(uint frameId, Coord2f* pos)` | FrApi.cpp line 0x85c |
+| FrameSetSize | `0x0062f9a0` | `void(uint frameId, Coord2f* size)` | FrApi.cpp line 0x880 |
+| FrameGetClientBorder | `0x0062D000` | `Rect4f*(Rect4f* out, uint frameId)` | FrApi.cpp line 0x7dd |
+| FrameActivate | `0x0062b000` | `void(uint frameId)` | FrApi.cpp line 0xC3E |
+
+All resolved via `FindAssertion("P:\\Code\\Engine\\Frame\\FrApi.cpp", "frameId", <line>, 0)` + `ToFunctionStart`.
+
+### Pitfall Notes
+
+1. **FrameSetPosition takes `Coord2f*`** (pointer to packed `{float x, float y}`), NOT two separate float arguments
+2. **BuildRect inverts Y during rendering** — Y-inversion in application code IS required despite CRect Normal-mode flags
+3. **Viewport scale ≠ 1.0 in windowed mode** — must divide pixel coordinates by scale to get logical coordinates
+4. **CRect flags 0x06 are STORAGE convention**, not rendering convention — don't use them to decide Y-inversion
+5. **UiGenerateFramePositionLockFlags dynamically removes TOP anchor** — bypass with direct `FrameSetPosition`
+6. **Without `frame_flags=0x20`**, click-to-raise silently fails — frame is never registered in the popup hash table (`DAT_005a040c`)

@@ -325,54 +325,31 @@ class UIManager:
     
     @staticmethod
     def CreateNativeWindow(
-        x: float,
-        y: float,
-        width: float,
-        height: float,
+        content_x: float,
+        content_y: float,
+        content_width: float,
+        content_height: float,
         title: str = ...,
-        parent_frame_id: int = 9,
-        child_index: int = 0,
-        frame_flags: int = 0,
-        create_param: int = 0x20,
-        anchor_flags: int = 0x06,
-        subclass_flags: int = 0x59,
-        layer: int = 0
     ) -> int: ...
 
-    
-    
-    
-
     @staticmethod
-    def CreateWindowClone(
+    def create_titled_window_clone(
+        title: str,
         x: float,
         y: float,
         width: float,
         height: float,
         frame_label: str = ...,
-        parent_frame_id: int = ...,
-        child_index: int = ...,
-        frame_flags: int = ...,
-        create_param: int = ...,
-        frame_callback: int = ...,
-        anchor_flags: int = ...,
-        ensure_devtext_source: bool = ...
     ) -> int: ...
 
     @staticmethod
-    def CreateEmptyWindowClone(
+    def create_titled_empty_window(
+        title: str,
         x: float,
         y: float,
         width: float,
         height: float,
         frame_label: str = ...,
-        parent_frame_id: int = ...,
-        child_index: int = ...,
-        frame_flags: int = ...,
-        create_param: int = ...,
-        frame_callback: int = ...,
-        anchor_flags: int = ...,
-        ensure_devtext_source: bool = ...
     ) -> int: ...
 
     @staticmethod
