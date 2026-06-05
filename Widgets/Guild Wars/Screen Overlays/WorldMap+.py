@@ -50,7 +50,7 @@ _ADAPTER_DIR = os.path.join(
 if _ADAPTER_DIR not in sys.path:
     sys.path.insert(0, _ADAPTER_DIR)
 import WorldPathing as _WP  # type: ignore[import-not-found]
-_WP.configure(_SCRIPT_DIR)
+_WP.configure(_ADAPTER_DIR)
 from WorldPathing import (  # type: ignore[import-not-found]
     _MAP_ADJACENCY, _ALL_EDGES,
     _MAP_META,
@@ -80,8 +80,8 @@ _PORTAL_ALL_DATA:  dict[int, list[dict]] = {}
 _live_portal_cache: dict = {}  # values are either list[dict] or dict with "portals"/"extents" keys
 _LIVE_PORTAL_CACHE_FILE = os.path.join(_ADAPTER_DIR, "portal_live_cache.json")
 _MAP_RECT_FILE          = os.path.join(_ADAPTER_DIR, "map_boundaries.json")
-_PORTAL_ALL_FILE        = os.path.join(_SCRIPT_DIR,  "portal_all.json")
-_PORTAL_LINKS_FILE      = os.path.join(_SCRIPT_DIR,  "portal_links.json")
+_PORTAL_ALL_FILE        = os.path.join(_ADAPTER_DIR, "portal_all.json")
+_PORTAL_LINKS_FILE      = os.path.join(_ADAPTER_DIR, "portal_links.json")
 
 # In-memory cache: map_id -> (gx_min, gx_max, gy_min, gy_max)
 _MAP_RECT_CACHE: dict[int, tuple[float, float, float, float]] = {}
