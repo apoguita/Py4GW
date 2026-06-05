@@ -2277,14 +2277,27 @@ def _restore_planes_tree() -> _BT:
         x: float, y: float,
         clean_window_ms: int = 6_000,
         move_throttle_ms: int = 500,
+        fallback_timeout_ms: int = 240_000,
     ) -> _BT:
         state: dict = {
             'clean_since_ms': None,
             'last_move_ms':   None,
+            'started_ms':     None,
         }
 
         def _check(node: _BT.Node) -> _BT.NodeState:
             now = int(Utils.GetBaseTimestamp())
+            if state['started_ms'] is None:
+                state['started_ms'] = now
+
+            elapsed_since_start = now - int(state['started_ms'])
+            if elapsed_since_start >= int(fallback_timeout_ms):
+                ConsoleLog(
+                    BOT_NAME,
+                    f'[RestorePlanes] WaitMindbladeSpawn fallback after {fallback_timeout_ms}ms — continuing.',
+                    Py4GW.Console.MessageType.Warning,
+                )
+                return _BT.NodeState.SUCCESS
 
             # Match legacy Underworld.Wait_for_Spawns: model 2380, not name decoding.
             # GetNameByID on many enemies can stress native code and has been observed to destabilize the client.
@@ -2677,6 +2690,7 @@ def _wrathfull_spirits_tree() -> _BT:
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
         _BT(_BT.ActionNode(name='BlacklistTorturedSpirits', action_fn=_blacklist_tortured_spirits)),
+        BT.Player.Wait(duration_ms=10_000),
         _dialog_until_quest_active(
             x=-13217, y=5167,
             dialog_id=0x806E01,
