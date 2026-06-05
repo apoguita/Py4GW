@@ -2805,5 +2805,24 @@ def main() -> None:
                           Py4GW.Console.MessageType.Error)
 
 
+def tooltip():
+    title_col = (1.0, 0.78, 0.39, 1.0)
+    PyImGui.begin_tooltip()
+    PyImGui.text_colored("WorldMap+", title_col)
+    PyImGui.separator()
+    PyImGui.text("Interactive overlay for the Guild Wars world map.")
+    PyImGui.spacing()
+    PyImGui.text_colored("Features:", title_col)
+    PyImGui.bullet_text("Colored map frames with pmap visualization")
+    PyImGui.bullet_text("Portal connection lines and hover tooltips")
+    PyImGui.bullet_text("Right-click to move or queue destinations")
+    PyImGui.bullet_text("Portal Editor for recording portal links")
+    PyImGui.spacing()
+    PyImGui.text_colored("Note:", title_col)
+    PyImGui.text("Prophecies and EotN fully supported.")
+    PyImGui.text("Other campaigns in progress.")
+    PyImGui.end_tooltip()
+
+
 if __name__ == "__main__":
     main()
