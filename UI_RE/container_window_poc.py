@@ -80,7 +80,7 @@ def test_c_create():
     if fid_a and _ex(fid_a): GWUI.DestroyUIComponentByFrameId(fid_a); fid_a = 0
     print("---- C: Create Container ----")
     fid_a = PyUIManager.UIManager.CreateNativeWindow(
-        100, 250, 200, 250, TITLE, 9, 0, 0, 0x20, 0x6, 0x59) or 0
+        100, 250, 200, 250, TITLE, 9, 0, 0x20) or 0
     mask = _mask(fid_a)
     t, r = _caps(fid_a)
     print(f"C: fid={fid_a} mask=0x{mask:08X} text='{t}' resource='{r}'")

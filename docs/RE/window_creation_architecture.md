@@ -350,3 +350,207 @@ frame_id = PyUIManager.UIManager.create_container_window_with_title(
 - ~~Does CContainerFrame need any special create_param?~~ → No — passes through to CreateUIComponent. Verified.
 - ~~What frame_flags?~~ → Use `0` for chrome-free; subclass_flags `0x59` provides all chrome.
 - ~~Does it need FramePlaceChildren?~~ → No — CContainerFrame::FrameProc handles msg 0x37 child layout directly.
+
+## Positioning and Chrome (2026-06-03)
+
+Complete window polish after 4+ rounds of RE. Covers Z-ordering, coordinate conversion, chrome dimensions, scale handling, and click-to-raise focus.
+
+### Chrome Dimensions
+
+From CRProc disassembly (subclass 0x59, bit 9 NOT set):
+
+| Dimension | Value | Source (EXE) |
+|-----------|-------|-------------|
+| Title bar height | **20 px** | `0x00876E05`: `AND EBX,0x12; ADD EBX,0x14` |
+| Left border | **32 px** | `0x00877148`: `AND EAX,0x200; OR EAX,0x400; SHR EAX,5` |
+| Right border | **32 px** | Same |
+| Bottom border | **32 px** | Same |
+| Close button width | **28 px** | Rightmost 28px of title bar |
+
+Frame size from content size:
+```
+frame_w = content_w + 64   // LEFT + RIGHT
+frame_h = content_h + 52   // TOP + BOTTOM
+```
+
+### Coordinate System
+
+Three coordinate spaces:
+
+1. **Overlay space** (PIXEL): top-left origin, (0,0) = top-left of render target
+2. **Game engine space** (LOGICAL): CRect stores in top-left convention (flags=0x06), but **BuildRect inverts Y during rendering**
+3. **Viewport scale**: `pixels / logical` from `IScaleSetWindowDims` — NOT always 1.0 (windowed mode, DPI scaling)
+
+**Critical**: CRect flags 0x06 (Normal mode) describe STORAGE convention, not rendering convention. BuildRect independently inverts Y for screen rendering. **Y-inversion IS required despite Normal mode flags.**
+
+### Correct Coordinate Conversion Formula
+
+```python
+pixel_w, pixel_h = Overlay().GetDisplaySize()
+scale_x, scale_y = UIManager.GetViewPortScale(root_id)
+
+# Engine-pixel coordinates (physical screen pixels):
+engine_px_x = content_x - LEFT_BORDER                          # 32
+engine_px_y = pixel_h - content_y - content_h - BOTTOM_BORDER   # 32
+
+# Frame pixel dimensions:
+frame_px_w = content_w + LEFT_BORDER + RIGHT_BORDER             # +64
+frame_px_h = content_h + TOP_TITLE + BOTTOM_BORDER              # +52
+
+# Convert pixel → logical (divide by viewport scale):
+engine_x = engine_px_x / scale_x
+engine_y = engine_px_y / scale_y
+engine_w = frame_px_w / scale_x
+engine_h = frame_px_h / scale_y
+```
+
+### Subclass and Frame Flags
+
+| Flag | Value | Effect |
+|------|-------|--------|
+| Subclass 0x59 | `0x01\|0x08\|0x10\|0x40` | Title bar, resize handles, chrome rendering |
+| frame_flags=0x20 | bit 5 | Enables popup registration in `CRelation::Create()` — required for click-to-raise |
+| frame_flags=0 | (default) | NO popup registration → click-to-raise silently fails |
+
+### Lambda Creation Order (game thread)
+
+```
+FrameNewSubclass → FrameMouseEnable → SetFrameText →
+ProcessFrameControllerUpdateByFrameId → FrameSetPosition →
+FrameSetLayer → FrameActivate → ShowFrame → TriggerFrameRedraw
+```
+
+### New Functions Bridged (05-30-2026 EXE)
+
+| Function | EXE Address | Prototype | Assertion Line |
+|----------|-------------|-----------|---------------|
+| FrameSetLayer | `0x0062f5a0` | `void(uint frameId, int layer)` | FrApi.cpp line 0xbfb |
+| FrameSetPosition | `0x0062f7f0` | `void(uint frameId, Coord2f* pos)` | FrApi.cpp line 0x85c |
+| FrameSetSize | `0x0062f9a0` | `void(uint frameId, Coord2f* size)` | FrApi.cpp line 0x880 |
+| FrameGetClientBorder | `0x0062D000` | `Rect4f*(Rect4f* out, uint frameId)` | FrApi.cpp line 0x7dd |
+| FrameActivate | `0x0062b000` | `void(uint frameId)` | FrApi.cpp line 0xC3E |
+
+All resolved via `FindAssertion("P:\\Code\\Engine\\Frame\\FrApi.cpp", "frameId", <line>, 0)` + `ToFunctionStart`.
+
+### Pitfall Notes
+
+1. **FrameSetPosition takes `Coord2f*`** (pointer to packed `{float x, float y}`), NOT two separate float arguments
+2. **BuildRect inverts Y during rendering** — Y-inversion in application code IS required despite CRect Normal-mode flags
+3. **Viewport scale ≠ 1.0 in windowed mode** — must divide pixel coordinates by scale to get logical coordinates
+4. **CRect flags 0x06 are STORAGE convention**, not rendering convention — don't use them to decide Y-inversion
+5. **UiGenerateFramePositionLockFlags dynamically removes TOP anchor** — bypass with direct `FrameSetPosition`
+6. **Without `frame_flags=0x20`**, click-to-raise silently fails — frame is never registered in the popup hash table (`DAT_005a040c`)
+
+---
+
+## Filling Windows with Content (2026-06-04)
+
+After the window-contents RE cycle, we now understand how native game windows populate their interiors beyond the chrome shell. The key insight: **scrollable content is a separate component**, not baked into `CreateWindow()`.
+
+### The Core Problem
+
+`CContainerFrame::OnFrameSize` positions children with **independent coordinates** (center, top-left, corners, etc.) — it has NO vertical stacking logic. Inserting text labels directly into a CContainerFrame causes them to overlap.
+
+**The fix**: Insert a **frame list** (type `0xAEA`, `CCtlFrameList::FrameProc`) as a child of the CContainerFrame, then add text labels as **items** of the frame list. The frame list's `OnFrameMsgSize` (msg 0x37) handles vertical stacking automatically.
+
+```
+❌ BROKEN:                        ✅ CORRECT:
+CContainerFrame                    CContainerFrame
+  ├─ TextLabel (0,0)                ├─ ScrollableFrameList (child N, type 0xAEA)
+  ├─ TextLabel (0,0)                │   ├─ TextLabel (stacked item 0)
+  └─ TextLabel (0,0)                │   ├─ TextLabel (stacked item 1)
+  (all overlap!)                    │   └─ TextLabel (stacked item N)
+                                    └─ [scrollbars auto-managed]
+```
+
+### High-Level Python API
+
+Implemented in `Py4GWCoreLib/GWUI.py` (204 lines):
+
+```python
+# One-step: window + scrollable + items
+window_id = GWUI.CreateScrollableWindow(100, 100, 280, 220, "Title", ["Item 1", "Item 2"])
+
+# Step-by-step:
+window_id = GWUI.CreateWindow(100, 100, 300, 200, "My Window")
+framelist_id = GWUI.CreateScrollableContent(window_id)
+item_id = GWUI.AddTextItem(framelist_id, "Hello World")
+```
+
+### Lower-Level Functions
+
+| Function | Prototype | EXE Address | Resolution |
+|----------|-----------|-------------|------------|
+| `CtlFrameListCreateItem` | `U32_U32_U32_U32_U32_U32` | `0x00612900` | Byte pattern offset -0x25 |
+| `FrameNewSubclass` | `U32_U32_U32_U32` | `0x0062f150` | Byte pattern offset -0x2D |
+| `CtlTextProc` | — | `0x00610c40` | Assertion `"FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)"` |
+| `CCtlFrameList::FrameProc` | — | `0x00612c80` | Assertion `"No valid case for switch variable 'msg.relation'"` |
+
+### C++ Bindings Added
+
+In `py_ui.h` / `py_ui.cpp`:
+
+```cpp
+// Low-level
+UIManager::CtlFrameListCreateItemByFrameId(parentId, flags, index, proc, userData)
+UIManager::FrameNewSubclassByFrameId(frameId, proc, msgId)
+
+// High-level
+UIManager::CreateScrollableContentByFrameId(windowId)       → framelist_id
+UIManager::AddTextItemToFrameListByFrameId(framelistId, text) → item_id
+UIManager::CreateScrollableTextWindow(x, y, w, h, title, items)
+```
+
+### Auto-Stacking vs Manual Positioning
+
+**Auto-stacking** (default): The frame list's `OnFrameMsgSize` positions items bottom-to-top. Each item's Y = parent_height - sum_of_heights_so_far, X = 0. Works automatically — no additional calls needed.
+
+**Manual positioning**: Set style `0x2000` on the frame list child. `OnFrameMsgSize` skips that child entirely. Use `FrameSetPosition` directly.
+
+```python
+# Manual positioning (style 0x2000)
+item_id = GWUI.CtlFrameListCreateItem(framelist_id, 0x2000, 0, text_proc, payload)
+FrameSetPosition(item_id, {x, y}, {0, 0})  # custom position
+```
+
+### Size Propagation
+
+```
+Text label content change
+  → CtlTextProc msg 0x4C (TextResolved)
+    → FrameContentInvalidate + FrameNativeSizeChanged
+      → Propagates to parent frame list
+        → FrameScheduleSize → msg 0x37 → OnFrameMsgSize (restack!)
+```
+
+After bulk insertion, call `FrameScheduleSize(framelist_id)` to trigger immediate layout.
+
+### Scroll Configuration
+
+The InventoryAggregate reference model configures scrolling explicitly:
+
+```python
+CtlViewSetIncrement(framelist_id, 2)  # pixels per scroll step
+CtlViewSetPage(framelist_id, 0, &page_size_handler, 0)  # page size handler
+CtlFrameListSetSizeHandler(framelist_id, &size_handler)
+```
+
+DevText omits all of these — relies on default scroll stepping.
+
+### Known Limitations
+
+| # | Issue | Mitigation |
+|---|-------|-----------|
+| 1 | **Scrollbar chrome proc unresolved** (proc_0xAED). DevText uses `FrameNewSubclass(list, &proc_0xAED, 0x59)`. Without it, scrollbars may not render. | Use GWCA's `CreateScrollableFrameByFrameId` which uses `CtlViewProc` wrapper — handles scrollbars automatically. |
+| 2 | **Async return values**: `Game.enqueue()` returns 0 until the lambda processes. | Use C++ bindings for synchronous return values, or poll with `FrameGetChild`. |
+| 3 | **Style 0x2000** for manual positioning is not in the convenience API. | Use low-level `CtlFrameListCreateItem` directly. |
+| 4 | **C++ rebuild required** after adding bindings. | Rebuild DLL with `cmake -B build -A Win32`, restart injected client. |
+| 5 | **Pattern rot**: byte patterns may break across EXE patches. | Patterns use structurally stable function-body internals (function prologue and unique instruction sequences). |
+
+### Test Widget
+
+`UI_RE/window_contents_test.py` (249 lines) — creates a window with scrollable content and multiple text items. Demonstrates the complete pipeline: window creation → frame list insertion → text label stacking → scroll configuration.
+
+### Architecture Investigation
+
+Full RE context: `.opencode/projects/re/window-contents/context_pool.md` (800 lines covering 3 phases of analysis across DevText, InventoryAggregate, PartySearch, and 81 window catalog).
