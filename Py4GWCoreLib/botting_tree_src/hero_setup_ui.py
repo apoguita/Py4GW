@@ -1,4 +1,4 @@
-"""PyImGui controls for modular hero team setup."""
+"""PyImGui controls for BottingTree hero team setup."""
 from __future__ import annotations
 
 import PyImGui
@@ -26,15 +26,6 @@ def _ensure_loaded() -> None:
         return
     _ui_priority = load_hero_priority()
     _ui_loaded = True
-
-
-def _ui_input_text(label: str, value: str, max_len: int = 256) -> str:
-    try:
-        result = PyImGui.input_text(label, str(value), 0)
-    except Exception:
-        result = PyImGui.input_text(label, str(value))
-    text = str(result[1]) if isinstance(result, tuple) and len(result) == 2 else str(result)
-    return text[: int(max_len)] if int(max_len) > 0 else text
 
 
 def _begin_child(child_id: str, height: int = 290, border: bool = True) -> bool:

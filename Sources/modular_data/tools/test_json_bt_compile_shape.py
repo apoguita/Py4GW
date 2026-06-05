@@ -61,12 +61,17 @@ class _SubtreeNode(_Node):
         self.subtree_fn = subtree_fn
 
 
+class _WaitUntilNode(_ActionNode):
+    pass
+
+
 class _BehaviorTree:
     NodeState = _NodeState
     Node = _Node
     ActionNode = _ActionNode
     SequenceNode = _SequenceNode
     SubtreeNode = _SubtreeNode
+    WaitUntilNode = _WaitUntilNode
     SucceederNode = _Node
 
     def __init__(self, root: _Node) -> None:
@@ -94,6 +99,8 @@ def main() -> int:
     _install_stubs()
     compiler = _load_compiler()
     _assert_route_pause_contract(compiler)
+    _assert_named_dialog_target_settles_before_interact(compiler)
+    _assert_multi_dialog_interacts_once(compiler)
     failures: list[str] = []
     compiled = 0
     party_loads = 0
@@ -102,16 +109,13 @@ def main() -> int:
     for path in sorted(MODULAR_DATA_ROOT.rglob("*.json")):
         try:
             recipe = json.loads(path.read_text(encoding="utf-8-sig"))
-            tree = compiler.compile_recipe_to_bt(recipe, recipe_name=str(recipe.get("name") or path.stem))
-            compiled_steps = compiler.compile_recipe_steps_to_bt(
+            planner_steps = compiler.compile_recipe_steps_to_named_planner_steps(
                 recipe,
                 recipe_name=str(recipe.get("name") or path.stem),
             )
-            if not isinstance(tree, _BehaviorTree):
-                raise AssertionError(f"expected BehaviorTree, got {type(tree).__name__}")
-            _assert_per_step_compile_shape(tree, compiled_steps, recipe)
-            party_loads += _assert_party_load_shape(tree, recipe)
-            route_moves += _assert_route_move_shape(tree, recipe)
+            _assert_adapter_compile_shape(planner_steps, recipe)
+            party_loads += _assert_party_load_shape(planner_steps, recipe)
+            route_moves += _assert_route_move_shape(planner_steps, recipe)
             compiled += 1
         except Exception as exc:
             failures.append(f"{path.relative_to(REPO_ROOT)}: {type(exc).__name__}: {exc}")
@@ -162,10 +166,14 @@ def _install_stubs() -> None:
     bt_mod.BT = bt
     sys.modules["Py4GWCoreLib.routines_src.BehaviourTrees"] = bt_mod
 
-    hero_setup_model = types.ModuleType("Py4GWCoreLib.modular.hero_setup_model")
+    botting_pkg = types.ModuleType("Py4GWCoreLib.botting_tree_src")
+    botting_pkg.__path__ = [str(REPO_ROOT / "Py4GWCoreLib" / "botting_tree_src")]
+    sys.modules["Py4GWCoreLib.botting_tree_src"] = botting_pkg
+
+    hero_setup_model = types.ModuleType("Py4GWCoreLib.botting_tree_src.hero_setup_model")
     hero_setup_model.get_team_by_priority = _stub_get_team_by_priority
     hero_setup_model.resolve_hero_ids = _stub_resolve_hero_ids
-    sys.modules["Py4GWCoreLib.modular.hero_setup_model"] = hero_setup_model
+    sys.modules["Py4GWCoreLib.botting_tree_src.hero_setup_model"] = hero_setup_model
 
     enum_pkg = types.ModuleType("Py4GWCoreLib.enums_src")
     enum_pkg.__path__ = [str(REPO_ROOT / "Py4GWCoreLib" / "enums_src")]
@@ -233,16 +241,13 @@ def _expanded_steps(recipe: dict[str, Any]) -> list[dict[str, Any]]:
     return expanded
 
 
-def _assert_party_load_shape(tree: _BehaviorTree, recipe: dict[str, Any]) -> int:
-    root = tree.root
-    children = list(getattr(root, "children", []) or [])
+def _assert_party_load_shape(planner_steps: list[tuple[str, Any]], recipe: dict[str, Any]) -> int:
     verified = 0
     for index, step in enumerate(_expanded_steps(recipe)):
         if step.get("type") != "party" or step.get("action") != "load":
             continue
-        child = children[index]
-        subtree_fn = getattr(child, "subtree_fn", None)
-        step_tree = subtree_fn(child) if callable(subtree_fn) else None
+        _step_name, builder = planner_steps[index]
+        step_tree = builder()
         node = getattr(step_tree, "root", None)
         if getattr(node, "name", "") != "LoadParty":
             raise AssertionError(f"party load step {index + 1} did not compile to BT.Party.LoadParty")
@@ -260,16 +265,13 @@ def _assert_party_load_shape(tree: _BehaviorTree, recipe: dict[str, Any]) -> int
     return verified
 
 
-def _assert_route_move_shape(tree: _BehaviorTree, recipe: dict[str, Any]) -> int:
-    root = tree.root
-    children = list(getattr(root, "children", []) or [])
+def _assert_route_move_shape(planner_steps: list[tuple[str, Any]], recipe: dict[str, Any]) -> int:
     verified = 0
     for index, step in enumerate(_expanded_steps(recipe)):
         if step.get("type") != "route" or step.get("mode", "move") not in {"move", "exit"}:
             continue
-        child = children[index]
-        subtree_fn = getattr(child, "subtree_fn", None)
-        step_tree = subtree_fn(child) if callable(subtree_fn) else None
+        _step_name, builder = planner_steps[index]
+        step_tree = builder()
         node = _primary_step_node(step_tree)
         kwargs = getattr(node, "kwargs", {})
         if kwargs.get("pause_on_combat") is not False:
@@ -290,34 +292,110 @@ def _assert_route_pause_contract(compiler) -> None:
             {"type": "route", "mode": "move", "points": [[1, 2]], "pause_on_combat": True},
         ],
     }
-    tree = compiler.compile_recipe_to_bt(recipe, recipe_name="Route Pause Contract")
+    planner_steps = compiler.compile_recipe_steps_to_named_planner_steps(
+        recipe,
+        recipe_name="Route Pause Contract",
+    )
     expected = [False, False, True, True]
     for index, expected_pause in enumerate(expected):
-        child = tree.root.children[index]
-        step_tree = child.subtree_fn(child)
+        _step_name, builder = planner_steps[index]
+        step_tree = builder()
         node = _primary_step_node(step_tree)
         actual = getattr(node, "kwargs", {}).get("pause_on_combat")
         if actual is not expected_pause:
             raise AssertionError(f"route pause contract step {index + 1}: expected {expected_pause}, got {actual}")
 
 
-def _assert_per_step_compile_shape(tree: _BehaviorTree, compiled_steps: tuple, recipe: dict[str, Any]) -> None:
+def _assert_named_dialog_target_settles_before_interact(compiler) -> None:
+    recipe = {
+        "name": "Named Dialog Target Settle Contract",
+        "steps": [
+            {
+                "type": "interact",
+                "id": ["0x89"],
+                "point": [-2540, 16210],
+                "npc": "MHENLO",
+                "name": "Dialog - Mhenlo",
+                "action": "dialog",
+                "target": "npc",
+            },
+        ],
+    }
+    planner_steps = compiler.compile_recipe_steps_to_named_planner_steps(
+        recipe,
+        recipe_name="Named Dialog Target Settle Contract",
+    )
+    _step_name, builder = planner_steps[0]
+    step_tree = builder()
+    target_node = _find_node_by_name(getattr(step_tree, "root", None), "TargetNpc::MHENLO")
+    if target_node is None:
+        raise AssertionError("named dialog target did not compile to TargetNpc::MHENLO")
+    aftercast_ms = getattr(target_node, "kwargs", {}).get("aftercast_ms")
+    if int(aftercast_ms or 0) < 250:
+        raise AssertionError(f"named dialog target aftercast too short: {aftercast_ms!r}")
+
+
+def _assert_multi_dialog_interacts_once(compiler) -> None:
+    recipe = {
+        "name": "Multi Dialog Single Interact Contract",
+        "steps": [
+            {
+                "type": "interact",
+                "id": ["0x830E04", "0x81", "0x84"],
+                "npc": "LIONGUARD_FIGO",
+                "point": [-432, 3486],
+                "name": "Dialog - Lionguard Figo",
+                "action": "dialog",
+                "target": "npc",
+            },
+        ],
+    }
+    planner_steps = compiler.compile_recipe_steps_to_named_planner_steps(
+        recipe,
+        recipe_name="Multi Dialog Single Interact Contract",
+    )
+    _step_name, builder = planner_steps[0]
+    step_tree = builder()
+    root = getattr(step_tree, "root", None)
+    move_count = _count_nodes_by_name(root, "Move")
+    interact_count = _count_nodes_by_name(root, "InteractTarget")
+    send_count = _count_nodes_by_name(root, "SendDialog")
+    wait_dialog_count = _count_nodes_by_name(root, "WaitForDialogReady")
+    if move_count != 1:
+        raise AssertionError(f"multi-dialog step should move once, got {move_count}")
+    if interact_count != 1:
+        raise AssertionError(f"multi-dialog step should interact once, got {interact_count}")
+    if wait_dialog_count != 3:
+        raise AssertionError(f"multi-dialog step should wait for dialog before each send, got {wait_dialog_count}")
+    if send_count != 3:
+        raise AssertionError(f"multi-dialog step should send three dialogs, got {send_count}")
+    children = list(getattr(root, "children", []) or [])
+    names = [str(getattr(child, "name", "")) for child in children]
+    interact_index = names.index("InteractTarget")
+    tail = names[interact_index + 1 :]
+    expected_tail = [
+        "WaitForDialogReady",
+        "SendDialog",
+        "WaitForDialogReady",
+        "SendDialog",
+        "WaitForDialogReady",
+        "SendDialog",
+    ]
+    if tail != expected_tail:
+        raise AssertionError(f"dialog send ordering changed: expected {expected_tail}, got {tail}")
+
+
+def _assert_adapter_compile_shape(planner_steps: list[tuple[str, Any]], recipe: dict[str, Any]) -> None:
     expanded = _expanded_steps(recipe)
-    if len(compiled_steps) != len(expanded):
-        raise AssertionError(f"per-step compile count mismatch: {len(compiled_steps)} != {len(expanded)}")
-    children = list(getattr(tree.root, "children", []) or [])
-    if len(children) != len(compiled_steps):
-        raise AssertionError(f"full tree child count mismatch: {len(children)} != {len(compiled_steps)}")
-    for index, compiled_step in enumerate(compiled_steps):
-        metadata = getattr(compiled_step, "metadata", None)
+    if len(planner_steps) != len(expanded):
+        raise AssertionError(f"planner-step count mismatch: {len(planner_steps)} != {len(expanded)}")
+    for index, (_step_name, builder) in enumerate(planner_steps):
+        metadata = getattr(builder, "modular_step_metadata", None)
         if metadata is None or int(metadata.index) != index + 1:
-            raise AssertionError(f"per-step metadata index mismatch at {index + 1}")
-        full_step_tree = children[index].subtree_fn(children[index])
-        per_step_tree = getattr(compiled_step, "tree", None)
-        full_root_name = getattr(getattr(full_step_tree, "root", None), "name", "")
-        per_step_root_name = getattr(getattr(per_step_tree, "root", None), "name", "")
-        if full_root_name != per_step_root_name:
-            raise AssertionError(f"per-step tree shape mismatch at {index + 1}")
+            raise AssertionError(f"planner-step metadata index mismatch at {index + 1}")
+        step_tree = builder()
+        if not isinstance(step_tree, _BehaviorTree):
+            raise AssertionError(f"planner-step builder {index + 1} returned {type(step_tree).__name__}")
 
 
 def _primary_step_node(step_tree: _BehaviorTree | None) -> _Node | None:
@@ -327,6 +405,27 @@ def _primary_step_node(step_tree: _BehaviorTree | None) -> _Node | None:
         if children:
             return children[0]
     return node
+
+
+def _find_node_by_name(node: _Node | None, name: str) -> _Node | None:
+    if node is None:
+        return None
+    if getattr(node, "name", "") == name:
+        return node
+    for child in list(getattr(node, "children", []) or []):
+        found = _find_node_by_name(child, name)
+        if found is not None:
+            return found
+    return None
+
+
+def _count_nodes_by_name(node: _Node | None, name: str) -> int:
+    if node is None:
+        return 0
+    count = 1 if getattr(node, "name", "") == name else 0
+    for child in list(getattr(node, "children", []) or []):
+        count += _count_nodes_by_name(child, name)
+    return count
 
 
 if __name__ == "__main__":

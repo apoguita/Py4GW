@@ -10,14 +10,14 @@ class BottingTreeUpkeepMixin:
     ):
         self._service_steps = list(steps)
         self._service_trees = [
-            (step_name, self._coerce_runtime_tree(subtree_or_builder))
+            (step_name, BehaviorTree.resolve_tree(subtree_or_builder))
             for step_name, subtree_or_builder in self._service_steps
         ]
         self._rebuild_root_tree()
 
     def AddServiceTree(self, name: str, subtree_or_builder: Callable[[], object] | object):
         self._service_steps.append((name, subtree_or_builder))
-        self._service_trees.append((name, self._coerce_runtime_tree(subtree_or_builder)))
+        self._service_trees.append((name, BehaviorTree.resolve_tree(subtree_or_builder)))
         self._rebuild_root_tree()
 
     def ClearServiceTrees(self):
@@ -69,7 +69,7 @@ class BottingTreeUpkeepMixin:
             if service_name != 'PartyWipeRecoveryService':
                 continue
             self._service_steps[index] = (service_name, subtree_or_builder)
-            self._service_trees[index] = (service_name, self._coerce_runtime_tree(subtree_or_builder))
+            self._service_trees[index] = (service_name, BehaviorTree.resolve_tree(subtree_or_builder))
             self._rebuild_root_tree()
             return
         self.AddServiceTree('PartyWipeRecoveryService', subtree_or_builder)

@@ -1,4 +1,4 @@
-"""Public hero setup facade for modular party loading and UI."""
+"""Public hero setup facade for BottingTree party loading and UI."""
 from __future__ import annotations
 
 from .hero_setup_model import (
@@ -40,6 +40,7 @@ def __getattr__(name: str):
     value = getattr(hero_setup_ui, name)
     globals()[name] = value
     return value
+
 
 __all__ = [
     "DEFAULT_HERO_PRIORITY",

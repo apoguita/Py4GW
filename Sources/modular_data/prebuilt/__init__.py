@@ -1,4 +1,4 @@
-"""Prebuilt BT recipe runner exports."""
+"""Prebuilt modular BottingTree exports."""
 from .fow import FOW_QUEST_ORDER
 from .fow import create_modular_fow_bot
 from .modular_eotn import EOTN_PHASE_SPECS

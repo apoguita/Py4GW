@@ -1,7 +1,7 @@
 """Runtime smoke runner for canonical modular JSON actions.
 
 This is intended for injected/PyGW runtime use. It builds tiny recipes on the
-fly, compiles them through the same JSON-to-BT compiler used by Modular Tester,
+fly, installs them into BottingTree through the modular planner-step adapter,
 and reports PASS/SKIP/FAIL per action.
 """
 from __future__ import annotations
@@ -90,8 +90,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        from Py4GWCoreLib.modular.json_bt_compiler import compile_recipe_to_bt
-        from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
+        from Py4GWCoreLib.BottingTree import BottingTree
+        from Py4GWCoreLib.modular import compile_recipe_steps_to_named_planner_steps
     except ModuleNotFoundError as exc:
         print(f"Cannot import PyGW runtime bindings: {exc}")
         return 2
@@ -104,33 +104,48 @@ def main(argv: list[str] | None = None) -> int:
             continue
         recipe = {"name": f"Smoke: {case.name}", "steps": [step]}
         try:
-            tree = compile_recipe_to_bt(recipe, recipe_name=str(recipe["name"]))
+            planner_steps = compile_recipe_steps_to_named_planner_steps(recipe, recipe_name=str(recipe["name"]))
+            for _step_name, builder in planner_steps:
+                builder()
         except Exception as exc:
             results.append(SmokeResult(case.name, "FAIL", f"compile failed: {type(exc).__name__}: {exc}", "compile"))
             continue
         if args.dry_run:
             results.append(SmokeResult(case.name, "PASS", "compiled", "compile"))
             continue
-        results.append(_tick_case(case, tree, BehaviorTree, context.timeout_ms))
+        results.append(_tick_case(case, planner_steps, BottingTree, context.timeout_ms))
 
     _print_results(results)
     return 1 if any(result.status == "FAIL" for result in results) else 0
 
 
-def _tick_case(case: SmokeCase, tree: Any, behavior_tree_cls: Any, timeout_ms: int) -> SmokeResult:
+def _tick_case(case: SmokeCase, planner_steps: list[tuple[str, Any]], botting_tree_cls: Any, timeout_ms: int) -> SmokeResult:
     deadline = time.monotonic() + (timeout_ms / 1000.0)
-    last_state = None
+    planner_status = ""
     try:
-        tree.reset()
+        bot = botting_tree_cls(
+            bot_name=f"Smoke: {case.name}",
+            pause_on_combat=False,
+            isolation_enabled=False,
+        )
+        bot.SetCurrentNamedPlannerSteps(
+            planner_steps,
+            name=f"Smoke: {case.name}",
+            auto_start=False,
+            reset=True,
+            repeat=False,
+        )
+        bot.Start()
         while time.monotonic() < deadline:
-            last_state = tree.tick()
-            if last_state == behavior_tree_cls.NodeState.RUNNING:
+            bot.tick()
+            planner_status = str(bot.GetBlackboardValue("PLANNER_STATUS", "") or "")
+            if bot.IsStarted():
                 time.sleep(0.05)
                 continue
-            if last_state == behavior_tree_cls.NodeState.SUCCESS:
-                return SmokeResult(case.name, "PASS", "BT returned SUCCESS", case.detection)
-            return SmokeResult(case.name, "FAIL", f"BT returned {last_state}", case.detection)
-        return SmokeResult(case.name, "FAIL", f"timed out after {timeout_ms} ms; last_state={last_state}", case.detection)
+            if "Completed" in planner_status:
+                return SmokeResult(case.name, "PASS", "BottingTree planner completed", case.detection)
+            return SmokeResult(case.name, "FAIL", f"BottingTree stopped with planner_status={planner_status!r}", case.detection)
+        return SmokeResult(case.name, "FAIL", f"timed out after {timeout_ms} ms; planner_status={planner_status!r}", case.detection)
     except Exception as exc:
         return SmokeResult(case.name, "FAIL", f"runtime exception: {type(exc).__name__}: {exc}", case.detection)
 

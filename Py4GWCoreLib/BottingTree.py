@@ -194,7 +194,7 @@ class BottingTree(
         self.headless_heroai.reset()
         if self._service_steps:
             self._service_trees = [
-                (step_name, self._coerce_runtime_tree(subtree_or_builder))
+                (step_name, BehaviorTree.resolve_tree(subtree_or_builder))
                 for step_name, subtree_or_builder in self._service_steps
             ]
             self._rebuild_root_tree()

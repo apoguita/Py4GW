@@ -1,4 +1,4 @@
-"""Account-scoped hero team setup model for modular party loading."""
+"""Account-scoped hero team setup model for BottingTree party loading."""
 from __future__ import annotations
 
 import json
@@ -7,8 +7,6 @@ import re
 from typing import Any
 
 from Py4GWCoreLib import Player
-
-from .paths import modular_settings_root
 
 
 HERO_CATALOG = [
@@ -92,6 +90,22 @@ def _build_default_hero_priority() -> list[int]:
 DEFAULT_HERO_PRIORITY = _build_default_hero_priority()
 
 
+def _project_root() -> str:
+    try:
+        import Py4GW
+
+        root = str(Py4GW.Console.get_projects_path() or "").strip()
+        if root:
+            return os.path.normpath(root)
+    except Exception:
+        pass
+    return os.path.normpath(os.getcwd())
+
+
+def _botting_tree_settings_root() -> str:
+    return os.path.join(_project_root(), "Settings", "BottingTree")
+
+
 def safe_account_key() -> str:
     try:
         account_email = str(Player.GetAccountEmail() or "").strip()
@@ -104,7 +118,7 @@ def safe_account_key() -> str:
 
 
 def hero_config_path(account_key: str | None = None) -> str:
-    configs_dir = os.path.join(modular_settings_root(), "configs")
+    configs_dir = os.path.join(_botting_tree_settings_root(), "configs")
     os.makedirs(configs_dir, exist_ok=True)
     return os.path.join(configs_dir, f"{account_key or safe_account_key()}.json")
 

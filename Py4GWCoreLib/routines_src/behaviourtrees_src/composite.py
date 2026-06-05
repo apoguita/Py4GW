@@ -81,11 +81,7 @@ class BTCompositeHelpers:
           UserDescription: Internal support routine.
           Notes: Wraps raw nodes in `BehaviorTree` and raises when the value is not tree-compatible.
         """
-        if isinstance(subtree, BehaviorTree):
-            return subtree
-        if isinstance(subtree, BehaviorTree.Node):
-            return BehaviorTree(subtree)
-        raise TypeError("Composite helpers expect a BehaviorTree or BehaviorTree.Node.")
+        return BehaviorTree.as_tree(subtree)
 
     @staticmethod
     def resolve_subtree_factory(
@@ -102,8 +98,7 @@ class BTCompositeHelpers:
           UserDescription: Internal support routine.
           Notes: Calls the builder when needed and then delegates normalization to `as_tree`.
         """
-        subtree = subtree_or_builder() if callable(subtree_or_builder) else subtree_or_builder
-        return BTCompositeHelpers.as_tree(subtree)
+        return BehaviorTree.resolve_tree(subtree_or_builder)
 
     @staticmethod
     def move_and_target(move_tree: BehaviorTree, target_tree: BehaviorTree) -> BehaviorTree:
@@ -310,14 +305,7 @@ class BTComposite:
           UserDescription: Internal support routine.
           Notes: Each child is wrapped as a subtree step named `Step1`, `Step2`, and so on.
         """
-        children = [
-            BehaviorTree.SubtreeNode(
-                name=f"Step{index + 1}",
-                subtree_fn=lambda node, subtree=subtree: BTCompositeHelpers.as_tree(subtree),
-            )
-            for index, subtree in enumerate(subtrees)
-        ]
-        return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
+        return BehaviorTree.build_sequence(subtrees, name=name)
 
     @staticmethod
     def SequenceNames(steps: list[tuple[str, "BTComposite.SequenceBuildable"]]) -> list[str]:
@@ -351,21 +339,4 @@ class BTComposite:
           UserDescription: Internal support routine.
           Notes: Raises a `ValueError` if `start_from` does not match one of the provided step names.
         """
-        if not steps:
-            return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=[]))
-
-        start_index = 0
-        if start_from is not None:
-            step_names = BTComposite.SequenceNames(steps)
-            if start_from not in step_names:
-                raise ValueError(f"Unknown sequence step '{start_from}'. Valid values: {', '.join(step_names)}")
-            start_index = step_names.index(start_from)
-
-        children = [
-            BehaviorTree.SubtreeNode(
-                name=step_name,
-                subtree_fn=lambda node, subtree_or_builder=subtree_or_builder: BTCompositeHelpers.resolve_subtree_factory(subtree_or_builder),
-            )
-            for step_name, subtree_or_builder in steps[start_index:]
-        ]
-        return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
+        return BehaviorTree.build_named_sequence(steps, start_from=start_from, name=name)

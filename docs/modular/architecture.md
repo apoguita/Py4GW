@@ -1,33 +1,38 @@
-# Modular JSON BT Architecture
+# Modular JSON BottingTree Architecture
 
-Modular JSON now compiles directly into `BehaviorTree` trees. The runtime path is intentionally short:
+Modular JSON now compiles into `BehaviorTree` planner steps that are installed directly into `BottingTree`.
+The runtime path is intentionally short:
 
 ```text
 Sources/modular_data JSON
-  -> Py4GWCoreLib.modular.compile_recipe_steps_to_bt
-  -> BTRecipeRunner facade
-  -> Py4GWCoreLib.BottingTree planner/services
+  -> Py4GWCoreLib.modular.compile_recipe_steps_to_named_planner_steps
+  -> Py4GWCoreLib.BottingTree.SetCurrentNamedPlannerSteps
   -> Py4GWCoreLib.routines_src.BehaviourTrees.BT
 ```
 
 `BottingTree` is the runtime owner for planner ticking, blackboard state, HeroAI integration,
-movement pause flags, services, and recovery. The modular runner must not tick compiled recipe
-trees directly.
+movement pause flags, services, party setup configuration, and recovery. Modular code must not tick
+compiled recipe trees directly.
 
-There is no `ModularBot`, `Phase`, action registry, `@modular_step`, or `modular_core` execution path.
+There is no `ModularBot`, `Phase`, `BTRecipeRunner`, action registry, `@modular_step`, or `modular_core`
+execution path.
+
+`BehaviorTree` is the only owner of BT node, coercion, and composition semantics. `BT.Composite`
+remains as a non-modular compatibility surface, but its implementation delegates sequence construction
+to `BehaviorTree`.
 
 ## Public Surface
 
 Supported callers should import from `Py4GWCoreLib.modular`:
 
-- `compile_recipe_to_bt`
-- `compile_recipe_steps_to_bt`
-- `compile_recipe_step_to_bt`
-- `compile_step_to_bt`
-- `compile_file_to_bt`
+- `compile_recipe_steps_to_named_planner_steps`
 - `load_recipe`
 - `audit_recipe_vocabulary`
-- `BTRecipeRunner`
+- `recipe_step_metadata`
+- vocabulary/type metadata and compiler error/data types needed by the adapter
+
+Raw compile-to-`BehaviorTree` helpers are compiler internals only. Runtime code must install planner
+steps into `BottingTree`; it must not import or tick full-recipe compiled trees.
 
 The only supported JSON step types are:
 
@@ -44,19 +49,22 @@ The only supported JSON step types are:
 ```text
 Py4GWCoreLib/modular/
   json_bt_compiler.py       JSON validation and BT construction
-  runner.py                 BottingTree-backed wrapper for compiled recipe groups
   selectors.py              Selector helper used by BT adapters and MerchantRules
   paths.py                  Project/data/settings path helpers
-  hero_setup*.py            Account-scoped hero team setup data/UI
   domain/target_registry.py Named NPC/enemy/gadget definitions
 ```
+
+Hero team priority/configuration is owned by `Py4GWCoreLib.botting_tree_src.hero_setup*`.
 
 Obsolete orchestration and registry packages were removed:
 
 - `Py4GWCoreLib/modular/actions`
 - `Py4GWCoreLib/modular/compiler`
 - `Py4GWCoreLib/modular/recipes`
+- `Py4GWCoreLib/modular/runner.py`
 - `Py4GWCoreLib/modular/runtime_native`
+- `Py4GWCoreLib/modular/widget_runtime.py`
+- `Py4GWCoreLib/modular/hero_setup*.py`
 - `Py4GWCoreLib/routines_src/behaviourtrees_src/modular_core`
 
 ## JSON Data
@@ -71,6 +79,8 @@ Use focused checks:
 python -m py_compile <changed python files>
 python Sources/modular_data/tools/audit_json_bt_vocabulary.py --fail-on-issues
 python Sources/modular_data/tools/test_json_bt_compiler_contract.py
+python Sources/modular_data/tools/test_json_bt_compile_shape.py
+python Sources/modular_data/tools/test_modular_botting_tree_adapter.py
 python Sources/modular_data/tools/validate_modular_architecture.py
 ```
 

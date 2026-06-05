@@ -1,9 +1,11 @@
-"""EotN campaign BT recipe runner."""
+"""EotN campaign BottingTree recipe setup."""
 from __future__ import annotations
 
-from Py4GWCoreLib.modular import BTRecipeRunner
-from Py4GWCoreLib.modular import RecipeSpec
-from Py4GWCoreLib.modular import specs_from_campaign_rows
+from Py4GWCoreLib.BottingTree import BottingTree
+
+from ._botting import RecipeSpec
+from ._botting import create_modular_botting_tree
+from ._botting import specs_from_campaign_rows
 
 
 # tuple format: (region, kind, key, title)
@@ -97,11 +99,11 @@ def create_eotn_campaign_bot(
     options: EotnCampaignOptions | None = None,
     name: str = "Modular EotN",
     debug_hook=None,
-) -> BTRecipeRunner:
+) -> BottingTree:
     opts = options or EotnCampaignOptions()
     specs = build_eotn_campaign_specs()
     clamped_start = apply_eotn_start_index(specs, opts.start_phase_index)
-    return BTRecipeRunner(
+    return create_modular_botting_tree(
         name=name,
         specs=specs,
         start_index=clamped_start,

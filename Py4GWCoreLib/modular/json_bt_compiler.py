@@ -83,7 +83,8 @@ LEGACY_STEP_TYPES: tuple[str, ...] = (
 )
 
 DEFAULT_INTERACT_DELAY_MS = 250
-DEFAULT_DIALOG_DELAY_MS = 250
+DEFAULT_DIALOG_READY_TIMEOUT_MS = 5000
+DEFAULT_DIALOG_READY_POLL_MS = 100
 
 
 class RecipeCompileError(ValueError):
@@ -134,6 +135,9 @@ class CompiledRecipeStep:
     source_step: dict[str, Any]
     context: JsonBTCompilerContext
 
+    def build_tree(self) -> BehaviorTree:
+        return _compile_recipe_step_to_bt(dict(self.source_step), self.context)
+
 
 StepBuilder = Callable[[dict[str, Any], JsonBTCompilerContext], BehaviorTree]
 
@@ -156,13 +160,13 @@ def load_recipe(path_or_name: str | Path) -> dict[str, Any]:
     return data
 
 
-def compile_file_to_bt(path: str | Path, *, recipe_name: str | None = None) -> BehaviorTree:
+def _compile_file_to_bt(path: str | Path, *, recipe_name: str | None = None) -> BehaviorTree:
     recipe = load_recipe(path)
-    return compile_recipe_to_bt(recipe, recipe_name=recipe_name or str(recipe.get("name") or Path(path).stem))
+    return _compile_recipe_to_bt(recipe, recipe_name=recipe_name or str(recipe.get("name") or Path(path).stem))
 
 
-def compile_recipe_to_bt(recipe: dict[str, Any], *, recipe_name: str) -> BehaviorTree:
-    compiled_steps = compile_recipe_steps_to_bt(recipe, recipe_name=recipe_name)
+def _compile_recipe_to_bt(recipe: dict[str, Any], *, recipe_name: str) -> BehaviorTree:
+    compiled_steps = _compile_recipe_steps_to_bt(recipe, recipe_name=recipe_name)
     if not compiled_steps:
         return BehaviorTree(BehaviorTree.SucceederNode(name=f"{recipe_name or 'Recipe'}::NoOp"))
     metadata = tuple(compiled.metadata for compiled in compiled_steps)
@@ -179,7 +183,7 @@ def compile_recipe_to_bt(recipe: dict[str, Any], *, recipe_name: str) -> Behavio
     return BehaviorTree(root)
 
 
-def compile_recipe_steps_to_bt(recipe: dict[str, Any], *, recipe_name: str) -> tuple[CompiledRecipeStep, ...]:
+def _compile_recipe_steps_to_bt(recipe: dict[str, Any], *, recipe_name: str) -> tuple[CompiledRecipeStep, ...]:
     if not isinstance(recipe, dict):
         raise RecipeCompileError("Recipe must be a JSON object.")
 
@@ -201,12 +205,31 @@ def compile_recipe_steps_to_bt(recipe: dict[str, Any], *, recipe_name: str) -> t
     return tuple(
         CompiledRecipeStep(
             metadata=metadata[index],
-            tree=compile_recipe_step_to_bt(step, context),
+            tree=_compile_recipe_step_to_bt(step, context),
             source_step=dict(step),
             context=context,
         )
         for index, step in enumerate(expanded_steps)
     )
+
+
+def compile_recipe_steps_to_named_planner_steps(
+    recipe: dict[str, Any],
+    *,
+    recipe_name: str,
+    planner_prefix: str = "",
+) -> list[tuple[str, Callable[[], BehaviorTree]]]:
+    planner_steps: list[tuple[str, Callable[[], BehaviorTree]]] = []
+    for compiled_step in _compile_recipe_steps_to_bt(recipe, recipe_name=recipe_name):
+        step_name = _planner_step_name(compiled_step.metadata, planner_prefix=planner_prefix)
+
+        def _build_step_tree(compiled_step: CompiledRecipeStep = compiled_step) -> BehaviorTree:
+            return compiled_step.build_tree()
+
+        _build_step_tree.modular_step_metadata = compiled_step.metadata
+        _build_step_tree.modular_compiled_step = compiled_step
+        planner_steps.append((step_name, _build_step_tree))
+    return planner_steps
 
 
 def recipe_step_metadata(recipe: dict[str, Any], *, recipe_name: str | None = None) -> tuple[RecipeStepMetadata, ...]:
@@ -215,15 +238,15 @@ def recipe_step_metadata(recipe: dict[str, Any], *, recipe_name: str | None = No
     return _step_metadata(_expand_steps(steps))
 
 
-def compile_step_to_bt(step: dict[str, Any], context: JsonBTCompilerContext) -> BehaviorTree:
+def _compile_step_to_bt(step: dict[str, Any], context: JsonBTCompilerContext) -> BehaviorTree:
     if not isinstance(step, dict):
         raise RecipeCompileError("Step must be a JSON object.")
     step_type = _validate_step_type(step.get("type"), recipe_name=context.recipe_name, step_idx=0)
     return _BUILDERS[step_type](step, context)
 
 
-def compile_recipe_step_to_bt(step: dict[str, Any], context: JsonBTCompilerContext) -> BehaviorTree:
-    return _with_post_wait(compile_step_to_bt(step, context), step)
+def _compile_recipe_step_to_bt(step: dict[str, Any], context: JsonBTCompilerContext) -> BehaviorTree:
+    return _with_post_wait(_compile_step_to_bt(step, context), step)
 
 
 def audit_recipe_vocabulary(recipe: dict[str, Any], *, recipe_name: str | None = None) -> VocabularyAudit:
@@ -297,15 +320,9 @@ def _build_interact(step: dict[str, Any], context: JsonBTCompilerContext) -> Beh
         if not ids:
             raise RecipeCompileError(f"Recipe {context.recipe_name!r} interact dialog requires id.")
         interval_ms = max(0, _int(step.get("interval_ms"), 0))
-        trees: list[BehaviorTree] = []
-        for dialog_id in ids:
-            if _has_selector(step):
-                trees.append(_interact_and_dialog_tree(step, context, dialog_id))
-            else:
-                trees.append(BT.Player.SendDialog(dialog_id=dialog_id, log=_bool(step.get("log"), False)))
-            if interval_ms:
-                trees.append(BT.Player.Wait(interval_ms, log=False))
-        return _sequence("InteractDialog", trees)
+        if _has_selector(step):
+            return _interact_and_dialog_tree(step, context, ids, interval_ms=interval_ms)
+        return _sequence("SendDialogs", _dialog_send_trees(step, ids, interval_ms=interval_ms))
     if action == "auto_dialog":
         button = _int(step.get("button", step.get("button_number")), 0)
         return BT.Player.SendAutomaticDialog(button_number=button, log=log)
@@ -477,6 +494,10 @@ def _step_title(step: dict[str, Any], index: int) -> str:
     return f"{index + 1}. {step_type}{suffix}"
 
 
+def _planner_step_name(metadata: RecipeStepMetadata, *, planner_prefix: str = "") -> str:
+    return f"{planner_prefix}{int(metadata.index):03d} {metadata.title}"
+
+
 def _as_subtree(
     name: str,
     tree: BehaviorTree,
@@ -505,12 +526,23 @@ def _sequence(name: str, trees: list[BehaviorTree]) -> BehaviorTree:
     return BT.Composite.Sequence(*trees, name=name)
 
 
-def _action_tree(name: str, action: Callable[[], BehaviorTree.NodeState | None]) -> BehaviorTree:
+def _action_tree(
+    name: str,
+    action: Callable[[], BehaviorTree.NodeState | None],
+    *,
+    aftercast_ms: int = 0,
+) -> BehaviorTree:
     def _run() -> BehaviorTree.NodeState:
         result = action()
         return result if isinstance(result, BehaviorTree.NodeState) else BehaviorTree.NodeState.SUCCESS
 
-    return BehaviorTree(BehaviorTree.ActionNode(name=name, action_fn=_run))
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name=name,
+            action_fn=_run,
+            aftercast_ms=max(0, int(aftercast_ms)),
+        )
+    )
 
 
 def _interact_tree(step: dict[str, Any], context: JsonBTCompilerContext, target: str) -> BehaviorTree:
@@ -548,7 +580,13 @@ def _route_to_target_tree(step: dict[str, Any], context: JsonBTCompilerContext) 
     )
 
 
-def _interact_and_dialog_tree(step: dict[str, Any], context: JsonBTCompilerContext, dialog_id: str | int) -> BehaviorTree:
+def _interact_and_dialog_tree(
+    step: dict[str, Any],
+    context: JsonBTCompilerContext,
+    dialog_ids: list[str | int],
+    *,
+    interval_ms: int = 0,
+) -> BehaviorTree:
     log = _bool(step.get("log"), False)
     target = _choice(step, "target", _choice(step, "kind", "npc"))
     if "gadget" in step and "target" not in step and "kind" not in step:
@@ -568,10 +606,60 @@ def _interact_and_dialog_tree(step: dict[str, Any], context: JsonBTCompilerConte
         _interact_delay_tree(step),
         _target_tree(step, context, target),
         BT.Player.InteractTarget(log=log),
-        _dialog_delay_tree(step),
-        BT.Player.SendDialog(dialog_id=dialog_id, log=log),
+        *_dialog_send_trees(step, dialog_ids, interval_ms=interval_ms),
         name="InteractDialog",
     )
+
+
+def _dialog_send_trees(
+    step: dict[str, Any],
+    dialog_ids: list[str | int],
+    *,
+    interval_ms: int = 0,
+) -> list[BehaviorTree]:
+    log = _bool(step.get("log"), False)
+    trees: list[BehaviorTree] = []
+    for index, dialog_id in enumerate(dialog_ids):
+        trees.append(_wait_for_dialog_ready_tree(step, log=log))
+        trees.append(BT.Player.SendDialog(dialog_id=_coerce_dialog_id(dialog_id), log=log))
+        if interval_ms > 0 and index < len(dialog_ids) - 1:
+            trees.append(BT.Player.Wait(interval_ms, log=False))
+    return trees
+
+
+def _wait_for_dialog_ready_tree(step: dict[str, Any], *, log: bool) -> BehaviorTree:
+    timeout_ms = max(0, _int(step.get("dialog_ready_timeout_ms"), DEFAULT_DIALOG_READY_TIMEOUT_MS))
+    poll_ms = max(1, _int(step.get("dialog_ready_poll_ms"), DEFAULT_DIALOG_READY_POLL_MS))
+
+    def _dialog_ready(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        from Py4GWCoreLib.Dialog import get_active_dialog
+        from Py4GWCoreLib.Dialog import get_active_dialog_buttons
+
+        try:
+            active_dialog = get_active_dialog()
+            if active_dialog is not None:
+                return BehaviorTree.NodeState.SUCCESS
+            if get_active_dialog_buttons():
+                return BehaviorTree.NodeState.SUCCESS
+        except Exception:
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree(
+        BehaviorTree.WaitUntilNode(
+            name="WaitForDialogReady",
+            condition_fn=_dialog_ready,
+            throttle_interval_ms=poll_ms,
+            timeout_ms=timeout_ms,
+        )
+    )
+
+
+def _coerce_dialog_id(value: str | int) -> int:
+    if isinstance(value, int):
+        return value
+    return int(str(value).strip(), 0)
 
 
 def _move_to_point_tree(step: dict[str, Any], point: tuple[float, float], *, log: bool) -> BehaviorTree:
@@ -609,11 +697,6 @@ def _move_to_selected_target_tree(step: dict[str, Any], *, log: bool) -> Behavio
 def _interact_delay_tree(step: dict[str, Any]) -> BehaviorTree:
     delay_ms = max(0, _int(step.get("interact_delay_ms", step.get("settle_ms")), DEFAULT_INTERACT_DELAY_MS))
     return BT.Player.Wait(delay_ms, log=False) if delay_ms > 0 else BehaviorTree(BehaviorTree.SucceederNode(name="NoInteractDelay"))
-
-
-def _dialog_delay_tree(step: dict[str, Any]) -> BehaviorTree:
-    delay_ms = max(0, _int(step.get("dialog_delay_ms"), DEFAULT_DIALOG_DELAY_MS))
-    return BT.Player.Wait(delay_ms, log=False) if delay_ms > 0 else BehaviorTree(BehaviorTree.SucceederNode(name="NoDialogDelay"))
 
 
 def _target_tree(step: dict[str, Any], context: JsonBTCompilerContext, target: str) -> BehaviorTree:
@@ -666,7 +749,7 @@ def _target_named_agent(kind: str, key: str, *, max_dist: float) -> BehaviorTree
                 return BehaviorTree.NodeState.SUCCESS
         return BehaviorTree.NodeState.FAILURE
 
-    return _action_tree(f"Target{kind.title()}::{key}", _target)
+    return _action_tree(f"Target{kind.title()}::{key}", _target, aftercast_ms=250)
 
 
 def _agents_for_kind(kind: str) -> list[int]:
@@ -727,7 +810,7 @@ def _target_nearest_gadget(max_dist: float, *, log: bool = False) -> BehaviorTre
         Player.ChangeTarget(int(gadgets[0]))
         return BehaviorTree.NodeState.SUCCESS
 
-    return _action_tree("TargetNearestGadget", _target)
+    return _action_tree("TargetNearestGadget", _target, aftercast_ms=250)
 
 
 def _optional_item_by_model_interact_tree(step: dict[str, Any], point: tuple[float, float] | None, *, log: bool) -> BehaviorTree:
@@ -764,22 +847,26 @@ def _optional_item_by_model_interact_tree(step: dict[str, Any], point: tuple[flo
         return BT.Composite.Sequence(
             _move_to_point_tree(step, point, log=log),
             _interact_delay_tree(step),
-            _action_tree(f"OptionalTargetItemByModel::{model_id}", _target_optional_item),
+            _action_tree(f"OptionalTargetItemByModel::{model_id}", _target_optional_item, aftercast_ms=250),
             BehaviorTree(BehaviorTree.SubtreeNode(name="OptionalInteractItemByModel", subtree_fn=_interact_if_found)),
             name=f"OptionalInteractItemByModel::{model_id}",
         )
     return BT.Composite.Sequence(
-        _action_tree(f"OptionalTargetItemByModel::{model_id}", _target_optional_item),
+        _action_tree(f"OptionalTargetItemByModel::{model_id}", _target_optional_item, aftercast_ms=250),
         BehaviorTree(BehaviorTree.SubtreeNode(name="OptionalMoveToItemByModel", subtree_fn=_move_if_found)),
         _interact_delay_tree(step),
-        _action_tree(f"OptionalRetargetItemByModel::{model_id}", _target_optional_item),
+        _action_tree(f"OptionalRetargetItemByModel::{model_id}", _target_optional_item, aftercast_ms=250),
         BehaviorTree(BehaviorTree.SubtreeNode(name="OptionalInteractItemByModel", subtree_fn=_interact_if_found)),
         name=f"OptionalInteractItemByModel::{model_id}",
     )
 
 
 def _target_item_by_model(model_id: int, *, max_dist: float) -> BehaviorTree:
-    return _action_tree(f"TargetItemByModel::{model_id}", lambda: _target_item_by_model_action(model_id, max_dist))
+    return _action_tree(
+        f"TargetItemByModel::{model_id}",
+        lambda: _target_item_by_model_action(model_id, max_dist),
+        aftercast_ms=250,
+    )
 
 
 def _target_item_by_model_action(model_id: int, max_dist: float) -> BehaviorTree.NodeState:
@@ -892,8 +979,8 @@ def _party_hero_ids(step: dict[str, Any], context: JsonBTCompilerContext) -> lis
     if explicit:
         return explicit
 
-    from .hero_setup_model import get_team_by_priority
-    from .hero_setup_model import resolve_hero_ids
+    from Py4GWCoreLib.botting_tree_src.hero_setup_model import get_team_by_priority
+    from Py4GWCoreLib.botting_tree_src.hero_setup_model import resolve_hero_ids
 
     required_source = step.get("required_hero", context.required_hero)
     required = resolve_hero_ids(required_source)

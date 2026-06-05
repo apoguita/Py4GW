@@ -210,22 +210,9 @@ class BehaviorTree:
 
         @staticmethod
         def _coerce_node(value) -> "BehaviorTree.Node":
-            if isinstance(value, BehaviorTree):
-                return value.root
-            if hasattr(value, "root") and hasattr(getattr(value, "root"), "tick") and hasattr(getattr(value, "root"), "get_children"):
-                return value.root
             if isinstance(value, BehaviorTree.Node):
                 return value
-            if (
-                hasattr(value, "tick")
-                and hasattr(value, "reset")
-                and hasattr(value, "get_children")
-                and hasattr(value, "blackboard")
-            ):
-                return value
-            raise TypeError(
-                f"Expected a BehaviorTree or BehaviorTree.Node, got {type(value).__name__}."
-            )
+            return BehaviorTree.as_tree(value).root
 
         @staticmethod
         def _coerce_children(children) -> List["BehaviorTree.Node"]:
@@ -394,6 +381,90 @@ class BehaviorTree:
                 child.draw(indent + 1)
 
             PyImGui.tree_pop()
+
+
+    @staticmethod
+    def as_tree(value) -> "BehaviorTree":
+        if isinstance(value, BehaviorTree):
+            return value
+        if isinstance(value, BehaviorTree.Node):
+            return BehaviorTree(value)
+        if (
+            hasattr(value, "root")
+            and hasattr(value, "tick")
+            and hasattr(value, "reset")
+            and hasattr(getattr(value, "root"), "tick")
+        ):
+            return cast("BehaviorTree", value)
+        raise TypeError(f"Expected a BehaviorTree or BehaviorTree.Node, got {type(value).__name__}.")
+
+    @staticmethod
+    def resolve_tree(value_or_builder) -> "BehaviorTree":
+        value = value_or_builder() if callable(value_or_builder) else value_or_builder
+        return BehaviorTree.as_tree(value)
+
+    @staticmethod
+    def build_sequence(
+        children: Sequence[object],
+        name: str = "Sequence",
+        step_name_fn: Callable[[int, object], str] | None = None,
+    ) -> "BehaviorTree":
+        nodes = [
+            BehaviorTree.SubtreeNode(
+                name=step_name_fn(index, child) if step_name_fn is not None else f"Step{index + 1}",
+                subtree_fn=lambda node, child=child: BehaviorTree.resolve_tree(child),
+            )
+            for index, child in enumerate(children)
+        ]
+        return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=nodes))
+
+    @staticmethod
+    def build_named_sequence(
+        steps: Sequence[tuple[str, object]],
+        start_from: str | None = None,
+        name: str = "NamedSequence",
+        before_step: Callable[[str], "BehaviorTree | BehaviorTree.Node | None"] | None = None,
+        repeat: bool = False,
+    ) -> "BehaviorTree":
+        step_list = list(steps)
+        if not step_list:
+            return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=[]))
+
+        step_names = [step_name for step_name, _ in step_list]
+        start_index = 0
+        if start_from is not None:
+            if start_from not in step_names:
+                raise ValueError(f"Unknown sequence step '{start_from}'. Valid values: {', '.join(step_names)}")
+            start_index = step_names.index(start_from)
+
+        children: list[BehaviorTree.Node] = []
+        for step_name, subtree_or_builder in step_list[start_index:]:
+            step_children: list[BehaviorTree.Node] = []
+            if before_step is not None:
+                marker = before_step(step_name)
+                if marker is not None:
+                    step_children.append(BehaviorTree.Node._coerce_node(marker))
+            step_children.append(
+                BehaviorTree.SubtreeNode(
+                    name=step_name,
+                    subtree_fn=lambda node, subtree_or_builder=subtree_or_builder: BehaviorTree.resolve_tree(
+                        subtree_or_builder
+                    ),
+                )
+            )
+            children.append(BehaviorTree.SequenceNode(name=f"Step: {step_name}", children=step_children))
+
+        if repeat:
+            full_pass = BehaviorTree.build_named_sequence(
+                step_list,
+                start_from=None,
+                name=f"{name} Full Pass",
+                before_step=before_step,
+                repeat=False,
+            )
+            children.append(BehaviorTree.RepeaterForeverNode(full_pass.root, name="Loop: restart routine"))
+
+        return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
 
 
         
@@ -1323,22 +1394,13 @@ class BehaviorTree:
                 subtree = self._factory(self)
                 if subtree is None:
                     raise ValueError("subtree_fn() returned None; expected a BehaviorTree or BehaviorTree.Node.")
-                if isinstance(subtree, BehaviorTree):
-                    self._subtree = subtree
-                elif isinstance(subtree, BehaviorTree.Node):
-                    self._subtree = BehaviorTree(subtree)
-                elif (
-                    hasattr(subtree, "root")
-                    and hasattr(subtree, "tick")
-                    and hasattr(subtree, "reset")
-                    and hasattr(getattr(subtree, "root"), "tick")
-                ):
-                    self._subtree = cast("BehaviorTree", subtree)
-                else:
+                try:
+                    self._subtree = BehaviorTree.as_tree(subtree)
+                except TypeError as exc:
                     raise TypeError(
                         f"subtree_fn() returned invalid type {type(subtree).__name__}; "
                         "expected a BehaviorTree or BehaviorTree.Node."
-                    )
+                    ) from exc
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             if self._subtree is not None:

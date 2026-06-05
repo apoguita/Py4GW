@@ -1,5 +1,5 @@
 """
-Compile every modular JSON recipe with the canonical JSON-to-BT compiler.
+Compile every modular JSON recipe through the canonical BottingTree planner-step adapter.
 
 This imports Py4GWCoreLib runtime modules, so it is expected to run in an
 environment where the Py4GW bindings are importable.
@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        from Py4GWCoreLib.modular.json_bt_compiler import compile_recipe_to_bt
+        from Py4GWCoreLib.modular import compile_recipe_steps_to_named_planner_steps
     except ModuleNotFoundError as exc:
         print(f"Cannot import Py4GW runtime bindings: {exc}")
         return 2
@@ -38,7 +38,12 @@ def main(argv: list[str] | None = None) -> int:
     for path in sorted(args.root.rglob("*.json")):
         try:
             recipe = json.loads(path.read_text(encoding="utf-8-sig"))
-            compile_recipe_to_bt(recipe, recipe_name=str(recipe.get("name", path.stem)))
+            planner_steps = compile_recipe_steps_to_named_planner_steps(
+                recipe,
+                recipe_name=str(recipe.get("name", path.stem)),
+            )
+            for _step_name, builder in planner_steps:
+                builder()
             compiled += 1
         except Exception as exc:
             failures.append(f"{path}: {type(exc).__name__}: {exc}")

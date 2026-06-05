@@ -1,9 +1,11 @@
-"""Prophecies campaign BT recipe runner."""
+"""Prophecies campaign BottingTree recipe setup."""
 from __future__ import annotations
 
-from Py4GWCoreLib.modular import BTRecipeRunner
-from Py4GWCoreLib.modular import RecipeSpec
-from Py4GWCoreLib.modular import specs_from_campaign_rows
+from Py4GWCoreLib.BottingTree import BottingTree
+
+from ._botting import RecipeSpec
+from ._botting import create_modular_botting_tree
+from ._botting import specs_from_campaign_rows
 
 
 # tuple format: (region, kind, key, title)
@@ -100,11 +102,11 @@ def create_prophecies_campaign_bot(
     options: PropheciesCampaignOptions | None = None,
     name: str = "Modular Prophecies",
     debug_hook=None,
-) -> BTRecipeRunner:
+) -> BottingTree:
     opts = options or PropheciesCampaignOptions()
     specs = build_prophecies_campaign_specs()
     clamped_start = apply_prophecies_start_index(specs, opts.start_phase_index)
-    return BTRecipeRunner(
+    return create_modular_botting_tree(
         name=name,
         specs=specs,
         start_index=clamped_start,

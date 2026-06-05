@@ -27,13 +27,21 @@ def main() -> int:
 
     functions = {node.name for node in compiler_tree.body if isinstance(node, ast.FunctionDef)}
     assert {
+        "compile_recipe_steps_to_named_planner_steps",
+        "load_recipe",
+        "_compile_recipe_to_bt",
+        "_compile_recipe_steps_to_bt",
+        "_compile_recipe_step_to_bt",
+        "_compile_step_to_bt",
+        "_compile_file_to_bt",
+    } <= functions
+    assert not {
         "compile_recipe_to_bt",
         "compile_recipe_steps_to_bt",
         "compile_recipe_step_to_bt",
         "compile_step_to_bt",
         "compile_file_to_bt",
-        "load_recipe",
-    } <= functions
+    } & functions
     assert "build_action_step_tree" not in COMPILER_PATH.read_text(encoding="utf-8")
 
     audit = _load_audit_module()

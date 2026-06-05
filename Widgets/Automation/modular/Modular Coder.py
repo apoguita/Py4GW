@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import PyImGui
 
-from Py4GWCoreLib.modular.widget_runtime import guarded_widget_main
 from Sources.modular_data.tools import script_helper
+from Widgets.Automation.modular.widget_guard import guarded_widget_main
 
 
 module_name = "Modular Coder"

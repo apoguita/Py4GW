@@ -1,8 +1,10 @@
-"""BT-native FoW prebuilt runner."""
+"""BT-native FoW prebuilt BottingTree setup."""
 from __future__ import annotations
 
-from Py4GWCoreLib.modular import BTRecipeRunner
-from Py4GWCoreLib.modular import RecipeSpec
+from Py4GWCoreLib.BottingTree import BottingTree
+
+from ._botting import RecipeSpec
+from ._botting import create_modular_botting_tree
 
 
 FOW_QUEST_ORDER: list[tuple[str, str]] = [
@@ -19,11 +21,11 @@ FOW_QUEST_ORDER: list[tuple[str, str]] = [
     ("reward_time", "Reward Time"),
 ]
 
-def create_modular_fow_bot(*, debug_hook=None) -> BTRecipeRunner:
+def create_modular_fow_bot(*, debug_hook=None) -> BottingTree:
     if debug_hook is not None:
-        debug_hook("FoW BT runner initialized.")
+        debug_hook("FoW BottingTree initialized.")
     specs = [RecipeSpec(kind="quest", key=f"FoW/{key}", title=title) for key, title in FOW_QUEST_ORDER]
-    return BTRecipeRunner(
+    return create_modular_botting_tree(
         name="ModularFow",
         specs=specs,
         loop=True,

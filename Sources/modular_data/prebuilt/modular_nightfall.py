@@ -1,10 +1,12 @@
-"""Nightfall campaign BT recipe runner."""
+"""Nightfall campaign BottingTree recipe setup."""
 from __future__ import annotations
 
+from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.enums_src.Title_enums import TITLE_TIERS, TitleID
-from Py4GWCoreLib.modular import BTRecipeRunner
-from Py4GWCoreLib.modular import RecipeSpec
-from Py4GWCoreLib.modular import specs_from_campaign_rows
+
+from ._botting import RecipeSpec
+from ._botting import create_modular_botting_tree
+from ._botting import specs_from_campaign_rows
 
 
 SUNSPEAR_REPEAT_FARM_KEY = "sunspear/yohlon_insects"
@@ -127,11 +129,11 @@ def create_nightfall_campaign_bot(
     options: NightfallCampaignOptions | None = None,
     name: str = "Modular Nightfall",
     debug_hook=None,
-) -> BTRecipeRunner:
+) -> BottingTree:
     opts = options or NightfallCampaignOptions()
     specs = build_nightfall_campaign_specs()
     clamped_start = apply_nightfall_start_index(specs, opts.start_phase_index)
-    return BTRecipeRunner(
+    return create_modular_botting_tree(
         name=name,
         specs=specs,
         start_index=clamped_start,

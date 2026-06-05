@@ -309,6 +309,16 @@ class BTParty:
         hero_ids = [int(h) for h in (hero_ids or []) if int(h) > 0]
         henchman_ids = [int(h) for h in (henchman_ids or []) if int(h) > 0]
 
+        def _party_hero_id(hero) -> int:
+            raw_hero_id = getattr(hero, "hero_id", 0)
+            get_id = getattr(raw_hero_id, "GetID", None)
+            if callable(get_id):
+                raw_hero_id = get_id()
+            try:
+                return int(raw_hero_id or 0)
+            except (TypeError, ValueError):
+                return 0
+
         def _load_party() -> BehaviorTree.NodeState:
             if not Party.IsPartyLeader():
                 _fail_log("BTParty.LoadParty", "Failed to load party: local player is not party leader.")
@@ -323,7 +333,7 @@ class BTParty:
 
             existing_heroes = set()
             for hero in Party.GetHeroes() or []:
-                hid = int(getattr(hero, "hero_id", 0) or 0)
+                hid = _party_hero_id(hero)
                 if hid > 0:
                     existing_heroes.add(hid)
 

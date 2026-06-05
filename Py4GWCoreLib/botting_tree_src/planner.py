@@ -115,94 +115,17 @@ class BottingTreePlannerMixin:
         elif reset:
             self.Reset()
 
-    def _build_sequence_from_children(
-        self,
-        children: Sequence[object],
-        name: str = 'MainRoutine',
-    ) -> BehaviorTree:
-        return BehaviorTree(
-            BehaviorTree.SequenceNode(
-                name=name,
-                children=[
-                    BehaviorTree.SubtreeNode(
-                        name=f'{name} Step {index + 1}',
-                        subtree_fn=lambda node, child=child: self._coerce_runtime_tree(child),
-                    )
-                    for index, child in enumerate(children)
-                ],
-            )
+    @staticmethod
+    def _mark_current_step(step_name: str) -> BehaviorTree.Node:
+        def _mark(node: BehaviorTree.Node, step_name: str = step_name) -> BehaviorTree.NodeState:
+            node.blackboard['current_step_name'] = step_name
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree.ActionNode(
+            name=f'MarkCurrentStep({step_name})',
+            action_fn=_mark,
+            aftercast_ms=0,
         )
-
-    def _build_named_planner_tree(
-        self,
-        steps: Sequence[tuple[str, Callable[[], object] | object]],
-        start_from: str | None = None,
-        name: str = 'PlannerSequence',
-        repeat: bool = False,
-    ) -> BehaviorTree:
-        if not steps:
-            return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=[]))
-
-        step_names = [step_name for step_name, _ in steps]
-        start_index = 0
-        if start_from is not None:
-            if start_from not in step_names:
-                raise ValueError(f"Unknown planner step '{start_from}'. Valid values: {', '.join(step_names)}")
-            start_index = step_names.index(start_from)
-
-        def _as_tree(subtree_or_builder: Callable[[], object] | object) -> BehaviorTree:
-            subtree = subtree_or_builder() if callable(subtree_or_builder) else subtree_or_builder
-            if isinstance(subtree, BehaviorTree):
-                return subtree
-            if isinstance(subtree, BehaviorTree.Node):
-                return BehaviorTree(subtree)
-            if hasattr(subtree, 'root') and hasattr(subtree, 'tick') and hasattr(subtree, 'reset'):
-                return cast(BehaviorTree, subtree)
-            raise TypeError(f'Planner step returned invalid type {type(subtree).__name__}.')
-
-        def _mark_current_step(step_name: str) -> BehaviorTree.Node:
-            def _mark(node: BehaviorTree.Node, step_name: str = step_name) -> BehaviorTree.NodeState:
-                node.blackboard['current_step_name'] = step_name
-                return BehaviorTree.NodeState.SUCCESS
-
-            return BehaviorTree.ActionNode(
-                name=f'MarkCurrentStep({step_name})',
-                action_fn=_mark,
-                aftercast_ms=0,
-            )
-
-        children: list[BehaviorTree.Node] = [
-            BehaviorTree.SequenceNode(
-                name=f'Step: {step_name}',
-                children=[
-                    _mark_current_step(step_name),
-                    BehaviorTree.SubtreeNode(
-                        name=step_name,
-                        subtree_fn=lambda node, subtree_or_builder=subtree_or_builder: _as_tree(subtree_or_builder),
-                    ),
-                ],
-            )
-            for step_name, subtree_or_builder in steps[start_index:]
-        ]
-        if repeat:
-            full_pass = self._build_named_planner_tree(steps, start_from=None, name=f'{name} Full Pass', repeat=False)
-            children.append(
-                BehaviorTree.RepeaterForeverNode(
-                    full_pass.root,
-                    name='Loop: restart routine',
-                )
-            )
-        return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
-
-    def _coerce_runtime_tree(self, subtree_or_builder: Callable[[], object] | object) -> BehaviorTree:
-        subtree = subtree_or_builder() if callable(subtree_or_builder) else subtree_or_builder
-        if isinstance(subtree, BehaviorTree):
-            return subtree
-        if isinstance(subtree, BehaviorTree.Node):
-            return BehaviorTree(subtree)
-        if hasattr(subtree, 'root') and hasattr(subtree, 'tick') and hasattr(subtree, 'reset'):
-            return cast(BehaviorTree, subtree)
-        raise TypeError(f'Service step returned invalid type {type(subtree).__name__}.')
 
     def SetMainRoutine(
         self,
@@ -215,7 +138,7 @@ class BottingTreePlannerMixin:
         if routine is None:
             self.SetPlannerTree(None)
         elif callable(routine):
-            self.SetPlannerTree(self._coerce_runtime_tree(routine))
+            self.SetPlannerTree(BehaviorTree.resolve_tree(routine))
         elif isinstance(routine, RuntimeSequence) and not isinstance(routine, (str, bytes)):
             routine_items = list(routine)
             if routine_items and all(
@@ -233,9 +156,15 @@ class BottingTreePlannerMixin:
                 self._planner_steps = []
                 self._planner_sequence_name = name
                 self.planner_repeat = False
-                self.SetPlannerTree(self._build_sequence_from_children(routine_items, name=name))
+                self.SetPlannerTree(
+                    BehaviorTree.build_sequence(
+                        routine_items,
+                        name=name,
+                        step_name_fn=lambda index, _child: f'{name} Step {index + 1}',
+                    )
+                )
         else:
-            self.SetPlannerTree(self._coerce_runtime_tree(routine))
+            self.SetPlannerTree(BehaviorTree.resolve_tree(routine))
 
         if auto_start:
             self.Start()
@@ -252,7 +181,15 @@ class BottingTreePlannerMixin:
         self._planner_steps = list(steps)
         self._planner_sequence_name = name
         self.planner_repeat = repeat
-        self._set_planner_tree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name, repeat=repeat))
+        self._set_planner_tree(
+            BehaviorTree.build_named_sequence(
+                self._planner_steps,
+                start_from=start_from,
+                name=name,
+                before_step=self._mark_current_step,
+                repeat=repeat,
+            )
+        )
         self.EnsurePartyWipeRecoveryService(
             default_step_name=lambda: (self.GetNamedPlannerStepNames() or [None])[0],
         )
@@ -289,12 +226,15 @@ class BottingTreePlannerMixin:
         if not self._planner_steps:
             return False
         sequence_name = name or self._planner_sequence_name
-        self._set_planner_tree(self._build_named_planner_tree(
-            self._planner_steps,
-            start_from=step_name,
-            name=sequence_name,
-            repeat=self.planner_repeat,
-        ))
+        self._set_planner_tree(
+            BehaviorTree.build_named_sequence(
+                self._planner_steps,
+                start_from=step_name,
+                name=sequence_name,
+                before_step=self._mark_current_step,
+                repeat=self.planner_repeat,
+            )
+        )
         self.Reset()
         if auto_start:
             self.Start()
@@ -308,7 +248,12 @@ class BottingTreePlannerMixin:
         if not self._planner_steps:
             return self._build_default_planner_tree()
         sequence_name = name or self._planner_sequence_name
-        return self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=sequence_name)
+        return BehaviorTree.build_named_sequence(
+            self._planner_steps,
+            start_from=start_from,
+            name=sequence_name,
+            before_step=self._mark_current_step,
+        )
 
     def RestartFromSequence(
         self,

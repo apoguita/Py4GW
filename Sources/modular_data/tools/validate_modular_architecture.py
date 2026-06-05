@@ -12,19 +12,33 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MODULAR_DIR = REPO_ROOT / "Py4GWCoreLib" / "modular"
 MODULAR_CORE_DIR = REPO_ROOT / "Py4GWCoreLib" / "routines_src" / "behaviourtrees_src" / "modular_core"
 MODULAR_DATA_DIR = REPO_ROOT / "Sources" / "modular_data"
-MODULAR_WIDGET_DIR = REPO_ROOT / "Widgets" / "Automation" / "modularbot"
+MODULAR_WIDGET_DIR = REPO_ROOT / "Widgets" / "Automation" / "modular"
 COMPILER_PATH = MODULAR_DIR / "json_bt_compiler.py"
-RUNNER_PATH = MODULAR_DIR / "runner.py"
+BT_PATH = REPO_ROOT / "Py4GWCoreLib" / "py4gwcorelib_src" / "BehaviorTree.py"
+BOTTING_PLANNER_PATH = REPO_ROOT / "Py4GWCoreLib" / "botting_tree_src" / "planner.py"
+COMPOSITE_PATH = REPO_ROOT / "Py4GWCoreLib" / "routines_src" / "behaviourtrees_src" / "composite.py"
+PREBUILT_DIR = MODULAR_DATA_DIR / "prebuilt"
+BOTTING_HERO_SETUP_PATH = REPO_ROOT / "Py4GWCoreLib" / "botting_tree_src" / "hero_setup.py"
+BOTTING_HERO_SETUP_MODEL_PATH = REPO_ROOT / "Py4GWCoreLib" / "botting_tree_src" / "hero_setup_model.py"
 EXPECTED_CANONICAL = {"behavior", "interact", "inventory", "map", "party", "route", "wait"}
-REMOVED_PUBLIC_NAMES = {"ModularBot", "Phase", "register_action_node"}
+REMOVED_PUBLIC_NAMES = {"ModularBot", "Phase", "register_action_node", "BTRecipeRunner"}
+RAW_COMPILE_EXPORTS = {
+    "compile_file_to_bt",
+    "compile_recipe_to_bt",
+    "compile_recipe_step_to_bt",
+    "compile_recipe_steps_to_bt",
+    "compile_step_to_bt",
+}
 
 
 def main() -> int:
     failures: list[str] = []
     failures.extend(_check_compiler_contract())
-    failures.extend(_check_runner_contract())
+    failures.extend(_check_removed_runner_contract())
+    failures.extend(_check_composition_ownership())
     failures.extend(_check_removed_runtime_paths())
     failures.extend(_check_broken_widget_references())
+    failures.extend(_check_modular_tools_runtime_paths())
     failures.extend(_check_json_types())
     failures.extend(_check_json_audit())
 
@@ -53,23 +67,82 @@ def _check_compiler_contract() -> list[str]:
     for banned in ("build_action_step_tree", "@modular_step", "StepNodeRequest"):
         if banned in text:
             failures.append(f"[COMPILER] compiler still references legacy symbol {banned!r}.")
+    if "compile_recipe_steps_to_named_planner_steps" not in text:
+        failures.append("[COMPILER] missing compile_recipe_steps_to_named_planner_steps adapter.")
+    functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+    raw_public_functions = sorted(RAW_COMPILE_EXPORTS & functions)
+    if raw_public_functions:
+        failures.append(f"[COMPILER] raw compile-to-BT functions must be internal-only: {raw_public_functions}.")
+    if "Py4GWCoreLib.botting_tree_src.hero_setup_model" not in text:
+        failures.append("[COMPILER] party-load hero setup must come from BottingTree ownership.")
     init_text = (MODULAR_DIR / "__init__.py").read_text(encoding="utf-8")
     for name in REMOVED_PUBLIC_NAMES:
         if name in init_text:
             failures.append(f"[PUBLIC_API] __init__.py still exports removed name {name!r}.")
+    for name in RAW_COMPILE_EXPORTS:
+        if name in init_text:
+            failures.append(f"[PUBLIC_API] __init__.py must not export raw compile helper {name!r}.")
     return failures
 
 
-def _check_runner_contract() -> list[str]:
+def _check_removed_runner_contract() -> list[str]:
     failures: list[str] = []
-    text = RUNNER_PATH.read_text(encoding="utf-8")
-    if "from Py4GWCoreLib.BottingTree import BottingTree" not in text:
-        failures.append("[RUNNER] BTRecipeRunner must import the BottingTree wrapper layer.")
-    if "SetCurrentNamedPlannerSteps" not in text:
-        failures.append("[RUNNER] BTRecipeRunner must install modular steps through BottingTree named planner steps.")
-    for banned in ("recipe.tree.tick", "_refresh_runtime_blackboard"):
-        if banned in text:
-            failures.append(f"[RUNNER] BTRecipeRunner still contains raw-runtime symbol {banned!r}.")
+    runner_path = MODULAR_DIR / "runner.py"
+    if runner_path.exists():
+        failures.append("[RUNNER] Py4GWCoreLib/modular/runner.py must be removed.")
+    widget_runtime_path = MODULAR_DIR / "widget_runtime.py"
+    if widget_runtime_path.exists():
+        failures.append("[RUNTIME] Py4GWCoreLib/modular/widget_runtime.py must be removed.")
+    for rel in ("hero_setup.py", "hero_setup_model.py", "hero_setup_ui.py"):
+        path = MODULAR_DIR / rel
+        if path.exists():
+            failures.append(f"[OWNERSHIP] modular hero setup shim/file must be removed: {path.relative_to(REPO_ROOT)}")
+    if not BOTTING_HERO_SETUP_PATH.exists() or not BOTTING_HERO_SETUP_MODEL_PATH.exists():
+        failures.append("[OWNERSHIP] BottingTree hero setup model/facade must exist.")
+    for root in (MODULAR_DIR, MODULAR_WIDGET_DIR, PREBUILT_DIR):
+        if not root.exists():
+            continue
+        for path in root.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            for banned in ("BTRecipeRunner", "RuntimeStepView", "RecipePhaseView"):
+                if banned in text:
+                    failures.append(
+                        f"[RUNNER] {path.relative_to(REPO_ROOT)} still references removed runner symbol {banned!r}."
+                    )
+            if "class CompiledRecipe:" in text:
+                failures.append(
+                    f"[RUNNER] {path.relative_to(REPO_ROOT)} still defines removed runner symbol 'CompiledRecipe'."
+                )
+            for banned in ("recipe.tree.tick", "_refresh_runtime_blackboard"):
+                if banned in text:
+                    failures.append(
+                        f"[RUNNER] {path.relative_to(REPO_ROOT)} still contains raw-runtime symbol {banned!r}."
+                    )
+            for banned in (
+                "Py4GWCoreLib.modular.widget_runtime",
+                "Py4GWCoreLib.modular.hero_setup",
+                "Py4GWCoreLib.modular.hero_setup_model",
+                "Py4GWCoreLib.modular.hero_setup_ui",
+            ):
+                if banned in text:
+                    failures.append(f"[OWNERSHIP] {path.relative_to(REPO_ROOT)} still imports {banned!r}.")
+    return failures
+
+
+def _check_composition_ownership() -> list[str]:
+    failures: list[str] = []
+    bt_text = BT_PATH.read_text(encoding="utf-8")
+    for required in ("def as_tree", "def resolve_tree", "def build_sequence", "def build_named_sequence"):
+        if required not in bt_text:
+            failures.append(f"[BEHAVIOR_TREE] missing canonical helper {required}.")
+    planner_text = BOTTING_PLANNER_PATH.read_text(encoding="utf-8")
+    if "BehaviorTree.build_named_sequence" not in planner_text:
+        failures.append("[BOTTING_TREE] planner must delegate named sequence construction to BehaviorTree.")
+    if "_build_named_planner_tree" in planner_text or "_coerce_runtime_tree" in planner_text:
+        failures.append("[BOTTING_TREE] planner still contains duplicate sequence/coercion helpers.")
+    composite_text = COMPOSITE_PATH.read_text(encoding="utf-8")
+    if "BehaviorTree.build_sequence" not in composite_text or "BehaviorTree.build_named_sequence" not in composite_text:
+        failures.append("[BT_COMPOSITE] composite helpers must delegate sequence construction to BehaviorTree.")
     return failures
 
 
@@ -99,6 +172,31 @@ def _check_removed_runtime_paths() -> list[str]:
         path = MODULAR_DIR / rel
         if path.exists() and any(path.rglob("*.py")):
             failures.append(f"[CLEANUP] obsolete modular package still has Python files: {path.relative_to(REPO_ROOT)}")
+    return failures
+
+
+def _check_modular_tools_runtime_paths() -> list[str]:
+    failures: list[str] = []
+    runtime_smoke = MODULAR_DATA_DIR / "tools" / "run_modular_action_smoke_tests.py"
+    if runtime_smoke.exists():
+        text = runtime_smoke.read_text(encoding="utf-8")
+        for banned in (
+            "compile_recipe_to_bt",
+            "from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree",
+            "tree.tick()",
+        ):
+            if banned in text:
+                failures.append(f"[TOOLS] runtime smoke tool still bypasses BottingTree via {banned!r}.")
+        if "BottingTree" not in text or "SetCurrentNamedPlannerSteps" not in text:
+            failures.append("[TOOLS] runtime smoke tool must install generated recipes into BottingTree.")
+
+    compile_tool = MODULAR_DATA_DIR / "tools" / "compile_json_bt_recipes.py"
+    if compile_tool.exists():
+        text = compile_tool.read_text(encoding="utf-8")
+        if "compile_recipe_to_bt" in text:
+            failures.append("[TOOLS] compile_json_bt_recipes.py must compile through the planner-step adapter.")
+        if "compile_recipe_steps_to_named_planner_steps" not in text:
+            failures.append("[TOOLS] compile_json_bt_recipes.py must use the planner-step adapter.")
     return failures
 
 
