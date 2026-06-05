@@ -26,6 +26,7 @@ from Py4GWCoreLib import Map, Utils
 from Py4GWCoreLib.IniManager import IniManager as _IniManager
 from Py4GWCoreLib.native_src.methods.MapMethods import MapMethods
 from Py4GWCoreLib.native_src.methods.FfnaMapMethods import FfnaMapMethods
+from Py4GWCoreLib.Overlay import Overlay as _Overlay
 
 MODULE_NAME = "WorldMap+"
 
@@ -66,15 +67,16 @@ _PORTAL_BUILT:     set[int] = set()
 _PORTAL_DEST_DATA: dict[int, list[dict]] = {}
 _PORTAL_ALL_DATA:  dict[int, list[dict]] = {}
 _live_portal_cache: dict = {}  # values are either list[dict] or dict with "portals"/"extents" keys
-_LIVE_PORTAL_CACHE_FILE = os.path.join(_SCRIPT_DIR, "portal_live_cache.json")
-_PORTAL_ALL_FILE        = os.path.join(_SCRIPT_DIR, "portal_all.json")
 
-# Shared adapter file that accumulates map_rect (boundaries) across all sessions
+# Shared adapter directory for all persisted data (portal cache + map boundaries)
 _ADAPTER_DIR = os.path.join(
     Py4GW.Console.get_projects_path(),
     "Sources", "sch0l0ka", "adapter", "Worldmap+"
 )
-_MAP_RECT_FILE = os.path.join(_ADAPTER_DIR, "map_boundaries.json")
+_LIVE_PORTAL_CACHE_FILE = os.path.join(_ADAPTER_DIR, "portal_live_cache.json")
+_MAP_RECT_FILE          = os.path.join(_ADAPTER_DIR, "map_boundaries.json")
+_PORTAL_ALL_FILE        = os.path.join(_SCRIPT_DIR,  "portal_all.json")
+_PORTAL_LINKS_FILE      = os.path.join(_SCRIPT_DIR,  "portal_links.json")
 
 # In-memory cache: map_id -> (gx_min, gx_max, gy_min, gy_max)
 _MAP_RECT_CACHE: dict[int, tuple[float, float, float, float]] = {}
@@ -173,6 +175,13 @@ _opacity:          list[float] = [0.75]
 _show_ui_settings:   list[bool]  = [False]
 _show_debug:         list[bool]  = [False]
 _show_experimental:  list[bool]  = [False]  # when False: overlay only active on Prophecies
+_show_unconnected:   list[bool]  = [False]  # when False: hide maps with no portal links
+_record_portals:     list[bool]  = [True]   # write to portal_live_cache.json
+_record_boundaries:  list[bool]  = [True]   # write to map_boundaries.json
+_show_portal_editor: list[bool]  = [False]  # open the portal editor window
+_pe_gid_a:          list[int]   = [0]       # portal editor: GID input A
+_pe_gid_b:          list[int]   = [0]       # portal editor: GID input B
+_pe_status:         list[str]   = [""]      # portal editor: last action result
 _debug_map_a:      list[int]   = [0]
 _debug_map_b:      list[int]   = [0]
 _debug_map_a_str:  list[str]   = ["0"]
@@ -223,6 +232,9 @@ def _wmp_ini_try_init() -> bool:
     _show_navmesh[0]     = ini.read_bool (key, s, "show_navmesh",     False)
     _opacity[0]          = ini.read_float(key, s, "opacity",          0.75)
     _show_experimental[0] = ini.read_bool(key, s, "show_experimental", False)
+    _show_unconnected[0]  = ini.read_bool(key, s, "show_unconnected",  False)
+    _record_portals[0]    = ini.read_bool(key, s, "record_portals",    True)
+    _record_boundaries[0] = ini.read_bool(key, s, "record_boundaries", True)
     _wmp_ini_ready[0] = True
     return True
 
@@ -240,6 +252,9 @@ def _wmp_ini_save() -> None:
     ini.write_key(key, s, "show_navmesh",     _show_navmesh[0])
     ini.write_key(key, s, "opacity",          _opacity[0])
     ini.write_key(key, s, "show_experimental", _show_experimental[0])
+    ini.write_key(key, s, "show_unconnected",  _show_unconnected[0])
+    ini.write_key(key, s, "record_portals",    _record_portals[0])
+    ini.write_key(key, s, "record_boundaries", _record_boundaries[0])
 
 # ── Rendering helpers ──────────────────────────────────────────────────────────
 
@@ -271,7 +286,9 @@ def _load_map_rect_cache() -> None:
 
 
 def _save_map_rect_cache() -> None:
-    """Persist _MAP_RECT_CACHE to the adapter file."""
+    """Persist _MAP_RECT_CACHE to the adapter file (no-op when recording is off)."""
+    if not _record_boundaries[0]:
+        return
     try:
         os.makedirs(_ADAPTER_DIR, exist_ok=True)
         out = {
@@ -411,7 +428,9 @@ def _pmap_cache_for(map_id: int) -> None:
             _PMAP_DATA[map_id] = ((0.0, 0.0, 0.0, 0.0), [])
             return
 
-        # 1. Adapter file cache (correct live bounds from any previous session)
+        # 1. Adapter file cache (correct live bounds from any previous session).
+        #    _record_map_rect() is called every frame in _draw_overlay for the
+        #    current map, so this entry is always up-to-date when the player is in-map.
         gb: tuple[float, float, float, float] | None = _MAP_RECT_CACHE.get(map_id)
 
         # 2. FFNA/live trapezoid bounds – always valid, trapezoids project within [0,1]
@@ -602,11 +621,69 @@ def _load_live_portal_cache() -> None:
 
 
 def _save_live_portal_cache() -> None:
+    """Persist _live_portal_cache to portal_live_cache.json (no-op when recording is off)."""
+    if not _record_portals[0]:
+        return
     try:
         with open(_LIVE_PORTAL_CACHE_FILE, "w", encoding="utf-8") as fh:
             json.dump({str(k): v for k, v in _live_portal_cache.items()}, fh, indent=2)
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"Live portal cache save error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
+def _portal_link_game_xy(gid: int) -> tuple[float, float]:
+    """Return stored game (x, y) for a portal GID, or (0.0, 0.0) if unknown."""
+    mid = gid // 1000
+    idx = gid %  1000
+    dots = _PORTAL_ICON_POS.get(mid, [])
+    for dot in dots:
+        if len(dot) >= 7 and dot[4] == gid:
+            return float(dot[5]), float(dot[6])
+    return 0.0, 0.0
+
+
+def _save_portal_links() -> None:
+    """Persist the current _PORTAL_LINKS dict back to portal_links.json and reload."""
+    seen: set[tuple[int, int]] = set()
+    entries = []
+    for a_gid, b_gid in _PORTAL_LINKS.items():
+        pair = (min(a_gid, b_gid), max(a_gid, b_gid))
+        if pair in seen:
+            continue
+        seen.add(pair)
+        for gid_x, key in ((a_gid, "portal_a"), (b_gid, "portal_b")):
+            pass  # built below
+        ax, ay = _portal_link_game_xy(a_gid)
+        bx, by = _portal_link_game_xy(b_gid)
+        entries.append({
+            "portal_a": {
+                "global_id":    a_gid,
+                "map_id":       a_gid // 1000,
+                "portal_index": a_gid %  1000,
+                "game_x":       ax,
+                "game_y":       ay,
+            },
+            "portal_b": {
+                "global_id":    b_gid,
+                "map_id":       b_gid // 1000,
+                "portal_index": b_gid %  1000,
+                "game_x":       bx,
+                "game_y":       by,
+            },
+        })
+    try:
+        with open(_PORTAL_LINKS_FILE, "w", encoding="utf-8") as fh:
+            json.dump({"links": entries}, fh, indent=2)
+        _load_portal_links()
+        # Re-populate _CONNECTED_MAP_IDS so the overlay reflects the change immediately
+        linked_maps = {int(gid // 1000) for gid in _PORTAL_LINKS.keys()}
+        _CONNECTED_MAP_IDS.clear()
+        _CONNECTED_MAP_IDS.update(linked_maps)
+        Py4GW.Console.Log(MODULE_NAME, f"portal_links.json saved ({len(entries)} links).",
+                          Py4GW.Console.MessageType.Success)
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"portal_links.json save error: {e}",
                           Py4GW.Console.MessageType.Warning)
 
 
@@ -1648,6 +1725,17 @@ def _draw_overlay() -> None:
     alpha        = max(10, min(255, int(_opacity[0] * 255)))
     alpha_border = min(255, alpha + 60)
     current_map  = Map.GetMapID()
+
+    # Refresh live map boundaries every frame for the current map.
+    # _record_map_rect is a no-op when bounds are unchanged, but when they differ
+    # it invalidates the stale pmap cache entry so the next draw uses correct scaling.
+    try:
+        _bx1, _by1, _bx2, _by2 = Map.GetMapBoundaries()
+        if _bx2 > _bx1 and _by2 > _by1:
+            _record_map_rect(current_map, float(_bx1), float(_bx2), float(_by1), float(_by2))
+    except Exception:
+        pass
+
     cur_border   = Utils.RGBToColor(255, 255, 100, 255)
     link_color   = Utils.RGBToColor(255, 220, 60, int(alpha * 0.85))
     lbl_color    = Utils.RGBToColor(255, 255, 255, min(255, alpha + 80))
@@ -1762,9 +1850,10 @@ def _draw_overlay() -> None:
         if not is_current and (x2 < sl or x1 > sr or y2 < st or y1 > sb):
             continue
 
-        has_portals = any(mid in _CONNECTED_MAP_IDS for mid in group_ids)
-        if not is_current and not has_portals:
-            continue
+        if not is_current and not _show_unconnected[0]:
+            has_portals = any(mid in _CONNECTED_MAP_IDS for mid in group_ids)
+            if not has_portals:
+                continue
 
         is_hovered = x1 <= mx <= x2 and y1 <= my <= y2
 
@@ -1787,8 +1876,6 @@ def _draw_overlay() -> None:
             sorted_ids = sorted(group_ids)
             for i, line in enumerate(group_label.split("\n")):
                 mid = sorted_ids[i] if i < len(sorted_ids) else -1
-                if mid >= 0 and mid != current_map and mid not in _CONNECTED_MAP_IDS:
-                    continue
                 raw = f"{line} [{mid}]" if mid >= 0 else line
                 PyImGui.draw_list_add_text(x1 + 2.0, y1 + 2.0 + i * 13.0, lbl_color, raw)
 
@@ -2251,15 +2338,33 @@ def _draw_legend_and_settings() -> None:
 
     # ── Debug ───────────────────────────────────────────────────────────────
     PyImGui.separator()
-    _show_debug[0] = PyImGui.checkbox("Show Debug##wmp", _show_debug[0])
+    _rclick_active[0] = PyImGui.checkbox("Activate Rightclick##wmp", _rclick_active[0])
 
-    _rclick_active[0] = PyImGui.checkbox("  Activate Rightclick##wmp", _rclick_active[0])
+    _show_debug[0] = PyImGui.checkbox("Show Debug##wmp", _show_debug[0])
 
     if _show_debug[0]:
         new_exp = PyImGui.checkbox("  Show Experimental##wmp", _show_experimental[0])
         if new_exp != _show_experimental[0]:
             _show_experimental[0] = new_exp
             _wmp_ini_save()
+
+        new_unc = PyImGui.checkbox("  Show Unconnected##wmp", _show_unconnected[0])
+        if new_unc != _show_unconnected[0]:
+            _show_unconnected[0] = new_unc
+            _wmp_ini_save()
+
+        new_rp = PyImGui.checkbox("  Record Portals##wmp", _record_portals[0])
+        if new_rp != _record_portals[0]:
+            _record_portals[0] = new_rp
+            _wmp_ini_save()
+
+        new_rb = PyImGui.checkbox("  Record Map Boundaries##wmp", _record_boundaries[0])
+        if new_rb != _record_boundaries[0]:
+            _record_boundaries[0] = new_rb
+            _wmp_ini_save()
+
+        PyImGui.separator()
+        _show_portal_editor[0] = PyImGui.checkbox("  Show Portal Editor##wmp", _show_portal_editor[0])
 
     if _show_debug[0] and not _show_experimental[0]:
         PyImGui.text_disabled("  (Prophecies only)")
@@ -2429,6 +2534,180 @@ def _draw_legend_and_settings() -> None:
 
     PyImGui.end()
 
+# ── Portal Editor 3D in-game overlay ──────────────────────────────────────────
+
+def _draw_portal_editor_3d() -> None:
+    """Draw portal positions of the current map in-game as 3D circles + labels."""
+    if not _show_portal_editor[0]:
+        return
+    if not Map.IsMapReady():
+        return
+
+    cur_map = Map.GetMapID()
+    _ensure_portal_dots(cur_map, is_live=True)
+    dots = _PORTAL_ICON_POS.get(cur_map, [])
+    if not dots:
+        return
+
+    col_linked   = Utils.RGBToColor( 60, 220,  60, 220)
+    col_unlinked = Utils.RGBToColor(220,  60,  60, 220)
+    col_text_lnk = Utils.RGBToColor(180, 255, 180, 255)
+    col_text_unl = Utils.RGBToColor(255, 180, 180, 255)
+
+    overlay = _Overlay()
+    overlay.BeginDraw()
+    try:
+        for dot in dots:
+            if len(dot) < 7:
+                continue
+            _, _, dest_name, idx, gid, gx, gy = dot[:7]
+
+            linked_gid  = _PORTAL_LINKS.get(gid)
+            is_linked   = linked_gid is not None
+            fill_col    = col_linked   if is_linked else col_unlinked
+            text_col    = col_text_lnk if is_linked else col_text_unl
+
+            gz = float(_Overlay.FindZ(float(gx), float(gy)))
+
+            # Circle on the ground
+            overlay.DrawPolyFilled3D(float(gx), float(gy), gz, 80.0, fill_col, 24)
+
+            # Label: index, GID and destination / linked portal
+            if is_linked:
+                partner_mid  = linked_gid // 1000
+                partner_idx  = linked_gid %  1000
+                partner_meta = _MAP_META.get(partner_mid)
+                partner_name = partner_meta[1] if partner_meta else f"Map {partner_mid}"
+                label = f"[{idx}] GID {gid}\n-> [{partner_idx}] {partner_name}"
+            else:
+                label = f"[{idx}] GID {gid}\n(unlinked)"
+
+            overlay.DrawText3D(float(gx), float(gy), gz - 100.0,
+                               label, text_col, False, True, 1.0)
+    finally:
+        overlay.EndDraw()
+
+
+# ── Portal Editor window ───────────────────────────────────────────────────────
+
+def _draw_portal_editor() -> None:
+    if not _show_portal_editor[0]:
+        return
+
+    flags = (
+        PyImGui.WindowFlags.NoCollapse  |
+        PyImGui.WindowFlags.NoScrollbar
+    )
+    PyImGui.set_next_window_size(480.0, 500.0)
+    if not PyImGui.begin("Portal Editor##wmp_pe", flags):
+        PyImGui.end()
+        return
+
+    cur_map = Map.GetMapID()
+    cur_meta = _MAP_META.get(cur_map)
+    cur_name = cur_meta[1] if cur_meta else f"Map {cur_map}"
+
+    PyImGui.text(f"Map: {cur_name}  [{cur_map}]")
+    PyImGui.separator()
+
+    # ── Link / Unlink controls ─────────────────────────────────────────────
+    PyImGui.text("Link portals:")
+    PyImGui.set_next_item_width(120.0)
+    _pe_gid_a[0] = PyImGui.input_int("GID A##pe_a", _pe_gid_a[0])
+    PyImGui.same_line(0.0, 6.0)
+    PyImGui.set_next_item_width(120.0)
+    _pe_gid_b[0] = PyImGui.input_int("GID B##pe_b", _pe_gid_b[0])
+
+    PyImGui.same_line(0.0, 10.0)
+    if PyImGui.button("Link##pe_link", 50.0, 0.0):
+        a, b = _pe_gid_a[0], _pe_gid_b[0]
+        if a > 0 and b > 0 and a != b:
+            _PORTAL_LINKS[a] = b
+            _PORTAL_LINKS[b] = a
+            _save_portal_links()
+            _pe_status[0] = f"Linked GID {a} <-> {b}"
+        else:
+            _pe_status[0] = "Invalid GIDs — must be two different positive values."
+
+    PyImGui.same_line(0.0, 4.0)
+    if PyImGui.button("Unlink##pe_unlink", 60.0, 0.0):
+        a, b = _pe_gid_a[0], _pe_gid_b[0]
+        removed = False
+        for gid in (a, b):
+            if gid in _PORTAL_LINKS:
+                partner = _PORTAL_LINKS.pop(gid)
+                _PORTAL_LINKS.pop(partner, None)
+                removed = True
+        if removed:
+            _save_portal_links()
+            _pe_status[0] = f"Unlinked GID {a} / {b}"
+        else:
+            _pe_status[0] = "No link found for those GIDs."
+
+    if _pe_status[0]:
+        PyImGui.text_disabled(_pe_status[0])
+
+    PyImGui.separator()
+
+    # Ensure portal dots are built for the current map
+    _ensure_portal_dots(cur_map, is_live=True)
+    dots = _PORTAL_ICON_POS.get(cur_map, [])
+
+    if not dots:
+        PyImGui.text_disabled("No portal data available for this map.")
+        PyImGui.end()
+        return
+
+    col_linked   = (0.25, 0.90, 0.25, 1.0)
+    col_unlinked = (0.90, 0.25, 0.25, 1.0)
+    col_label    = (0.85, 0.85, 0.85, 1.0)
+    col_partner  = (0.55, 0.85, 1.00, 1.0)
+
+    PyImGui.begin_child("##pe_list", (0.0, 0.0), False)
+
+    for dot in dots:
+        pix, piy, dest_name, idx, gid, gx, gy = dot[:7] if len(dot) >= 7 else (*dot[:6], 0.0)
+
+        linked_gid = _PORTAL_LINKS.get(gid)
+        is_linked  = linked_gid is not None
+
+        # ── Portal header row ──────────────────────────────────────────────
+        status_col  = col_linked if is_linked else col_unlinked
+        status_text = "LINKED" if is_linked else "UNLINKED"
+        PyImGui.text_colored(f"[{idx}]  GID {gid}  —  {status_text}", status_col)
+        PyImGui.same_line(0.0, 8.0)
+        PyImGui.text_colored(f"  game ({gx:.1f}, {gy:.1f})", col_label)
+
+
+        # ── Linked partner info ────────────────────────────────────────────
+        if is_linked:
+            partner_map_id  = linked_gid // 1000
+            partner_idx     = linked_gid %  1000
+            partner_meta    = _MAP_META.get(partner_map_id)
+            partner_name    = partner_meta[1] if partner_meta else f"Map {partner_map_id}"
+
+            # Look up partner's game coords if available
+            partner_dots = _PORTAL_ICON_POS.get(partner_map_id, [])
+            partner_dot  = next((d for d in partner_dots if len(d) >= 5 and d[4] == linked_gid), None)
+            if partner_dot and len(partner_dot) >= 7:
+                pgx, pgy = partner_dot[5], partner_dot[6]
+                PyImGui.text_colored(
+                    f"     -> [{partner_idx}] GID {linked_gid}  {partner_name} [{partner_map_id}]"
+                    f"  ({pgx:.1f}, {pgy:.1f})",
+                    col_partner,
+                )
+            else:
+                PyImGui.text_colored(
+                    f"     -> [{partner_idx}] GID {linked_gid}  {partner_name} [{partner_map_id}]",
+                    col_partner,
+                )
+
+        PyImGui.separator()
+
+    PyImGui.end_child()
+    PyImGui.end()
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -2512,6 +2791,9 @@ def main() -> None:
             _draw_overlay()
             _draw_legend_and_settings()
             _draw_map_queue_window()
+
+        _draw_portal_editor_3d()
+        _draw_portal_editor()
 
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"{e}\n{traceback.format_exc()}",
