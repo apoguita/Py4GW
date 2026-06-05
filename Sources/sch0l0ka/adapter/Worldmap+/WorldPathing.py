@@ -4,12 +4,15 @@ WorldPathing
 Data layer for inter-map routing used by the WorldMap+ overlay.
 
 Provides:
-  - _MAP_ADJACENCY / _ALL_EDGES / _MAP_META   world-graph static data
+  - _MAP_ADJACENCY / _ALL_EDGES / _MAP_META   world-graph data (populated at runtime)
   - _PORTAL_LINKS / _GLOBAL_ID_TO_PORTAL / _PORTAL_TO_GLOBAL_ID / _PORTAL_GAME_POS
-  - configure(script_dir)     load portal_links.json
+  - configure(adapter_dir)    load portal_links.json
   - invalidate_world_adj()    call after portal-link changes
   - _map_name_cached(mid)     map-name helper
   - _load_portal_links()      reload portal_links.json
+
+Navigation only works for maps with recorded portal links.
+Maps without portal links in portal_links.json are not reachable.
 """
 
 import Py4GW
@@ -26,87 +29,12 @@ class WorldPathing:
 
     _instance = None
 
-    # ── Class-level static data (shared across all callers) ────────────────────
+    # ── Class-level data (populated at runtime by WorldMap+._build_cache) ────────
 
-    # Hardcoded walkable-portal adjacency graph.
-    _MAP_ADJACENCY: dict[int, set[int]] = {
-        # ── EotN: Norn region ──────────────────────────────────────────────────
-        642: {482, 513, 546, 548, 553, 589, 590, 591, 592},
-        482: {642, 513, 546},
-        513: {642, 482, 546, 548},
-        546: {642, 482, 513},
-        548: {642, 513, 553},
-        553: {642, 548, 647, 649},
-        647: {553, 649, 651},
-        649: {553, 647, 651},
-        651: {647, 649},
-        589: {642, 553},
-        590: {642, 482},
-        591: {642, 548},
-        592: {642, 546},
-        # ── EotN: Asura region ─────────────────────────────────────────────────
-        572: {642, 558, 566, 501},
-        558: {572, 566, 501, 569},
-        501: {572, 558, 569},
-        566: {572, 558},
-        569: {558, 501},
-        594: {572, 558},
-        595: {501, 572},
-        596: {566, 572},
-        598: {569, 558},
-        # ── Nightfall: Istan region ────────────────────────────────────────────
-        449: {430, 431, 432, 483, 484, 486, 488},
-        543: {430, 449},
-        430: {449, 543, 431, 432, 484, 486},
-        431: {449, 430, 432, 483},
-        432: {449, 430, 431, 484},
-        483: {431, 449, 484, 485},
-        484: {430, 432, 449, 483, 486},
-        485: {483, 486, 488},
-        486: {430, 449, 484, 485, 488},
-        488: {449, 485, 486, 490},
-        490: {488},
-        450: {430, 449},
-        451: {430, 449},
-        452: {430, 449, 431},
-        427: {449},
-        # ── Nightfall: Kourna region ───────────────────────────────────────────
-        371: {369, 373, 375, 377, 379, 380},
-        369: {371, 373, 375, 379, 392, 394},
-        373: {371, 369, 375, 385},
-        375: {371, 373, 377, 379, 384, 385},
-        377: {371, 375, 379},
-        379: {371, 369, 375, 377, 380, 382},
-        380: {371, 379, 384},
-        382: {379, 380},
-        384: {375, 380},
-        385: {373, 375},
-        392: {369, 394, 397, 404},
-        394: {369, 392, 395, 397},
-        # ── Nightfall: Vabbi region ────────────────────────────────────────────
-        395: {394, 397, 399, 406},
-        397: {392, 394, 395, 399, 402},
-        399: {395, 397, 402, 404, 406},
-        402: {394, 397, 399, 406},
-        404: {392, 399},
-        406: {395, 399, 402},
-        # ── Prophecies: Kryta ──────────────────────────────────────────────────
-        58:  {59, 62, 63, 64},
-        59:  {58, 60, 61},
-        60:  {59, 61, 64},
-        61:  {59, 60, 63},
-        62:  {58, 63},
-        63:  {58, 61, 62, 64},
-        64:  {58, 60, 63},
-        # ── Factions: Shing Jea ────────────────────────────────────────────────
-        235: {236, 237, 238},
-        236: {235, 237, 246},
-        237: {235, 236, 238},
-        238: {235, 237},
-    }
-
-    # Will be set to True after bidirectional edges + _ALL_EDGES are built once.
-    _ADJACENCY_READY = False
+    # Map-level adjacency graph. Populated at runtime from co-located map groups
+    # and portal_links.json. No hardcoded entries — navigation only works for
+    # maps with recorded portal links.
+    _MAP_ADJACENCY: dict[int, set[int]] = {}
 
     # Deduplicated edge set (each pair stored once as (min, max)).
     _ALL_EDGES: set[tuple[int, int]] = set()
@@ -114,9 +42,6 @@ class WorldPathing:
     # Map metadata: map_id -> (type:int, name:str, campaign:int)
     # Populated by WorldMap+._build_cache() on startup.
     _MAP_META: dict[int, tuple[int, str, int]] = {}
-
-    # Region-type constant (matches WorldMap+ widget).
-    _RT_EXPLORABLE = 2
 
     # ──────────────────────────────────────────────────────────────────────────
 
@@ -129,16 +54,6 @@ class WorldPathing:
     def __init__(self) -> None:
         if self._initialized:
             return
-
-        # Build bidirectional adjacency and edge set exactly once.
-        if not WorldPathing._ADJACENCY_READY:
-            for _src, _dsts in list(WorldPathing._MAP_ADJACENCY.items()):
-                for _dst in _dsts:
-                    WorldPathing._MAP_ADJACENCY.setdefault(_dst, set()).add(_src)
-            for _a, _bs in WorldPathing._MAP_ADJACENCY.items():
-                for _b in _bs:
-                    WorldPathing._ALL_EDGES.add((min(_a, _b), max(_a, _b)))
-            WorldPathing._ADJACENCY_READY = True
 
         # ── Portal data (per-instance, loaded from portal_links.json) ─────────
         self.portal_links_file: str = ""
