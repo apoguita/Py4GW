@@ -1,13 +1,10 @@
 """
-Window Title V3 — test all three vectors (2026-06-03)
-Requires rebuilt DLL with Window-Polish C++ changes (FrameSetLayer, FrameSetPosition).
-Chrome offsets verified against CRProc disassembly (05-30-2026 EXE):
-  Title bar = 20 px, Left/Right border = 32 px, Bottom border = 32 px.
+Native window creation POC.
 
-Y-inversion restored (Phase 3.5): CRect::BuildRect inverts Y during rendering,
-so engine coords use bottom-left origin. _to_engine_coords() encapsulates this.
+CreateWindow now accepts content-space pixel bounds directly and handles
+chrome expansion, viewport scaling, and Y inversion internally in the C++ layer.
 """
-import PyImGui, PyUIManager
+import PyImGui
 from Py4GWCoreLib import Overlay, UIManager
 from Py4GWCoreLib.GWUI import GWUI
 
@@ -23,65 +20,21 @@ TOP_TITLE     = 20   # title bar height
 RIGHT_BORDER  = 32   # right chrome border
 BOTTOM_BORDER = 32   # bottom chrome border
 
-# Legacy offsets (kept as reference):
-WINDOW_OFFSET_X = 30  # old (~32)
-WINDOW_OFFSET_Y = 60  # old (~52)
-BORDER_X = 20          # old (~32)
-BORDER_Y = 15          # old (~32)
-
-_window_layer_counter = 0
-
-
-def _get_viewport_height() -> float:
-    """Returns viewport height (used for Y-inversion)."""
-    root_frame_id = UIManager.GetRootFrameID()
-    _, viewport_height = UIManager.GetViewportDimensions(root_frame_id)
-    return float(viewport_height)
-
-
-def _to_engine_y_from_top(y_from_top: float, height: float) -> float:
-    """Convert screen-top Y to engine (bottom-left) Y, accounting for bottom chrome."""
-    return _get_viewport_height() - float(y_from_top) - float(height) - BOTTOM_BORDER
-
-
-def _to_engine_coords(content_x, content_y, content_w, content_h):
-    """Convert screen coords (top-left origin) to engine coords (bottom-left origin).
-    
-    CRect stores position in top-left convention but BuildRect inverts Y during
-    rendering. Engine coords must pre-invert to compensate for BuildRect's inversion.
-    
-    Borders are POSITIONAL OFFSETS only — the frame size is the requested content size.
-    Chrome (title bar, borders) renders OUTSIDE the frame CRect.
-    """
-    engine_x = content_x - LEFT_BORDER
-    # Content within frame starts at frame_top + TOP_TITLE.
-    # In bottom-left: engine_y must place frame_top TOP_TITLE above desired content_y.
-    # After BuildRect: screen(frame_top) = viewport_h - engine_y - content_h
-    #   content_screen_y = screen(frame_top) + TOP_TITLE = viewport_h - engine_y - h + TOP_TITLE
-    #   Set equal to content_y: engine_y = viewport_h - content_y - content_h + TOP_TITLE
-    engine_y = _get_viewport_height() - content_y - content_h + TOP_TITLE
-    return engine_x, engine_y, content_w, content_h  # size = content, no border addition
+def _get_pixel_viewport() -> tuple[float, float]:
+    """Get pixel dimensions of DirectX render target (same space as Overlay)."""
+    display = Overlay().GetDisplaySize()
+    return float(display.x), float(display.y)
 
 
 def test_c_create():
-    global fid_a, TITLE, _window_layer_counter
+    global fid_a, TITLE
 
-    engine_x, engine_y, frame_w, frame_h = _to_engine_coords(
-        COORDS[0], COORDS[1], SIZE[0], SIZE[1]
-    )
-
-    _window_layer_counter += 1
-    layer = _window_layer_counter
-
-    fid_a = PyUIManager.UIManager.CreateNativeWindow(
-        engine_x, engine_y, frame_w, frame_h, TITLE,
-        9,          # parent_frame_id
-        0,          # child_index
-        0x20,       # frame_flags (bit 0x20 = popup — enables click-to-raise)
-        0x20,       # create_param
-        0x6,        # anchor_flags
-        0x59,       # subclass_flags
-        layer,      # z-order layer (unique per window)
+    fid_a = GWUI.CreateWindow(
+        COORDS[0],
+        COORDS[1],
+        SIZE[0],
+        SIZE[1],
+        TITLE,
     ) or 0
 
 # ── UI ──────────────────────────────────────────────────────────
@@ -105,11 +58,6 @@ def main():
     _w = PyImGui.input_int("w:", _w)
     _h = PyImGui.input_int("h:", _h)
     SIZE = (_w, _h)
-
-    # Show computed engine coords (bottom-left origin, including chrome)
-    eng_x, eng_y, frm_w, frm_h = _to_engine_coords(_x, _y, _w, _h)
-    PyImGui.text(f"Engine coords: ({eng_x:.0f}, {eng_y:.0f})  frame: {frm_w:.0f}x{frm_h:.0f}")
-    PyImGui.text(f"Viewport: {_get_viewport_height():.0f}")
 
     draw_window_target = PyImGui.checkbox("Draw Content Quad (green)", draw_window_target)
     draw_window_border = PyImGui.checkbox("Draw Frame Quad (magenta)", draw_window_border)

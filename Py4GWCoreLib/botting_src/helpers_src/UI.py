@@ -20,7 +20,6 @@ class _UI:
     def iter_cancel_skill_reward_window(self):
         from ...Routines import Routines
         import Py4GW
-        from ...GWUI import GWUI
         from ...UIManager import UIManager
         global bot  
         yield from Routines.Yield.wait(500)
@@ -56,7 +55,6 @@ class _UI:
         
     def iter_frame_click(self, frame_id:int):
         from ...Routines import Routines
-        from ...GWUI import GWUI
         from ...UIManager import UIManager
         from ...Py4GWcorelib import ConsoleLog, Console
         yield from Routines.Yield.wait(500)
@@ -69,7 +67,6 @@ class _UI:
         
     def iter_frame_click_on_bag_slot(self, bag_id:int, slot:int):
         from ...Routines import Routines
-        from ...GWUI import GWUI
         from ...UIManager import UIManager
         from ...Py4GWcorelib import ConsoleLog, Console
         yield from Routines.Yield.wait(500)
@@ -92,7 +89,6 @@ class _UI:
         
     def iter_bag_item_click(self, bag_id:int, slot:int):
         from ...Routines import Routines
-        from ...GWUI import GWUI
         from ...UIManager import UIManager
         from ...Py4GWcorelib import ConsoleLog, Console
         yield from Routines.Yield.wait(500)
@@ -116,7 +112,6 @@ class _UI:
         
     def iter_bag_item_double_click(self, bag_id:int, slot:int):
         from ...Routines import Routines
-        from ...GWUI import GWUI
         from ...UIManager import UIManager
         from ...Py4GWcorelib import ConsoleLog, Console
         yield from Routines.Yield.wait(500)
