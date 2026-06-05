@@ -659,7 +659,172 @@ All hardcoded address comments in `py_ui.h` were removed. All missing bindings a
 
 ---
 
-## 12. Document Index
+## 12. Frame List Architecture (2026-06-04)
+
+After the window-contents RE cycle, the frame list system is fully mapped. Frame lists (type `0xAEA`, `CCtlFrameList::FrameProc`) are the game's reusable scrollable container component, used by **81 windows** across 12 game domains.
+
+### Frame Hierarchy
+
+```
+Root Window (e.g., DlgDevTextProc @ EXE 0x0088a870)
+  └─ child N: FrameList (type 0xAEA = CCtlFrameList::FrameProc @ EXE 0x00612c80)
+       │  Created: FrameCreate(parent, 0x20000|0x380, N, 0xAEA, {0, &page_size, 0}, null)
+       │  Subclass: FrameNewSubclass(list, &chrome_proc, 0x59)  ← adds scrollbar chrome
+       │
+       ├─ item 0: TextLabel (CtlTextProc @ EXE 0x00610c40)
+       ├─ item 1: TextLabel
+       └─ ... N items (e.g., DevText has 30)
+```
+
+The frame list is NOT always child 0. Its position varies by window:
+- **Child 0**: DevText, InventoryAggregate, FriendsList
+- **Child 1**: PartySearch (inside tab page)
+- **Child 2**: VendorBuy, SelectMission
+
+Three architectural patterns identified:
+
+| Pattern | Structure | Example Windows |
+|---------|-----------|----------------|
+| **A (simple)** | Root → [decorative children] → FrameList (child N) → Items | DevText, InventoryAggregate, FriendsList, VendorBuy, SelectMission |
+| **B (nested)** | Root → CategoryFrame → FrameList → Items | Party, Guild, AutoTourn |
+| **C (scrollable)** | Pattern A + `FrameNewSubclass(list, &proc, 0x59)` for scrollbars | DevText, InventoryAggregate, PartySearch |
+
+Common frame list creation flags:
+- `0x20000` — scrollable wrapper (most windows)
+- `0x380` — additional scroll/auto-sizing (DevText only)
+- `0x20080` — variant (FriendsList)
+
+### Key Message Map: CCtlFrameList::FrameProc @ EXE 0x00612c80
+
+| Msg Hex | Msg Dec | Handler | Effect |
+|---------|---------|---------|--------|
+| 0x09 | 9 | Create | Allocates internal data block (6×4 bytes) |
+| 0x0B | 11 | Destroy | Frees internal data |
+| 0x13 | 19 | GetFirstChild | Returns first child frame ID |
+| 0x37 | 55 | **OnFrameMsgSize** | **Stacks children vertically** (bottom-to-top) — THE layout engine |
+| 0x38 | 56 | **OnFrameMsgSizeQuery** | Reports cumulative child native size |
+| 0x56 | 86 | FrameDestroyChildren | Destroys all item children |
+| 0x57 | 87 | **FrameCreate** | **Creates item child frame** — used by CtlFrameListCreateItem. ORs flags with `\|0x300` |
+| 0x59 | 89 | OnThisMsgEnumItem | Enumerates items (4 relation types: first/next/prev/last) |
+| 0x5C | 92 | GetItemRect | Gets item bounding rect |
+| 0x5F | 95 | OnThisMsgMoveItem | Moves/reorders items |
+| 0x62 | 98 | SetSizeHandler | Sets CtlFrameListSetSizeHandler |
+| 0x63 | 99 | SetSizeQueryHandler | Sets CtlFrameListSetSizeQueryHandler |
+| 0x65 | 101 | OnThisMsgShowItem | Show/hide item → triggers relayout |
+
+### CCtlFrameList::OnFrameMsgSize — The Stacking Engine
+
+Algorithm (@ WASM `ram:80e7d758`):
+1. Check **style `0x2000`** on frame — if set, **skip automatic layout** (items positioned manually)
+2. `BuildItemFrameIdArray` — collect all child frame IDs
+3. If custom sort handler exists → delegate
+4. Otherwise: iterate array, stacking from bottom to top:
+   - Starting Y = parent height
+   - For each child: `Y = Y - child_native_height`, X = 0
+   - `FrameSetPosition(child, {0, Y}, {0, 0})`
+
+### CtlFrameListCreateItem @ EXE 0x00612900
+
+**Prototype**: `uint32 CtlFrameListCreateItem(uint32 parentFrameId, uint32 flags, uint32 insertIndex, void (*itemProc)(...), void* userData)`
+
+Builds a 4-field create-param struct, sends message **0x57** to the parent frame list via `FrameMsgSend(parent, 0x57, &createParam, &result)`. The frame list's msg 0x57 handler creates the child via `FrameCreate` with flags `| 0x300`. Returns new item frame ID.
+
+**Byte pattern**: `\xC7\x45\x0C\x00\x00\x00\x00\x50\x6A\x57\xFF\x75\x08` at offset `-0x25`.
+
+### FrameNewSubclass @ EXE 0x0062f150
+
+**Prototype**: `void* FrameNewSubclass(uint32 frameId, void* subclassProc, uint32 msgId)`
+
+Performs: `GetFrame(frameId)` → `NewSubclass()` → `SetSubclass(frame, proc, msgId, ...)`. Registers a subclass handler for a specific message ID. Used to add scrollbar chrome to frame lists (e.g., DevText uses `FrameNewSubclass(list, &proc, 0x59)`).
+
+**Byte pattern**: `\x8D\xB8\xA8\x00\x00\x00\x8B\xCF` at offset `-0x2D`.
+
+### DevText Reference Model
+
+- **30 items total**: 15 plain + 15 rich-text (looped with style_id 0–14)
+- **Frame list flags**: `0x20380` = `0x20000 | 0x380`
+- **Item proc**: `CtlTextProc` (table index `0xA81`)
+- **Subclass proc**: `proc_0xAED` (table index 2797, CtlViewProc-related) applied via `FrameNewSubclass`
+- NO `CtlViewSetIncrement` — relies on default scroll stepping
+- NO `CtlViewSetPage` — no explicit page size handler
+
+### Size Propagation Chain
+
+```
+Window Resize → parent FrameProc msg 0x38 (SizeQuery)
+  → FrameGetChild(root, N) → frameListId
+  → FrameGetNativeSize(frameListId)
+    → CCtlFrameList::FrameProc msg 0x38 (OnFrameMsgSizeQuery)
+      → BuildItemFrameIdArray
+      → Accumulate native widths/heights for all items
+      → Report total size
+
+Frame List Size Change → msg 0x37 (OnFrameMsgSize)
+  → BuildItemFrameIdArray
+  → For each item: stack bottom-to-top
+  → FrameSetPosition(item, {0, Y}, {0, 0})
+```
+
+### Style 0x2000 — Manual Positioning Mode
+
+When style `0x2000` is set on a frame list child, `OnFrameMsgSize` **skips** that child entirely — the child is responsible for its own positioning. This allows mixed auto-stacked + manually positioned items.
+
+### InventoryAggregate — Complete Reference Model
+
+The inventory is the full-featured scrollable reference:
+
+```
+CAggregateInv::OnFrameCreate @ WASM ram:81549948:
+  1. FrameMouseEnable(frame, 8, 0)
+  2. FrameGamepadEnable(frame, 8, 0)
+  3. FrameCreate(frame, 0x20000, 0, 0xAEA, null, null)
+  4. CtlViewSetIncrement(child, 2)          → scroll step = 2px
+  5. CtlViewSetPage(child, 0, &handler, 0)  → page size handler
+  6. CtlFrameListSetSizeHandler(child, &handler)  → custom size handler
+  7. CtlFrameListSetSizeQueryHandler(child, handler) → size query handler
+  8. FrameSetMinSize / FrameSetMaxSize
+  9. UpdateBags(frame) → content population
+```
+
+All additional operations missing from DevText's minimal setup.
+
+### Bridged EXE Addresses
+
+| Function | EXE Address | Resolution |
+|----------|-------------|------------|
+| `CCtlFrameList::FrameProc` | `0x00612c80` | Assertion `"No valid case for switch variable 'msg.relation'"` @ `0x00a50290` |
+| `CtlTextProc` | `0x00610c40` | Assertion `"FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)"` @ `0x00a50110` |
+| `CtlFrameListCreateItem` | `0x00612900` | Byte pattern `\xC7\x45\x0C\x00\x00\x00\x00\x50\x6A\x57\xFF\x75\x08` offset -0x25 |
+| `FrameNewSubclass` | `0x0062f150` | Byte pattern `\x8D\xB8\xA8\x00\x00\x00\x8B\xCF` offset -0x2D |
+| `CContainerFrame::FrameProc` | `0x00871b40` | (handover.md Section 10) |
+| `DlgDevTextProc` | `0x0088a870` | String `"DlgDevText"` @ `0x00b9743c` |
+
+### Implementation Reference
+
+Python repo (`C:\Users\Apo\Py4GW_python_files\`):
+- `Py4GWCoreLib/native_src/internals/prototypes.py` — added `U32_U32_U32_U32_U32_U32` and `U32_U32_U32_U32` prototypes
+- `Py4GWCoreLib/native_src/methods/PlayerMethods.py` — added `CtlFrameListCreateItem_Func` and `FrameNewSubclass_Func` NativeFunctions
+- `Py4GWCoreLib/GWUI.py` — complete rewrite (204 lines): `CreateScrollableContent`, `AddTextItem`, `CreateScrollableWindow`, `_encode_text_literal`, `_resolve_text_label_callback`
+- `stubs/PyUIManager.pyi` — type stubs for 5 new C++ bindings
+- `UI_RE/window_contents_test.py` — 249-line test widget
+
+C++ repo (`C:\Users\Apo\Py4GW\`):
+- `include/py_ui.h` — added 3 shared resolvers + 5 UIManager methods: `CtlFrameListCreateItemByFrameId`, `FrameNewSubclassByFrameId`, `CreateScrollableContentByFrameId`, `AddTextItemToFrameListByFrameId`, `CreateScrollableTextWindow`
+- `src/py_ui.cpp` — added 5 `.def_static()` Python bindings
+
+### Known Limitations
+
+| # | Issue | Impact |
+|---|-------|--------|
+| 1 | Scrollbar chrome proc unresolved (proc_0xAED) | Scrollbars may not render; use GWCA's CtlViewProc wrapper which handles it |
+| 2 | Async return values — `Game.enqueue()` returns 0 until processed | Use polling or C++ bindings for sync |
+| 3 | Style 0x2000 for manual positioning not in convenience API | Use low-level `CtlFrameListCreateItem` + `FrameSetPosition` |
+| 4 | C++ rebuild required | Build DLL, restart injected client |
+| 5 | Pattern rot possible on EXE patches | Patterns use structurally stable function-body internals |
+
+---
+
+## 13. Document Index
 
 All files in `docs/RE/`:
 

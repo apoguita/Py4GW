@@ -440,3 +440,117 @@ All resolved via `FindAssertion("P:\\Code\\Engine\\Frame\\FrApi.cpp", "frameId",
 4. **CRect flags 0x06 are STORAGE convention**, not rendering convention — don't use them to decide Y-inversion
 5. **UiGenerateFramePositionLockFlags dynamically removes TOP anchor** — bypass with direct `FrameSetPosition`
 6. **Without `frame_flags=0x20`**, click-to-raise silently fails — frame is never registered in the popup hash table (`DAT_005a040c`)
+
+---
+
+## Filling Windows with Content (2026-06-04)
+
+After the window-contents RE cycle, we now understand how native game windows populate their interiors beyond the chrome shell. The key insight: **scrollable content is a separate component**, not baked into `CreateWindow()`.
+
+### The Core Problem
+
+`CContainerFrame::OnFrameSize` positions children with **independent coordinates** (center, top-left, corners, etc.) — it has NO vertical stacking logic. Inserting text labels directly into a CContainerFrame causes them to overlap.
+
+**The fix**: Insert a **frame list** (type `0xAEA`, `CCtlFrameList::FrameProc`) as a child of the CContainerFrame, then add text labels as **items** of the frame list. The frame list's `OnFrameMsgSize` (msg 0x37) handles vertical stacking automatically.
+
+```
+❌ BROKEN:                        ✅ CORRECT:
+CContainerFrame                    CContainerFrame
+  ├─ TextLabel (0,0)                ├─ ScrollableFrameList (child N, type 0xAEA)
+  ├─ TextLabel (0,0)                │   ├─ TextLabel (stacked item 0)
+  └─ TextLabel (0,0)                │   ├─ TextLabel (stacked item 1)
+  (all overlap!)                    │   └─ TextLabel (stacked item N)
+                                    └─ [scrollbars auto-managed]
+```
+
+### High-Level Python API
+
+Implemented in `Py4GWCoreLib/GWUI.py` (204 lines):
+
+```python
+# One-step: window + scrollable + items
+window_id = GWUI.CreateScrollableWindow(100, 100, 280, 220, "Title", ["Item 1", "Item 2"])
+
+# Step-by-step:
+window_id = GWUI.CreateWindow(100, 100, 300, 200, "My Window")
+framelist_id = GWUI.CreateScrollableContent(window_id)
+item_id = GWUI.AddTextItem(framelist_id, "Hello World")
+```
+
+### Lower-Level Functions
+
+| Function | Prototype | EXE Address | Resolution |
+|----------|-----------|-------------|------------|
+| `CtlFrameListCreateItem` | `U32_U32_U32_U32_U32_U32` | `0x00612900` | Byte pattern offset -0x25 |
+| `FrameNewSubclass` | `U32_U32_U32_U32` | `0x0062f150` | Byte pattern offset -0x2D |
+| `CtlTextProc` | — | `0x00610c40` | Assertion `"FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)"` |
+| `CCtlFrameList::FrameProc` | — | `0x00612c80` | Assertion `"No valid case for switch variable 'msg.relation'"` |
+
+### C++ Bindings Added
+
+In `py_ui.h` / `py_ui.cpp`:
+
+```cpp
+// Low-level
+UIManager::CtlFrameListCreateItemByFrameId(parentId, flags, index, proc, userData)
+UIManager::FrameNewSubclassByFrameId(frameId, proc, msgId)
+
+// High-level
+UIManager::CreateScrollableContentByFrameId(windowId)       → framelist_id
+UIManager::AddTextItemToFrameListByFrameId(framelistId, text) → item_id
+UIManager::CreateScrollableTextWindow(x, y, w, h, title, items)
+```
+
+### Auto-Stacking vs Manual Positioning
+
+**Auto-stacking** (default): The frame list's `OnFrameMsgSize` positions items bottom-to-top. Each item's Y = parent_height - sum_of_heights_so_far, X = 0. Works automatically — no additional calls needed.
+
+**Manual positioning**: Set style `0x2000` on the frame list child. `OnFrameMsgSize` skips that child entirely. Use `FrameSetPosition` directly.
+
+```python
+# Manual positioning (style 0x2000)
+item_id = GWUI.CtlFrameListCreateItem(framelist_id, 0x2000, 0, text_proc, payload)
+FrameSetPosition(item_id, {x, y}, {0, 0})  # custom position
+```
+
+### Size Propagation
+
+```
+Text label content change
+  → CtlTextProc msg 0x4C (TextResolved)
+    → FrameContentInvalidate + FrameNativeSizeChanged
+      → Propagates to parent frame list
+        → FrameScheduleSize → msg 0x37 → OnFrameMsgSize (restack!)
+```
+
+After bulk insertion, call `FrameScheduleSize(framelist_id)` to trigger immediate layout.
+
+### Scroll Configuration
+
+The InventoryAggregate reference model configures scrolling explicitly:
+
+```python
+CtlViewSetIncrement(framelist_id, 2)  # pixels per scroll step
+CtlViewSetPage(framelist_id, 0, &page_size_handler, 0)  # page size handler
+CtlFrameListSetSizeHandler(framelist_id, &size_handler)
+```
+
+DevText omits all of these — relies on default scroll stepping.
+
+### Known Limitations
+
+| # | Issue | Mitigation |
+|---|-------|-----------|
+| 1 | **Scrollbar chrome proc unresolved** (proc_0xAED). DevText uses `FrameNewSubclass(list, &proc_0xAED, 0x59)`. Without it, scrollbars may not render. | Use GWCA's `CreateScrollableFrameByFrameId` which uses `CtlViewProc` wrapper — handles scrollbars automatically. |
+| 2 | **Async return values**: `Game.enqueue()` returns 0 until the lambda processes. | Use C++ bindings for synchronous return values, or poll with `FrameGetChild`. |
+| 3 | **Style 0x2000** for manual positioning is not in the convenience API. | Use low-level `CtlFrameListCreateItem` directly. |
+| 4 | **C++ rebuild required** after adding bindings. | Rebuild DLL with `cmake -B build -A Win32`, restart injected client. |
+| 5 | **Pattern rot**: byte patterns may break across EXE patches. | Patterns use structurally stable function-body internals (function prologue and unique instruction sequences). |
+
+### Test Widget
+
+`UI_RE/window_contents_test.py` (249 lines) — creates a window with scrollable content and multiple text items. Demonstrates the complete pipeline: window creation → frame list insertion → text label stacking → scroll configuration.
+
+### Architecture Investigation
+
+Full RE context: `.opencode/projects/re/window-contents/context_pool.md` (800 lines covering 3 phases of analysis across DevText, InventoryAggregate, PartySearch, and 81 window catalog).

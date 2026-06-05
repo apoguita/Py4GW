@@ -763,3 +763,44 @@ class UIManager:
     def set_window_position(window_id: int, position: list[int]) -> None: ...
     @staticmethod
     def is_shift_screenshot() -> bool: ...
+
+    # =========================================================================
+    # Window Contents — Frame List Item Management (2026-06-04)
+    # =========================================================================
+    @staticmethod
+    def ctl_frame_list_create_item_by_frame_id(
+        parent_frame_list_id: int,
+        flags: int,
+        insert_index: int,
+        item_proc: int,
+        encoded_text: str,
+    ) -> int: ...
+    @staticmethod
+    def frame_new_subclass_by_frame_id(
+        frame_id: int,
+        subclass_proc: int,
+        msg_id: int,
+    ) -> int: ...
+    @staticmethod
+    def create_scrollable_content_by_frame_id(
+        window_id: int,
+        child_index: int = 0,
+        component_flags: int = 0x20000,
+        component_label: str = "",
+    ) -> int: ...
+    @staticmethod
+    def add_text_item_to_frame_list_by_frame_id(
+        frame_list_id: int,
+        plain_text: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def create_scrollable_text_window(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        title: str,
+        items: list[str],
+    ) -> int: ...
