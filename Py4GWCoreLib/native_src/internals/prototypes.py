@@ -93,4 +93,22 @@ Prototypes = {
         ctypes.c_int32,
         ctypes.c_int32,
     ),
+    # --- Window Contents (frame list items) ---
+    # uint32 CtlFrameListCreateItem(uint32 parentFrameListId, uint32 flags,
+    #                               uint32 insertIndex, void* itemProc, void* encodedText)
+    "U32_U32_U32_U32_U32_U32": NativeFunctionPrototype(
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
+    # uint32 FrameNewSubclass(uint32 frameId, void* subclassProc, uint32 msgId)
+    "U32_U32_U32_U32": NativeFunctionPrototype(
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
 }
