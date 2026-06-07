@@ -124,6 +124,117 @@ class GWUI:
             or 0
         )
 
+    # ── Tier 1 UI Controls: Create Functions (2026-06-04) ──────────────
+
+    @staticmethod
+    def create_dropdown(
+        parent_frame_id: int,
+        component_flags: int = 0x300,
+        child_index: int = 0,
+        component_label: str = "",
+    ) -> int:
+        """Create a native dropdown (combo box) frame.
+
+        Post-create: use UIManager's add_option_by_frame_id to populate items,
+        and select_option_by_frame_id / get_dropdown_value_by_frame_id to interact.
+        """
+        return int(
+            PyUIManager.UIManager.create_dropdown_frame_by_frame_id(
+                parent_frame_id,
+                component_flags,
+                child_index,
+                str(component_label),
+            )
+            or 0
+        )
+
+    @staticmethod
+    def create_slider(
+        parent_frame_id: int,
+        component_flags: int = 0,
+        child_index: int = 0,
+        component_label: str = "",
+    ) -> int:
+        """Create a native slider frame.
+
+        Post-create: use set_slider_range_by_frame_id and
+        set_slider_value_by_frame_id to configure.
+        """
+        return int(
+            PyUIManager.UIManager.create_slider_frame_by_frame_id(
+                parent_frame_id,
+                component_flags,
+                child_index,
+                str(component_label),
+            )
+            or 0
+        )
+
+    @staticmethod
+    def create_editable_text(
+        parent_frame_id: int,
+        component_flags: int = 0,
+        child_index: int = 0,
+        component_label: str = "",
+    ) -> int:
+        """Create a native editable text (edit box) frame.
+
+        Post-create: use set_editable_text_max_length_by_frame_id and
+        set_editable_text_readonly_by_frame_id to configure.
+        """
+        return int(
+            PyUIManager.UIManager.create_editable_text_frame_by_frame_id(
+                parent_frame_id,
+                component_flags,
+                child_index,
+                str(component_label),
+            )
+            or 0
+        )
+
+    @staticmethod
+    def create_progress_bar(
+        parent_frame_id: int,
+        component_flags: int = 0x300,
+        child_index: int = 0,
+        component_label: str = "",
+    ) -> int:
+        """Create a native progress bar frame.
+
+        Post-create: use set_progress_bar_max_by_frame_id and
+        set_progress_bar_style_by_frame_id to configure.
+        """
+        return int(
+            PyUIManager.UIManager.create_progress_bar_by_frame_id(
+                parent_frame_id,
+                component_flags,
+                child_index,
+                str(component_label),
+            )
+            or 0
+        )
+
+    @staticmethod
+    def create_tabs(
+        parent_frame_id: int,
+        component_flags: int = 0x40000,
+        child_index: int = 0,
+        component_label: str = "",
+    ) -> int:
+        """Create a native tabs (page) frame.
+
+        Post-create: use add_tab_by_frame_id to populate tabs.
+        """
+        return int(
+            PyUIManager.UIManager.create_tabs_frame_by_frame_id(
+                parent_frame_id,
+                component_flags,
+                child_index,
+                str(component_label),
+            )
+            or 0
+        )
+
     # ── Low-Level NativeFunction Bridges ─────────────────────────────────
 
     @staticmethod
