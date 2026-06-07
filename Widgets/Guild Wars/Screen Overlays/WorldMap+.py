@@ -184,6 +184,8 @@ _show_unconnected:   list[bool]  = [False]  # when False: hide maps with no port
 _record_portals:     list[bool]  = [True]   # write to portal_live_cache.json
 _record_boundaries:  list[bool]  = [True]   # write to map_boundaries.json
 _show_portal_editor: list[bool]  = [False]  # open the portal editor window
+_show_data_window:   list[bool]  = [False]  # open the map data window
+_data_window_mid:    list[int]   = [0]      # map_id shown in data window
 _pe_gid_a:          list[int]   = [0]       # portal editor: GID input A
 _pe_gid_b:          list[int]   = [0]       # portal editor: GID input B
 _pe_status:         list[str]   = [""]      # portal editor: last action result
@@ -2138,6 +2140,10 @@ def _draw_overlay() -> None:
                 if PyImGui.menu_item(f"Move to Click Position##{_ctx_mid2}"):
                     _ctx_do_move_to_coords(_ctx_mid2, _ctx_dx2, _ctx_dy2)
 
+            if PyImGui.menu_item(f"Show Data##{_ctx_mid2}"):
+                _data_window_mid[0] = _ctx_mid2
+                _show_data_window[0] = True
+
         PyImGui.end_popup()
 
     PyImGui.end()
@@ -2636,6 +2642,61 @@ def _draw_portal_editor_3d() -> None:
 
 # ── Portal Editor window ───────────────────────────────────────────────────────
 
+def _draw_data_window() -> None:
+    if not _show_data_window[0]:
+        return
+
+    mid = _data_window_mid[0]
+    meta = _MAP_META.get(mid)
+    name = meta[1] if meta else f"Map {mid}"
+
+    PyImGui.set_next_window_size(340.0, 420.0, PyImGui.Cond.Once)
+    flags = PyImGui.WindowFlags.NoCollapse
+    _show_data_window[0], _ = PyImGui.begin(f"Map Data: {name} [{mid}]##wmp_data", _show_data_window[0], flags)
+    if not _show_data_window[0]:
+        PyImGui.end()
+        return
+
+    win_w = PyImGui.get_window_width() - 16.0
+
+    # ── Spawn points ─────────────────────────────────────────────────────────
+    PyImGui.text_colored("Spawn Points", (1.0, 0.78, 0.39, 1.0))
+    PyImGui.separator()
+    try:
+        s1, s2, s3 = Map.Pathing.GetSpawns(mid)
+        for label, pts, col in (
+            ("spawns1 (entry points)", s1, (1.0, 0.63, 0.16, 1.0)),
+            ("spawns2 (named markers)", s2, (1.0, 0.24, 0.24, 1.0)),
+            ("spawns3 (positions)",     s3, (1.0, 0.90, 0.20, 1.0)),
+        ):
+            PyImGui.text_colored(f"{label}  ({len(pts)})", col)
+            if pts:
+                if PyImGui.begin_child(f"##sp_{label[:4]}_{mid}", (win_w, min(len(pts) * 18.0 + 4.0, 90.0)), False):
+                    for sp in pts:
+                        tag_str = f"  tag={sp.tag}" if sp.tag else ""
+                        PyImGui.text(f"  x={sp.x:.0f}  y={sp.y:.0f}{tag_str}")
+                PyImGui.end_child()
+    except Exception as e:
+        PyImGui.text_disabled(f"(spawn data unavailable: {e})")
+
+    PyImGui.spacing()
+
+    # ── Portal links for this map ─────────────────────────────────────────────
+    PyImGui.text_colored("Portal Links", (1.0, 0.78, 0.39, 1.0))
+    PyImGui.separator()
+    map_portals = [(gid, linked) for gid, linked in _PORTAL_LINKS.items() if gid // 1000 == mid]
+    if map_portals:
+        for gid, linked in sorted(map_portals):
+            dest_mid = linked // 1000
+            dest_meta = _MAP_META.get(dest_mid)
+            dest_name = dest_meta[1] if dest_meta else f"Map {dest_mid}"
+            PyImGui.text(f"  GID {gid} → {dest_name} [{dest_mid}]  (GID {linked})")
+    else:
+        PyImGui.text_disabled("  (no portal links recorded)")
+
+    PyImGui.end()
+
+
 def _draw_portal_editor() -> None:
     if not _show_portal_editor[0]:
         return
@@ -2840,6 +2901,7 @@ def main() -> None:
 
         _draw_portal_editor_3d()
         _draw_portal_editor()
+        _draw_data_window()
 
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"{e}\n{traceback.format_exc()}",
