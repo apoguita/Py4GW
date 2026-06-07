@@ -114,6 +114,7 @@ _DRAW_GROUPS: list[tuple] = []
 # value = ((gx_min, gx_max, gy_min, gy_max), [(XTL, XTR, XBL, XBR, YT, YB), ...])
 _PMAP_DATA: dict[int, tuple[tuple[float,float,float,float], list[tuple[float,float,float,float,float,float]]]] = {}
 _PATHING_MAPS_CACHE: dict[int, list] = {}   # raw pathing-map objects needed by NavMesh/A*
+_reachable_from_cache: dict[int, frozenset[int]] = {}  # current_map → reachable map_ids (BFS result)
 
 # Screen-space transform updated at the start of every _draw_overlay call:
 # [sl, st, il, it, sx, sy]  where sx = sw/iw, sy = sh/ih
@@ -205,6 +206,9 @@ _debug_coords_y:       list[float] = [0.0]
 _rclick_active:        list[bool]  = [False]  # right-click context popup enabled
 _active_move_tree: list = [None]   # holds the running MoveToMapID BehaviorTree | None
 _active_move_path: list[int] = []  # path list from GetPath() for the active route
+_active_dest_mid:  list[int]  = [0]   # destination map ID of the current route
+_route_retry_count: list[int] = [0]   # how many times current route has been retried
+_MAX_ROUTE_RETRIES = 3
 # per-hop icon-space polylines: (map_id, [(ix, iy), ...])
 _route_hops: list[tuple[int, list[tuple[float, float]]]] = []
 _last_map:         list[int]   = [0]
@@ -550,7 +554,8 @@ def _best_pmap_id_for_group(group_ids: frozenset | set, prefer: int = 0) -> int:
     return min(group_ids)
 
 
-def _draw_pmap_for_map(map_id: int, fill_a: int = 60) -> None:
+def _draw_pmap_for_map(map_id: int, fill_a: int = 60,
+                       fill_rgb: tuple[int, int, int] = (80, 160, 255)) -> None:
     """Draw pathing trapezoids for *map_id* using the current _s_transform.
 
     Renders each trapezoid as a filled quad only (no outlines) — at WorldMap
@@ -579,7 +584,7 @@ def _draw_pmap_for_map(map_id: int, fill_a: int = 60) -> None:
     iw_map = ix2 - ix1
     ih_map = iy2 - iy1
 
-    fill_col = Utils.RGBToColor(80, 160, 255, fill_a)
+    fill_col = Utils.RGBToColor(fill_rgb[0], fill_rgb[1], fill_rgb[2], fill_a)
 
     # Expand each trapezoid by half a pixel in Y so adjacent rows share no gap.
     _E = 0.6
@@ -596,6 +601,26 @@ def _draw_pmap_for_map(map_id: int, fill_a: int = 60) -> None:
         PyImGui.draw_list_add_quad_filled(ax, ay - _E, bx, by - _E,
                                           cx, cy + _E, dx, dy + _E, fill_col)
 
+
+
+def _get_reachable_maps(current_map: int) -> frozenset[int]:
+    """BFS through _MAP_NEIGHBORS from current_map; result is cached per source map."""
+    cached = _reachable_from_cache.get(current_map)
+    if cached is not None:
+        return cached
+    visited: set[int] = set()
+    queue = [current_map]
+    while queue:
+        mid = queue.pop()
+        if mid in visited:
+            continue
+        visited.add(mid)
+        for neighbor in _MAP_NEIGHBORS.get(mid, set()):
+            if neighbor not in visited:
+                queue.append(neighbor)
+    result = frozenset(visited)
+    _reachable_from_cache[current_map] = result
+    return result
 
 
 def _portal_dest_name(src_map_id: int, pix: float, piy: float) -> str:
@@ -654,6 +679,7 @@ def _portal_link_game_xy(gid: int) -> tuple[float, float]:
 
 def _save_portal_links() -> None:
     """Persist the current _PORTAL_LINKS dict back to portal_links.json and reload."""
+    _reachable_from_cache.clear()  # invalidate reachability after link changes
     seen: set[tuple[int, int]] = set()
     entries = []
     for a_gid, b_gid in _PORTAL_LINKS.items():
@@ -1008,6 +1034,7 @@ def _inject_offmap_positions() -> None:
 
 def _build_cache() -> None:
     global _cache_built
+    _reachable_from_cache.clear()
 
     for mid in range(1, _MAX_MAP_ID + 1):
         info = MapMethods.GetMapInfo(mid)
@@ -1397,8 +1424,6 @@ def _make_move_exit_with_probe(
     from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
     from Py4GWCoreLib.Player import Player as _Player
 
-    origin_map: list[int] = [0]   # filled on first tick
-
     state: dict = {
         'initialized': False,
         'phase': 'wait',          # 'wait' | 'probe_move' | 'probe_wait'
@@ -1413,10 +1438,9 @@ def _make_move_exit_with_probe(
             portal_y + math.sin(angle) * probe_radius,
         )
 
-    def _map_changed() -> bool:
+    def _on_target_map() -> bool:
         try:
-            cur = Map.GetMapID()
-            return cur != origin_map[0] and cur == target_map_id
+            return Map.GetMapID() == target_map_id
         except Exception:
             return False
 
@@ -1427,12 +1451,9 @@ def _make_move_exit_with_probe(
             state['initialized'] = True
             state['phase'] = 'wait'
             state['phase_start'] = now_ms
-            try:
-                origin_map[0] = Map.GetMapID()
-            except Exception:
-                origin_map[0] = 0
 
-        if _map_changed():
+        # Already on target map (portal triggered during BTMovement.Move or immediately)
+        if _on_target_map():
             return BehaviorTree.NodeState.SUCCESS
 
         if state['phase'] == 'wait':
@@ -1702,6 +1723,8 @@ def _ctx_do_move_to_coords(mid: int, dx: float, dy: float) -> None:
     if tree is False:
         return
     _active_move_tree[0] = tree
+    _active_dest_mid[0] = mid
+    _route_retry_count[0] = 0
     path = GetPath(cur, mid)
     _active_move_path[:] = path if isinstance(path, list) else []
     _compute_route_hops(_active_move_path)  # safe: uses cached data only
@@ -1990,10 +2013,13 @@ def _draw_overlay() -> None:
             PyImGui.draw_list_add_rect(x1, y1, x2, y2, cur_border, 2.0, 0, 2.0)
             current_highlight_drawn = True
         else:
+            if is_hovered and _show_navmesh[0]:
+                _reachable = _get_reachable_maps(current_map)
+                _group_reachable = any(mid in _reachable for mid in group_ids)
+                _pmap_rgb = (60, 200, 80) if _group_reachable else (220, 60, 60)
+                _pmap_mid = _best_pmap_id_for_group(group_ids)
+                _draw_pmap_for_map(_pmap_mid, fill_a=55, fill_rgb=_pmap_rgb)
             if is_hovered:
-                if _show_navmesh[0]:
-                    _pmap_mid = _best_pmap_id_for_group(group_ids)
-                    _draw_pmap_for_map(_pmap_mid, fill_a=55)
                 if _show_frames[0]:
                     PyImGui.draw_list_add_rect(x1, y1, x2, y2,
                                                _type_border(rtype, alpha_border), 1.0, 0, 1.0)
@@ -2213,6 +2239,8 @@ def _draw_overlay() -> None:
                     _bt2 = MoveToMapID(_ctx_mid2)
                     if _bt2:
                         _active_move_tree[0] = _bt2
+                        _active_dest_mid[0] = _ctx_mid2
+                        _route_retry_count[0] = 0
                     _apply_path_to_map(_ctx_mid2)
 
             if _ctx_dx2 != 0.0:
@@ -2979,13 +3007,45 @@ def main() -> None:
                 # BottingTree sets started=False on planner SUCCESS or FAILURE
                 status = bt.tree.blackboard.get("PLANNER_STATUS", "")
                 if "Failed" in str(status):
-                    Py4GW.Console.Log(MODULE_NAME, "MoveToMapID: route failed.",
-                                      Py4GW.Console.MessageType.Warning)
+                    dest = _active_dest_mid[0]
+                    if dest and _route_retry_count[0] < _MAX_ROUTE_RETRIES:
+                        _route_retry_count[0] += 1
+                        Py4GW.Console.Log(
+                            MODULE_NAME,
+                            f"MoveToMapID: route failed — recalculating "
+                            f"(retry {_route_retry_count[0]}/{_MAX_ROUTE_RETRIES}).",
+                            Py4GW.Console.MessageType.Warning,
+                        )
+                        _new_bt = MoveToMapID(dest)
+                        if _new_bt:
+                            _active_move_tree[0] = _new_bt
+                            _apply_path_to_map(dest)
+                        else:
+                            Py4GW.Console.Log(
+                                MODULE_NAME,
+                                f"MoveToMapID: no path found after retry — giving up.",
+                                Py4GW.Console.MessageType.Warning,
+                            )
+                            _active_move_tree[0] = None
+                            _active_dest_mid[0] = 0
+                            _active_move_path.clear(); _route_hops.clear()
+                    else:
+                        Py4GW.Console.Log(
+                            MODULE_NAME,
+                            f"MoveToMapID: route failed after {_route_retry_count[0]} retries — giving up.",
+                            Py4GW.Console.MessageType.Warning,
+                        )
+                        _active_move_tree[0] = None
+                        _active_dest_mid[0] = 0
+                        _route_retry_count[0] = 0
+                        _active_move_path.clear(); _route_hops.clear()
                 else:
                     Py4GW.Console.Log(MODULE_NAME, "MoveToMapID: arrived at destination.",
                                       Py4GW.Console.MessageType.Info)
-                _active_move_tree[0] = None
-                _active_move_path.clear(); _route_hops.clear()
+                    _active_move_tree[0] = None
+                    _active_dest_mid[0] = 0
+                    _route_retry_count[0] = 0
+                    _active_move_path.clear(); _route_hops.clear()
 
         # ── Map queue executor ─────────────────────────────────────────────
         if _queue_running[0] and _active_move_tree[0] is None:
@@ -3003,6 +3063,8 @@ def main() -> None:
                     _bt = MoveToMapID(_q_target)
                     if _bt:
                         _active_move_tree[0] = _bt
+                        _active_dest_mid[0] = _q_target
+                        _route_retry_count[0] = 0
                         _apply_path_to_map(_q_target)
                     else:
                         Py4GW.Console.Log(MODULE_NAME,
