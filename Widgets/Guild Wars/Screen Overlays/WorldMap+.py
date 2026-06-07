@@ -186,6 +186,7 @@ _record_boundaries:  list[bool]  = [True]   # write to map_boundaries.json
 _show_portal_editor: list[bool]  = [False]  # open the portal editor window
 _show_data_window:   list[bool]  = [False]  # open the map data window
 _data_window_mid:    list[int]   = [0]      # map_id shown in data window
+_data_connect_gid:   dict[int, str] = {}   # per-portal GID input for connect action
 _pe_gid_a:          list[int]   = [0]       # portal editor: GID input A
 _pe_gid_b:          list[int]   = [0]       # portal editor: GID input B
 _pe_status:         list[str]   = [""]      # portal editor: last action result
@@ -595,43 +596,6 @@ def _draw_pmap_for_map(map_id: int, fill_a: int = 60) -> None:
         PyImGui.draw_list_add_quad_filled(ax, ay - _E, bx, by - _E,
                                           cx, cy + _E, dx, dy + _E, fill_col)
 
-
-def _draw_spawns_for_map(map_id: int) -> None:
-    """Draw spawn points for *map_id* as small colored circles on the pmap.
-
-    spawns1 = orange, spawns2 = red, spawns3 = yellow.
-    Only draws while the current draw-list is active (inside _draw_overlay).
-    """
-    entry = _PMAP_DATA.get(map_id)
-    bnd = _ICON_BOUNDS.get(map_id)
-    if not entry or not bnd:
-        return
-    (gx_min, gx_max, gy_min, gy_max), _ = entry
-    gw = gx_max - gx_min
-    gh = gy_max - gy_min
-    if gw <= 0 or gh <= 0:
-        return
-    ix1, iy1, ix2, iy2 = bnd
-    iw_map = ix2 - ix1
-    ih_map = iy2 - iy1
-
-    try:
-        s1, s2, s3 = Map.Pathing.GetSpawns(map_id)
-    except Exception:
-        return
-
-    col1 = Utils.RGBToColor(255, 160,  40, 220)   # spawns1 — orange
-    col2 = Utils.RGBToColor(255,  60,  60, 220)   # spawns2 — red
-    col3 = Utils.RGBToColor(255, 230,  50, 220)   # spawns3 — yellow
-    R = 3.0
-
-    for col, pts in ((col1, s1), (col2, s2), (col3, s3)):
-        for sp in pts:
-            sx, sy = _icon_to_screen(
-                ix1 + (sp.x - gx_min) / gw * iw_map,
-                iy1 + (gy_max - sp.y) / gh * ih_map,
-            )
-            PyImGui.draw_list_add_circle_filled(sx, sy, R, col, 8)
 
 
 def _portal_dest_name(src_map_id: int, pix: float, piy: float) -> str:
@@ -1906,7 +1870,6 @@ def _draw_overlay() -> None:
             if _show_navmesh[0]:
                 _pmap_mid = _best_pmap_id_for_group(group_ids, current_map)
                 _draw_pmap_for_map(_pmap_mid, fill_a=70)
-                _draw_spawns_for_map(_pmap_mid)
             PyImGui.draw_list_add_rect(x1, y1, x2, y2, cur_border, 2.0, 0, 2.0)
             current_highlight_drawn = True
         else:
@@ -1936,7 +1899,6 @@ def _draw_overlay() -> None:
                 if _show_navmesh[0]:
                     _fb_mid = _best_pmap_id_for_group({current_map}, current_map)
                     _draw_pmap_for_map(_fb_mid, fill_a=70)
-                    _draw_spawns_for_map(_fb_mid)
                 PyImGui.draw_list_add_rect(x1, y1, x2, y2, cur_border, 2.0, 0, 2.0)
                 if _show_labels[0]:
                     cur_meta2 = _MAP_META.get(current_map)
@@ -2140,9 +2102,10 @@ def _draw_overlay() -> None:
                 if PyImGui.menu_item(f"Move to Click Position##{_ctx_mid2}"):
                     _ctx_do_move_to_coords(_ctx_mid2, _ctx_dx2, _ctx_dy2)
 
-            if PyImGui.menu_item(f"Show Data##{_ctx_mid2}"):
-                _data_window_mid[0] = _ctx_mid2
-                _show_data_window[0] = True
+            if _show_debug[0]:
+                if PyImGui.menu_item(f"Show Data##{_ctx_mid2}"):
+                    _data_window_mid[0] = _ctx_mid2
+                    _show_data_window[0] = True
 
         PyImGui.end_popup()
 
@@ -2650,48 +2613,89 @@ def _draw_data_window() -> None:
     meta = _MAP_META.get(mid)
     name = meta[1] if meta else f"Map {mid}"
 
-    PyImGui.set_next_window_size(340.0, 420.0, PyImGui.Cond.Once)
-    flags = PyImGui.WindowFlags.NoCollapse
+    PyImGui.set_next_window_size(560.0, 0.0)
+    flags = PyImGui.WindowFlags.NoCollapse | PyImGui.WindowFlags.AlwaysAutoResize
     if not PyImGui.begin(f"Map Data: {name} [{mid}]##wmp_data", flags):
         PyImGui.end()
         return
 
     win_w = PyImGui.get_window_width() - 16.0
 
-    # ── Spawn points ─────────────────────────────────────────────────────────
-    PyImGui.text_colored("Spawn Points", (1.0, 0.78, 0.39, 1.0))
+    # ── Portal list ───────────────────────────────────────────────────────────
+    PyImGui.text_colored(f"Portale: {name} [{mid}]", (1.0, 0.78, 0.39, 1.0))
     PyImGui.separator()
-    try:
-        s1, s2, s3 = Map.Pathing.GetSpawns(mid)
-        for label, pts, col in (
-            ("spawns1 (entry points)", s1, (1.0, 0.63, 0.16, 1.0)),
-            ("spawns2 (named markers)", s2, (1.0, 0.24, 0.24, 1.0)),
-            ("spawns3 (positions)",     s3, (1.0, 0.90, 0.20, 1.0)),
-        ):
-            PyImGui.text_colored(f"{label}  ({len(pts)})", col)
-            if pts:
-                if PyImGui.begin_child(f"##sp_{label[:4]}_{mid}", (win_w, min(len(pts) * 18.0 + 4.0, 90.0)), False):
-                    for sp in pts:
-                        tag_str = f"  tag={sp.tag}" if sp.tag else ""
-                        PyImGui.text(f"  x={sp.x:.0f}  y={sp.y:.0f}{tag_str}")
-                PyImGui.end_child()
-    except Exception as e:
-        PyImGui.text_disabled(f"(spawn data unavailable: {e})")
 
-    PyImGui.spacing()
+    all_portals = _PORTAL_ALL_DATA.get(mid, [])
+    if all_portals:
+        tbl_flags = (
+            PyImGui.TableFlags.SizingStretchProp
+            | PyImGui.TableFlags.NoSavedSettings
+        )
+        if PyImGui.begin_table("##wmp_portal_tbl", 5, tbl_flags):
+            PyImGui.table_setup_column("Status",        PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("GID / idx",     PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Andere Seite",  PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Connected GID", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Aktion",        PyImGui.TableColumnFlags.WidthStretch)
+            for entry in all_portals:
+                gid        = int(entry.get("global_id", 0))
+                pidx       = int(entry.get("portal_index", 0))
+                linked_gid = _PORTAL_LINKS.get(gid)
 
-    # ── Portal links for this map ─────────────────────────────────────────────
-    PyImGui.text_colored("Portal Links", (1.0, 0.78, 0.39, 1.0))
-    PyImGui.separator()
-    map_portals = [(gid, linked) for gid, linked in _PORTAL_LINKS.items() if gid // 1000 == mid]
-    if map_portals:
-        for gid, linked in sorted(map_portals):
-            dest_mid = linked // 1000
-            dest_meta = _MAP_META.get(dest_mid)
-            dest_name = dest_meta[1] if dest_meta else f"Map {dest_mid}"
-            PyImGui.text(f"  GID {gid} → {dest_name} [{dest_mid}]  (GID {linked})")
+                PyImGui.table_next_row()
+
+                # Col 0: Status
+                PyImGui.table_set_column_index(0)
+                if linked_gid is not None:
+                    PyImGui.text_colored("Linked", (0.22, 0.88, 0.22, 1.0))
+                else:
+                    PyImGui.text_colored("Unlinked", (0.95, 0.25, 0.25, 1.0))
+
+                # Col 1: GID / idx
+                PyImGui.table_set_column_index(1)
+                PyImGui.text(f"GID {gid}  idx {pidx}")
+
+                # Col 2: Andere Seite (map name if linked)
+                PyImGui.table_set_column_index(2)
+                if linked_gid is not None:
+                    dest_mid  = linked_gid // 1000
+                    dest_meta = _MAP_META.get(dest_mid)
+                    dest_name = dest_meta[1] if dest_meta else f"Map {dest_mid}"
+                    PyImGui.text(f"{dest_name} [{dest_mid}]")
+
+                # Col 3: Connected GID (linked) OR input field (unlinked)
+                PyImGui.table_set_column_index(3)
+                if linked_gid is not None:
+                    PyImGui.text(f"GID {linked_gid}")
+                else:
+                    if gid not in _data_connect_gid:
+                        _data_connect_gid[gid] = ""
+                    PyImGui.set_next_item_width(-1.0)
+                    _data_connect_gid[gid] = PyImGui.input_text(f"##con_{gid}", _data_connect_gid[gid], 16)
+
+                # Col 4: Connect / Unlink button
+                PyImGui.table_set_column_index(4)
+                if linked_gid is not None:
+                    if PyImGui.button(f"Unlink##{gid}", -1.0, 0.0):
+                        partner = _PORTAL_LINKS.pop(gid, None)
+                        if partner is not None:
+                            _PORTAL_LINKS.pop(partner, None)
+                        _save_portal_links()
+                else:
+                    if PyImGui.button(f"Connect##{gid}", -1.0, 0.0):
+                        try:
+                            target = int(_data_connect_gid.get(gid, "").strip())
+                            if target > 0 and target != gid:
+                                _PORTAL_LINKS[gid]    = target
+                                _PORTAL_LINKS[target] = gid
+                                _save_portal_links()
+                                _data_connect_gid.pop(gid, None)
+                        except ValueError:
+                            pass
+
+            PyImGui.end_table()
     else:
-        PyImGui.text_disabled("  (no portal links recorded)")
+        PyImGui.text_disabled("  (keine Portaldaten vorhanden)")
 
     PyImGui.spacing()
     PyImGui.separator()
