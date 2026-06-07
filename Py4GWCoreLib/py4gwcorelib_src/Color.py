@@ -392,7 +392,11 @@ class ColorPalette(Enum):
 
     @classmethod
     def _member_map_lower(cls) -> dict[str, 'ColorPalette']:
-        return {cls._normalize_name(member.name): member for member in cls}
+        # Use __members__ so aliased enum names like "Red" remain addressable.
+        return {
+            cls._normalize_name(member_name): member
+            for member_name, member in cls.__members__.items()
+        }
 
     @staticmethod
     def GetColor(name: str) -> Color:
@@ -401,7 +405,7 @@ class ColorPalette(Enum):
 
     @staticmethod
     def ListColors() -> list[str]:
-        return [member.name for member in ColorPalette]
+        return list(ColorPalette.__members__.keys())
 
     @staticmethod
     def HasColor(name: str) -> bool:
