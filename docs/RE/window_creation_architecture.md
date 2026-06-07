@@ -554,3 +554,104 @@ DevText omits all of these — relies on default scroll stepping.
 ### Architecture Investigation
 
 Full RE context: `.opencode/projects/re/window-contents/context_pool.md` (800 lines covering 3 phases of analysis across DevText, InventoryAggregate, PartySearch, and 81 window catalog).
+
+---
+
+## Typed Component Architecture — Three Registration Layers (2026-06-05)
+
+After the UI Elements Universe Discovery project (39 FrameProc types cataloged), the typed component creation architecture is fully understood.
+
+### How Components Are Created
+
+The engine uses a **three-registration-layers** approach:
+
+| Layer | Function | Role |
+|-------|----------|------|
+| **FrameProc (Callback)** | `CtlBtnProc`, `CtlDropListProc`, `CtlSliderProc`, etc. | Message handler that paints, handles mouse, and creates the internal control instance on msg 0x09 |
+| **Universal Factory** | `CreateUIComponent` (native) / `FrameCreate` @ `ram:809a13ea` | Allocates a 0x1C8-byte `Frame` struct, registers the FrameProc, sends lifecycle messages |
+| **High-Level Wrapper** | `IUi::UiCtlBtnProc`, `IUi::UiCtlDropListProc`, etc. | Adds default styling, sizing, and configuration before delegating to the low-level FrameProc |
+
+### component_flags Reference Table
+
+Component type is encoded in `component_flags` — the second argument to `CreateUIComponent` / `FrameCreate`:
+
+| Flag Value | Frame Type | Source |
+|------------|------------|--------|
+| (none) / 0x300 | ButtonFrame (base default, F_VISIBLE\|F_ENABLED) | UIMgr.cpp default |
+| 0x8000 | CheckboxFrame (toggle behavior) | UIMgr.cpp `flags \| 0x8000` |
+| 0x20000 | ScrollableFrame | UIMgr.cpp `flags \| 0x20000` |
+| 0x128 | Dropdown list (internal child listbox) | `CtlDropList::CreateList` @ `ram:80e42d11` |
+| 0xA0000 | Text label (GroupHeader child) | `IUi::CGroupHeaderFrame::OnFrameCreate` @ `ram:811921df` |
+| 0x0AFD | Checkbox callback (GroupHeader child) | callback address, not flag |
+
+**Key insight**: The callback (FrameProc) is the **primary type determinant**. `component_flags` add behavior modifiers — `0x300` is the base default, not type-identifying.
+
+### The Existing GWCA Pattern
+
+GWCA creates typed components via:
+```cpp
+// 1. Resolve callback via scanner  
+ButtonFrame_Callback = Scanner::FindAssertion("UiCtlBtn.cpp", "!s_btnCheckImageList");
+// 2. Call universal factory with type-specific flags
+CreateUIComponent(parent_id, component_flags | TYPE_FLAG, child_index, CALLBACK, name, label);
+```
+
+This pattern works for 4 types (Button, Checkbox, Scrollable, TextLabel).
+
+### GroupHeader — Composite Control Architecture
+
+**EXE FrameProc**: `0x0087ddc0`  
+**WASM FrameProc**: `IUi::CGroupHeaderFrame::FrameProc` @ `ram:81192c89`  
+**WASM OnFrameCreate**: `IUi::CGroupHeaderFrame::OnFrameCreate` @ `ram:811921df`  
+**Assertion**: `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlGroupHeader.cpp"` @ `0x00b96100`
+
+GroupHeader is a **composite control** — it creates children internally during `OnFrameCreate` (msg 0x09 handler):
+
+```
+GroupHeader::OnFrameCreate(frame, param, label)
+  ├─ Child 0: Checkbox (callback 0x0AFD) — expand/collapse toggle button
+  │   Uses BtnToggle message protocol (0x57=SetExpanded, 0x58=GetExpanded)
+  └─ Child 1: Text label (callback 0x0A56, flags 0xA0000) — section title text
+```
+
+**Custom message protocol** (sent to the GroupHeader, forwarded to children):
+
+| Message ID | Handler | Command | Direction |
+|-----------|---------|---------|-----------|
+| 0x56 | OnFrameMsgGetIsOpen | GetIsOpen | Query |
+| 0x57 | OnFrameMsgSetIsOpen | SetIsOpen | Command |
+| 0x58 | OnFrameMsgGetText | GetText | Query |
+| 0x59 | OnFrameMsgSetText | SetText | Command |
+
+**Priority**: HIGHEST — most useful unwrapped control for custom injected UI panels (collapsible sections). Requires a new GWCA struct (`GroupHeaderFrame`).
+
+### CreateUIComponent / FrameCreate API Details
+
+**CreateUIComponent** (GWCA wrapper / Python binding):
+```cpp
+uint32_t CreateUIComponent(
+    uint32_t parent_frame_id,    // Parent frame to attach to
+    uint32_t component_flags,     // Type flags + F_VISIBLE|F_ENABLED
+    uint32_t child_offset_id,     // Child slot (0xFF = auto)
+    uint32_t frame_callback,      // FrameProc function pointer
+    const wchar_t* create_param,  // Optional param struct
+    const wchar_t* frame_label    // Optional label
+);
+```
+
+**FrameCreate** (native engine function @ `ram:809a13ea`):
+- Allocates 0x1C8-byte `Frame` struct via `MemAlloc(0x1C8)`
+- Initializes `CState` at `frame+0x18C`
+- Initializes `CMsg` at `frame+0xA8`
+- Calls FrameProc with msg 0x09 (WM_CREATE equivalent)
+- Returns `frame_id` from `frame+0xBC`
+
+### Implementation Status — Phase 3 Crash
+
+During Phase 3 of the UI Elements project, Create functions for 5 Tier 2 types (DropdownFrame, SliderFrame, EditableTextFrame, ProgressBar, TabsFrame) were implemented across the full GWCA C++ + Python stack but **ALL crashed the client**. The research (addresses, assertion strings, struct layouts, component_flags) is verified correct. Possible causes:
+
+1. **component_flags may be wrong** — 0x300 was inferred/inherited for Slider/EditBox/ProgressBar/Tabs, not verified from FrameCreate callers
+2. **Context struct initialization** — some types (like CtlSliderProc) allocate internal structs on msg 0x09 that may need pre-initialization
+3. **Call pattern differs** — the CreateUIComponent call pattern for these types may differ from what GWCA uses for Button/Checkbox/Scrollable/TextLabel
+
+**DO NOT reuse the Phase 3 C++ code as-is.** Full details in `docs/RE/ui_controls_catalog.md`.
