@@ -594,6 +594,44 @@ def _draw_pmap_for_map(map_id: int, fill_a: int = 60) -> None:
                                           cx, cy + _E, dx, dy + _E, fill_col)
 
 
+def _draw_spawns_for_map(map_id: int) -> None:
+    """Draw spawn points for *map_id* as small colored circles on the pmap.
+
+    spawns1 = orange, spawns2 = red, spawns3 = yellow.
+    Only draws while the current draw-list is active (inside _draw_overlay).
+    """
+    entry = _PMAP_DATA.get(map_id)
+    bnd = _ICON_BOUNDS.get(map_id)
+    if not entry or not bnd:
+        return
+    (gx_min, gx_max, gy_min, gy_max), _ = entry
+    gw = gx_max - gx_min
+    gh = gy_max - gy_min
+    if gw <= 0 or gh <= 0:
+        return
+    ix1, iy1, ix2, iy2 = bnd
+    iw_map = ix2 - ix1
+    ih_map = iy2 - iy1
+
+    try:
+        s1, s2, s3 = Map.Pathing.GetSpawns(map_id)
+    except Exception:
+        return
+
+    col1 = Utils.RGBToColor(255, 160,  40, 220)   # spawns1 — orange
+    col2 = Utils.RGBToColor(255,  60,  60, 220)   # spawns2 — red
+    col3 = Utils.RGBToColor(255, 230,  50, 220)   # spawns3 — yellow
+    R = 3.0
+
+    for col, pts in ((col1, s1), (col2, s2), (col3, s3)):
+        for sp in pts:
+            sx, sy = _icon_to_screen(
+                ix1 + (sp.x - gx_min) / gw * iw_map,
+                iy1 + (gy_max - sp.y) / gh * ih_map,
+            )
+            PyImGui.draw_list_add_circle_filled(sx, sy, R, col, 8)
+
+
 def _portal_dest_name(src_map_id: int, pix: float, piy: float) -> str:
     neighbors  = _MAP_NEIGHBORS.get(src_map_id, set())
     best_name  = ""
@@ -1866,6 +1904,7 @@ def _draw_overlay() -> None:
             if _show_navmesh[0]:
                 _pmap_mid = _best_pmap_id_for_group(group_ids, current_map)
                 _draw_pmap_for_map(_pmap_mid, fill_a=70)
+                _draw_spawns_for_map(_pmap_mid)
             PyImGui.draw_list_add_rect(x1, y1, x2, y2, cur_border, 2.0, 0, 2.0)
             current_highlight_drawn = True
         else:
@@ -1893,7 +1932,9 @@ def _draw_overlay() -> None:
             x2, y2 = _i2s(r, b)
             if not (x2 < sl or x1 > sr or y2 < st or y1 > sb):
                 if _show_navmesh[0]:
-                    _draw_pmap_for_map(_best_pmap_id_for_group({current_map}, current_map), fill_a=70)
+                    _fb_mid = _best_pmap_id_for_group({current_map}, current_map)
+                    _draw_pmap_for_map(_fb_mid, fill_a=70)
+                    _draw_spawns_for_map(_fb_mid)
                 PyImGui.draw_list_add_rect(x1, y1, x2, y2, cur_border, 2.0, 0, 2.0)
                 if _show_labels[0]:
                     cur_meta2 = _MAP_META.get(current_map)
