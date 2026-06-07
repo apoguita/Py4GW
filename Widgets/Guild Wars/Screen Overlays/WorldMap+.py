@@ -2652,8 +2652,7 @@ def _draw_data_window() -> None:
 
     PyImGui.set_next_window_size(340.0, 420.0, PyImGui.Cond.Once)
     flags = PyImGui.WindowFlags.NoCollapse
-    _show_data_window[0], _ = PyImGui.begin(f"Map Data: {name} [{mid}]##wmp_data", _show_data_window[0], flags)
-    if not _show_data_window[0]:
+    if not PyImGui.begin(f"Map Data: {name} [{mid}]##wmp_data", flags):
         PyImGui.end()
         return
 
@@ -2693,6 +2692,11 @@ def _draw_data_window() -> None:
             PyImGui.text(f"  GID {gid} → {dest_name} [{dest_mid}]  (GID {linked})")
     else:
         PyImGui.text_disabled("  (no portal links recorded)")
+
+    PyImGui.spacing()
+    PyImGui.separator()
+    if PyImGui.button("Close##wmp_data_close", win_w, 0):
+        _show_data_window[0] = False
 
     PyImGui.end()
 
