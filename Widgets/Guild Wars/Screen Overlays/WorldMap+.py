@@ -1375,6 +1375,123 @@ def _compute_route_hops(path: list[int]) -> None:
             i += 1
 
 
+def _make_move_exit_with_probe(
+    portal_x: float,
+    portal_y: float,
+    target_map_id: int,
+    pause_on_combat: bool = True,
+    probe_radius: float = 300.0,
+    initial_wait_ms: float = 2000.0,
+    per_probe_wait_ms: float = 1500.0,
+):
+    """Build a BT step that walks to a portal and uses a probe-walk fallback.
+
+    Normal case: walk to (portal_x, portal_y) → mapload triggers automatically.
+    Fallback: if no mapload after initial_wait_ms, walk 6 probe points in a circle
+    (every 60°, radius=probe_radius) until the mapload fires or all probes fail.
+    After the portal is triggered, WaitforMapLoad handles full load completion.
+    """
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.movement import BTMovement
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.composite import BTComposite
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.map import BTMap
+    from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
+    from Py4GWCoreLib.Player import Player as _Player
+
+    origin_map: list[int] = [0]   # filled on first tick
+
+    state: dict = {
+        'initialized': False,
+        'phase': 'wait',          # 'wait' | 'probe_move' | 'probe_wait'
+        'phase_start': 0.0,
+        'probe_idx': 0,
+    }
+
+    def _probe_xy(idx: int) -> tuple[float, float]:
+        angle = math.radians(idx * 60)
+        return (
+            portal_x + math.cos(angle) * probe_radius,
+            portal_y + math.sin(angle) * probe_radius,
+        )
+
+    def _map_changed() -> bool:
+        try:
+            cur = Map.GetMapID()
+            return cur != origin_map[0] and cur == target_map_id
+        except Exception:
+            return False
+
+    def _probe_tick() -> "BehaviorTree.NodeState":
+        now_ms = time.perf_counter() * 1000.0
+
+        if not state['initialized']:
+            state['initialized'] = True
+            state['phase'] = 'wait'
+            state['phase_start'] = now_ms
+            try:
+                origin_map[0] = Map.GetMapID()
+            except Exception:
+                origin_map[0] = 0
+
+        if _map_changed():
+            return BehaviorTree.NodeState.SUCCESS
+
+        if state['phase'] == 'wait':
+            if now_ms - state['phase_start'] >= initial_wait_ms:
+                state['phase'] = 'probe_move'
+                state['probe_idx'] = 0
+                Py4GW.Console.Log(
+                    MODULE_NAME,
+                    f"Probe-Walk: no mapload at ({portal_x:.0f},{portal_y:.0f}) "
+                    f"after {initial_wait_ms:.0f}ms — starting probe walk.",
+                    Py4GW.Console.MessageType.Info,
+                )
+            return BehaviorTree.NodeState.RUNNING
+
+        if state['phase'] == 'probe_move':
+            px, py = _probe_xy(state['probe_idx'])
+            _Player.Move(px, py)
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Probe-Walk: trying probe {state['probe_idx'] + 1}/6 "
+                f"→ ({px:.0f}, {py:.0f})",
+                Py4GW.Console.MessageType.Info,
+            )
+            state['phase'] = 'probe_wait'
+            state['phase_start'] = now_ms
+            return BehaviorTree.NodeState.RUNNING
+
+        if state['phase'] == 'probe_wait':
+            if now_ms - state['phase_start'] >= per_probe_wait_ms:
+                state['probe_idx'] += 1
+                if state['probe_idx'] >= 6:
+                    Py4GW.Console.Log(
+                        MODULE_NAME,
+                        "Probe-Walk: all 6 probes exhausted without mapload — giving up.",
+                        Py4GW.Console.MessageType.Warning,
+                    )
+                    return BehaviorTree.NodeState.FAILURE
+                state['phase'] = 'probe_move'
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree.NodeState.FAILURE
+
+    probe_node = BehaviorTree(
+        BehaviorTree.ActionNode(action_fn=_probe_tick, name="PortalProbeWalk")
+    )
+
+    return BTComposite.Sequence(
+        BTMovement.Move(
+            x=portal_x,
+            y=portal_y,
+            tolerance=80.0,
+            pause_on_combat=pause_on_combat,
+        ),
+        probe_node,
+        BTMap.WaitforMapLoad(map_id=target_map_id),
+        name="MoveAndExitMapWithProbe",
+    )
+
+
 def MoveToMapID(target_map_id: int, pause_on_combat: bool = True):
     """Build and start a BottingTree that walks the player to target_map_id.
 
@@ -1385,7 +1502,6 @@ def MoveToMapID(target_map_id: int, pause_on_combat: bool = True):
     The caller should call bt.tick() every frame and stop when bt.started==False.
     """
     from Py4GWCoreLib.BottingTree import BottingTree
-    from Py4GWCoreLib.routines_src.behaviourtrees_src.movement import BTMovement
     from Py4GWCoreLib.routines_src.behaviourtrees_src.composite import BTComposite
 
     if not _cache_built:
@@ -1429,9 +1545,9 @@ def MoveToMapID(target_map_id: int, pause_on_combat: bool = True):
                     Py4GW.Console.MessageType.Warning)
                 return False
             steps.append(
-                BTMovement.MoveAndExitMap(
-                    x=gx,
-                    y=gy,
+                _make_move_exit_with_probe(
+                    portal_x=gx,
+                    portal_y=gy,
                     target_map_id=next_mid,
                     pause_on_combat=pause_on_combat,
                 )
@@ -1487,6 +1603,7 @@ def MoveToMapIDCoords(
 
     if not _cache_built:
         Py4GW.Console.Log(MODULE_NAME, "MoveToMapIDCoords: cache not built yet.",
+
                           Py4GW.Console.MessageType.Warning)
         return False
 
@@ -1522,9 +1639,9 @@ def MoveToMapIDCoords(
                         Py4GW.Console.MessageType.Warning)
                     return False
                 steps.append(
-                    BTMovement.MoveAndExitMap(
-                        x=gx,
-                        y=gy,
+                    _make_move_exit_with_probe(
+                        portal_x=gx,
+                        portal_y=gy,
                         target_map_id=next_mid,
                         pause_on_combat=pause_on_combat,
                     )
