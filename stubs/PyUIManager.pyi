@@ -543,6 +543,46 @@ class UIManager:
     ) -> int: ...
 
     @staticmethod
+    def create_dropdown_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_slider_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_editable_text_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_progress_bar_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_tabs_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
     def get_button_label_by_frame_id(frame_id: int) -> str: ...
     @staticmethod
     def set_button_label_by_frame_id(frame_id: int, enc_label: str) -> bool: ...
@@ -658,6 +698,8 @@ class UIManager:
     def get_slider_value_by_frame_id(frame_id: int) -> int: ...
     @staticmethod
     def set_slider_value_by_frame_id(frame_id: int, value: int) -> bool: ...
+    @staticmethod
+    def set_slider_range_by_frame_id(frame_id: int, min_val: int, max_val: int) -> bool: ...
 
     @staticmethod
     def create_text_label_frame_with_plain_text_by_frame_id(
