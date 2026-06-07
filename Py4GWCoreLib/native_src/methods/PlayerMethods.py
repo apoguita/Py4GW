@@ -421,3 +421,39 @@ class PlayerMethods:
 
         dialog_skill_id = Utils.BalthazarSkillIdToDialogId(skill_id, use_pvp_remap=use_pvp_remap)
         PlayerMethods.SendRawDialog(dialog_skill_id)
+
+
+# =============================================================================
+# Window Contents — Frame List Item Management (2026-06-04)
+# =============================================================================
+# These enable filling a CContainerFrame window with scrollable text content.
+# Architecture: CContainerFrame → FrameList (child 0, type 0xAEA) → TextLabels
+#
+# CtlFrameListCreateItem — sends msg 0x57 to the frame list, creating a child
+# item frame. The itemProc is GWCA's TextLabelFrame_Callback.
+# FrameNewSubclass — registers a subclass proc on a frame for a given message.
+# Used for scrollbar chrome (msg 0x59) on frame lists.
+#
+# Patterns verified against Gw.exe build 05-30-2026:
+#   - CtlFrameListCreateItem: unique match at 0x00612925 (offset -0x25 → 0x00612900)
+#   - FrameNewSubclass:       unique match at 0x0062f17d (offset -0x2D → 0x0062f150)
+
+CtlFrameListCreateItem_Func = NativeFunction(
+    name="CtlFrameListCreateItem_Func",
+    pattern=b"\xC7\x45\x0C\x00\x00\x00\x00\x50\x6A\x57\xFF\x75\x08",
+    mask="xxxxxxxxxxxx",
+    offset=-0x25,
+    section=ScannerSection.TEXT,
+    prototype=Prototypes["U32_U32_U32_U32_U32_U32"],
+    use_near_call=False,
+)
+
+FrameNewSubclass_Func = NativeFunction(
+    name="FrameNewSubclass_Func",
+    pattern=b"\x8D\xB8\xA8\x00\x00\x00\x8B\xCF",
+    mask="xxxxxxxx",
+    offset=-0x2D,
+    section=ScannerSection.TEXT,
+    prototype=Prototypes["U32_U32_U32_U32"],
+    use_near_call=False,
+)
