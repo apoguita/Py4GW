@@ -165,6 +165,7 @@ def _log_error(exc: Exception) -> None:
 
 def _editable_config_state(config: HeroTeamConfig) -> dict[str, object]:
     state = config_to_dict(config)
+    state.pop('active_team_id', None)
     state.pop('hero_profession_cache', None)
     return state
 
