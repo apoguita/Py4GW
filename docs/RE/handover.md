@@ -161,6 +161,56 @@ Full procedure in: `docs/RE/CPP_WASM_MAPPING.md`
 | `FUN_005d9f70` | `AgentGetPoint` | Get agent world position |
 | `FUN_0052fa20` | `WalkToPoint` | Walk to point |
 
+### PreGameContext (CScene) Functions (2026-06-06)
+
+The pregame/character-login scene. CScene is a **0x100-byte standalone object** (NOT an IFrame 0x1C8 frame). Global pointer accessible via GWCA `FindAssertion("UiPregame.cpp", "!s_scene", 0, 0x34)`. Full struct layout in gw-data-structs skill.
+
+| WASM Symbol | WASM Address | EXE Address | Role |
+|-------------|-------------|-------------|------|
+| `CScene::CScene` | `ram:80f59983` | `0x004ac010` | Constructor; allocates 0x100 bytes, initializes all fields |
+| `CScene::AdvanceCamera` | `ram:80f54729` | — | Per-frame spring-damper camera animation (5 variable groups) |
+| `CScene::UpdateCameraOffset` | `ram:80f56485` | — | Mouse wheel/drag camera offset update |
+| `CScene::OnNotifyUpdateSel` | `ram:80f617f9` | `0x004adb00` | Server notification: char selection changed (+0xD8) |
+| `CScene::OnCreateCanceled` | `ram:80f5a56c` | `0x004acdd0` | Sets chosen_character_index (+0xD4) and preview (+0xD8) to -1 |
+| `CScene::OnCreateInitiated` | `ram:80f5b8da` | `0x004acf20` | Character creation started; reads create_slot_index (+0xF0) |
+| `CScene::OnNotifyAdd` | `ram:80f5eec1` | — | Character added to list |
+| `CScene::OnNotifyClear` | `ram:80f60422` | — | Character list cleared |
+| `IUi::PregameSceneProc` | `ram:80f64cf6` | `0x004ae7e0` | FrameProc; msg 0x09 creates CScene, reads +0xD4 for UI |
+| `IUi::CCharSummary::Update` | `ram:80efb872` | — | Character summary panel update (doll, stats) |
+| `IUi::CCharSummary::Import` | `ram:80efa77b` | — | Char summary data import |
+
+### Property Table System (2026-06-06)
+
+The game accesses sub-contexts through a central property table at `DAT_ram_0028b200`, indexed by `EProp` enum. No GameContext chain traversal needed for most queries.
+
+| Function | WASM Address | Prototype | Role |
+|----------|-------------|-----------|------|
+| `PropGet` | `ram:8000ac03` | `void*(int EProp)` → returns ptr | Returns `*(DAT_ram_0028b200 + EProp * 4)` |
+| `PropContextSet` | `ram:8000aec4` | `void(int EProp, void* ptr)` | Writes to `DAT_ram_0028b200 + EProp * 4` |
+
+**Known EProp values**: `0x0B` = WorldContext* (verified via 8 offset matches in CharCliVanquish*, CharCliMinion*, CharCliMission*).
+
+**WASM offset recovery methodology**: In decompilation, field offsets appear as `(int)&DAT_ram_XXXXXXXX` where `XXXXXXXX` = offset value. Example: `(int)&DAT_ram_0000084c + worldPtr` means `worldPtr + 0x84C`. Used successfully to verify 8 WorldContext offsets and fully map CScene 0x00–0xFF.
+
+### PreGameContext Assertion Bridge
+
+GWCA access (from `GWCA.cpp:131-133`):
+```
+FindAssertion("UiPregame.cpp", "!s_scene", 0, 0x34) → EXE 0x004ae83d
+→ reads *(uintptr_t*)(address) → PreGameContext** pointer
+```
+WASM string @ `ram:00113147`.
+
+**EXE↔WASM Bridged Pairs:**
+| EXE Address | WASM Symbol |
+|-------------|-------------|
+| `0x004ae7e0` | `IUi::PregameSceneProc` |
+| `0x004ac010` | `CScene::CScene` |
+| `0x004adb00` | `CScene::OnNotifyUpdateSel` |
+| `0x004acdd0` | `CScene::OnCreateCanceled` |
+| `0x004acf20` | `CScene::OnCreateInitiated` |
+| `0x004ad5a0` | `CScene::OnNotifyCreate` |
+
 ---
 
 ## 4. UI Message Dispatch Architecture
@@ -838,10 +888,146 @@ All files in `docs/RE/`:
 | `native_ui_title_and_encoded_string_reference.md` | Native UI title and encoding reference |
 | `rosetta_stone.txt` | GwA2 (AutoIt) to Py4GW function mapping |
 | `title_rendering_research.md` | Title rendering investigation & working solution (11 approaches) |
+| `ui_controls_catalog.md` | Complete UI controls catalog — 39 types, tiers, structs, addresses, Phase 3 crash documentation (2026-06-05) |
 | `window_creation_architecture.md` | CContainerFrame window creation architecture reference |
 
 Other project docs remain in `docs/`:
 - `Py4GW_Conceptual_Model.md` — canonical architecture
 - `widget_manager_and_catalog.md` — widget discovery metadata
 - `MCP_bridge.md` — MCP bridge planning
+- `ui_controls_catalog.md` — Complete UI controls catalog (39 types, 2026-06-05)
 - Build, bot, AI, and UI-specific docs
+
+---
+
+## 14. UI Controls Catalog (2026-06-05)
+
+Complete universe discovery of all 39 Guild Wars engine UI control types. Full standalone reference: `docs/RE/ui_controls_catalog.md`. This section covers the essentials.
+
+### Architecture: Three Registration Layers
+
+The engine creates UI components through a three-layer registration system:
+
+| Layer | Function | Role |
+|-------|----------|------|
+| **FrameProc (Callback)** | `CtlBtnProc`, `CtlDropListProc`, `CtlSliderProc`, etc. | Message handler — paints, handles mouse, creates internal control instance on msg 0x09 |
+| **Universal Factory** | `CreateUIComponent` / `FrameCreate` @ `ram:809a13ea` | Allocates 0x1C8-byte `Frame` struct, registers FrameProc, sends lifecycle messages |
+| **High-Level Wrapper** | `IUi::UiCtlBtnProc`, `IUi::UiCtlDropListProc`, etc. | Adds default styling, sizing, configuration before delegating to FrameProc |
+
+**The callback is the primary type determinant.** `component_flags` add behavior modifiers:
+- `0x8000` = checkbox toggle behavior
+- `0x20000` = scrollable wrapper
+- `0x300` = base default (`F_VISIBLE|F_ENABLED`), NOT type-identifying
+- `0x128` = dropdown listbox (child of dropdown wrapper)
+
+The existing GWCA pattern:
+```cpp
+ButtonFrame_Callback = Scanner::FindAssertion("UiCtlBtn.cpp", "!s_btnCheckImageList");
+CreateUIComponent(parent_id, component_flags | TYPE_FLAG, child_index, CALLBACK, name, label);
+```
+
+### Tiered Catalog (39 Types)
+
+**Tier 1 — Wrapped (Create + Manipulate) — 4 types:**
+ButtonFrame, CheckboxFrame, ScrollableFrame, TextLabelFrame
+
+**Tier 2 — Struct Exists, Create Attempted But CRASHED — 7 types:**
+
+All had Phase 3 Create functions implemented across the full stack but **all crashed the client**. Research (addresses, assertions, structs, component_flags) is verified — C++ implementation needs rework.
+
+| Control | EXE FrameProc | Assertion | component_flags | Struct |
+|---------|--------------|-----------|-----------------|--------|
+| **DropdownFrame** | `0x0087f5f0` | `"!FrameGetChild(thisFrame, CTL_LIST_ENTRIES)"` @ `0x00b963fc` | 0x128 (child listbox) / 0x300 (wrapper) | `CtlDropList::Prop`, 100 bytes |
+| **SliderFrame** | `0x00615fe0` (base) + `0x0087f440` (wrapper) | `"value >= m_range.min"` @ `0x00a5045c` (base) / byte pattern for wrapper | 0x300* → 0 (game uses 0) | `CtlSlider::CInstance`, 0x30 bytes | **FAILED** — See below |
+| **EditableTextFrame** | `0x00888aa0` | `"!s_editCaretMaterial"` @ `0x00b96c00` | 0x300* | `CCtlEdit`, ~0x4C bytes |
+| **ProgressBar** | `0x008812e0` | `"!sm_rateArrowImageList"` @ `0x00b964f4` | 0x300* | Inherits ButtonFrame+FrameWithValue |
+| **TabsFrame** | `0x0061a950` | `"!IsBtnCode(pageCode)"` @ `0x00a506c0` | 0x300* | `CtlPage::CCtlPage` |
+| **MultiLineTextLabel** | `0x00610c40` | `"FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)"` @ `0x00a50110` | same callback as TextLabelFrame | 0x170 bytes |
+| **GroupHeader** | `0x0087ddc0` | `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlGroupHeader.cpp"` @ `0x00b96100` | composite (creates children internally) | new struct needed |
+
+(* = inferred, needs verification from FrameCreate caller)
+
+### GroupHeader — Composite Control Design
+
+**EXE FrameProc**: `0x0087ddc0`  
+**WASM**: `IUi::CGroupHeaderFrame::FrameProc` @ `ram:81192c89`  
+**WASM OnFrameCreate**: `IUi::CGroupHeaderFrame::OnFrameCreate` @ `ram:811921df`
+
+Creates 2 children internally on msg 0x09:
+- Child 0: Checkbox (callback 0x0AFD) — expand/collapse toggle
+- Child 1: Text label (callback 0x0A56, flags 0xA0000) — section title
+
+**Message protocol**:
+| Msg ID | Command | Direction |
+|--------|---------|-----------|
+| 0x56 | GetIsOpen | Query |
+| 0x57 | SetIsOpen | Command |
+| 0x58 | GetText | Query |
+| 0x59 | SetText | Command |
+
+### Tier 3 — Cosmetic/Internal — 6 types with confirmed addresses:
+
+| Control | EXE Address | Assertion |
+|---------|------------|-----------|
+| TextShy | `0x0087f0d0` | `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlTextShy.cpp"` |
+| Bullet | `0x00884f20` | `"!s_bulletImageList"` |
+| BtnExpand | `0x008867f0` | `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlBtnExpand.cpp"` |
+| BtnToggle | `0x00886370` | (path assertion — already wrapped as CheckboxFrame with 0x8000 flag) |
+
+### Tier 4 — Infrastructure/Layout (never create directly) — 16 types:
+Border, Fade, Gap, Header, ImageList, LabelText, LabeledEdit, List, PageBtn, PageItem, Scroll, TextHeader, TextSelectable, TitleFrame, View, EditAutoComplete
+
+### WASM↔EXE FrameProc Mappings
+
+| Control | WASM FrameProc | WASM Addr | EXE Addr |
+|---------|---------------|-----------|----------|
+| ButtonFrame | CtlBtnProc | ram:80dbe9be | (in GWCA) |
+| DropdownFrame | CtlDropListProc | ram:80e3c9a3 | 0x0087f5f0 |
+| SliderFrame | CtlSliderProc (base) | ram:80fcc337 | 0x00615fe0 |
+| SliderFrame (wrapper) | IUi::UiCtlSliderProc | ram:80fcd65d | 0x0087f440 |
+| EditableTextFrame | CtlEditProc | ram:80dee7ef | 0x00888aa0 |
+| ProgressBar | CtlProgressProc | ram:80f6ce9a | 0x008812e0 |
+| TabsFrame | CtlPageProc | ram:80e078f3 | 0x0061a950 |
+| MultiLineTextLabel | CtlTextMlProc | ram:80da0629 | 0x00610c40 |
+| GroupHeader | IUi::CGroupHeaderFrame::FrameProc | ram:81192c89 | 0x0087ddc0 |
+| TextShy | IUi::TextShy::CTextShyFrame::FrameProc | ram:8149a9a7 | 0x0087f0d0 |
+| Bullet | IUi::UiCtlBulletProc | ram:8134512b | 0x00884f20 |
+| BtnExpand | IUi::UiCtlBtnExpandProc | ram:80e7b6f7 | 0x008867f0 |
+| BtnToggle | IUi::UiCtlBtnToggleProc | ram:816b67fd | 0x00886370 |
+
+### Phase 3 Crash — CRITICAL NOTE
+
+The Tier 2 Create functions (DropdownFrame, SliderFrame, EditableTextFrame, ProgressBar, TabsFrame) were implemented in C++ and Python across the full stack but ALL crashed the client. DO NOT reuse the Phase 3 C++ code as-is. Full investigation below.
+
+### SliderFrame — Conclusive Failure (2026-06-06)
+
+After 4 implementation attempts across 3 analysis rounds, **SliderFrame creation conclusively failed**. The root cause is fundamental:
+
+**CreateUIComponent cannot create multi-layer FrameProc controls.** The engine's `CreateUIComponent` / `FrameCreate` registers a single raw callback address. Controls like Slider, Dropdown, ProgressBar, Tabs, and EditableText use a **two-layer FrameProc architecture** (paint wrapper → engine base) that depends on the C++ class hierarchy. `CreateUIComponent` does NOT set up this hierarchy — it only registers one callback.
+
+**What was discovered:**
+
+| Layer | Name | EXE Address | Role |
+|-------|------|-------------|------|
+| Paint wrapper | `IUi::UiCtlSliderProc` | **`0x0087f440`** | Textured slider bar+thumb via `FrameContentAddImageTemplate`. Handles paint (0x01), invalidation (0x0C), native size (0x59). Delegates ALL other messages to base. |
+| Engine base | `CtlSliderProc` | **`0x00615fe0`** | Allocates `CtlSlider::CInstance` (0x30 bytes) on msg 0x09. Handles SetRange (0x56), SetValue (0x57), GetValue (0x58), mouse/keyboard input, animation. |
+
+**Attempts that failed:**
+
+| Attempt | Approach | Result |
+|---------|----------|--------|
+| CtlSliderProc alone | Primary FrameProc, no wrapper | Renders plain gray rectangle (no textured slider visuals) |
+| IUi::UiCtlSliderProc as primary | Wrapper as FrameProc via CreateUIComponent | Crashes — wrapper delegates msg 0x09 to FrameMsgCallBase, but no base class registered → CInstance never allocated → null deref on SetValue |
+| CtlSliderProc + FrameNewSubclass | Base as primary, wrapper as subclass | No visible effect — subclass may not properly intercept paint in this architecture |
+
+**Root cause**: The game creates sliders through the layout/template system, which knows the C++ class hierarchy (wrapper inherits from base). `CreateUIComponent` bypasses this — it registers raw function pointers without class relationship metadata.
+
+**Byte pattern for IUi::UiCtlSliderProc** (verified unique in 05-30-2026 EXE):
+```
+\x55\x8B\xEC\x83\xEC\x18\x53\x8B\x5D\x08\x56\x57\x8B\x43\x04\x48\x83\xF8\x58
+```
+Resolves to `0x0087f440`. Useful for future approaches that can establish the base class chain.
+
+**Working types for comparison**: Button, TextLabel, Checkbox, Scrollable all use **single self-contained FrameProcs** — no base class delegation needed. This is why they work with CreateUIComponent.
+
+**Recommendation**: Abandon CreateUIComponent for multi-layer controls. Investigate the layout/template system (`CCtlLayout::Child`) or frame cloning from existing game windows.
