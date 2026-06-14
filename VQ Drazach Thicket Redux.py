@@ -133,7 +133,7 @@ def Killroute() -> BehaviorTree:
                 faction='kurzick',
                 multi_account=True,
             ),
-            BT.VanquishNode(vanquish_steps, name='DrazachThicketVanquishPath', flag_heroes_to_waypoint=False, log=True),
+            BT.VanquishNode(vanquish_steps, name='DrazachThicketVanquishPath', flag_heroes_to_waypoint=False),
             BT.Resign(wait_for_map_load=True, target_map_id=ETERNAL_GROVE_OUTPOST, multi_account=True),
         ]
     )
