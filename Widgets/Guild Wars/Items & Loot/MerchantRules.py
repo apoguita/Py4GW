@@ -30,7 +30,6 @@ from Sources.marks_sources.mods_parser import ModDatabase
 from Sources.marks_sources.mods_parser import MatchedRuneInfo
 from Sources.marks_sources.mods_parser import MatchedWeaponModInfo
 from Sources.marks_sources.mods_parser import parse_modifiers
-from Py4GWCoreLib.modular.selectors import resolve_agent_xy_from_step
 from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory import DEFAULT_NPC_SELECTORS
 from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory import SUPPORTED_MAP_NPC_SELECTORS
 
@@ -631,6 +630,131 @@ SCROLL_TRADER_STOCK_MODEL_IDS: frozenset[int] = frozenset({
     int(ModelID.Scroll_Of_Berserkers_Insight.value),
     int(ModelID.Scroll_of_Slayers_Insight.value),
 })
+DEPOSIT_FILTER_ALL = "all"
+DEPOSIT_FILTER_MATERIALS = "materials"
+DEPOSIT_FILTER_UPGRADES = "upgrades"
+DEPOSIT_FILTER_EQUIPMENT = "equipment"
+DEPOSIT_FILTER_CONSUMABLES = "consumables"
+DEPOSIT_FILTER_OTHER = "other"
+DEPOSIT_FILTER_MATERIALS_COMMON = "materials_common"
+DEPOSIT_FILTER_MATERIALS_RARE = "materials_rare"
+DEPOSIT_FILTER_UPGRADES_RUNES = "upgrades_runes"
+DEPOSIT_FILTER_UPGRADES_INSIGNIAS = "upgrades_insignias"
+DEPOSIT_FILTER_UPGRADES_INSCRIPTIONS = "upgrades_inscriptions"
+DEPOSIT_FILTER_UPGRADES_WEAPON_PREFIX = "upgrades_weapon_prefix"
+DEPOSIT_FILTER_UPGRADES_WEAPON_SUFFIX = "upgrades_weapon_suffix"
+DEPOSIT_FILTER_UPGRADES_BAG = "upgrades_bag"
+DEPOSIT_FILTER_EQUIPMENT_WEAPONS = "equipment_weapons"
+DEPOSIT_FILTER_EQUIPMENT_ARMOR = "equipment_armor"
+DEPOSIT_FILTER_EQUIPMENT_OFFHANDS = "equipment_offhands"
+DEPOSIT_FILTER_CONSUMABLES_SCROLLS = "consumables_scrolls"
+DEPOSIT_FILTER_CONSUMABLES_COMBAT = "consumables_combat"
+DEPOSIT_FILTER_CONSUMABLES_PARTY = "consumables_party"
+DEPOSIT_FILTER_CONSUMABLES_SUMMONING = "consumables_summoning"
+DEPOSIT_FILTER_CONSUMABLES_OTHER = "consumables_other"
+DEPOSIT_FILTER_OTHER_UTILITY = "other_utility"
+DEPOSIT_FILTER_OTHER_TROPHIES = "other_trophies"
+DEPOSIT_FILTER_OTHER_UNKNOWN = "other_unknown"
+DEPOSIT_FILTER_TOP_OPTIONS: tuple[tuple[str, str], ...] = (
+    (DEPOSIT_FILTER_ALL, "All"),
+    (DEPOSIT_FILTER_MATERIALS, "Crafting Materials"),
+    (DEPOSIT_FILTER_UPGRADES, "Upgrade Components"),
+    (DEPOSIT_FILTER_EQUIPMENT, "Equipment"),
+    (DEPOSIT_FILTER_CONSUMABLES, "Consumables"),
+    (DEPOSIT_FILTER_OTHER, "Other"),
+)
+DEPOSIT_FILTER_SUBCATEGORY_OPTIONS: dict[str, tuple[tuple[str, str], ...]] = {
+    DEPOSIT_FILTER_MATERIALS: (
+        (DEPOSIT_FILTER_ALL, "All Materials"),
+        (DEPOSIT_FILTER_MATERIALS_COMMON, "Common"),
+        (DEPOSIT_FILTER_MATERIALS_RARE, "Rare"),
+    ),
+    DEPOSIT_FILTER_UPGRADES: (
+        (DEPOSIT_FILTER_ALL, "All Upgrades"),
+        (DEPOSIT_FILTER_UPGRADES_RUNES, "Runes"),
+        (DEPOSIT_FILTER_UPGRADES_INSIGNIAS, "Insignias"),
+        (DEPOSIT_FILTER_UPGRADES_INSCRIPTIONS, "Inscriptions"),
+        (DEPOSIT_FILTER_UPGRADES_WEAPON_PREFIX, "Weapon Mods - Prefix"),
+        (DEPOSIT_FILTER_UPGRADES_WEAPON_SUFFIX, "Weapon Mods - Suffix"),
+        (DEPOSIT_FILTER_UPGRADES_BAG, "Bag Upgrades"),
+    ),
+    DEPOSIT_FILTER_EQUIPMENT: (
+        (DEPOSIT_FILTER_ALL, "All Equipment"),
+        (DEPOSIT_FILTER_EQUIPMENT_WEAPONS, "Weapons"),
+        (DEPOSIT_FILTER_EQUIPMENT_ARMOR, "Armor"),
+        (DEPOSIT_FILTER_EQUIPMENT_OFFHANDS, "Offhands / Shields"),
+    ),
+    DEPOSIT_FILTER_CONSUMABLES: (
+        (DEPOSIT_FILTER_ALL, "All Consumables"),
+        (DEPOSIT_FILTER_CONSUMABLES_SCROLLS, "Scrolls"),
+        (DEPOSIT_FILTER_CONSUMABLES_COMBAT, "Combat / Utility"),
+        (DEPOSIT_FILTER_CONSUMABLES_PARTY, "Party / Festival"),
+        (DEPOSIT_FILTER_CONSUMABLES_SUMMONING, "Summoning"),
+        (DEPOSIT_FILTER_CONSUMABLES_OTHER, "Other Usable"),
+    ),
+    DEPOSIT_FILTER_OTHER: (
+        (DEPOSIT_FILTER_ALL, "All Other"),
+        (DEPOSIT_FILTER_OTHER_UTILITY, "Keys / Kits / Bags"),
+        (DEPOSIT_FILTER_OTHER_TROPHIES, "Trophies / ZCoins / Quest"),
+        (DEPOSIT_FILTER_OTHER_UNKNOWN, "Unknown"),
+    ),
+}
+DEPOSIT_FILTER_TOP_KEYS: frozenset[str] = frozenset(key for key, _label in DEPOSIT_FILTER_TOP_OPTIONS)
+DEPOSIT_FILTER_WEAPON_PREFIX_FRAGMENTS: tuple[str, ...] = (
+    "axe haft",
+    "bow string",
+    "bowstring",
+    "dagger tang",
+    "hammer haft",
+    "scythe snathe",
+    "spearhead",
+    "staff head",
+    "sword hilt",
+)
+DEPOSIT_FILTER_WEAPON_SUFFIX_FRAGMENTS: tuple[str, ...] = (
+    "axe grip",
+    "bow grip",
+    "dagger handle",
+    "focus core",
+    "hammer grip",
+    "scythe grip",
+    "shield handle",
+    "spear grip",
+    "staff wrapping",
+    "sword pommel",
+    "wand wrapping",
+)
+DEPOSIT_FILTER_COMBAT_CONSUMABLE_FRAGMENTS: tuple[str, ...] = (
+    "armor of salvation",
+    "essence of celerity",
+    "grail of might",
+    "powerstone",
+    "star of transference",
+)
+DEPOSIT_FILTER_PARTY_CONSUMABLE_FRAGMENTS: tuple[str, ...] = (
+    "ale",
+    "cake",
+    "candy",
+    "cider",
+    "eggnog",
+    "festival",
+    "firework",
+    "gift",
+    "grog",
+    "honey",
+    "party",
+    "present",
+    "strongbox",
+    "tonic",
+    "wine",
+)
+DEPOSIT_FILTER_SUMMONING_FRAGMENTS: tuple[str, ...] = (
+    "reinforcement order",
+    "summon",
+    "summoner",
+    "summoning stone",
+    "support flare",
+)
 OUTPOST_SERVICE_SEARCH_MAX_DIST = 15_000.0
 MERCHANT_NAME_QUERY = "[Merchant]"
 MATERIAL_TRADER_NAME_QUERY = "[Material Trader]"
@@ -2821,6 +2945,188 @@ def _resolve_model_id_value(raw_value: object) -> int:
     return _safe_int(raw_value, 0)
 
 
+def _parse_agent_selector_point(step: dict[str, object]) -> tuple[float, float] | None:
+    point = step.get("point")
+    if isinstance(point, (list, tuple)) and len(point) >= 2:
+        try:
+            return float(point[0]), float(point[1])
+        except (TypeError, ValueError):
+            return None
+    if "x" in step and "y" in step:
+        try:
+            return float(step["x"]), float(step["y"])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _parse_agent_selector_float(value: object, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_agent_selector_bool(value: object, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return default
+
+
+def _get_named_agent_target_definition(agent_kind: object, target_key: object) -> object | None:
+    safe_target_key = str(target_key or "").strip()
+    if not safe_target_key:
+        return None
+    try:
+        from Py4GWCoreLib.modular.domain.target_registry import get_named_agent_target
+    except Exception:
+        return None
+    try:
+        return get_named_agent_target(str(agent_kind or "").strip(), safe_target_key)
+    except Exception:
+        return None
+
+
+def _agent_encoded_name_matches(agent_id: int, encoded_names: object) -> bool:
+    if not encoded_names:
+        return False
+    try:
+        import PyAgent
+
+        agent_enc_name = PyAgent.PyAgent.GetAgentEncName(int(agent_id))
+    except Exception:
+        return False
+    if not agent_enc_name:
+        return False
+    try:
+        agent_enc_tuple = tuple(int(value) for value in agent_enc_name)
+    except Exception:
+        return False
+    try:
+        return any(agent_enc_tuple == tuple(int(value) for value in encoded_name) for encoded_name in encoded_names)
+    except Exception:
+        return False
+
+
+def _log_agent_selector_failure(recipe_name: object, message: str) -> None:
+    try:
+        ConsoleLog(f"Recipe:{str(recipe_name or MODULE_NAME)}", message)
+    except Exception:
+        pass
+
+
+def resolve_agent_xy_from_step(
+    step: dict[str, object],
+    *,
+    recipe_name: str,
+    step_idx: int,
+    agent_kind: str,
+    default_max_dist: float | None = None,
+    log_failures: bool = True,
+) -> tuple[float, float] | None:
+    try:
+        from Py4GWCoreLib import Agent
+        from Py4GWCoreLib import AgentArray
+    except Exception as exc:
+        if log_failures:
+            _log_agent_selector_failure(recipe_name, f"Agent resolver unavailable at index {step_idx}: {exc}")
+        return None
+
+    safe_step = step if isinstance(step, dict) else {}
+    if default_max_dist is None:
+        default_max_dist = OUTPOST_SERVICE_SEARCH_MAX_DIST
+
+    explicit_point = _parse_agent_selector_point(safe_step)
+    if explicit_point is not None:
+        return explicit_point
+
+    max_dist = _parse_agent_selector_float(safe_step.get("max_dist", default_max_dist), default_max_dist)
+    if max_dist <= 0:
+        max_dist = default_max_dist
+
+    named_target_key = str(safe_step.get(agent_kind, "") or "").strip()
+    named_target = _get_named_agent_target_definition(agent_kind, named_target_key)
+    target_name = str(
+        safe_step.get(
+            "target",
+            safe_step.get("name_contains", safe_step.get("agent_name", safe_step.get("enemy_name", ""))),
+        )
+        or ""
+    ).strip()
+    model_id_raw = safe_step.get("model_id", None)
+    model_id = _safe_int(model_id_raw, 0) if model_id_raw is not None else None
+    if model_id is None:
+        named_model_id = getattr(named_target, "model_id", None)
+        if named_model_id is not None:
+            model_id = _safe_int(named_model_id, 0)
+
+    encoded_names = getattr(named_target, "encoded_names", ()) if named_target is not None else ()
+    if not target_name and named_target is not None and not encoded_names and model_id is None:
+        target_name = str(getattr(named_target, "display_name", "") or "").strip()
+
+    safe_agent_kind = str(agent_kind or "").strip()
+    if safe_agent_kind == "npc":
+        agent_array = AgentArray.GetNPCMinipetArray()
+    elif safe_agent_kind == "gadget":
+        agent_array = AgentArray.GetGadgetArray()
+    else:
+        if log_failures:
+            _log_agent_selector_failure(recipe_name, f"Unsupported agent resolver kind: {safe_agent_kind!r}")
+        return None
+
+    px, py = Player.GetXY()
+    agent_array = AgentArray.Filter.ByDistance(agent_array, (px, py), max_dist)
+    agent_array = AgentArray.Sort.ByDistance(agent_array, (px, py))
+    nearest = _parse_agent_selector_bool(safe_step.get("nearest", False), False)
+    if nearest and not target_name and model_id is None and not encoded_names:
+        if agent_array:
+            return Agent.GetXY(int(agent_array[0]))
+        if log_failures:
+            _log_agent_selector_failure(
+                recipe_name,
+                f"No nearest {safe_agent_kind} found within {max_dist:.0f} at index {step_idx}",
+            )
+        return None
+
+    target_name_l = target_name.lower()
+    exact_name = _parse_agent_selector_bool(safe_step.get("exact_name", False), False)
+
+    def matches_agent(agent_id: int) -> bool:
+        try:
+            if model_id is not None and _safe_int(Agent.GetModelID(agent_id), 0) != model_id:
+                return False
+            if encoded_names and not _agent_encoded_name_matches(agent_id, encoded_names):
+                return False
+            if target_name:
+                agent_name = str(Agent.GetNameByID(agent_id) or "").strip()
+                if not agent_name:
+                    return False
+                agent_name_l = agent_name.lower()
+                return agent_name_l == target_name_l if exact_name else target_name_l in agent_name_l
+            return model_id is not None or bool(encoded_names)
+        except Exception:
+            return False
+
+    if target_name or model_id is not None or encoded_names:
+        matches = AgentArray.Filter.ByCondition(agent_array, matches_agent)
+        matches = AgentArray.Sort.ByDistance(matches, (px, py))
+        if matches:
+            return Agent.GetXY(int(matches[0]))
+
+    if log_failures:
+        _log_agent_selector_failure(
+            recipe_name,
+            f"Could not resolve {safe_agent_kind} within {max_dist:.0f} at index {step_idx}",
+        )
+    return None
+
+
 def _normalize_catalog_search_text(raw_value: object) -> str:
     text = str(raw_value or "").strip().lower()
     if not text:
@@ -3030,6 +3336,26 @@ def _is_crafting_material_model(model_id: object) -> bool:
 
 def _is_scroll_trader_stock_model(model_id: object) -> bool:
     return max(0, _safe_int(model_id, 0)) in SCROLL_TRADER_STOCK_MODEL_IDS
+
+
+def _normalize_deposit_filter_category(raw_value: object) -> str:
+    value = str(raw_value or "").strip()
+    if value in DEPOSIT_FILTER_TOP_KEYS:
+        return value
+    return DEPOSIT_FILTER_ALL
+
+
+def _get_deposit_filter_subcategory_options(category: object) -> tuple[tuple[str, str], ...]:
+    safe_category = _normalize_deposit_filter_category(category)
+    return DEPOSIT_FILTER_SUBCATEGORY_OPTIONS.get(safe_category, ((DEPOSIT_FILTER_ALL, "All"),))
+
+
+def _normalize_deposit_filter_subcategory(category: object, raw_value: object) -> str:
+    safe_value = str(raw_value or "").strip()
+    valid_keys = {key for key, _label in _get_deposit_filter_subcategory_options(category)}
+    if safe_value in valid_keys:
+        return safe_value
+    return DEPOSIT_FILTER_ALL
 
 
 def _get_material_batch_size_for_model(model_id: object) -> int:
@@ -4407,6 +4733,8 @@ class MerchantRulesWidget:
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
         self.cleanup_blacklist_search_text = ""
+        self.cleanup_item_type_filter_category = DEPOSIT_FILTER_ALL
+        self.cleanup_item_type_filter_subcategory = DEPOSIT_FILTER_ALL
         self.destroy_model_text_cache: dict[int, str] = {}
         self.destroy_model_search_cache: dict[int, str] = {}
         self.salvage_model_search_cache: dict[int, str] = {}
@@ -5275,6 +5603,8 @@ class MerchantRulesWidget:
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
         self.cleanup_blacklist_search_text = ""
+        self.cleanup_item_type_filter_category = DEPOSIT_FILTER_ALL
+        self.cleanup_item_type_filter_subcategory = DEPOSIT_FILTER_ALL
         self._refresh_rule_ui_caches()
 
     def _get_shared_profiles_dir(self) -> str:
@@ -6086,6 +6416,8 @@ class MerchantRulesWidget:
         self.auto_cleanup_zone_token = ""
         self.cleanup_model_search_text = ""
         self.cleanup_blacklist_search_text = ""
+        self.cleanup_item_type_filter_category = DEPOSIT_FILTER_ALL
+        self.cleanup_item_type_filter_subcategory = DEPOSIT_FILTER_ALL
         self.instant_destroy_running = False
         self.instant_destroy_rescan_requested = False
         self.instant_destroy_last_signature = ()
@@ -6677,6 +7009,113 @@ class MerchantRulesWidget:
             loaded_count += 1
         return loaded_count
 
+    def _load_rune_model_catalog(self) -> int:
+        if not os.path.exists(RUNES_CATALOG_PATH):
+            return 0
+
+        with open(RUNES_CATALOG_PATH, "r", encoding="utf-8") as file:
+            raw_catalog = json.load(file)
+
+        if not isinstance(raw_catalog, dict):
+            return 0
+
+        grouped_entries: dict[int, tuple[set[str], set[str]]] = {}
+        for raw_identifier, raw_entry in raw_catalog.items():
+            if not isinstance(raw_entry, dict):
+                continue
+            model_id = max(0, _safe_int(raw_entry.get("ModelId", 0), 0))
+            if model_id <= 0:
+                continue
+
+            names = raw_entry.get("Names", {})
+            if isinstance(names, dict):
+                display_name = str(names.get("English", "") or "").strip()
+            else:
+                display_name = ""
+            if not display_name:
+                display_name = str(raw_entry.get("Identifier", raw_identifier) or "").strip()
+            if not display_name:
+                continue
+
+            mod_type = str(raw_entry.get("ModType", "") or "").strip()
+            normalized_name = _normalize_catalog_search_text(display_name)
+            if mod_type == "Prefix" or "insignia" in normalized_name:
+                kind = "insignia"
+            elif mod_type == "Suffix" or "rune" in normalized_name:
+                kind = "rune"
+            else:
+                kind = ""
+
+            names_for_model, kinds_for_model = grouped_entries.setdefault(model_id, (set(), set()))
+            names_for_model.add(display_name)
+            if kind:
+                kinds_for_model.add(kind)
+
+        loaded_count = 0
+        for model_id, (names_for_model, kinds_for_model) in grouped_entries.items():
+            names = sorted(str(name) for name in names_for_model if str(name or "").strip())
+            kinds = sorted(str(kind) for kind in kinds_for_model if str(kind or "").strip())
+            if not names:
+                continue
+
+            if len(names) == 1:
+                display_name = names[0]
+            elif kinds == ["insignia"]:
+                display_name = "Insignia"
+            elif kinds == ["rune"]:
+                display_name = "Rune"
+            else:
+                display_name = "Rune / Insignia"
+
+            alias_labels = _build_catalog_alias_labels(display_name)
+            for name in names:
+                alias_labels.update(_build_catalog_alias_labels(name))
+
+            extra: dict[str, object] = {
+                "alias_labels": alias_labels,
+                "rune_model_kinds": kinds,
+                "rune_model_names": names,
+            }
+            current = self.catalog_by_model_id.get(model_id)
+            if current is None:
+                self._register_catalog_entry(
+                    model_id=model_id,
+                    name=display_name,
+                    item_type="Rune_Mod",
+                    source="runes_catalog",
+                    priority=18,
+                    extra=extra,
+                )
+            else:
+                if not str(current.get("item_type", "") or "").strip():
+                    current["item_type"] = "Rune_Mod"
+                current_kinds = [
+                    str(kind)
+                    for kind in current.get("rune_model_kinds", [])
+                    if str(kind or "").strip()
+                ]
+                merged_kinds = sorted(set(current_kinds) | set(kinds))
+                if merged_kinds:
+                    current["rune_model_kinds"] = merged_kinds
+
+                current_names = [
+                    str(name)
+                    for name in current.get("rune_model_names", [])
+                    if str(name or "").strip()
+                ]
+                merged_names = sorted(set(current_names) | set(names))
+                if merged_names:
+                    current["rune_model_names"] = merged_names
+
+                current_alias_labels = current.get("alias_labels", {})
+                if not isinstance(current_alias_labels, dict):
+                    current_alias_labels = {}
+                current_alias_labels.update(alias_labels)
+                current["alias_labels"] = current_alias_labels
+            loaded_count += 1
+
+        return loaded_count
+
     def _load_model_id_fallback_catalog(self) -> int:
         enum_names_by_model_id: dict[int, list[str]] = {}
         for enum_name, model_id in _iter_model_id_enum_members():
@@ -6757,6 +7196,7 @@ class MerchantRulesWidget:
         rare_entries: list[dict[str, object]] = []
         merchant_entries: list[dict[str, object]] = []
         item_handling_items_count = 0
+        rune_model_catalog_count = 0
         drop_data_count = 0
         model_id_fallback_count = 0
         item_handling_present = os.path.exists(ITEM_HANDLING_ITEMS_CATALOG_PATH)
@@ -6814,6 +7254,11 @@ class MerchantRulesWidget:
         except Exception as exc:
             load_errors.append(f"Rune buy catalog load failed: {exc}")
 
+        try:
+            rune_model_catalog_count = self._load_rune_model_catalog()
+        except Exception as exc:
+            load_errors.append(f"Rune model catalog load failed: {exc}")
+
         if MOD_DB_LOAD_ERROR:
             load_errors.append(MOD_DB_LOAD_ERROR)
 
@@ -6830,6 +7275,7 @@ class MerchantRulesWidget:
             "curated_total": len(common_entries) + len(rare_entries) + len(merchant_entries),
             "item_handling_present": item_handling_present,
             "item_handling_items": item_handling_items_count,
+            "rune_models": rune_model_catalog_count,
             "drop_data": drop_data_count,
             "modelid_fallback_items": model_id_fallback_count,
             "final_models": len(self.catalog_by_model_id),
@@ -7465,6 +7911,250 @@ class MerchantRulesWidget:
             return False
 
         return True
+
+    def _get_catalog_entry_filter_text(self, entry: dict[str, object]) -> str:
+        parts = [
+            entry.get("name", ""),
+            entry.get("item_type", ""),
+            entry.get("material_type", ""),
+            entry.get("category", ""),
+            entry.get("sub_category", ""),
+            entry.get("skin", ""),
+            entry.get("wiki_url", ""),
+        ]
+        for key in ("attributes", "enum_names", "rune_model_names"):
+            raw_values = entry.get(key, [])
+            if isinstance(raw_values, (list, tuple, set)):
+                parts.extend(raw_values)
+
+        alias_labels = entry.get("alias_labels", {})
+        if isinstance(alias_labels, dict):
+            for raw_alias, display_name in alias_labels.items():
+                parts.append(raw_alias)
+                parts.append(display_name)
+
+        return _normalize_catalog_search_text(" ".join(str(part or "") for part in parts))
+
+    def _get_catalog_entry_rune_model_kinds(self, entry: dict[str, object], entry_text: str) -> set[str]:
+        kinds: set[str] = set()
+        raw_kinds = entry.get("rune_model_kinds", [])
+        if isinstance(raw_kinds, (list, tuple, set)):
+            for raw_kind in raw_kinds:
+                kind = str(raw_kind or "").strip().lower()
+                if kind in {"rune", "insignia"}:
+                    kinds.add(kind)
+
+        if "insignia" in entry_text:
+            kinds.add("insignia")
+        if "rune" in entry_text and "rune of holding" not in entry_text:
+            kinds.add("rune")
+        return kinds
+
+    def _catalog_entry_is_common_material(
+        self,
+        entry: dict[str, object],
+        material_type: str,
+        sub_category: str,
+    ) -> bool:
+        model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
+        return (
+            material_type == "common"
+            or sub_category in {"commonmaterial", "common materials"}
+            or _is_common_crafting_material_model(model_id)
+        )
+
+    def _catalog_entry_is_rare_material(
+        self,
+        entry: dict[str, object],
+        material_type: str,
+        sub_category: str,
+    ) -> bool:
+        model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
+        return (
+            material_type == "rare"
+            or sub_category in {"rarematerial", "rare materials"}
+            or _is_rare_crafting_material_model(model_id)
+        )
+
+    def _get_cleanup_deposit_filter_match_keys(self, entry: dict[str, object]) -> set[str]:
+        matches: set[str] = set()
+        model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
+        item_type = _normalize_catalog_search_text(entry.get("item_type", ""))
+        material_type = _normalize_catalog_search_text(entry.get("material_type", ""))
+        category = _normalize_catalog_search_text(entry.get("category", ""))
+        sub_category = _normalize_catalog_search_text(entry.get("sub_category", ""))
+        entry_text = self._get_catalog_entry_filter_text(entry)
+
+        def add_match(top_key: str, sub_key: str):
+            matches.add(top_key)
+            matches.add(sub_key)
+
+        if self._catalog_entry_is_common_material(entry, material_type, sub_category):
+            add_match(DEPOSIT_FILTER_MATERIALS, DEPOSIT_FILTER_MATERIALS_COMMON)
+        if self._catalog_entry_is_rare_material(entry, material_type, sub_category):
+            add_match(DEPOSIT_FILTER_MATERIALS, DEPOSIT_FILTER_MATERIALS_RARE)
+
+        is_bag_upgrade = "rune of holding" in entry_text
+        if is_bag_upgrade:
+            add_match(DEPOSIT_FILTER_UPGRADES, DEPOSIT_FILTER_UPGRADES_BAG)
+
+        rune_kinds = self._get_catalog_entry_rune_model_kinds(entry, entry_text)
+        if "rune" in rune_kinds and not is_bag_upgrade:
+            add_match(DEPOSIT_FILTER_UPGRADES, DEPOSIT_FILTER_UPGRADES_RUNES)
+        if "insignia" in rune_kinds:
+            add_match(DEPOSIT_FILTER_UPGRADES, DEPOSIT_FILTER_UPGRADES_INSIGNIAS)
+
+        is_rune_mod = item_type == "rune mod"
+        is_inscription = bool(is_rune_mod and "inscription" in entry_text)
+        if is_inscription:
+            add_match(DEPOSIT_FILTER_UPGRADES, DEPOSIT_FILTER_UPGRADES_INSCRIPTIONS)
+        if is_rune_mod and not is_inscription:
+            if any(fragment in entry_text for fragment in DEPOSIT_FILTER_WEAPON_PREFIX_FRAGMENTS):
+                add_match(DEPOSIT_FILTER_UPGRADES, DEPOSIT_FILTER_UPGRADES_WEAPON_PREFIX)
+            if any(fragment in entry_text for fragment in DEPOSIT_FILTER_WEAPON_SUFFIX_FRAGMENTS):
+                add_match(DEPOSIT_FILTER_UPGRADES, DEPOSIT_FILTER_UPGRADES_WEAPON_SUFFIX)
+
+        if item_type in {"offhand", "shield", "focus", "offhandorshield", "offhand or shield"}:
+            add_match(DEPOSIT_FILTER_EQUIPMENT, DEPOSIT_FILTER_EQUIPMENT_OFFHANDS)
+        elif _is_weapon_catalog_item_type(item_type):
+            add_match(DEPOSIT_FILTER_EQUIPMENT, DEPOSIT_FILTER_EQUIPMENT_WEAPONS)
+        if _is_armor_catalog_item_type(item_type) or (
+            item_type == "salvage"
+            and _is_armor_salvage_catalog_name(entry.get("name", ""))
+            and not _is_armor_rune_catalog_name(entry.get("name", ""))
+        ):
+            add_match(DEPOSIT_FILTER_EQUIPMENT, DEPOSIT_FILTER_EQUIPMENT_ARMOR)
+
+        consumable_specific = False
+        if (
+            item_type == "scroll"
+            or category == "scroll"
+            or "scroll" in sub_category
+            or _is_scroll_trader_stock_model(model_id)
+        ):
+            add_match(DEPOSIT_FILTER_CONSUMABLES, DEPOSIT_FILTER_CONSUMABLES_SCROLLS)
+            consumable_specific = True
+        if (
+            model_id in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+            or category == "deathpenaltyremoval"
+            or any(fragment in entry_text for fragment in DEPOSIT_FILTER_COMBAT_CONSUMABLE_FRAGMENTS)
+        ):
+            add_match(DEPOSIT_FILTER_CONSUMABLES, DEPOSIT_FILTER_CONSUMABLES_COMBAT)
+            consumable_specific = True
+        if (
+            category in {"alcohol", "party", "sweet"}
+            or item_type == "present"
+            or any(fragment in entry_text for fragment in DEPOSIT_FILTER_PARTY_CONSUMABLE_FRAGMENTS)
+        ):
+            add_match(DEPOSIT_FILTER_CONSUMABLES, DEPOSIT_FILTER_CONSUMABLES_PARTY)
+            consumable_specific = True
+        if any(fragment in entry_text for fragment in DEPOSIT_FILTER_SUMMONING_FRAGMENTS):
+            add_match(DEPOSIT_FILTER_CONSUMABLES, DEPOSIT_FILTER_CONSUMABLES_SUMMONING)
+            consumable_specific = True
+        if item_type == "usable" and not consumable_specific:
+            add_match(DEPOSIT_FILTER_CONSUMABLES, DEPOSIT_FILTER_CONSUMABLES_OTHER)
+
+        if item_type in {"bag", "dye", "key", "kit"} and not is_bag_upgrade:
+            add_match(DEPOSIT_FILTER_OTHER, DEPOSIT_FILTER_OTHER_UTILITY)
+        if item_type in {
+            "bundle",
+            "cc shards",
+            "costume",
+            "costume headpiece",
+            "gold coin",
+            "materials zcoins",
+            "minipet",
+            "quest item",
+            "storybook",
+            "trophy",
+        }:
+            add_match(DEPOSIT_FILTER_OTHER, DEPOSIT_FILTER_OTHER_TROPHIES)
+
+        if not (matches & (DEPOSIT_FILTER_TOP_KEYS - {DEPOSIT_FILTER_ALL})):
+            add_match(DEPOSIT_FILTER_OTHER, DEPOSIT_FILTER_OTHER_UNKNOWN)
+        return matches
+
+    def _catalog_entry_matches_cleanup_deposit_filter(
+        self,
+        entry: dict[str, object],
+        category: object,
+        subcategory: object,
+    ) -> bool:
+        safe_category = _normalize_deposit_filter_category(category)
+        safe_subcategory = _normalize_deposit_filter_subcategory(safe_category, subcategory)
+        if safe_category == DEPOSIT_FILTER_ALL:
+            return True
+        match_keys = self._get_cleanup_deposit_filter_match_keys(entry)
+        if safe_subcategory == DEPOSIT_FILTER_ALL:
+            return safe_category in match_keys
+        return safe_subcategory in match_keys
+
+    def _cleanup_target_matches_deposit_filter(
+        self,
+        target: CleanupTarget,
+        category: object,
+        subcategory: object,
+    ) -> bool:
+        safe_model_id = max(0, _safe_int(getattr(target, "model_id", 0), 0))
+        if safe_model_id <= 0:
+            return False
+        entry = self.catalog_by_model_id.get(safe_model_id)
+        if not isinstance(entry, dict):
+            entry = {
+                "model_id": safe_model_id,
+                "name": self._get_model_name(safe_model_id) or f"Model {safe_model_id}",
+            }
+        return self._catalog_entry_matches_cleanup_deposit_filter(entry, category, subcategory)
+
+    def _get_cleanup_deposit_filter_model_ids(self, category: object, subcategory: object) -> list[int]:
+        safe_category = _normalize_deposit_filter_category(category)
+        if safe_category == DEPOSIT_FILTER_ALL:
+            return []
+        safe_subcategory = _normalize_deposit_filter_subcategory(safe_category, subcategory)
+        model_ids: list[int] = []
+        for entry in self.catalog_by_model_id.values():
+            if not isinstance(entry, dict):
+                continue
+            model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
+            if model_id <= 0:
+                continue
+            if self._catalog_entry_matches_cleanup_deposit_filter(entry, safe_category, safe_subcategory):
+                model_ids.append(model_id)
+        return self._sort_model_ids_for_display(_dedupe_model_ids(model_ids))
+
+    def _get_addable_cleanup_deposit_filter_model_ids(
+        self,
+        category: object,
+        subcategory: object,
+        cleanup_targets: list[CleanupTarget],
+    ) -> list[int]:
+        existing_model_ids = {int(target.model_id) for target in _normalize_cleanup_targets(cleanup_targets)}
+        return [
+            model_id
+            for model_id in self._get_cleanup_deposit_filter_model_ids(category, subcategory)
+            if int(model_id) not in existing_model_ids
+        ]
+
+    def _search_cleanup_deposit_catalog(
+        self,
+        raw_query: str,
+        limit: int = SEARCH_RESULT_LIMIT,
+    ) -> list[dict[str, object]]:
+        category = _normalize_deposit_filter_category(self.cleanup_item_type_filter_category)
+        subcategory = _normalize_deposit_filter_subcategory(category, self.cleanup_item_type_filter_subcategory)
+        self.cleanup_item_type_filter_category = category
+        self.cleanup_item_type_filter_subcategory = subcategory
+        if category == DEPOSIT_FILTER_ALL:
+            return self._search_catalog(raw_query, limit=limit)
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=lambda entry: self._catalog_entry_matches_cleanup_deposit_filter(
+                entry,
+                category,
+                subcategory,
+            ),
+            limit=limit,
+        )
 
     def _search_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         query = _normalize_catalog_search_text(raw_query)
@@ -8202,6 +8892,26 @@ class MerchantRulesWidget:
         PyImGui.end_disabled()
         return clicked and addable_count > 0
 
+    def _draw_add_filtered_targets_button(
+        self,
+        button_id: str,
+        addable_count: int,
+        *,
+        enabled: bool,
+    ) -> bool:
+        PyImGui.begin_disabled(not enabled or addable_count <= 0)
+        clicked = self._draw_confirm_destructive_button(
+            f"Add Filtered ({max(0, int(addable_count))})##{button_id}",
+            small=True,
+        )
+        PyImGui.end_disabled()
+        self._draw_hover_tooltip(
+            "Adds every catalog item matching the selected Item Type and Subtype. "
+            "Existing deposit targets are skipped, and new targets use Keep On Character 0. "
+            "Disabled for All to avoid adding the whole catalog."
+        )
+        return bool(enabled and addable_count > 0 and clicked)
+
     def _draw_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
@@ -8219,6 +8929,36 @@ class MerchantRulesWidget:
                     model_id = int(entry.get("model_id", 0))
                     label = self._format_model_label_long(model_id)
                     if self._draw_colored_selectable(label, self._get_model_text_color(model_id), f"{child_id}_{model_id}"):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
+    def _draw_cleanup_deposit_search_results(
+        self,
+        child_id: str,
+        query: str,
+    ) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = self._search_cleanup_deposit_catalog(normalized_query)
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching deposit targets found for the current search and item type.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
+                    if self._draw_colored_selectable(
+                        label,
+                        self._get_model_text_color(model_id),
+                        f"{child_id}_{model_id}",
+                    ):
                         picked_model_id = model_id
                         break
         PyImGui.end_child()
@@ -8894,16 +9634,9 @@ class MerchantRulesWidget:
 
     def _resolve_rune_trader_coords(self, map_id: int, *, log_failures: bool = True) -> tuple[float, float] | None:
         selector_name = str(SUPPORTED_MAP_RUNE_TRADER_SELECTORS.get(int(map_id), "") or "").strip()
-        if selector_name:
-            step = {"npc": selector_name}
-        else:
-            step = {"target": RUNE_TRADER_NAME_QUERY}
-        return resolve_agent_xy_from_step(
-            step,
-            recipe_name=MODULE_NAME,
-            step_idx=0,
-            agent_kind="npc",
-            default_max_dist=OUTPOST_SERVICE_SEARCH_MAX_DIST,
+        return self._resolve_service_coords(
+            selector_name=selector_name,
+            name_query=RUNE_TRADER_NAME_QUERY,
             log_failures=log_failures,
         )
 
@@ -26876,6 +27609,50 @@ class MerchantRulesWidget:
         if run_salvage_clicked:
             self._queue_salvage_now(auto_triggered=False)
 
+    def _draw_cleanup_item_type_filter_controls(self):
+        category_values = [key for key, _label in DEPOSIT_FILTER_TOP_OPTIONS]
+        category_labels = [label for _key, label in DEPOSIT_FILTER_TOP_OPTIONS]
+        category = _normalize_deposit_filter_category(self.cleanup_item_type_filter_category)
+        category_index = category_values.index(category) if category in category_values else 0
+
+        PyImGui.push_item_width(210)
+        next_category_index = PyImGui.combo(
+            "Item Type##merchant_rules_cleanup_item_type_filter",
+            category_index,
+            category_labels,
+        )
+        PyImGui.pop_item_width()
+        next_category_index = max(0, min(int(next_category_index), len(category_values) - 1))
+        next_category = category_values[next_category_index]
+        if next_category != category:
+            self.cleanup_item_type_filter_category = next_category
+            self.cleanup_item_type_filter_subcategory = DEPOSIT_FILTER_ALL
+            category = next_category
+
+        if category == DEPOSIT_FILTER_ALL:
+            self.cleanup_item_type_filter_subcategory = DEPOSIT_FILTER_ALL
+            return
+
+        subcategory_options = _get_deposit_filter_subcategory_options(category)
+        subcategory_values = [key for key, _label in subcategory_options]
+        subcategory_labels = [label for _key, label in subcategory_options]
+        subcategory = _normalize_deposit_filter_subcategory(
+            category,
+            self.cleanup_item_type_filter_subcategory,
+        )
+        subcategory_index = subcategory_values.index(subcategory) if subcategory in subcategory_values else 0
+
+        PyImGui.same_line(0, 8)
+        PyImGui.push_item_width(230)
+        next_subcategory_index = PyImGui.combo(
+            "Subtype##merchant_rules_cleanup_item_subtype_filter",
+            subcategory_index,
+            subcategory_labels,
+        )
+        PyImGui.pop_item_width()
+        next_subcategory_index = max(0, min(int(next_subcategory_index), len(subcategory_values) - 1))
+        self.cleanup_item_type_filter_subcategory = subcategory_values[next_subcategory_index]
+
     def _draw_cleanup_status_badges(
         self,
         cleanup_targets: list[CleanupTarget],
@@ -27167,6 +27944,12 @@ class MerchantRulesWidget:
         self._draw_secondary_text(
             "Pick exact item or material models to stash in Xunlai. Keep On Character is owned by deposit settings and does not sync back to sell rules."
         )
+        self._draw_cleanup_item_type_filter_controls()
+        active_deposit_filter_category = _normalize_deposit_filter_category(self.cleanup_item_type_filter_category)
+        active_deposit_filter_subcategory = _normalize_deposit_filter_subcategory(
+            active_deposit_filter_category,
+            self.cleanup_item_type_filter_subcategory,
+        )
 
         updated_targets = [
             CleanupTarget(
@@ -27175,10 +27958,45 @@ class MerchantRulesWidget:
             )
             for target in cleanup_targets
         ]
+        addable_filtered_model_ids = self._get_addable_cleanup_deposit_filter_model_ids(
+            active_deposit_filter_category,
+            active_deposit_filter_subcategory,
+            updated_targets,
+        )
+        PyImGui.same_line(0, 8)
+        if self._draw_add_filtered_targets_button(
+            "merchant_rules_cleanup_add_filtered_targets",
+            len(addable_filtered_model_ids),
+            enabled=active_deposit_filter_category != DEPOSIT_FILTER_ALL,
+        ):
+            next_targets = list(updated_targets)
+            for model_id in addable_filtered_model_ids:
+                next_targets.append(CleanupTarget(model_id=int(model_id), keep_on_character=0))
+            if self._set_cleanup_targets(next_targets):
+                cleanup_changed = True
+                cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
+                updated_targets = [
+                    CleanupTarget(
+                        model_id=int(target.model_id),
+                        keep_on_character=max(0, int(target.keep_on_character)),
+                    )
+                    for target in cleanup_targets
+                ]
+
         display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
+        if active_deposit_filter_category != DEPOSIT_FILTER_ALL:
+            display_targets = [
+                target
+                for target in display_targets
+                if self._cleanup_target_matches_deposit_filter(
+                    target,
+                    active_deposit_filter_category,
+                    active_deposit_filter_subcategory,
+                )
+            ]
         removed_cleanup_model_id = 0
-        if updated_targets:
-            child_height = min(220, 58 + (32 * len(updated_targets)))
+        if display_targets:
+            child_height = min(220, 58 + (32 * len(display_targets)))
             if PyImGui.begin_child("merchant_rules_cleanup_targets", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
                 if PyImGui.begin_table("merchant_rules_cleanup_targets_table", 3, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
@@ -27217,6 +28035,8 @@ class MerchantRulesWidget:
                             break
                     PyImGui.end_table()
             PyImGui.end_child()
+        elif updated_targets:
+            PyImGui.text_colored("No deposit targets match the selected item type.", UI_COLOR_MUTED)
         else:
             PyImGui.text_colored("No deposit targets yet.", UI_COLOR_MUTED)
 
@@ -27234,7 +28054,7 @@ class MerchantRulesWidget:
         if updated_cleanup_search != self.cleanup_model_search_text:
             self.cleanup_model_search_text = updated_cleanup_search
 
-        picked_cleanup_model_id, visible_cleanup_model_ids = self._draw_search_results(
+        picked_cleanup_model_id, visible_cleanup_model_ids = self._draw_cleanup_deposit_search_results(
             "merchant_rules_cleanup_search_results",
             self.cleanup_model_search_text,
         )
