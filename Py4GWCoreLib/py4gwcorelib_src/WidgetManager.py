@@ -1011,6 +1011,21 @@ class Py4GWLibrary:
                 else:
                     self.widget_manager._request_disable_widget(widget)
                     
+            if PyImGui.menu_item("Enable on all accounts" if not widget.enabled else "Disable on all accounts"):
+                enabled = not widget.enabled
+                
+                if not widget.enabled:                        
+                    self.widget_manager.enable_widget(widget.plain_name)
+                    
+                    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                        if acc.AccountEmail == Player.GetAccountEmail():
+                            continue
+                        
+                        GLOBAL_CACHE.ShMem.SendMessage(Player.GetAccountEmail(), acc.AccountEmail, SharedCommandType.EnableWidget, ExtraData=(widget.plain_name,))
+                else:
+                    self.widget_manager._request_disable_widget(widget, broadcast=True)
+            
+                        
             PyImGui.separator()
 
             if widget.has_configure_property:
@@ -2321,12 +2336,18 @@ class WidgetHandler:
             IniManager().set(key=INI_KEY, section=cv.section, var_name=cv.var_name, value=state)
             IniManager().save_vars(INI_KEY)
 
-    def _request_disable_widget(self, widget: Widget):
+    def _request_disable_widget(self, widget: Widget, broadcast: bool = False):
         if widget.category == "System":
             self._pending_disable_widget = widget
             return
 
         self.disable_widget(widget.plain_name)
+        if broadcast:
+            for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                if acc.AccountEmail == Player.GetAccountEmail():
+                    continue
+                
+                GLOBAL_CACHE.ShMem.SendMessage(Player.GetAccountEmail(), acc.AccountEmail, SharedCommandType.DisableWidget, ExtraData=(widget.plain_name,))
 
     def _draw_pending_disable_confirmation(self):
         if self._pending_disable_widget:
