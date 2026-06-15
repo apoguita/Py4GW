@@ -2820,7 +2820,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Signet of Ghostly Might",
         capture_function="SignetOfGhostlyMight",
-        start_map=427,
+        start_map=480,
         icon_filename="[1742] - Signet of Ghostly Might.jpg"
     ),
     EliteSkill(
