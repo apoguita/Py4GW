@@ -1,6 +1,7 @@
 # Reload imports
 from datetime import datetime
 from enum import Enum
+import json
 import os
 from typing import Optional
 
@@ -115,6 +116,7 @@ is_first_run = True
 
 widget_handler = get_widget_handler()
 module_info = None
+save_as_file_name = ""
 
 class preview_states:
     def __init__(self):
@@ -407,7 +409,7 @@ def DrawThemeCompare():
                     match_style_vars = checked
 
                     for theme in comparing_themes:
-                        ImGui.reload_theme(theme)
+                        _reload_default_theme(theme)
 
                 if match_style_vars:
                     for theme in comparing_themes:
@@ -422,7 +424,7 @@ def DrawThemeCompare():
                 theme_1 = ImGui.combo(preview.theme_1.name + "##theme_1", preview.theme_1.value, themes)
                 if theme_1 != preview.theme_1.value:
                     preview.theme_1 = StyleTheme(theme_1)
-                    ImGui.reload_theme(preview.theme_1)
+                    _reload_default_theme(preview.theme_1)
                     
                 PyImGui.table_next_column()
 
@@ -430,14 +432,14 @@ def DrawThemeCompare():
                 theme_2 = ImGui.combo(preview.theme_2.name + "##theme_2", preview.theme_2.value, themes)
                 if theme_2 != preview.theme_2.value:
                     preview.theme_2 = StyleTheme(theme_2)
-                    ImGui.reload_theme(preview.theme_2)
+                    _reload_default_theme(preview.theme_2)
                     
                 PyImGui.table_next_column()
 
                 theme_3 = ImGui.combo(preview.theme_3.name + "##theme_3", preview.theme_3.value, themes)
                 if theme_3 != preview.theme_3.value:
                     preview.theme_3 = StyleTheme(theme_3)
-                    ImGui.reload_theme(preview.theme_3)
+                    _reload_default_theme(preview.theme_3)
                     
                 ImGui.end_table()
             PyImGui.pop_style_var(1)
@@ -515,6 +517,34 @@ def DrawControlCompare():
     if not ImGui.WindowModule._windows[name].open:
         control_compare = False
 
+
+def _save_style_to_path(style: Style, filename: str) -> None:
+    style_data = {
+        "Colors": {k: c.to_json() for k, c in style.Colors.items()},
+        "CustomColors": {k: c.to_json() for k, c in style.CustomColors.items()},
+        "TextureColors": {k: c.to_json() for k, c in style.TextureColors.items()},
+        "StyleVars": {k: v.to_json() for k, v in style.StyleVars.items()},
+    }
+
+    with open(os.path.join("Styles", filename), "w") as file:
+        json.dump(style_data, file, indent=4)
+
+
+def _sanitize_save_name(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in ("_", "-", " ") else "_" for ch in value.strip())
+    cleaned = " ".join(cleaned.split())
+    return cleaned
+
+
+def _save_current_style(save_name: str) -> None:
+    clean_name = _sanitize_save_name(save_name)
+    filename = f"{ImGui.Selected_Style.Theme.name}.default.json" if not clean_name else f"{clean_name}.json"
+    _save_style_to_path(ImGui.Selected_Style, filename)
+
+
+def _reload_default_theme(theme: StyleTheme) -> None:
+    ImGui.Styles[theme] = Style.load_default_theme(theme)
+
 def on_enable():
     global selected_theme
     selected_theme = StyleTheme[py4_gw_ini_handler.read_key(
@@ -523,7 +553,7 @@ def on_enable():
     set_theme(selected_theme)
         
 def DrawWindow():
-    global theme_compare, control_compare, style, window_width, window_height, save_throttle_timer, save_throttle_time, module_info, widget_handler
+    global theme_compare, control_compare, style, window_width, window_height, save_throttle_timer, save_throttle_time, module_info, widget_handler, save_as_file_name
     
     style = ImGui.get_style()
     
@@ -531,7 +561,7 @@ def DrawWindow():
         is_textured = style.Theme in ImGui.Textured_Themes
         tool_tip_visible = False
         
-        if PyImGui.begin_child("Theme Buttons", (0, 80), True, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
+        if PyImGui.begin_child("Theme Buttons", (0, 110), True, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
             if PyImGui.begin_child("Theme Selector Header", (0, 24), False, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
                 cursor_y = PyImGui.get_cursor_pos_y()
                 PyImGui.set_cursor_pos_y(cursor_y + 5)
@@ -577,21 +607,17 @@ def DrawWindow():
             PyImGui.end_child()
             
             ImGui.separator()
-            
+
+            save_as_file_name = ImGui.input_text("Save As File##style_save_as", save_as_file_name)
+            ImGui.show_tooltip("Leave empty to overwrite the selected theme default template. Enter a name to save to Styles/<name>.json.")
+
             remaining = PyImGui.get_content_region_avail()
-            button_width = (remaining[0] - 7) / 2
-            
+            button_width = remaining[0]
+
             any_changed = is_style_modified()
             if ImGui.button("Save Changes", button_width, disabled=not any_changed):
-                ImGui.Selected_Style.save_to_json()    
+                _save_current_style(save_as_file_name)
                 set_theme(ImGui.Selected_Style.Theme)
-
-            PyImGui.same_line(0, 5)
-
-            if ImGui.button("Reset to Default", button_width):
-                theme = ImGui.Selected_Style.Theme
-                ImGui.Selected_Style.delete()
-                set_theme(theme)
 
         PyImGui.end_child()
 
@@ -837,9 +863,10 @@ def is_style_modified():
 
 def set_theme(theme):
     global org_style
-    
-    ImGui.reload_theme(theme)
-    ImGui.set_theme(theme)            
+
+    _reload_default_theme(theme)
+    ImGui.Selected_Style = ImGui.Styles[theme]
+    ImGui.Selected_Style.apply_to_style_config()
     org_style = ImGui.Selected_Style.copy()
 
 def configure():
