@@ -2,7 +2,7 @@ import re
 import struct
 from typing import Optional
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, DamageType, Profession, Reduced_Ailment
-from Py4GWCoreLib.enums_src.Item_enums import ItemType
+from Py4GWCoreLib.enums_src.Item_enums import BowType, ItemType
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies
 
@@ -318,7 +318,14 @@ class GWEncoded():
         DamageType.unknown_14:  bytes([]),
         DamageType.unknown_15:  bytes([]),
     }
-                              
+                           
+    BOW_TYPES = {
+        BowType.Shortbow: bytes([0x4B, 0x28, 0x0, 0x0]),
+        BowType.Longbow: bytes([0x4D, 0x28, 0x0, 0x0]),
+        BowType.Flatbow: bytes([0x4F, 0x28, 0x0, 0x0]),
+        BowType.Recurvebow: bytes([0x51, 0x28, 0x0, 0x0]),
+        BowType.Hornbow: bytes([0x53, 0x28, 0x0, 0x0]),
+    }
     ITEM_BASIC = bytes([0x2, 0x0, 0x3B, 0xA, 0xA, 0x1])
     ITEM_BONUS = bytes([0x2, 0x0, 0x3C, 0xA, 0xA, 0x1])
     ITEM_COMMON = bytes([0x2, 0x0, 0x3D, 0xA, 0xA, 0x1])
