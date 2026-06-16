@@ -85,22 +85,10 @@ UW_TORTURED_SPIRIT_NAMES: tuple[str, ...] = (
 # Spectral Mindblade spawn wait in Restore Planes (not blacklisted)
 _UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
-RES_SCROLL_MODEL_ID = 26501  # ModelID.Scroll_Of_Resurrection
-PLANT_FIBER_MODEL_ID = 934  # ModelID.Plant_Fiber
-BONE_MODEL_ID = 921  # ModelID.Bone
 _SCROLL_TRADER_NAME = 'Scroll Trader'
 _SCROLL_TRADER_MODEL_ID = 207      # Guild Hall Scroll Trader
 _SCROLL_TRADER_APPROACH_DIST = 220.0  # stop short of NPC collision (Adjacent ~= 166)
 _SCROLL_TRADER_MOVE_TOLERANCE = 200.0
-_REZ_SCROLL_MATERIAL_TRADER_XY = (2958.0, -2211.0)
-_REZ_SCROLL_CRAFTER_XY = (3342.0, 613.0)
-_REZ_SCROLL_NPC_TARGET_DISTANCE = 700.0
-_REZ_SCROLL_MOVE_TOLERANCE = 200.0
-_REZ_SCROLL_CRAFT_GOLD_COST = 250
-_REZ_SCROLL_FIBER_COST = 25
-_REZ_SCROLL_BONE_COST = 25
-_REZ_SCROLL_MATERIAL_BATCH_SIZE = 10
-_REZ_SCROLL_MATERIAL_BATCH_GOLD_BUFFER = 250
 DEFAULT_UW_ENTRYPOINT_KEY = 'embark_beach'
 UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     'embark_beach':       ('Embark Beach',       int(name_to_map_id['Embark Beach'])),
@@ -165,32 +153,19 @@ class EnterSettings:
 
 # ── Inventory refill ──────────────────────────────────────────────────────────
 class InventorySettings:
-    """Between-run inventory management (MerchantRules + Xunlai restock)."""
-    RefillEnabled: bool = bool(_ini.read_bool(BOT_NAME, 'inv_refill_enabled', True))
-    RestockCons:   bool = bool(_ini.read_bool(BOT_NAME, 'inv_restock_cons',   True))
+    """Between-run inventory management (Guild Hall UW scroll purchasing)."""
     BuyUWScrolls:  bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_uw_scrolls', False))
-    BuyRezScrolls: bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_rez_scrolls', False))
     UWScrollMin:   int = max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_min', 1) or 1))
     UWScrollMax:   int = max(
         UWScrollMin,
         max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_max', 2) or 2)),
     )
-    RezScrollMin:  int = max(0, int(_ini.read_int(BOT_NAME, 'inv_rez_scroll_min', 1) or 1))
-    RezScrollMax:  int = max(
-        RezScrollMin,
-        max(0, int(_ini.read_int(BOT_NAME, 'inv_rez_scroll_max', 5) or 5)),
-    )
 
     @classmethod
     def save(cls) -> None:
-        _ini.write_key(BOT_NAME, 'inv_refill_enabled', str(cls.RefillEnabled))
-        _ini.write_key(BOT_NAME, 'inv_restock_cons',   str(cls.RestockCons))
         _ini.write_key(BOT_NAME, 'inv_buy_uw_scrolls', str(cls.BuyUWScrolls))
-        _ini.write_key(BOT_NAME, 'inv_buy_rez_scrolls', str(cls.BuyRezScrolls))
         _ini.write_key(BOT_NAME, 'inv_uw_scroll_min',  str(max(0, int(cls.UWScrollMin))))
         _ini.write_key(BOT_NAME, 'inv_uw_scroll_max',  str(max(0, int(cls.UWScrollMax))))
-        _ini.write_key(BOT_NAME, 'inv_rez_scroll_min', str(max(0, int(cls.RezScrollMin))))
-        _ini.write_key(BOT_NAME, 'inv_rez_scroll_max', str(max(0, int(cls.RezScrollMax))))
 
 
 # ── Consumables ───────────────────────────────────────────────────────────────
@@ -542,27 +517,6 @@ def _draw_inventory_settings() -> None:
             new_max = new_min
         return new_min, new_max
 
-    new_val = PyImGui.checkbox('Enable Inventory Refill', InventorySettings.RefillEnabled)
-    if new_val != InventorySettings.RefillEnabled:
-        InventorySettings.RefillEnabled = new_val
-        changed = True
-    PyImGui.separator()
-    PyImGui.text_wrapped(
-        'Travels all accounts to the Guild Hall. '
-        'Configure buy/sell/deposit rules in the MerchantRules widget.'
-    )
-    PyImGui.separator()
-    PyImGui.begin_disabled(not InventorySettings.RefillEnabled)
-    new_val = PyImGui.checkbox('Restock Cons from Xunlai', InventorySettings.RestockCons)
-    if new_val != InventorySettings.RestockCons:
-        InventorySettings.RestockCons = new_val
-        changed = True
-    PyImGui.text_wrapped(
-        "After MerchantRules finishes: restock consumables from each account's "
-        'Xunlai chest based on the Cons tab settings.'
-    )
-    PyImGui.end_disabled()
-    PyImGui.separator()
     new_val = PyImGui.checkbox('Buy UW scrolls at Scroll Trader (Guild Hall)', InventorySettings.BuyUWScrolls)
     if new_val != InventorySettings.BuyUWScrolls:
         InventorySettings.BuyUWScrolls = new_val
@@ -580,26 +534,6 @@ def _draw_inventory_settings() -> None:
         changed = True
     if new_max != InventorySettings.UWScrollMax:
         InventorySettings.UWScrollMax = new_max
-        changed = True
-    PyImGui.end_disabled()
-    PyImGui.separator()
-    new_val = PyImGui.checkbox('Buy Rez Scrolls at Embark Beach', InventorySettings.BuyRezScrolls)
-    if new_val != InventorySettings.BuyRezScrolls:
-        InventorySettings.BuyRezScrolls = new_val
-        changed = True
-    PyImGui.begin_disabled(not InventorySettings.BuyRezScrolls)
-    new_min, new_max = _draw_scroll_min_max_row(
-        '##rez_scroll_min',
-        '##rez_scroll_max',
-        InventorySettings.RezScrollMin,
-        InventorySettings.RezScrollMax,
-        RES_SCROLL_MODEL_ID,
-    )
-    if new_min != InventorySettings.RezScrollMin:
-        InventorySettings.RezScrollMin = new_min
-        changed = True
-    if new_max != InventorySettings.RezScrollMax:
-        InventorySettings.RezScrollMax = new_max
         changed = True
     PyImGui.end_disabled()
     if changed:
@@ -902,7 +836,19 @@ def _draw_run_log() -> None:
         except OSError:
             pass
     PyImGui.same_line(0, -1)
-    PyImGui.text(_WIPE_LOG_FILE)
+    if PyImGui.button('Reset Times##run_log'):
+        # Reset every statistic shown in the Main tab's Quest Progress table:
+        # this-run times (Time), the per-quest history feeding Avg5/AvgAll, and
+        # the wipe counts feeding SR% (cleared together so SR% returns to '--'
+        # instead of a misleading 0%). Also reset the live run timer state so
+        # 'Enter Underworld' goes back to pending.
+        _quest_completion_times.clear()
+        _quest_times_log.clear()
+        _wipe_counts_log.clear()
+        _timing_state['run_start_ms'] = None
+        _timing_state['last_step'] = ''
+        _save_quest_times_log()
+        _save_wipe_counts()
     PyImGui.separator()
     try:
         with open(_WIPE_LOG_FILE, 'r', encoding='utf-8') as f:
@@ -1029,6 +975,40 @@ except Exception:
     pass
 bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())
+
+# Declutter the Main tab: suppress the verbose status boolean block
+# (Started/Paused/Headless HeroAI/Looting/... ). The framework renders that
+# block exclusively through ``_colored_bool``, so neutralizing it on this bot's
+# UI instance hides those rows without touching the shared framework or any
+# other bot. The header (Current step / HeroAI / Planner) and the control
+# buttons above it remain untouched.
+bot.UI._colored_bool = lambda label, value: None  # type: ignore[method-assign]
+
+# Hide the built-in "Navigation" tab from the Main window. The framework
+# hard-codes that tab inside ``_draw_managed_window`` with no per-bot toggle, so
+# we wrap the draw call and make ``begin_tab_item`` report the Navigation tab as
+# collapsed (returns False) only while this bot renders its window. Every other
+# tab/label passes through unchanged, and the original ``begin_tab_item`` is
+# restored immediately, so no other widget or bot is affected.
+_bt_orig_draw_managed_window = bot.UI._draw_managed_window
+
+
+def _draw_managed_window_without_navigation() -> None:
+    _real_begin_tab_item = PyImGui.begin_tab_item
+
+    def _filtered_begin_tab_item(label, *args, **kwargs):
+        if label == 'Navigation':
+            return False
+        return _real_begin_tab_item(label, *args, **kwargs)
+
+    PyImGui.begin_tab_item = _filtered_begin_tab_item
+    try:
+        _bt_orig_draw_managed_window()
+    finally:
+        PyImGui.begin_tab_item = _real_begin_tab_item
+
+
+bot.UI._draw_managed_window = _draw_managed_window_without_navigation  # type: ignore[method-assign]
 
 # ── BehaviorTree import ──────────────────────────────────────────────────────
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree as _BT
@@ -1287,6 +1267,80 @@ def _wait_quest_completed(
         throttle_interval_ms=500,
         timeout_ms=timeout_ms,
     ))
+
+
+def _kill_route_until_quest_completed(
+    waypoints: list[tuple[Vec2f, float]],
+    quest_id: int,
+    label: str = '',
+    max_passes: int = 3,
+    confirm_wait_ms: int = 2_000,
+) -> _BT:
+    """Walk a MoveAndKill route, then verify quest_id is completed.
+
+    If the quest is not completed (e.g. enemies were missed on the way),
+    the whole route is walked again, up to max_passes additional times.
+    Already-cleared waypoints simply pass through, so only missed enemies
+    get engaged on later passes.
+
+    Always returns SUCCESS so the planner can continue to the turn-in dialog
+    even if the quest never registers as completed.
+    """
+    BT = Routines.BT
+    _tag         = label or f'Quest{quest_id}'
+    _pass_count  = [0]
+
+    def _quest_completed() -> bool:
+        from Py4GWCoreLib import Quest as _Quest
+        try:
+            return bool(_Quest.IsQuestCompleted(quest_id))
+        except Exception:
+            return False
+
+    def _walk_route(attempt_label: str) -> _BT:
+        return BT.Composite.Sequence(
+            *[BT.Movement.MoveAndKill(pos, clear_area_radius=radius) for pos, radius in waypoints],
+            name=attempt_label,
+        )
+
+    def _check_or_repeat(node: _BT.Node) -> _BT:
+        if _quest_completed():
+            ConsoleLog(
+                BOT_NAME,
+                f'[{_tag}] Quest {quest_id} completed.',
+                Py4GW.Console.MessageType.Info,
+            )
+            return _BT(_BT.ActionNode(name=f'{_tag}QuestDone', action_fn=lambda n: _BT.NodeState.SUCCESS))
+
+        if _pass_count[0] >= max_passes:
+            ConsoleLog(
+                BOT_NAME,
+                f'[{_tag}] Quest {quest_id} not completed after {max_passes} extra passes — continuing.',
+                Py4GW.Console.MessageType.Warning,
+            )
+            return _BT(_BT.ActionNode(name=f'{_tag}QuestGiveUp', action_fn=lambda n: _BT.NodeState.SUCCESS))
+
+        _pass_count[0] += 1
+        ConsoleLog(
+            BOT_NAME,
+            f'[{_tag}] Quest {quest_id} not completed — re-walking route, pass {_pass_count[0]}/{max_passes}.',
+            Py4GW.Console.MessageType.Warning,
+        )
+        return BT.Composite.Sequence(
+            _walk_route(f'{_tag}RepeatPass{_pass_count[0]}'),
+            BT.Player.Wait(duration_ms=confirm_wait_ms),
+            _BT(_BT.SubtreeNode(name=f'{_tag}RepeatCheck{_pass_count[0]}', subtree_fn=_check_or_repeat)),
+            name=f'{_tag}RepeatSeq{_pass_count[0]}',
+        )
+
+    return BT.Composite.Sequence(
+        _walk_route(f'{_tag}FirstPass'),
+        BT.Player.Wait(duration_ms=confirm_wait_ms),
+        _BT(_BT.SubtreeNode(name=f'{_tag}QuestCheck', subtree_fn=_check_or_repeat)),
+        name=f'{_tag}KillRouteUntilQuestCompleted',
+    )
+
+
 def _blacklist_add_dream_rider() -> None:
     _blacklist_name(UWBlacklistName.BanishedDreamRider)
 def _clear_follower_flags() -> _BT:
@@ -1768,183 +1822,6 @@ def _leader_needs_uw_scroll_buy() -> bool:
     return _uw_scroll_count_local() < max(0, int(InventorySettings.UWScrollMin))
 
 
-def _rez_scroll_count_local() -> int:
-    return int(GLOBAL_CACHE.Inventory.GetModelCount(int(RES_SCROLL_MODEL_ID)) or 0)
-
-
-def _leader_needs_rez_scroll_buy() -> bool:
-    if not InventorySettings.BuyRezScrolls:
-        return False
-    if int(Map.GetMapID() or 0) != int(UW_ENTRYPOINTS['embark_beach'][1]):
-        return False
-    return _rez_scroll_count_local() < max(0, int(InventorySettings.RezScrollMin))
-
-
-def _inventory_count(model_id: int) -> int:
-    return int(GLOBAL_CACHE.Inventory.GetModelCount(int(model_id)) or 0)
-
-
-def _gold_on_character() -> int:
-    return int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter() or 0)
-
-
-def _gold_in_storage() -> int:
-    return int(GLOBAL_CACHE.Inventory.GetGoldInStorage() or 0)
-
-
-def _rez_scroll_target_buy_qty() -> int:
-    if not InventorySettings.BuyRezScrolls:
-        return 0
-    if int(Map.GetMapID() or 0) != int(UW_ENTRYPOINTS['embark_beach'][1]):
-        return 0
-    target_max = max(0, int(InventorySettings.RezScrollMax))
-    return max(0, target_max - _rez_scroll_count_local())
-
-
-def _rez_scroll_material_batches_needed(model_id: int, scroll_qty: int) -> int:
-    if scroll_qty <= 0:
-        return 0
-    required_count = scroll_qty * (
-        _REZ_SCROLL_FIBER_COST if model_id == PLANT_FIBER_MODEL_ID else _REZ_SCROLL_BONE_COST
-    )
-    missing_count = max(0, required_count - _inventory_count(model_id))
-    return int(math.ceil(missing_count / float(_REZ_SCROLL_MATERIAL_BATCH_SIZE)))
-
-
-def _rez_scroll_craft_ready(_node: _BT.Node) -> _BT.NodeState:
-    for candidate in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems() or []:
-        if int(GLOBAL_CACHE.Item.GetModelID(candidate) or 0) == int(RES_SCROLL_MODEL_ID):
-            return _BT.NodeState.SUCCESS
-    return _BT.NodeState.RUNNING
-
-
-def _build_buy_rez_scrolls_tree(node: _BT.Node) -> _BT:
-    """Embark Beach local restock for Scrolls of Resurrection when below configured min."""
-    BT = Routines.BT
-    target_qty = _rez_scroll_target_buy_qty()
-    if target_qty <= 0:
-        return _BT(_BT.ActionNode(name='SkipBuyRezScrolls', action_fn=lambda _node: _BT.NodeState.SUCCESS))
-
-    fiber_batches = _rez_scroll_material_batches_needed(PLANT_FIBER_MODEL_ID, target_qty)
-    bone_batches = _rez_scroll_material_batches_needed(BONE_MODEL_ID, target_qty)
-    estimated_material_gold = (fiber_batches + bone_batches) * _REZ_SCROLL_MATERIAL_BATCH_GOLD_BUFFER
-    required_gold = target_qty * _REZ_SCROLL_CRAFT_GOLD_COST + estimated_material_gold
-    available_gold = _gold_on_character() + _gold_in_storage()
-    if available_gold < required_gold:
-        ConsoleLog(
-            BOT_NAME,
-            (
-                f'[EnterUW] BuyRezScrolls: not enough gold for {target_qty} scroll(s). '
-                f'Need about {required_gold}g, available {available_gold}g.'
-            ),
-            Py4GW.Console.MessageType.Warning,
-        )
-        return _BT(_BT.ActionNode(name='SkipBuyRezScrollsNoGold', action_fn=lambda _node: _BT.NodeState.SUCCESS))
-
-    if (
-        _inventory_count(RES_SCROLL_MODEL_ID) <= 0
-        and _inventory_count(PLANT_FIBER_MODEL_ID) <= 0
-        and _inventory_count(BONE_MODEL_ID) <= 0
-        and int(GLOBAL_CACHE.Inventory.GetFreeSlotCount() or 0) < 3
-    ):
-        ConsoleLog(
-            BOT_NAME,
-            '[EnterUW] BuyRezScrolls: need at least 3 free slots for Fiber, Bones, and Rez Scroll stack.',
-            Py4GW.Console.MessageType.Warning,
-        )
-        return _BT(_BT.ActionNode(name='SkipBuyRezScrollsNoSpace', action_fn=lambda _node: _BT.NodeState.SUCCESS))
-
-    ConsoleLog(
-        BOT_NAME,
-        (
-            f'[EnterUW] BuyRezScrolls: target {target_qty} scroll(s); '
-            f'Fiber batches={fiber_batches}, Bone batches={bone_batches}, gold target={required_gold}.'
-        ),
-        Py4GW.Console.MessageType.Info,
-    )
-
-    material_buy_steps = []
-    if fiber_batches > 0:
-        material_buy_steps.append(
-            BT.Items.BuyMaterials(int(PLANT_FIBER_MODEL_ID), batches=fiber_batches, log=True, aftercast_ms=200)
-        )
-    if bone_batches > 0:
-        material_buy_steps.append(
-            BT.Items.BuyMaterials(int(BONE_MODEL_ID), batches=bone_batches, log=True, aftercast_ms=200)
-        )
-    if not material_buy_steps:
-        material_buy_steps.append(
-            _BT(_BT.ActionNode(name='SkipBuyRezMaterials', action_fn=lambda _node: _BT.NodeState.SUCCESS))
-        )
-
-    craft_steps = [
-        BT.Items.CraftItem(
-            int(RES_SCROLL_MODEL_ID),
-            _REZ_SCROLL_CRAFT_GOLD_COST,
-            [int(PLANT_FIBER_MODEL_ID), int(BONE_MODEL_ID)],
-            [_REZ_SCROLL_FIBER_COST, _REZ_SCROLL_BONE_COST],
-            aftercast_ms=500,
-        )
-        for _ in range(target_qty)
-    ]
-
-    return BT.Composite.Sequence(
-        BT.Items.EqualizeGold(required_gold, deposit_all=False, log=True, aftercast_ms=350),
-        BT.Movement.Move(
-            x=_REZ_SCROLL_MATERIAL_TRADER_XY[0],
-            y=_REZ_SCROLL_MATERIAL_TRADER_XY[1],
-            tolerance=_REZ_SCROLL_MOVE_TOLERANCE,
-            timeout_ms=30_000,
-            pause_on_combat=False,
-            log=False,
-        ),
-        BT.Agents.TargetNearestNPCXY(
-            x=_REZ_SCROLL_MATERIAL_TRADER_XY[0],
-            y=_REZ_SCROLL_MATERIAL_TRADER_XY[1],
-            distance=_REZ_SCROLL_NPC_TARGET_DISTANCE,
-            log=True,
-        ),
-        BT.Player.InteractTarget(log=True),
-        BT.Player.Wait(1000, log=False),
-        *material_buy_steps,
-        BT.Movement.Move(
-            x=_REZ_SCROLL_CRAFTER_XY[0],
-            y=_REZ_SCROLL_CRAFTER_XY[1],
-            tolerance=_REZ_SCROLL_MOVE_TOLERANCE,
-            timeout_ms=30_000,
-            pause_on_combat=False,
-            log=False,
-        ),
-        BT.Agents.TargetNearestNPCXY(
-            x=_REZ_SCROLL_CRAFTER_XY[0],
-            y=_REZ_SCROLL_CRAFTER_XY[1],
-            distance=_REZ_SCROLL_NPC_TARGET_DISTANCE,
-            log=True,
-        ),
-        BT.Player.InteractTarget(log=True),
-        BT.Player.Wait(1000, log=False),
-        _BT(_BT.WaitUntilNode(
-            name='WaitRezScrollCrafterStock',
-            condition_fn=_rez_scroll_craft_ready,
-            throttle_interval_ms=100,
-            timeout_ms=8000,
-        )),
-        *craft_steps,
-        _BT(_BT.ActionNode(
-            name='LogBuyRezScrollsDone',
-            action_fn=lambda _node: (
-                ConsoleLog(
-                    BOT_NAME,
-                    f'[EnterUW] BuyRezScrolls: now have {_rez_scroll_count_local()} scroll(s).',
-                    Py4GW.Console.MessageType.Info,
-                )
-                or _BT.NodeState.SUCCESS
-            ),
-        )),
-        name='BuyRezScrolls',
-    )
-
-
 def _resolve_scroll_trader() -> tuple[float, float, int] | None:
     """Locate Scroll Trader (model 207) in the Guild Hall NPC arrays."""
     from Py4GWCoreLib import AgentArray as _AA
@@ -2127,6 +2004,171 @@ def _resolve_uw_entry_map_id() -> int:
 #   2. ApoBT.UseItemByModelID  — using a raw _BT.ActionNode + GLOBAL_CACHE.Inventory.UseItem.
 #   3. ApoBT.EnableWidgets     — using a raw _BT.ActionNode + WidgetManager + ShMem.SendMessage.
 
+# Guild Hall merchant restock (multibox). The Guild Hall "Merchant" NPC is model
+# id 196; it is located at runtime via an NPC-array scan so no fixed coordinates
+# are required.
+_GH_MERCHANT_MODEL_ID = 196
+# Every account is topped up to this many Salvage Kits at the Guild Hall merchant.
+_SALVAGE_KIT_RESTOCK_TARGET = 4
+# Max time to wait for every account to arrive in the Guild Hall before starting
+# the restock anyway (safety net so Enter Underworld never stalls).
+_SALVAGE_RESTOCK_GATHER_TIMEOUT_MS = 20000
+# Max time to wait for every account's merchant round-trip to finish.
+_SALVAGE_RESTOCK_WAIT_TIMEOUT_MS = 120000
+
+
+def _build_restock_salvage_kits_tree() -> _BT:
+    """Multibox Salvage-Kit restock as a single pure-BT ActionNode.
+
+    Once every multibox account has arrived in the Guild Hall, locate the Guild
+    Hall Merchant (model 196) and broadcast a ``MerchantItems`` shared command to
+    every account (leader included). Each account walks to the merchant and tops
+    its Salvage Kits up to ``_SALVAGE_KIT_RESTOCK_TARGET`` via the standard
+    Messaging handler. This node only sends the command and polls the outbound
+    refs for completion — all movement/buying is performed by the shared-memory
+    command infrastructure (same pattern as the LootChest step). Always returns
+    SUCCESS so Enter Underworld never stalls.
+    """
+    from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType as _SCT
+    from Py4GWCoreLib import AgentArray as _AA
+
+    target = int(_SALVAGE_KIT_RESTOCK_TARGET)
+    state: dict = {
+        'phase':              'wait_gathered',  # wait_gathered → send → waiting → done
+        'gather_deadline_ms': 0,
+        'refs':               [],               # list of (email, message_index)
+        'deadline_ms':        0,
+    }
+
+    def _all_accounts_in_guild_hall() -> bool:
+        if not Map.IsGuildHall():
+            return False
+        gh_map_id = int(Map.GetMapID() or 0)
+        if gh_map_id <= 0:
+            return False
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        if not accounts:
+            return False
+        return all(
+            int(getattr(acc.AgentData.Map, 'MapID', 0) or 0) == gh_map_id
+            for acc in accounts
+        )
+
+    def _find_merchant_xy() -> "tuple[float, float] | None":
+        seen: set[int] = set()
+        for source in (_AA.GetNPCMinipetArray(), _AA.GetAgentArray(), _AA.GetNeutralArray()):
+            for agent_id in source or []:
+                aid = int(agent_id)
+                if aid in seen:
+                    continue
+                seen.add(aid)
+                if not Agent.IsValid(aid):
+                    continue
+                try:
+                    if int(Agent.GetModelID(aid)) == _GH_MERCHANT_MODEL_ID:
+                        pos = Agent.GetXY(aid)
+                        if pos:
+                            return float(pos[0]), float(pos[1])
+                except Exception:
+                    continue
+        return None
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        now = int(Utils.GetBaseTimestamp())
+        my_email = str(Player.GetAccountEmail() or '')
+
+        if state['phase'] == 'wait_gathered':
+            if state['gather_deadline_ms'] == 0:
+                state['gather_deadline_ms'] = now + _SALVAGE_RESTOCK_GATHER_TIMEOUT_MS
+            if _all_accounts_in_guild_hall():
+                state['phase'] = 'send'
+                return _BT.NodeState.RUNNING
+            if now >= state['gather_deadline_ms']:
+                ConsoleLog(
+                    BOT_NAME,
+                    '[EnterUW] RestockSalvageKits: not all accounts reached the Guild Hall '
+                    'before timeout — restocking available accounts anyway.',
+                    Py4GW.Console.MessageType.Warning,
+                )
+                state['phase'] = 'send'
+                return _BT.NodeState.RUNNING
+            return _BT.NodeState.RUNNING
+
+        if state['phase'] == 'send':
+            merchant = _find_merchant_xy()
+            if merchant is None:
+                ConsoleLog(
+                    BOT_NAME,
+                    '[EnterUW] RestockSalvageKits: Guild Hall merchant (model 196) not found — '
+                    'skipping salvage-kit restock.',
+                    Py4GW.Console.MessageType.Warning,
+                )
+                _append_run_log('Restock Salvage Kits: merchant not found, skipped.')
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+
+            mx, my = merchant
+            refs: list[tuple[str, int]] = []
+            for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+                email = str(getattr(acc, 'AccountEmail', '') or '')
+                if not email:
+                    continue
+                message_index = int(
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        my_email,
+                        email,
+                        _SCT.MerchantItems,
+                        (float(mx), float(my), 0.0, float(target)),
+                    )
+                )
+                refs.append((email, message_index))
+
+            state['refs']        = refs
+            state['deadline_ms'] = now + _SALVAGE_RESTOCK_WAIT_TIMEOUT_MS
+            state['phase']       = 'waiting'
+            _append_run_log(f'Restock Salvage Kits: topping up to {target} on {len(refs)} account(s)…')
+            if not refs:
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+            return _BT.NodeState.RUNNING
+
+        if state['phase'] == 'waiting':
+            still_pending: list[tuple[str, int]] = []
+            for email, message_index in state['refs']:
+                if int(message_index) < 0:
+                    continue
+                message = GLOBAL_CACHE.ShMem.GetInbox(int(message_index))
+                is_same_message = (
+                    bool(getattr(message, 'Active', False))
+                    and str(getattr(message, 'ReceiverEmail', '') or '') == email
+                    and str(getattr(message, 'SenderEmail', '') or '') == my_email
+                    and int(getattr(message, 'Command', -1)) == int(_SCT.MerchantItems)
+                )
+                if is_same_message:
+                    still_pending.append((email, message_index))
+            state['refs'] = still_pending
+
+            if not still_pending:
+                _append_run_log('Restock Salvage Kits: done.')
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+            if now >= state['deadline_ms']:
+                ConsoleLog(
+                    BOT_NAME,
+                    f'[EnterUW] RestockSalvageKits: timeout after {_SALVAGE_RESTOCK_WAIT_TIMEOUT_MS} ms, '
+                    f'{len(still_pending)} account(s) did not confirm.',
+                    Py4GW.Console.MessageType.Warning,
+                )
+                _append_run_log('Restock Salvage Kits: timed out waiting for some accounts.')
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+            return _BT.NodeState.RUNNING
+
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='RestockSalvageKits', action_fn=_tick))
+
+
 def _enter_underworld_tree() -> _BT:
     """
     Step 1: Gather all accounts at Guild Hall, travel to entry point, create party, then enter UW.
@@ -2158,10 +2200,10 @@ def _enter_underworld_tree() -> _BT:
         ApoBT.TravelGH(),
         RoutinesBT.Multibox.SummonAllAccounts(timeout_ms=15_000, poll_interval_ms=100, log=True),
         ApoBT.Wait(duration_ms=1000, log=True),
+        _BT(_BT.SubtreeNode(name='RestockSalvageKits', subtree_fn=lambda _node: _build_restock_salvage_kits_tree())),
         _BT(_BT.SubtreeNode(name='BuyUWScrolls', subtree_fn=_build_buy_uw_scrolls_tree)),
         ApoBT.Travel(target_map_id=_resolve_uw_entry_map_id(), log=True),
         ApoBT.CreateParty(multibox_invite=True, timeout_ms=15_000, poll_interval_ms=100, aftercast_ms=250, log=True),
-        _BT(_BT.SubtreeNode(name='BuyRezScrolls', subtree_fn=_build_buy_rez_scrolls_tree)),
         _BT(_BT.ActionNode(name='EnableRequiredWidgets', action_fn=_enable_required_widgets_on_all_accounts, aftercast_ms=500)),
         ApoBT.SetHardMode(hard_mode=BotSettings.HardMode, log=True),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
@@ -2699,20 +2741,26 @@ def _wrathfull_spirits_tree() -> _BT:
         ),
         BT.Movement.Move(x=-13422, y=973),
         _BT(_BT.ActionNode(name='UnblacklistTorturedSpirits', action_fn=_unblacklist_tortured_spirits)),
-        BT.Movement.MoveAndKill(Vec2f(-13791, 1642), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-12889, 963), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-11445, 1154), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-10554, 1695), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-9481, 963), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-9949, 177), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-11498, -173), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-12677, -205), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-13622, 336), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-12974, 4116), clear_area_radius=_kr),
-        BT.Movement.MoveAndKill(Vec2f(-14184, 7279), clear_area_radius=_kr2),
-        BT.Movement.MoveAndKill(Vec2f(-15055, 3755), clear_area_radius=_kr2),
-        BT.Movement.MoveAndKill(Vec2f(-13409, 4933), clear_area_radius=_kr2),
-        BT.Movement.MoveAndKill(Vec2f(-13217, 5167), clear_area_radius=_kr2),
+        _kill_route_until_quest_completed(
+            waypoints=[
+                (Vec2f(-13791, 1642), _kr),
+                (Vec2f(-12889, 963),  _kr),
+                (Vec2f(-11445, 1154), _kr),
+                (Vec2f(-10554, 1695), _kr),
+                (Vec2f(-9481, 963),   _kr),
+                (Vec2f(-9949, 177),   _kr),
+                (Vec2f(-11498, -173), _kr),
+                (Vec2f(-12677, -205), _kr),
+                (Vec2f(-13622, 336),  _kr),
+                (Vec2f(-12974, 4116), _kr),
+                (Vec2f(-14184, 7279), _kr2),
+                (Vec2f(-15055, 3755), _kr2),
+                (Vec2f(-13409, 4933), _kr),
+                (Vec2f(-13217, 5167), _kr2),
+            ],
+            quest_id=int(UWQuestID.WrathfulSpirits),
+            label='WrathfulSpirits',
+        ),
         BT.Agents.MoveTargetInteractAndAutomaticDialog(
             x=-13217, y=5167,
             button_number=0,
@@ -3104,13 +3152,10 @@ def _build_step_timer_service():
 
         now_ms = int(time.monotonic() * 1000)
 
-        if current_step == 'Enter Underworld':
-            _quest_completion_times.clear()
-            _timing_state['run_start_ms'] = None
-
-        if current_step == _RUN_START_QUEST:
-            _timing_state['run_start_ms'] = now_ms
-
+        # Record the just-completed step's cumulative time BEFORE applying any
+        # run reset for the new step. The 'Loot Chest' → 'Enter Underworld'
+        # transition (repeat mode) would otherwise clear run_start_ms first and
+        # silently drop both the Loot Chest stat and the run-success log line.
         run_start = _timing_state['run_start_ms']
         if last_step and last_step in _TIMED_QUESTS and run_start is not None:
             elapsed_ms = now_ms - run_start
@@ -3119,7 +3164,14 @@ def _build_step_timer_service():
             _save_quest_times_log()
             if last_step == 'Loot Chest':
                 total_s = elapsed_ms // 1000
-                _append_run_log(f'Run completed in {_fmt_s(total_s)}')
+                _append_run_log(f'Run SUCCESS — chest looted, completed in {_fmt_s(total_s)}')
+
+        if current_step == 'Enter Underworld':
+            _quest_completion_times.clear()
+            _timing_state['run_start_ms'] = None
+
+        if current_step == _RUN_START_QUEST:
+            _timing_state['run_start_ms'] = now_ms
 
         _timing_state['last_step'] = current_step
         return _BT.NodeState.RUNNING
@@ -3590,7 +3642,7 @@ def main() -> None:
 
     bot.UI.draw_window(
         icon_path=os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON),
-        main_child_dimensions=(550, 570),
+        main_child_dimensions=(550, 680),
         additional_ui=_draw_main_additional_ui,
         extra_tabs=[('Run Log', _draw_run_log)],
     )
