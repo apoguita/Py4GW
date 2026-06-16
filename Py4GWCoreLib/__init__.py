@@ -55,6 +55,7 @@ import PyUIManager
 import PyCamera
 import Py2DRenderer
 import PyCombatEvents
+import PyMap
 
 from .enums import *
 from .ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
@@ -132,6 +133,7 @@ PyUIManager = PyUIManager
 PyCamera = PyCamera
 Py2DRenderer = Py2DRenderer
 PyCombatEvents = PyCombatEvents
+PyMap = PyMap
 GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
 IconsFontAwesome5 = IconsFontAwesome5
