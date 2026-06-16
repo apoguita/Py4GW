@@ -273,11 +273,6 @@ def _install_stub_modules(project_root: Path) -> None:
     )
     sys.modules["Py4GWCoreLib.py4gwcorelib_src.WidgetManager"] = widget_manager
 
-    _ensure_package("Py4GWCoreLib.modular")
-    modular_selectors = types.ModuleType("Py4GWCoreLib.modular.selectors")
-    modular_selectors.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
-    sys.modules["Py4GWCoreLib.modular.selectors"] = modular_selectors
-
     _ensure_package("Py4GWCoreLib.routines_src")
     _ensure_package("Py4GWCoreLib.routines_src.behaviourtrees_src")
     botting_inventory = types.ModuleType("Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory")
@@ -8712,6 +8707,211 @@ def _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module) -
             setattr(module, name, value)
 
 
+def _test_cleanup_deposit_item_type_filter_classifies_catalog_entries(module) -> None:
+    widget = _make_widget(module)
+    widget.catalog_by_model_id.update(
+        {
+            921: {"model_id": 921, "name": "Bone", "material_type": "common"},
+            int(module.ECTOPLASM_MODEL_ID): {
+                "model_id": int(module.ECTOPLASM_MODEL_ID),
+                "name": "Glob of Ectoplasm",
+                "material_type": "rare",
+            },
+            945: {"model_id": 945, "name": "Obsidian Shard", "material_type": "rare"},
+            19122: {
+                "model_id": 19122,
+                "name": "Minor Rune of Vigor",
+                "item_type": "Rune_Mod",
+                "rune_model_kinds": ["rune"],
+            },
+            19131: {
+                "model_id": 19131,
+                "name": "Insignia",
+                "item_type": "Rune_Mod",
+                "rune_model_kinds": ["insignia"],
+                "rune_model_names": ["Radiant Insignia"],
+                "alias_labels": module._build_catalog_alias_labels("Radiant Insignia"),
+            },
+            15542: {"model_id": 15542, "name": "Aptitude Not Attitude Inscription", "item_type": "Rune_Mod"},
+            893: {"model_id": 893, "name": "Cruel Sword Hilt", "item_type": "Rune_Mod"},
+            905: {"model_id": 905, "name": "Sword Pommel of Fortitude", "item_type": "Rune_Mod"},
+            2988: {"model_id": 2988, "name": "Rune of Holding", "item_type": "Kit"},
+            400: {"model_id": 400, "name": "Fellblade", "item_type": "Sword"},
+            401: {"model_id": 401, "name": "Protective Focus", "item_type": "Focus"},
+            402: {"model_id": 402, "name": "Plate Chestpiece", "item_type": "Chestpiece"},
+            5853: {"model_id": 5853, "name": "Scroll of Adventurer's Insight", "item_type": "Scroll"},
+            24859: {"model_id": 24859, "name": "Essence of Celerity", "item_type": "Usable"},
+            31023: {"model_id": 31023, "name": "Frosty Summoning Stone", "item_type": "Usable"},
+            22269: {"model_id": 22269, "name": "Birthday Cupcake", "item_type": "Usable", "category": "Sweet"},
+            77777: {"model_id": 77777, "name": "Mystery Token"},
+        }
+    )
+
+    def matches(model_id: int, category: str, subcategory: str) -> bool:
+        return widget._catalog_entry_matches_cleanup_deposit_filter(
+            widget.catalog_by_model_id[int(model_id)],
+            category,
+            subcategory,
+        )
+
+    _expect(
+        matches(921, module.DEPOSIT_FILTER_MATERIALS, module.DEPOSIT_FILTER_MATERIALS_COMMON),
+        "Common material models should classify under Crafting Materials / Common.",
+    )
+    _expect(
+        matches(int(module.ECTOPLASM_MODEL_ID), module.DEPOSIT_FILTER_MATERIALS, module.DEPOSIT_FILTER_MATERIALS_RARE),
+        "Rare material models should classify under Crafting Materials / Rare.",
+    )
+    _expect(
+        matches(19122, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_RUNES),
+        "Rune model metadata should classify under Upgrade Components / Runes.",
+    )
+    _expect(
+        matches(19131, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_INSIGNIAS),
+        "Insignia model metadata should classify under Upgrade Components / Insignias.",
+    )
+    _expect(
+        matches(15542, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_INSCRIPTIONS),
+        "Inscription names on Rune_Mod entries should classify under Upgrade Components / Inscriptions.",
+    )
+    _expect(
+        matches(893, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_WEAPON_PREFIX),
+        "Prefix component names should classify under Upgrade Components / Weapon Mods - Prefix.",
+    )
+    _expect(
+        matches(905, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_WEAPON_SUFFIX),
+        "Suffix component names should classify under Upgrade Components / Weapon Mods - Suffix.",
+    )
+    _expect(
+        matches(2988, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_BAG),
+        "Rune of Holding should classify as a bag upgrade instead of a rune.",
+    )
+    _expect(
+        not matches(2988, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_RUNES),
+        "Rune of Holding should not pollute the rune subtype.",
+    )
+    _expect(
+        not matches(2988, module.DEPOSIT_FILTER_OTHER, module.DEPOSIT_FILTER_OTHER_UTILITY),
+        "Rune of Holding should stay out of the generic kit bucket once classified as a bag upgrade.",
+    )
+    _expect(
+        matches(400, module.DEPOSIT_FILTER_EQUIPMENT, module.DEPOSIT_FILTER_EQUIPMENT_WEAPONS),
+        "Weapon item types should classify under Equipment / Weapons.",
+    )
+    _expect(
+        matches(401, module.DEPOSIT_FILTER_EQUIPMENT, module.DEPOSIT_FILTER_EQUIPMENT_OFFHANDS),
+        "Focus/shield item types should classify under Equipment / Offhands.",
+    )
+    _expect(
+        matches(402, module.DEPOSIT_FILTER_EQUIPMENT, module.DEPOSIT_FILTER_EQUIPMENT_ARMOR),
+        "Armor piece item types should classify under Equipment / Armor.",
+    )
+    _expect(
+        matches(5853, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_SCROLLS),
+        "Scroll item types should classify under Consumables / Scrolls.",
+    )
+    _expect(
+        matches(24859, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_COMBAT),
+        "Known combat consumable names should classify under Consumables / Combat.",
+    )
+    _expect(
+        matches(31023, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_SUMMONING),
+        "Summoning consumable names should classify under Consumables / Summoning.",
+    )
+    _expect(
+        matches(22269, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_PARTY),
+        "Sweet/party metadata should classify under Consumables / Party.",
+    )
+    _expect(
+        matches(77777, module.DEPOSIT_FILTER_OTHER, module.DEPOSIT_FILTER_OTHER_UNKNOWN),
+        "Entries without usable metadata should remain findable under Other / Unknown.",
+    )
+    rare_material_model_ids = set(
+        widget._get_cleanup_deposit_filter_model_ids(
+            module.DEPOSIT_FILTER_MATERIALS,
+            module.DEPOSIT_FILTER_MATERIALS_RARE,
+        )
+    )
+    _expect(
+        {int(module.ECTOPLASM_MODEL_ID), 945}.issubset(rare_material_model_ids),
+        "Bulk deposit filter collection should include every rare material catalog model.",
+    )
+    _expect(
+        921 not in rare_material_model_ids,
+        "Bulk rare material collection should not include common material models.",
+    )
+    _expect(
+        widget._get_cleanup_deposit_filter_model_ids(module.DEPOSIT_FILTER_ALL, module.DEPOSIT_FILTER_ALL) == [],
+        "Bulk deposit collection should not expose an all-catalog add path.",
+    )
+
+    widget.cleanup_targets = [module.CleanupTarget(model_id=int(module.ECTOPLASM_MODEL_ID), keep_on_character=2)]
+    addable_rare_material_model_ids = set(
+        widget._get_addable_cleanup_deposit_filter_model_ids(
+            module.DEPOSIT_FILTER_MATERIALS,
+            module.DEPOSIT_FILTER_MATERIALS_RARE,
+            widget.cleanup_targets,
+        )
+    )
+    _expect(
+        945 in addable_rare_material_model_ids,
+        "Bulk deposit add should keep rare material models that are not already selected.",
+    )
+    _expect(
+        int(module.ECTOPLASM_MODEL_ID) not in addable_rare_material_model_ids,
+        "Bulk deposit add should skip rare material models already present in deposit targets.",
+    )
+
+    widget.cleanup_item_type_filter_category = module.DEPOSIT_FILTER_UPGRADES
+    widget.cleanup_item_type_filter_subcategory = module.DEPOSIT_FILTER_UPGRADES_INSIGNIAS
+    insignia_matches = widget._search_cleanup_deposit_catalog("radiant", limit=10)
+    _expect(
+        {int(entry.get("model_id", 0)) for entry in insignia_matches} == {19131},
+        "Deposit search should apply the selected item-type subtype filter to alias-backed matches.",
+    )
+
+
+def _test_rune_model_catalog_enriches_deposit_filter_aliases(module) -> None:
+    original_runes_path = module.RUNES_CATALOG_PATH
+    try:
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+        widget = _make_widget(module)
+        widget.catalog_by_model_id[19131] = {
+            "model_id": 19131,
+            "name": "Insignia",
+            "item_type": "Rune_Mod",
+            "source": "test_existing_catalog",
+            "priority": 10,
+        }
+
+        loaded_count = widget._load_rune_model_catalog()
+        _expect(loaded_count > 0, "Rune model catalog should load grouped rune/insignia model metadata.")
+
+        entry = widget.catalog_by_model_id.get(19131, {})
+        _expect(
+            entry.get("source") == "test_existing_catalog",
+            "Rune metadata should enrich existing entries without replacing them.",
+        )
+        _expect(
+            "insignia" in entry.get("rune_model_kinds", []),
+            "Radiant Insignia's model should be tagged as an insignia.",
+        )
+        _expect(
+            "Radiant Insignia" in entry.get("rune_model_names", []),
+            "Rune model aliases should preserve specific rune/insignia display names.",
+        )
+
+        widget.cleanup_item_type_filter_category = module.DEPOSIT_FILTER_UPGRADES
+        widget.cleanup_item_type_filter_subcategory = module.DEPOSIT_FILTER_UPGRADES_INSIGNIAS
+        matches = widget._search_cleanup_deposit_catalog("Radiant", limit=10)
+        _expect(
+            19131 in {int(entry.get("model_id", 0)) for entry in matches},
+            "Deposit search should find grouped rune/insignia models by their specific alias names.",
+        )
+    finally:
+        module.RUNES_CATALOG_PATH = original_runes_path
+
+
 def _test_inventory_item_log_label_avoids_stale_cached_names(module) -> None:
     widget = _make_widget(module)
     widget.catalog_by_model_id = {
@@ -10513,6 +10713,14 @@ def main() -> int:
             (
                 "scroll_of_heros_insight_wins_duplicate_model_id_and_searches",
                 lambda: _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module),
+            ),
+            (
+                "cleanup_deposit_item_type_filter_classifies_catalog_entries",
+                lambda: _test_cleanup_deposit_item_type_filter_classifies_catalog_entries(module),
+            ),
+            (
+                "rune_model_catalog_enriches_deposit_filter_aliases",
+                lambda: _test_rune_model_catalog_enriches_deposit_filter_aliases(module),
             ),
             (
                 "inventory_item_log_label_avoids_stale_cached_names",
