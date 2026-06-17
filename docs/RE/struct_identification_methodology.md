@@ -43,9 +43,9 @@ Before starting, ensure you have:
 
 | Resource | Path | Role |
 |----------|------|------|
-| **GWCA C++ headers** | `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Context\` | Current (possibly wrong) struct definitions |
+| **GWCA C++ headers** | `Py4GW\vendor\gwca\Include\GWCA\Context\` | Current (possibly wrong) struct definitions |
 | **Python ctypes structs** | `Py4GWCoreLib\native_src\context\` | Python-facing struct definitions (may differ from C++) |
-| **GWCA source** | `C:\Users\Apo\Py4GW\vendor\gwca\Source\GWCA.cpp` | Shows how the context pointer is discovered (assertion strings, pattern scans) |
+| **GWCA source** | `Py4GW\vendor\gwca\Source\GWCA.cpp` | Shows how the context pointer is discovered (assertion strings, pattern scans) |
 | **Ghidra WASM** | `/Gw.wasm` (via MCP) | Primary RE target — full debug symbols, all function names |
 | **Ghidra EXE** | `/Gw.exe(Symbols)` (via MCP) | x86 cross-reference — stripped names but cleaner decompiler output |
 | **Assertion string catalog** | `.opencode/skills/gw-bridging/SKILL.md` | Known assertion strings for bridging WASM↔EXE |
@@ -571,8 +571,8 @@ Some init values carry semantic meaning:
 | Artifact | Path |
 |----------|------|
 | Python struct (final) | `Py4GWCoreLib\native_src\context\PreGameContext.py` |
-| C++ header (final) | `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Context\PreGameContext.h` |
-| GWCA access pattern | `C:\Users\Apo\Py4GW\vendor\gwca\Source\GWCA.cpp:131-133` |
+| C++ header (final) | `Py4GW\vendor\gwca\Include\GWCA\Context\PreGameContext.h` |
+| GWCA access pattern | `Py4GW\vendor\gwca\Source\GWCA.cpp:131-133` |
 | WASM constructor | `CScene::CScene` @ `ram:80f59983` |
 | WASM FrameProc | `IUi::PregameSceneProc` @ `ram:80f64cf6` |
 | EXE constructor | `0x004ac010` |
