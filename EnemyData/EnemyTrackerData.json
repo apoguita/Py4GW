@@ -3371,6 +3371,12 @@
           "instance_type": "Explorable",
           "name": "Gyala Hatchery (explorable area)"
         },
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        },
         "222": {
           "base_id": 222,
           "id": 222,
@@ -14096,7 +14102,8 @@
         4094,
         4073,
         4076,
-        4081
+        4081,
+        4096
       ],
       "observed_maps": {
         "200": {
@@ -17223,6 +17230,12 @@
         "313": {
           "id": 313,
           "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "942": {
+          "id": 942,
+          "name": "Withdraw Hexes",
           "profession": "Monk",
           "profession_id": 3
         }

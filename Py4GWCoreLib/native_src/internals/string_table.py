@@ -228,7 +228,7 @@ _INLINE_STYLE_TAG_RE = re.compile(r'\[(?:/?[bB])\]')
 _INLINE_GENDER_TAG_RE = re.compile(r'\[(f|m):"([^"]*)"\]')
 _INLINE_GENDER_PAIR_RE = re.compile(r'\[(m|f):"([^"]*)"\]\[(m|f):"([^"]*)"\]')
 _INDEFINITE_ARTICLE_RE = re.compile(r'\[(?:a|an)\](\s+)([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ\'-]*)')
-_COLOR_TAG_RE = re.compile(r"<c=@[^>]+>(.*?)</c>")
+_COLOR_TAG_RE = re.compile(r"<c=[^>]+>(.*?)</c>", re.IGNORECASE)
 
 
 def _apply_inline_gender_tags(text: str, prefer_male: bool = True) -> str:

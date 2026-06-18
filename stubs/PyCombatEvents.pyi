@@ -33,48 +33,48 @@ class EventType:
                 print(f"Agent {agent} casting skill {val}")
     """
     # Skill Events
-    SKILL_ACTIVATED: int          # Non-attack skill started
-    ATTACK_SKILL_ACTIVATED: int   # Attack skill started
-    SKILL_STOPPED: int            # Skill cancelled
-    SKILL_FINISHED: int           # Skill completed
-    ATTACK_SKILL_FINISHED: int    # Attack skill completed
-    INTERRUPTED: int              # Skill interrupted
-    INSTANT_SKILL_ACTIVATED: int  # Instant skill (no cast time)
-    ATTACK_SKILL_STOPPED: int     # Attack skill cancelled
+    SKILL_ACTIVATED: int = 1          # Non-attack skill started
+    ATTACK_SKILL_ACTIVATED: int = 2   # Attack skill started
+    SKILL_STOPPED: int = 3            # Skill cancelled
+    SKILL_FINISHED: int = 4           # Skill completed
+    ATTACK_SKILL_FINISHED: int = 5    # Attack skill completed
+    INTERRUPTED: int = 6              # Skill interrupted
+    INSTANT_SKILL_ACTIVATED: int = 7  # Instant skill (no cast time)
+    ATTACK_SKILL_STOPPED: int = 8     # Attack skill cancelled
 
     # Attack Events (auto-attacks)
-    ATTACK_STARTED: int           # Auto-attack started
-    ATTACK_STOPPED: int           # Auto-attack stopped
-    MELEE_ATTACK_FINISHED: int    # Melee hit completed
+    ATTACK_STARTED: int  = 13         # Auto-attack started
+    ATTACK_STOPPED: int = 14          # Auto-attack stopped
+    MELEE_ATTACK_FINISHED: int = 15   # Melee hit completed
 
     # State Events
-    DISABLED: int                 # Disabled state changed (val=1 disabled, val=0 can act)
-    KNOCKED_DOWN: int             # Knockdown (fval=duration_seconds)
-    CASTTIME: int                 # Cast time info (fval=duration_seconds)
+    DISABLED: int  = 16               # Disabled state changed (val=1 disabled, val=0 can act)
+    KNOCKED_DOWN: int = 17             # Knockdown (fval=duration_seconds)
+    CASTTIME: int = 18                 # Cast time info (fval=duration_seconds)
 
     # Damage Events (NOTE: agent_id=TARGET, target_id=SOURCE)
-    DAMAGE: int                   # Normal damage (fval=damage_fraction)
-    CRITICAL: int                 # Critical hit (fval=damage_fraction)
-    ARMOR_IGNORING: int           # Armor-ignoring damage (can be negative for heals)
-    HEALING: int                  # Healing/lifesteal gain (fval=heal_fraction)
+    DAMAGE: int  = 30                 # Normal damage (fval=damage_fraction)
+    CRITICAL: int = 31                # Critical hit (fval=damage_fraction)
+    ARMOR_IGNORING: int = 32          # Armor-ignoring damage (can be negative for heals)
+    HEALING: int = 33                  # Healing/lifesteal gain (fval=heal_fraction)
 
     # Effect Events
-    EFFECT_APPLIED: int           # Visual effect applied
-    EFFECT_REMOVED: int           # Visual effect removed
-    EFFECT_ON_TARGET: int         # Skill effect hit target
-    EFFECT_RENEWED: int           # Existing effect reapplied before removal
+    EFFECT_APPLIED: int = 40           # Visual effect applied
+    EFFECT_REMOVED: int = 41           # Visual effect removed
+    EFFECT_ON_TARGET: int = 42         # Skill effect hit target
+    EFFECT_RENEWED: int = 43           # Existing effect reapplied before removal
 
     # Energy Events
-    ENERGY_GAINED: int            # Energy gained
-    ENERGY_SPENT: int             # Energy spent
+    ENERGY_GAINED: int = 50            # Energy gained
+    ENERGY_SPENT: int = 51             # Energy spent
 
     # Misc
-    SKILL_DAMAGE: int             # Pre-damage notification
-    SKILL_ACTIVATE_PACKET: int    # Early skill notification
+    SKILL_DAMAGE: int = 60             # Pre-damage notification
+    SKILL_ACTIVATE_PACKET: int = 70    # Early skill notification
 
     # Skill Recharge Events
-    SKILL_RECHARGE: int           # Skill went on cooldown (fval=recharge_ms)
-    SKILL_RECHARGED: int          # Skill came off cooldown
+    SKILL_RECHARGE: int = 80           # Skill went on cooldown (fval=recharge_ms)
+    SKILL_RECHARGED: int = 81          # Skill came off cooldown
 
 # ============================================================================
 # RawCombatEvent Struct
