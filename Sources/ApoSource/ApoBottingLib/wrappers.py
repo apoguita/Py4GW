@@ -2310,6 +2310,21 @@ def SendChatMessage(message: str, channel: str = "say", log: bool = False) -> Be
 def SendChatCommand(command: str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Player.SendChatCommand(command=command, log=log,)
 
+def SetPlayerStatus(
+    status: int | str,
+    log: bool = False,
+    aftercast_ms: int = 250,
+    verify: bool = True,
+    timeout_ms: int = 3000,
+) -> BehaviorTree:
+    return RoutinesBT.Player.SetPlayerStatus(
+        status=status,
+        log=log,
+        aftercast_ms=aftercast_ms,
+        verify=verify,
+        timeout_ms=timeout_ms,
+    )
+
 def ClickWindowFrame(frame_name: str, aftercast_ms: int = 250) -> BehaviorTree:
     return RoutinesBT.Player.ClickWindowFrame(frame_name=frame_name,aftercast_ms=aftercast_ms,)
 

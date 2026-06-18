@@ -545,6 +545,121 @@ class BTPlayer:
             return BehaviorTree(tree)
 
         @staticmethod
+        def SetPlayerStatus(
+            status: int | str,
+            log: bool = False,
+            aftercast_ms: int = 250,
+            verify: bool = True,
+            timeout_ms: int = 3000,
+        ) -> BehaviorTree:
+            """
+            Build a tree that sets the player's friend-list presence status.
+
+            Meta:
+              Expose: true
+              Audience: beginner
+              Display: Set Player Status
+              Purpose: Set the local player's friend-list presence status.
+              UserDescription: Use this to switch the player between online, do not disturb, away, and offline.
+              Notes: Accepts 0/offline, 1/online, 2/do_not_disturb/dnd, or 3/away.
+            """
+            status_names = {
+                0: "offline",
+                1: "online",
+                2: "do_not_disturb",
+                3: "away",
+            }
+            status_values = {
+                "offline": 0,
+                "online": 1,
+                "do_not_disturb": 2,
+                "dnd": 2,
+                "away": 3,
+            }
+            state = {
+                "requested": False,
+                "started_at": 0.0,
+                "status_value": -1,
+            }
+
+            def _resolve_status() -> int | None:
+                if isinstance(status, str):
+                    normalized = status.strip().lower().replace(" ", "_").replace("-", "_")
+                    return status_values.get(normalized)
+                try:
+                    value = int(status)
+                except Exception:
+                    return None
+                return value if value in status_names else None
+
+            def _set_online_status() -> BehaviorTree.NodeState:
+                status_value = _resolve_status()
+                if status_value is None:
+                    _fail_log(
+                        "SetPlayerStatus",
+                        f"Invalid online status: {status!r}. Use offline, online, dnd, or away.",
+                        Console.MessageType.Error,
+                    )
+                    return BehaviorTree.NodeState.FAILURE
+
+                player = Player.player_instance()
+                if not hasattr(player, "SetPlayerStatus") or not hasattr(player, "GetPlayerStatus"):
+                    _fail_log(
+                        "SetPlayerStatus",
+                        "PyPlayer does not expose SetPlayerStatus/GetPlayerStatus. Reload the updated Py4GW.dll.",
+                        Console.MessageType.Error,
+                    )
+                    return BehaviorTree.NodeState.FAILURE
+
+                if not state["requested"]:
+                    before = int(player.GetPlayerStatus())
+                    if not bool(player.SetPlayerStatus(status_value)):
+                        _fail_log(
+                            "SetPlayerStatus",
+                            f"Native SetPlayerStatus rejected {status_value} ({status_names[status_value]}).",
+                            Console.MessageType.Error,
+                        )
+                        return BehaviorTree.NodeState.FAILURE
+
+                    state["requested"] = True
+                    state["started_at"] = time.time() * 1000.0
+                    state["status_value"] = status_value
+                    _log(
+                        "SetPlayerStatus",
+                        f"Requested {status_names[status_value]} status; previous={status_names.get(before, before)}.",
+                        log=log,
+                    )
+                    if not verify:
+                        return BehaviorTree.NodeState.SUCCESS
+
+                current = int(Player.GetPlayerStatus())
+                if current == int(state["status_value"]):
+                    _log("SetPlayerStatus", f"Confirmed status {status_names[current]}.", log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+
+                elapsed_ms = (time.time() * 1000.0) - float(state["started_at"])
+                if elapsed_ms >= max(0, int(timeout_ms)):
+                    _fail_log(
+                        "SetPlayerStatus",
+                        (
+                            f"Timed out waiting for {status_names[int(state['status_value'])]}; "
+                            f"current={status_names.get(current, current)}."
+                        ),
+                        Console.MessageType.Warning,
+                    )
+                    return BehaviorTree.NodeState.FAILURE
+
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="SetPlayerStatus",
+                    action_fn=_set_online_status,
+                    aftercast_ms=aftercast_ms,
+                )
+            )
+
+        @staticmethod
         def BuySkill(skill_id: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that buys or learns a skill from a skill trainer.
