@@ -318,15 +318,42 @@ These types use **single self-contained FrameProcs** — they handle all message
 
 | File | Role |
 |------|------|
-| `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Managers\UIMgr.h` | GWCA struct hierarchy, API declarations |
-| `C:\Users\Apo\Py4GW\vendor\gwca\Source\UIMgr.cpp` | C++ implementations for all wrapped controls |
-| `C:\Users\Apo\Py4GW\include\py_ui.h` | C++ Python bindings |
-| `C:\Users\Apo\Py4GW\src\py_ui.cpp` | Python `.def_static()` registrations |
-| `C:\Users\Apo\Py4GW_python_files\stubs\PyUIManager.pyi` | Python type stubs |
-| `C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\GWUI.py` | High-level Python GWUI wrapper |
-| `C:\Users\Apo\Py4GW_python_files\docs\RE\ui_controls_catalog.md` | This file |
-| `C:\Users\Apo\Py4GW_python_files\docs\RE\handover.md` | Section 14 — UI Controls |
-| `C:\Users\Apo\Py4GW_python_files\.opencode\projects\re\ui-elements\context_pool.md` | Full project history (Phases 0–3) |
+| `Py4GW\vendor\gwca\Include\GWCA\Managers\UIMgr.h` | GWCA struct hierarchy, API declarations |
+| `Py4GW\vendor\gwca\Source\UIMgr.cpp` | C++ implementations for all wrapped controls |
+| `Py4GW\include\py_ui.h` | C++ Python bindings |
+| `Py4GW\src\py_ui.cpp` | Python `.def_static()` registrations |
+| `Py4GW_python_files\stubs\PyUIManager.pyi` | Python type stubs |
+| `Py4GW_python_files\Py4GWCoreLib\GWUI.py` | High-level Python GWUI wrapper |
+| `Py4GW_python_files\docs\RE\ui_controls_catalog.md` | This file |
+| `Py4GW_python_files\docs\RE\reverse_engineering_reference.md` | Section 14 — UI Controls |
+| `Py4GW_python_files\.opencode\projects\re\ui-elements\context_pool.md` | Full project history (Phases 0–3) |
+
+---
+
+## Button Creation Research (2026-06-16) — ALL APPROACHES CRASH
+
+Three FrameProc candidates tested for native button creation via `CreateUIComponent`. All crash. See `docs/RE/reverse_engineering_reference.md` §14.2 for full details.
+
+### Newly Discovered: `CtlTextBtnProc`
+
+| Property | Value |
+|----------|-------|
+| **WASM** | `ram:80d9ce76` |
+| **EXE (06-14)** | `FUN_00616c00` @ `0x00616c00` |
+| **Type** | Engine-level text button (no `IUi::` prefix) |
+| **Scanner pattern** | `\x83\xC0\xFC\x83\xF8\x5C\x0F\x87` (jump table, unique max msg 0x5C) |
+| **Create** | msg 0x09 case 9 — allocates 0x38-byte state, copies caption from name_enc |
+| **SetText** | msg 0x5F |
+| **SetColor** | msg 0x5B |
+| **SetHoverColor** | msg 0x5D |
+| **Default text color** | 0xFF64BEEB |
+| **Default hover color** | 0xFF78D2FF |
+| **Status** | ❌ CRASHES on CreateUIComponent (same as all other button FrameProcs) |
+
+### Also Confirmed (06-14 EXE)
+- `IUi::UiCtlBtnProc` @ `0x00877e60` — same address in both 05-30 and 06-14 builds
+- `CreateUIComponent` / `FrameCreate` @ `0x0062bfc0`
+- `s_btnCheckImageList` global @ `0x010819cc`
 
 ---
 

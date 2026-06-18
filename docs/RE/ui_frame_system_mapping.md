@@ -384,7 +384,7 @@ Functions not yet fully mapped EXE→WASM:
 
 ## Section L: Py4GW UI Class — Additional Wrappers (from py_ui.h)
 
-The `UIManager` class in `C:\Users\Apo\Py4GW\include\py_ui.h` exposes these additional
+The `UIManager` class in `Py4GW\include\py_ui.h` exposes these additional
 functions, which wrap GWCA calls and ultimately map to WASM native functions.
 
 ### Frame Navigation & Discovery

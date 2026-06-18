@@ -37,6 +37,7 @@ from .enums_src.Map_enums import (
 )
 from .enums_src.Model_enums import AgentModelID, ModelID, PetModelID, SPIRIT_BUFF_MAP, SpiritModelID
 from .enums_src.Multiboxing_enums import CombatPrepSkillsType, SharedCommandType
+from .enums_src.Packet_enums import CTO_OPCODES, CTO_OPCODES_BY_NAME, get_opcode_header, get_opcode_name
 from .enums_src.Py4GW_enums import Console
 from .enums_src.Whiteboard_enums import (
     WhiteboardClaimStrength,
@@ -186,6 +187,12 @@ __all__ = [
     # Multiboxing_enums
     "CombatPrepSkillsType",
     "SharedCommandType",
+
+    # Packet_enums
+    "CTO_OPCODES",
+    "CTO_OPCODES_BY_NAME",
+    "get_opcode_header",
+    "get_opcode_name",
 
     # Whiteboard_enums
     "WhiteboardClaimStrength",
