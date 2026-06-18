@@ -160,12 +160,20 @@ class InventorySettings:
         UWScrollMin,
         max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_max', 2) or 2)),
     )
+    BuySalvageKits:   bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_salvage_kits', True))
+    SalvageKitTarget: int = max(0, int(_ini.read_int(BOT_NAME, 'inv_salvage_kit_target', 4) or 4))
+    BuyIDKits:        bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_id_kits', True))
+    IDKitTarget:      int = max(0, int(_ini.read_int(BOT_NAME, 'inv_id_kit_target', 2) or 2))
 
     @classmethod
     def save(cls) -> None:
         _ini.write_key(BOT_NAME, 'inv_buy_uw_scrolls', str(cls.BuyUWScrolls))
         _ini.write_key(BOT_NAME, 'inv_uw_scroll_min',  str(max(0, int(cls.UWScrollMin))))
         _ini.write_key(BOT_NAME, 'inv_uw_scroll_max',  str(max(0, int(cls.UWScrollMax))))
+        _ini.write_key(BOT_NAME, 'inv_buy_salvage_kits',   str(cls.BuySalvageKits))
+        _ini.write_key(BOT_NAME, 'inv_salvage_kit_target', str(max(0, int(cls.SalvageKitTarget))))
+        _ini.write_key(BOT_NAME, 'inv_buy_id_kits',   str(cls.BuyIDKits))
+        _ini.write_key(BOT_NAME, 'inv_id_kit_target', str(max(0, int(cls.IDKitTarget))))
 
 
 # ── Consumables ───────────────────────────────────────────────────────────────
@@ -346,6 +354,13 @@ _WIPE_LOG_FILE    = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', '
 _QUEST_TIMES_FILE = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_quest_times.json')
 _WIPE_COUNTS_FILE = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_wipe_counts.json')
 
+# How many most-recent runs to keep in the Run Log tab. Older runs are flushed to
+# the normal Py4GW console at the start of each run (set to 1 to keep only the
+# current run, raise it to retain more recent runs).
+_RUN_LOG_KEEP_RUNS = 3
+# Sentinel that marks the start of a run inside the run-log file.
+_RUN_LOG_HEADER = '----- run started '
+
 
 def _load_quest_times_log() -> dict[str, list[int]]:
     try:
@@ -390,8 +405,9 @@ _wipe_counts_log: dict[str, int] = _load_wipe_counts()
 _RUN_START_QUEST  = 'Clear the Chamber'
 _TIMED_QUESTS: frozenset[str] = frozenset(_QUEST_ORDER[1:])  # all except 'Enter Underworld'
 _timing_state: dict = {
-    'run_start_ms': None,   # monotonic ms when Clear the Chamber started
-    'last_step':    '',     # previous current_step_name value
+    'run_start_ms':     None,  # instance-timer ms when Clear the Chamber started
+    'last_step':        '',    # previous current_step_name value
+    'last_instance_ms': 0,     # last instance-timer reading taken inside the UW explorable
 }
 
 
@@ -411,6 +427,49 @@ def _append_run_log(message: str) -> None:
         ts = time.strftime('%Y-%m-%d %H:%M:%S')
         with open(_WIPE_LOG_FILE, 'a', encoding='utf-8') as f:
             f.write(f'[{ts}] {message}\n')
+    except OSError:
+        pass
+
+
+def _begin_run_log_run() -> None:
+    """Start a new run section in the run log.
+
+    Keeps only the most recent ``_RUN_LOG_KEEP_RUNS`` runs in the Run Log file and
+    writes everything older to the normal Py4GW console, so the Run Log tab only
+    ever shows the latest run(s) while older runs stay available in the console.
+    Called once per run start (the 'Enter Underworld' step transition).
+    """
+    ts = time.strftime('%Y-%m-%d %H:%M:%S')
+    header = f'{_RUN_LOG_HEADER}{ts} -----'
+    try:
+        os.makedirs(os.path.dirname(_WIPE_LOG_FILE), exist_ok=True)
+        try:
+            with open(_WIPE_LOG_FILE, 'r', encoding='utf-8') as f:
+                lines = [ln.rstrip('\n') for ln in f.readlines()]
+        except FileNotFoundError:
+            lines = []
+
+        # Group existing lines into runs. A run starts at a header sentinel; any
+        # leading lines without a header (e.g. logs from older sessions) form
+        # their own leading group.
+        runs: list[list[str]] = []
+        for ln in lines:
+            if ln.startswith(_RUN_LOG_HEADER) or not runs:
+                runs.append([])
+            runs[-1].append(ln)
+
+        keep_previous = max(0, _RUN_LOG_KEEP_RUNS - 1)
+        to_keep = runs[-keep_previous:] if keep_previous else []
+        to_flush = runs[:len(runs) - len(to_keep)]
+
+        flushed = [ln for grp in to_flush for ln in grp if ln.strip()]
+        for ln in flushed:
+            ConsoleLog(BOT_NAME, f'[Run Log] {ln}', Py4GW.Console.MessageType.Info)
+
+        kept_lines = [ln for grp in to_keep for ln in grp]
+        kept_lines.append(header)
+        with open(_WIPE_LOG_FILE, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(kept_lines) + '\n')
     except OSError:
         pass
 # ╔══════════════════════════════════════════════════════════════════════════════
@@ -536,6 +595,44 @@ def _draw_inventory_settings() -> None:
         InventorySettings.UWScrollMax = new_max
         changed = True
     PyImGui.end_disabled()
+
+    PyImGui.separator()
+    new_buy_kits = PyImGui.checkbox('Buy Salvage Kits at Merchant (Guild Hall)', InventorySettings.BuySalvageKits)
+    if new_buy_kits != InventorySettings.BuySalvageKits:
+        InventorySettings.BuySalvageKits = new_buy_kits
+        changed = True
+    PyImGui.begin_disabled(not InventorySettings.BuySalvageKits)
+    PyImGui.text('Target per account')
+    PyImGui.same_line(0, 4)
+    PyImGui.push_item_width(_scroll_input_w)
+    new_kit_target = max(0, _input_int_val(
+        PyImGui.input_int('##uw_salvage_kit_target', InventorySettings.SalvageKitTarget, 0, 0, 0),
+        InventorySettings.SalvageKitTarget,
+    ))
+    PyImGui.pop_item_width()
+    if new_kit_target != InventorySettings.SalvageKitTarget:
+        InventorySettings.SalvageKitTarget = new_kit_target
+        changed = True
+    PyImGui.end_disabled()
+
+    new_buy_id = PyImGui.checkbox('Buy Superior ID Kits at Merchant (Guild Hall)', InventorySettings.BuyIDKits)
+    if new_buy_id != InventorySettings.BuyIDKits:
+        InventorySettings.BuyIDKits = new_buy_id
+        changed = True
+    PyImGui.begin_disabled(not InventorySettings.BuyIDKits)
+    PyImGui.text('Target per account')
+    PyImGui.same_line(0, 4)
+    PyImGui.push_item_width(_scroll_input_w)
+    new_id_target = max(0, _input_int_val(
+        PyImGui.input_int('##uw_id_kit_target', InventorySettings.IDKitTarget, 0, 0, 0),
+        InventorySettings.IDKitTarget,
+    ))
+    PyImGui.pop_item_width()
+    if new_id_target != InventorySettings.IDKitTarget:
+        InventorySettings.IDKitTarget = new_id_target
+        changed = True
+    PyImGui.end_disabled()
+
     if changed:
         InventorySettings.save()
 
@@ -2008,7 +2105,14 @@ def _resolve_uw_entry_map_id() -> int:
 # id 196; it is located at runtime via an NPC-array scan so no fixed coordinates
 # are required.
 _GH_MERCHANT_MODEL_ID = 196
-# Every account is topped up to this many Salvage Kits at the Guild Hall merchant.
+# Robust merchant lookup (same strategy as the Merchant Rules widget): match the
+# language-independent encoded name first, then the localized "[Merchant]" name,
+# then fall back to the model id. Search within compass range of the leader.
+_GH_MERCHANT_NAME_QUERY = '[Merchant]'
+_GH_MERCHANT_SEARCH_MAX_DIST = float(Range.Compass.value)
+# Default Salvage-Kit top-up target per account at the Guild Hall merchant. The
+# live value is configurable via InventorySettings.SalvageKitTarget (Inventory tab);
+# this constant only documents the original/default quantity.
 _SALVAGE_KIT_RESTOCK_TARGET = 4
 # Max time to wait for every account to arrive in the Guild Hall before starting
 # the restock anyway (safety net so Enter Underworld never stalls).
@@ -2023,16 +2127,20 @@ def _build_restock_salvage_kits_tree() -> _BT:
     Once every multibox account has arrived in the Guild Hall, locate the Guild
     Hall Merchant (model 196) and broadcast a ``MerchantItems`` shared command to
     every account (leader included). Each account walks to the merchant and tops
-    its Salvage Kits up to ``_SALVAGE_KIT_RESTOCK_TARGET`` via the standard
-    Messaging handler. This node only sends the command and polls the outbound
+    its Salvage Kits up to ``InventorySettings.SalvageKitTarget`` and its Superior
+    Identification Kits up to ``InventorySettings.IDKitTarget`` via the standard
+    Messaging handler (a kit is skipped when its toggle is off; the whole step is
+    skipped when both are off). This node only sends the command and polls the outbound
     refs for completion — all movement/buying is performed by the shared-memory
     command infrastructure (same pattern as the LootChest step). Always returns
     SUCCESS so Enter Underworld never stalls.
     """
     from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType as _SCT
     from Py4GWCoreLib import AgentArray as _AA
+    from Py4GWCoreLib.modular.selectors import resolve_agent_xy_from_step as _resolve_agent_xy_from_step
 
-    target = int(_SALVAGE_KIT_RESTOCK_TARGET)
+    salvage_target = max(0, int(InventorySettings.SalvageKitTarget)) if InventorySettings.BuySalvageKits else 0
+    id_target      = max(0, int(InventorySettings.IDKitTarget))      if InventorySettings.BuyIDKits      else 0
     state: dict = {
         'phase':              'wait_gathered',  # wait_gathered → send → waiting → done
         'gather_deadline_ms': 0,
@@ -2055,6 +2163,31 @@ def _build_restock_salvage_kits_tree() -> _BT:
         )
 
     def _find_merchant_xy() -> "tuple[float, float] | None":
+        # Primary: resolve the merchant the same way the Merchant Rules widget does
+        # — encoded-name match first (language-independent), then the localized
+        # "[Merchant]" name, then the model id — scoped to NPCs within compass
+        # range of the leader. This is far more reliable than a bare model scan.
+        for idx, step in enumerate((
+            {'npc': 'MERCHANT'},
+            {'target': _GH_MERCHANT_NAME_QUERY},
+            {'model_id': _GH_MERCHANT_MODEL_ID},
+        )):
+            try:
+                coords = _resolve_agent_xy_from_step(
+                    step,
+                    recipe_name=BOT_NAME,
+                    step_idx=idx,
+                    agent_kind='npc',
+                    default_max_dist=_GH_MERCHANT_SEARCH_MAX_DIST,
+                    log_failures=False,
+                )
+            except Exception:
+                coords = None
+            if coords is not None:
+                return float(coords[0]), float(coords[1])
+
+        # Fallback: original model-id scan across the NPC / agent / neutral arrays
+        # in case the merchant is missing from the NPC minipet array.
         seen: set[int] = set()
         for source in (_AA.GetNPCMinipetArray(), _AA.GetAgentArray(), _AA.GetNeutralArray()):
             for agent_id in source or []:
@@ -2074,6 +2207,9 @@ def _build_restock_salvage_kits_tree() -> _BT:
         return None
 
     def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not InventorySettings.BuySalvageKits and not InventorySettings.BuyIDKits:
+            return _BT.NodeState.SUCCESS
+
         now = int(Utils.GetBaseTimestamp())
         my_email = str(Player.GetAccountEmail() or '')
 
@@ -2100,10 +2236,10 @@ def _build_restock_salvage_kits_tree() -> _BT:
                 ConsoleLog(
                     BOT_NAME,
                     '[EnterUW] RestockSalvageKits: Guild Hall merchant (model 196) not found — '
-                    'skipping salvage-kit restock.',
+                    'skipping kit restock.',
                     Py4GW.Console.MessageType.Warning,
                 )
-                _append_run_log('Restock Salvage Kits: merchant not found, skipped.')
+                _append_run_log('Restock Kits: merchant not found, skipped.')
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
 
@@ -2118,7 +2254,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
                         my_email,
                         email,
                         _SCT.MerchantItems,
-                        (float(mx), float(my), 0.0, float(target)),
+                        (float(mx), float(my), float(id_target), float(salvage_target)),
                     )
                 )
                 refs.append((email, message_index))
@@ -2126,7 +2262,13 @@ def _build_restock_salvage_kits_tree() -> _BT:
             state['refs']        = refs
             state['deadline_ms'] = now + _SALVAGE_RESTOCK_WAIT_TIMEOUT_MS
             state['phase']       = 'waiting'
-            _append_run_log(f'Restock Salvage Kits: topping up to {target} on {len(refs)} account(s)…')
+            _kit_parts = []
+            if id_target > 0:
+                _kit_parts.append(f'{id_target} ID kit(s)')
+            if salvage_target > 0:
+                _kit_parts.append(f'{salvage_target} salvage kit(s)')
+            _kit_desc = ' + '.join(_kit_parts) if _kit_parts else 'nothing'
+            _append_run_log(f'Restock Kits: topping up to {_kit_desc} on {len(refs)} account(s)…')
             if not refs:
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
@@ -2149,7 +2291,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
             state['refs'] = still_pending
 
             if not still_pending:
-                _append_run_log('Restock Salvage Kits: done.')
+                _append_run_log('Restock Kits: done.')
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
             if now >= state['deadline_ms']:
@@ -2159,7 +2301,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
                     f'{len(still_pending)} account(s) did not confirm.',
                     Py4GW.Console.MessageType.Warning,
                 )
-                _append_run_log('Restock Salvage Kits: timed out waiting for some accounts.')
+                _append_run_log('Restock Kits: timed out waiting for some accounts.')
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
             return _BT.NodeState.RUNNING
@@ -2939,6 +3081,7 @@ def _dhuum_tree() -> _BT:
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _follow_king_frozenwind(),
+        BT.Player.Wait(10000),
         BT.Agents.MoveTargetInteractAndAutomaticDialogByModelID(
             _KING_FROZENWIND_MODEL_ID,
             button_number=0,
@@ -3147,10 +3290,20 @@ def _build_step_timer_service():
         current_step = str(node.blackboard.get('current_step_name', '') or '')
         last_step    = _timing_state['last_step']
 
+        # Quest/run times are measured against the in-game instance timer (same
+        # clock as the Instance Timer widget) instead of wall/monotonic time.
+        # The instance timer starts at 0 on entering UW, so sample it every tick
+        # while we are inside the UW explorable and keep the last valid reading;
+        # this also keeps the final 'Loot Chest' time correct if the step change
+        # is only detected after the party has left the instance.
+        inst_ms = int(Map.GetInstanceUptime())
+        if inst_ms > 0 and Map.IsExplorable():
+            _timing_state['last_instance_ms'] = inst_ms
+
         if current_step == last_step:
             return _BT.NodeState.RUNNING
 
-        now_ms = int(time.monotonic() * 1000)
+        now_ms = int(_timing_state['last_instance_ms'])
 
         # Record the just-completed step's cumulative time BEFORE applying any
         # run reset for the new step. The 'Loot Chest' → 'Enter Underworld'
@@ -3159,14 +3312,18 @@ def _build_step_timer_service():
         run_start = _timing_state['run_start_ms']
         if last_step and last_step in _TIMED_QUESTS and run_start is not None:
             elapsed_ms = now_ms - run_start
-            _quest_completion_times[last_step] = elapsed_ms
-            _quest_times_log.setdefault(last_step, []).append(elapsed_ms // 1000)
-            _save_quest_times_log()
-            if last_step == 'Loot Chest':
-                total_s = elapsed_ms // 1000
-                _append_run_log(f'Run SUCCESS — chest looted, completed in {_fmt_s(total_s)}')
+            if elapsed_ms >= 0:
+                _quest_completion_times[last_step] = elapsed_ms
+                _quest_times_log.setdefault(last_step, []).append(elapsed_ms // 1000)
+                _save_quest_times_log()
+                if last_step == 'Loot Chest':
+                    total_s = elapsed_ms // 1000
+                    _append_run_log(f'Run SUCCESS completed in {_fmt_s(total_s)}')
 
         if current_step == 'Enter Underworld':
+            # New run starting: rotate the Run Log so it only keeps the latest
+            # run(s); older runs are written to the normal console.
+            _begin_run_log_run()
             _quest_completion_times.clear()
             _timing_state['run_start_ms'] = None
 
