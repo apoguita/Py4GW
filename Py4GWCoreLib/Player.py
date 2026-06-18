@@ -13,6 +13,19 @@ from .py4gwcorelib_src.FrameCache import frame_cache
 # Player
 class Player:
     _ACCOUNT_EMAIL_MAX_LEN = 64
+    PLAYER_STATUS = {
+        "offline": 0,
+        "online": 1,
+        "do_not_disturb": 2,
+        "dnd": 2,
+        "away": 3,
+    }
+    PLAYER_STATUS_NAMES = {
+        0: "offline",
+        1: "online",
+        2: "do_not_disturb",
+        3: "away",
+    }
 
     @staticmethod
     def _hwnd_account_fallback() -> str:
@@ -637,6 +650,51 @@ class Player:
 
 
     #region Methods
+    @staticmethod
+    def GetPlayerStatus() -> int:
+        """
+        Purpose: Retrieve the player's friend-list status.
+        Returns: int (0=offline, 1=online, 2=do_not_disturb, 3=away)
+        """
+        from .native_src.methods.PlayerMethods import PlayerMethods
+
+        return int(PlayerMethods.GetPlayerStatus())
+
+    @staticmethod
+    def GetPlayerStatusName() -> str:
+        """
+        Purpose: Retrieve the player's friend-list status name.
+        Returns: str
+        """
+        return Player.PLAYER_STATUS_NAMES.get(Player.GetPlayerStatus(), "unknown")
+
+    @staticmethod
+    def SetPlayerStatus(status: int | str) -> bool:
+        """
+        Purpose: Set the player's friend-list status.
+        Args:
+            status: 0/offline, 1/online, 2/do_not_disturb/dnd, or 3/away.
+        Returns: bool
+        """
+        if isinstance(status, str):
+            normalized = status.strip().lower().replace(" ", "_").replace("-", "_")
+            if normalized not in Player.PLAYER_STATUS:
+                return False
+            status_value = Player.PLAYER_STATUS[normalized]
+        else:
+            status_value = int(status)
+
+        if status_value not in Player.PLAYER_STATUS_NAMES:
+            return False
+
+        def _do_action():
+            from .native_src.methods.PlayerMethods import PlayerMethods
+
+            PlayerMethods.SetPlayerStatus(status_value)
+
+        ActionQueueManager().AddAction("ACTION", _do_action)
+        return True
+
     @staticmethod
     def ChangeTarget(agent_id):
         """
