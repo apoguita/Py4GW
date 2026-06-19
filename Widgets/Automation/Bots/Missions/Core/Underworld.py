@@ -10,7 +10,6 @@ import json
 import math
 import os
 import time
-from collections import deque
 
 import Py4GW
 import PyImGui
@@ -20,7 +19,6 @@ from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 
 # ── Module identity ───────────────────────────────────────────────────────────
-MODULE_NAME = 'UnderworldBT'
 MODULE_ICON = 'Textures/Module_Icons/Underworld.png'
 BOT_NAME    = 'UnderworldBT'
 
@@ -208,6 +206,11 @@ class ConsSettings:
         p: int(_ini.read_int(BOT_NAME, f'cons_{p}_restock', dr))
         for p, _, _, dr in _CONS_DEFS
     }
+    # Multibox Xunlai restock (broadcast after the Guild Hall merchant). Uses the
+    # shared RestockAllPcons / RestockConset commands with a single quantity each.
+    RestockPcons:     bool = bool(_ini.read_bool(BOT_NAME, 'cons_restock_pcons', False))
+    PconRestockQty:   int  = max(0, int(_ini.read_int(BOT_NAME, 'cons_pcon_restock_qty', 20) or 20))
+    ConsetRestockQty: int  = max(0, int(_ini.read_int(BOT_NAME, 'cons_conset_restock_qty', 10) or 10))
 
     @classmethod
     def is_active(cls, prop: str) -> bool:
@@ -232,6 +235,9 @@ class ConsSettings:
         for prop, _, _, _ in _CONS_DEFS:
             _ini.write_key(BOT_NAME, f'cons_{prop}_active',  str(cls._active.get(prop, True)))
             _ini.write_key(BOT_NAME, f'cons_{prop}_restock', str(cls._restock.get(prop, 0)))
+        _ini.write_key(BOT_NAME, 'cons_restock_pcons',     str(cls.RestockPcons))
+        _ini.write_key(BOT_NAME, 'cons_pcon_restock_qty',  str(max(0, int(cls.PconRestockQty))))
+        _ini.write_key(BOT_NAME, 'cons_conset_restock_qty', str(max(0, int(cls.ConsetRestockQty))))
 
 
 # ── Dhuum fight ───────────────────────────────────────────────────────────────
@@ -345,8 +351,6 @@ _UW_EXPLORABLE_STEPS: frozenset[str] = frozenset(
 
 
 _quest_completion_times: dict[str, int] = {}
-_DEBUG_LOG_MAX = 120
-_debug_watchdog_log: deque[str] = deque(maxlen=_DEBUG_LOG_MAX)
 _SPIRIT_FORM_SKILL_ID = 3134
 
 # ── Log files ─────────────────────────────────────────────────────────────────
@@ -639,11 +643,47 @@ def _draw_inventory_settings() -> None:
 
 def _draw_cons_settings() -> None:
     PyImGui.text_wrapped(
-        'Configure which consumables to upkeep automatically and how many to restock '
-        'from the Xunlai chest when the bot visits the guild hall between runs. '
-        'During a run, checked items are kept up in explorable areas by a single background '
-        'ConsumableUpkeep service (round-robin per item; requires *Use Cons* on the Run tab).'
+        'Per-item Active controls in-run upkeep: checked items are kept up in explorable '
+        'areas by a single background ConsumableUpkeep service (round-robin per item; '
+        'requires *Use Cons* on the Run tab).'
     )
+    PyImGui.spacing()
+
+    new_restock = PyImGui.checkbox(
+        'Restock pcons/conset from Xunlai (Guild Hall, all accounts)', ConsSettings.RestockPcons
+    )
+    _cons_changed = new_restock != ConsSettings.RestockPcons
+    if _cons_changed:
+        ConsSettings.RestockPcons = new_restock
+
+    PyImGui.begin_disabled(not ConsSettings.RestockPcons)
+    PyImGui.push_item_width(70.0)
+    new_pcon_qty = max(0, _input_int_val(
+        PyImGui.input_int('Pcon qty##cons_pcon_qty', ConsSettings.PconRestockQty, 0, 0, 0),
+        ConsSettings.PconRestockQty,
+    ))
+    PyImGui.same_line(0, 16)
+    new_conset_qty = max(0, _input_int_val(
+        PyImGui.input_int('Conset qty##cons_conset_qty', ConsSettings.ConsetRestockQty, 0, 0, 0),
+        ConsSettings.ConsetRestockQty,
+    ))
+    PyImGui.pop_item_width()
+    PyImGui.end_disabled()
+    if new_pcon_qty != ConsSettings.PconRestockQty:
+        ConsSettings.PconRestockQty = new_pcon_qty
+        _cons_changed = True
+    if new_conset_qty != ConsSettings.ConsetRestockQty:
+        ConsSettings.ConsetRestockQty = new_conset_qty
+        _cons_changed = True
+    if _cons_changed:
+        ConsSettings._save()
+
+    PyImGui.text_wrapped(
+        'Runs after the Guild Hall merchant; each account tops the listed pcons/conset '
+        'up to these amounts from its own Xunlai storage. The per-item Min Stock below '
+        'is not used for this restock.'
+    )
+    PyImGui.separator()
     PyImGui.spacing()
 
     _seen_cats: list[str] = []
@@ -888,16 +928,6 @@ def _draw_debug_settings() -> None:
                     PyImGui.text_colored(f'-{dp_pct}%', dp_col)
 
         PyImGui.end_table()
-
-    PyImGui.separator()
-    PyImGui.text(f'Watchdog Log (last {_DEBUG_LOG_MAX})')
-    if PyImGui.button('Clear##uw_watchdog_log'):
-        _debug_watchdog_log.clear()
-    if not _debug_watchdog_log:
-        PyImGui.text_colored('  (no watchdog entries yet)', _color_grey)
-    else:
-        for entry in list(_debug_watchdog_log)[-20:][::-1]:
-            PyImGui.text_wrapped(entry)
 
 
 def _draw_settings() -> None:
@@ -1758,11 +1788,6 @@ def _blacklist_obsidian_guardian(_node: _BT.Node) -> _BT.NodeState:
     return _BT.NodeState.SUCCESS
 
 
-def _blacklist_vengeful_aatxe(_node: _BT.Node) -> _BT.NodeState:
-    _blacklist_name(UWBlacklistName.VengefulAatxe)
-    return _BT.NodeState.SUCCESS
-
-
 def _unblacklist_vengeful_aatxe(_node: _BT.Node) -> _BT.NodeState:
     _unblacklist_name(UWBlacklistName.VengefulAatxe)
     return _BT.NodeState.SUCCESS
@@ -2239,7 +2264,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
                     'skipping kit restock.',
                     Py4GW.Console.MessageType.Warning,
                 )
-                _append_run_log('Restock Kits: merchant not found, skipped.')
+                ConsoleLog(BOT_NAME, 'Restock Kits: merchant not found, skipped.', Py4GW.Console.MessageType.Info)
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
 
@@ -2268,7 +2293,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
             if salvage_target > 0:
                 _kit_parts.append(f'{salvage_target} salvage kit(s)')
             _kit_desc = ' + '.join(_kit_parts) if _kit_parts else 'nothing'
-            _append_run_log(f'Restock Kits: topping up to {_kit_desc} on {len(refs)} account(s)…')
+            ConsoleLog(BOT_NAME, f'Restock Kits: topping up to {_kit_desc} on {len(refs)} account(s)…', Py4GW.Console.MessageType.Info)
             if not refs:
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
@@ -2291,7 +2316,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
             state['refs'] = still_pending
 
             if not still_pending:
-                _append_run_log('Restock Kits: done.')
+                ConsoleLog(BOT_NAME, 'Restock Kits: done.', Py4GW.Console.MessageType.Info)
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
             if now >= state['deadline_ms']:
@@ -2301,7 +2326,7 @@ def _build_restock_salvage_kits_tree() -> _BT:
                     f'{len(still_pending)} account(s) did not confirm.',
                     Py4GW.Console.MessageType.Warning,
                 )
-                _append_run_log('Restock Kits: timed out waiting for some accounts.')
+                ConsoleLog(BOT_NAME, 'Restock Kits: timed out waiting for some accounts.', Py4GW.Console.MessageType.Warning)
                 state['phase'] = 'done'
                 return _BT.NodeState.SUCCESS
             return _BT.NodeState.RUNNING
@@ -2309,6 +2334,109 @@ def _build_restock_salvage_kits_tree() -> _BT:
         return _BT.NodeState.SUCCESS
 
     return _BT(_BT.ActionNode(name='RestockSalvageKits', action_fn=_tick))
+
+
+_PCON_RESTOCK_WAIT_TIMEOUT_MS = 60000
+
+
+def _build_restock_pcons_tree() -> _BT:
+    """Multibox pcon/conset restock from each account's Xunlai storage.
+
+    Runs right after the Guild Hall merchant step. When ``ConsSettings.RestockPcons``
+    is on, broadcasts ``RestockAllPcons`` and ``RestockConset`` to every account
+    (leader included). Each account withdraws from its own Xunlai up to the configured
+    quantities (``PconRestockQty`` / ``ConsetRestockQty``) — no movement is required,
+    so this is fast. This node only sends the commands and polls the outbound refs for
+    completion; the actual withdrawing is handled by the shared-memory command
+    infrastructure. Always returns SUCCESS so Enter Underworld never stalls, and is a
+    no-op when the toggle is off or both quantities are 0.
+    """
+    from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType as _SCT
+
+    state: dict = {
+        'phase':       'send',   # send → waiting → done
+        'refs':        [],       # list of (email, message_index, command)
+        'deadline_ms': 0,
+    }
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        if not ConsSettings.RestockPcons:
+            return _BT.NodeState.SUCCESS
+
+        now = int(Utils.GetBaseTimestamp())
+        my_email = str(Player.GetAccountEmail() or '')
+
+        if state['phase'] == 'send':
+            pcon_qty   = max(0, int(ConsSettings.PconRestockQty))
+            conset_qty = max(0, int(ConsSettings.ConsetRestockQty))
+            if pcon_qty <= 0 and conset_qty <= 0:
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+            refs: list[tuple[str, int, int]] = []
+            for acc in accounts:
+                email = str(getattr(acc, 'AccountEmail', '') or '')
+                if not email:
+                    continue
+                if pcon_qty > 0:
+                    mi = int(GLOBAL_CACHE.ShMem.SendMessage(
+                        my_email, email, _SCT.RestockAllPcons, (pcon_qty, 0, 0, 0)))
+                    refs.append((email, mi, int(_SCT.RestockAllPcons)))
+                if conset_qty > 0:
+                    mi = int(GLOBAL_CACHE.ShMem.SendMessage(
+                        my_email, email, _SCT.RestockConset, (conset_qty, 0, 0, 0)))
+                    refs.append((email, mi, int(_SCT.RestockConset)))
+
+            state['refs']        = refs
+            state['deadline_ms'] = now + _PCON_RESTOCK_WAIT_TIMEOUT_MS
+            state['phase']       = 'waiting'
+            _parts = []
+            if pcon_qty > 0:
+                _parts.append(f'{pcon_qty} pcon(s)')
+            if conset_qty > 0:
+                _parts.append(f'{conset_qty} conset')
+            ConsoleLog(BOT_NAME, f'Restock Pcons: topping up {" + ".join(_parts)} on {len(accounts)} account(s)…', Py4GW.Console.MessageType.Info)
+            if not refs:
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+            return _BT.NodeState.RUNNING
+
+        if state['phase'] == 'waiting':
+            still_pending: list[tuple[str, int, int]] = []
+            for email, message_index, command in state['refs']:
+                if int(message_index) < 0:
+                    continue
+                message = GLOBAL_CACHE.ShMem.GetInbox(int(message_index))
+                is_same_message = (
+                    bool(getattr(message, 'Active', False))
+                    and str(getattr(message, 'ReceiverEmail', '') or '') == email
+                    and str(getattr(message, 'SenderEmail', '') or '') == my_email
+                    and int(getattr(message, 'Command', -1)) == int(command)
+                )
+                if is_same_message:
+                    still_pending.append((email, message_index, command))
+            state['refs'] = still_pending
+
+            if not still_pending:
+                ConsoleLog(BOT_NAME, 'Restock Pcons: done.', Py4GW.Console.MessageType.Info)
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+            if now >= state['deadline_ms']:
+                ConsoleLog(
+                    BOT_NAME,
+                    f'[EnterUW] RestockPcons: timeout after {_PCON_RESTOCK_WAIT_TIMEOUT_MS} ms, '
+                    f'{len(still_pending)} message(s) did not confirm.',
+                    Py4GW.Console.MessageType.Warning,
+                )
+                ConsoleLog(BOT_NAME, 'Restock Pcons: timed out waiting for some accounts.', Py4GW.Console.MessageType.Warning)
+                state['phase'] = 'done'
+                return _BT.NodeState.SUCCESS
+            return _BT.NodeState.RUNNING
+
+        return _BT.NodeState.SUCCESS
+
+    return _BT(_BT.ActionNode(name='RestockPcons', action_fn=_tick))
 
 
 def _enter_underworld_tree() -> _BT:
@@ -2343,6 +2471,7 @@ def _enter_underworld_tree() -> _BT:
         RoutinesBT.Multibox.SummonAllAccounts(timeout_ms=15_000, poll_interval_ms=100, log=True),
         ApoBT.Wait(duration_ms=1000, log=True),
         _BT(_BT.SubtreeNode(name='RestockSalvageKits', subtree_fn=lambda _node: _build_restock_salvage_kits_tree())),
+        _BT(_BT.SubtreeNode(name='RestockPcons', subtree_fn=lambda _node: _build_restock_pcons_tree())),
         _BT(_BT.SubtreeNode(name='BuyUWScrolls', subtree_fn=_build_buy_uw_scrolls_tree)),
         ApoBT.Travel(target_map_id=_resolve_uw_entry_map_id(), log=True),
         ApoBT.CreateParty(multibox_invite=True, timeout_ms=15_000, poll_interval_ms=100, aftercast_ms=250, log=True),
