@@ -491,7 +491,7 @@ def _input_int_val(result: object, current: int) -> int:
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
-# ║  DRAW FUNCTIONS
+# ║  UI · DRAW FUNCTIONS  (settings tabs, run log, main-window widgets)
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 def _draw_help() -> None:
@@ -1103,7 +1103,7 @@ def _draw_main_additional_ui() -> None:
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
-# ║  BOT + MAIN
+# ║  BOT INSTANCE + MAIN-WINDOW SETUP  (create bot, wire UI overrides)
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 bot = BottingTree.Create(bot_name=BOT_NAME, multi_account=True, auto_loot=True, isolation_enabled=False)
@@ -1158,7 +1158,12 @@ bot.UI._draw_managed_window = _draw_managed_window_without_navigation  # type: i
 # ── BehaviorTree import ──────────────────────────────────────────────────────
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree as _BT
 
-# ── Shared BT helpers ────────────────────────────────────────────────────────
+
+# ╔══════════════════════════════════════════════════════════════════════════════
+# ║  BEHAVIOR TREE · SHARED HELPERS & ACTIONS
+# ║  (reusable BT nodes: blacklist, flags, combat toggles, waits, targeting —
+# ║   building blocks consumed by the quest trees further below)
+# ╚══════════════════════════════════════════════════════════════════════════════
 
 _BEHEMOTH_ENGAGE_RADIUS = 500.0
 
@@ -1919,11 +1924,14 @@ def _force_local_skills_on() -> _BT:
     return _BT(_BT.ActionNode(name='ForceLocalSkillsOn', action_fn=_tick))
 
 
-_REQUIRED_WIDGETS: tuple[str, ...] = ('HeroAI', 'Dhuum Helper')
+_REQUIRED_WIDGETS: tuple[str, ...] = ('Dhuum Helper',)
 
 
 def _enable_required_widgets_on_all_accounts(node: object) -> object:
-    """Enable HeroAI and Dhuum Helper locally and on every other account.
+    """Enable the required widgets (Dhuum Helper) locally and on every other account.
+
+    HeroAI is intentionally not auto-enabled here — it must already be running on
+    every account for the bot to control the followers.
 
     No Routines.BT equivalent — WidgetManager + EnableWidget multibox messages.
     """
@@ -2136,7 +2144,11 @@ def _resolve_uw_entry_map_id() -> int:
     return int(UW_ENTRYPOINTS.get(key, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY])[1])
 
 
-# ── Quest trees (chronological) ──────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════
+# ║  QUEST FLOW · STEP TREES (chronological)
+# ║  (one tree per planner step, in run order; registered in BOT REGISTRATION
+# ║   at the bottom of the file)
+# ╚══════════════════════════════════════════════════════════════════════════════
 
 # Missing ApoBT wrappers (no equivalent exists in ApoBottingLib yet):
 #
@@ -3422,7 +3434,11 @@ def _loot_chest_tree() -> _BT:
 _WIPE_CONFIRM_TICKS = 60  # ~3 seconds at 20 fps
 
 
-# ── Services ─────────────────────────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════
+# ║  PARALLEL SERVICES
+# ║  (background trees that run every tick alongside the quest flow: step timer,
+# ║   consumable upkeep, guard/priority-target monitors)
+# ╚══════════════════════════════════════════════════════════════════════════════
 
 def _build_step_timer_service():
     """Service: watches blackboard step transitions and records cumulative elapsed time.
@@ -3817,7 +3833,10 @@ def _build_consolidated_consumable_upkeep_service() -> _BT:
     return _BT(_BT.ActionNode(name='ConsumableUpkeepConsolidated', action_fn=_tick, aftercast_ms=0))
 
 
-# ── Bot registration ─────────────────────────────────────────────────────────
+# ╔══════════════════════════════════════════════════════════════════════════════
+# ║  BOT REGISTRATION
+# ║  (bind the step trees + services to the planner, then expose the module entry)
+# ╚══════════════════════════════════════════════════════════════════════════════
 
 bot.SetNamedPlannerSteps([
     ('Enter Underworld',    _enter_underworld_tree),
