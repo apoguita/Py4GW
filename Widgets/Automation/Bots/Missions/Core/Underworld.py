@@ -80,6 +80,19 @@ UW_TORTURED_SPIRIT_NAMES: tuple[str, ...] = (
     UWBlacklistName.TorturedSpirit,
 )
 
+# Every enemy name the bot itself ever blacklists. Used to clear ONLY the bot's own
+# entries instead of wiping the whole list, so manually-added blacklist entries (from
+# the HeroAI blacklist UI) survive bot startup, step purges, and wipe recovery.
+UW_BOT_BLACKLIST_NAMES: tuple[str, ...] = (
+    UWBlacklistName.ChainedSoul,
+    UWBlacklistName.TorturedSpirit,
+    UWBlacklistName.ObsidianGuardian,
+    UWBlacklistName.VengefulAatxe,
+    UWBlacklistName.BanishedDreamRider,
+    UWBlacklistName.ObsidianBehemoth,
+    UWBlacklistName.SpiritOfNaturesRenewal,
+)
+
 # Spectral Mindblade spawn wait in Restore Planes (not blacklisted)
 _UW_SPECTRAL_MINDBLADE_MODEL_ID = 2380
 UW_SCROLL_MODEL_ID = 3746  # ModelID.Passage_Scroll_Uw
@@ -96,8 +109,9 @@ UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
 }
 
 # Underworld enemies ordered from highest to lowest party-call priority (UnderworldV2 + tracker).
-# Omitted on purpose: Chained Soul, Tortured Spirit, Spirit of Nature's Renewal (bot blacklists),
-# Dire/Hearty Black Widow (trash).
+# Omitted on purpose: Chained Soul, Tortured Spirit, Spirit of Nature's Renewal,
+# Vengeful Aatxe (all bot-blacklisted — a party call would override the per-account
+# blacklist filter and make every account attack them), Dire/Hearty Black Widow (trash).
 UW_TARGET_PRIORITY: list[str] = [
     # Quest / high-value targets
     'Keeper of Souls',
@@ -120,7 +134,6 @@ UW_TARGET_PRIORITY: list[str] = [
     'Stalking Night',
     'Dying Nightmare',
     'Bladed Aatxe',
-    'Vengeful Aatxe',
     # General UW mobs
     'Smite Crawler',
     'Bone Horror',
@@ -175,36 +188,32 @@ class InventorySettings:
 
 
 # ── Consumables ───────────────────────────────────────────────────────────────
-# Each entry: (ini_key, display_name, category, default_restock_quantity)
-_CONS_DEFS: list[tuple[str, str, str, int]] = [
+# Each entry: (ini_key, display_name, category)
+_CONS_DEFS: list[tuple[str, str, str]] = [
     # Conset
-    ('armor_of_salvation',    'Armor of Salvation',    'Conset', 4),
-    ('essence_of_celerity',   'Essence of Celerity',   'Conset', 4),
-    ('grail_of_might',        'Grail of Might',        'Conset', 4),
+    ('armor_of_salvation',    'Armor of Salvation',    'Conset'),
+    ('essence_of_celerity',   'Essence of Celerity',   'Conset'),
+    ('grail_of_might',        'Grail of Might',        'Conset'),
     # War
-    ('war_supplies',          'War Supplies',           'War',   4),
+    ('war_supplies',          'War Supplies',           'War'),
     # Food
-    ('drake_kabob',           'Drake Kabob',            'Food',  4),
-    ('bowl_of_skalefin_soup', 'Bowl of Skalefin Soup', 'Food',  4),
-    ('pahnai_salad',          'Pahnai Salad',           'Food',  4),
+    ('drake_kabob',           'Drake Kabob',            'Food'),
+    ('bowl_of_skalefin_soup', 'Bowl of Skalefin Soup', 'Food'),
+    ('pahnai_salad',          'Pahnai Salad',           'Food'),
     # Sweet
-    ('candy_corn',            'Candy Corn',             'Sweet', 4),
-    ('candy_apple',           'Candy Apple',            'Sweet', 4),
-    ('birthday_cupcake',      'Birthday Cupcake',       'Sweet', 4),
-    ('golden_egg',            'Golden Egg',             'Sweet', 4),
-    ('slice_of_pumpkin_pie',  'Pumpkin Pie',            'Sweet', 4),
-    ('honeycomb',             'Honeycomb',              'Sweet', 4),
+    ('candy_corn',            'Candy Corn',             'Sweet'),
+    ('candy_apple',           'Candy Apple',            'Sweet'),
+    ('birthday_cupcake',      'Birthday Cupcake',       'Sweet'),
+    ('golden_egg',            'Golden Egg',             'Sweet'),
+    ('slice_of_pumpkin_pie',  'Pumpkin Pie',            'Sweet'),
+    ('honeycomb',             'Honeycomb',              'Sweet'),
 ]
 
 class ConsSettings:
-    """Active flag and Xunlai-restock quantity for every upkeep-able consumable."""
+    """Active flag (in-run upkeep) and multibox Xunlai-restock quantities."""
     _active:  dict[str, bool] = {
         p: bool(_ini.read_bool(BOT_NAME, f'cons_{p}_active', True))
-        for p, _, _, _ in _CONS_DEFS
-    }
-    _restock: dict[str, int] = {
-        p: int(_ini.read_int(BOT_NAME, f'cons_{p}_restock', dr))
-        for p, _, _, dr in _CONS_DEFS
+        for p, _, _ in _CONS_DEFS
     }
     # Multibox Xunlai restock (broadcast after the Guild Hall merchant). Uses the
     # shared RestockAllPcons / RestockConset commands with a single quantity each.
@@ -217,24 +226,14 @@ class ConsSettings:
         return cls._active.get(prop, True)
 
     @classmethod
-    def get_restock(cls, prop: str) -> int:
-        return cls._restock.get(prop, 0)
-
-    @classmethod
     def set_active(cls, prop: str, value: bool) -> None:
         cls._active[prop] = value
         cls._save()
 
     @classmethod
-    def set_restock(cls, prop: str, value: int) -> None:
-        cls._restock[prop] = max(0, value)
-        cls._save()
-
-    @classmethod
     def _save(cls) -> None:
-        for prop, _, _, _ in _CONS_DEFS:
+        for prop, _, _ in _CONS_DEFS:
             _ini.write_key(BOT_NAME, f'cons_{prop}_active',  str(cls._active.get(prop, True)))
-            _ini.write_key(BOT_NAME, f'cons_{prop}_restock', str(cls._restock.get(prop, 0)))
         _ini.write_key(BOT_NAME, 'cons_restock_pcons',     str(cls.RestockPcons))
         _ini.write_key(BOT_NAME, 'cons_pcon_restock_qty',  str(max(0, int(cls.PconRestockQty))))
         _ini.write_key(BOT_NAME, 'cons_conset_restock_qty', str(max(0, int(cls.ConsetRestockQty))))
@@ -496,24 +495,65 @@ def _input_int_val(result: object, current: int) -> int:
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 def _draw_help() -> None:
-    PyImGui.text('Startup widget policy now runs on all active accounts:')
+    _c_title = Utils.RGBToNormal(120, 200, 255, 255)
+    _c_head  = Utils.RGBToNormal(255, 215, 100, 255)
+    _c_warn  = Utils.RGBToNormal(255, 120, 120, 255)
+    _c_grey  = Utils.RGBToNormal(170, 170, 170, 255)
 
-    PyImGui.separator()
-    PyImGui.text('Current Status')
-    PyImGui.text_wrapped("I'm working on creating a HeroAI version, but there are significant differences.")
-    PyImGui.text_wrapped("High risk of getting stuck: 'Unwanted Guests,' 'Dhuum' timing edge cases.")
-    PyImGui.text_wrapped('3d pathing in Pits is very rough, may cause getting stuck. Ranged leader works best.')
-    PyImGui.text_wrapped('HM is HARDMODE. Never finished a run. Maybe you can?')
-
-    PyImGui.separator()
+    # ── Overview ──────────────────────────────────────────────────────────────
+    PyImGui.text_colored('Underworld Multibox Bot', _c_title)
     PyImGui.text_wrapped(
-        'For the Imprisoned Spirits quest, 1 or 2 durable damage dealers are recommended for the left team. '
-        'You need to figure out which ones.'
+        'Runs the full Underworld clear with a multibox party. Start the script on the '
+        'party leader only — every other account is driven through shared memory + HeroAI. '
+        'Configure the per-quest settings in the tabs above before starting a run.'
     )
-    PyImGui.text_wrapped('In the Dhuum battle, 1-2 heroes will die and become ghosts. You can choose which ones.')
+    PyImGui.spacing()
+    PyImGui.text_colored('Quick start', _c_head)
+    PyImGui.bullet_text('Run the leader; followers join automatically.')
+    PyImGui.bullet_text('Use a RANGED leader. It works best (smoother pathing, fewer snags).')
+    PyImGui.bullet_text("Set the teams in 'Imprisoned Spirits' and the sacrifices in 'Dhuum'.")
+    PyImGui.bullet_text("Toggle Cons / Hard Mode / Repeat on the Run tab.")
 
     PyImGui.separator()
-    PyImGui.text_wrapped('Inventory refill powered by MerchantRules — thanks to Icefox!')
+
+    # ── Imprisoned Spirits tab ────────────────────────────────────────────────
+    PyImGui.text_colored('Imprisoned Spirits tab', _c_head)
+    PyImGui.text_wrapped(
+        'This quest needs the party split in two so spirits spawning on both sides are '
+        'intercepted. Each account is assigned to a Left or Right team here.'
+    )
+    PyImGui.bullet_text('Left / Right radio buttons: pick the team for each follower account.')
+    PyImGui.bullet_text('During the quest, Left accounts are flagged to the left staging spot,')
+    PyImGui.text_wrapped('   Right accounts to the right one, they hold those lanes automatically.')
+    PyImGui.bullet_text('Your own (leader) row is greyed out, it runs the bot and is not flagged.')
+    PyImGui.bullet_text('Default if never set: first 3 accounts go Left, the rest go Right.')
+    PyImGui.text_colored(
+        'You need to find out which builds hold it.', _c_grey,
+    )
+
+    PyImGui.separator()
+
+    # ── Dhuum tab ─────────────────────────────────────────────────────────────
+    PyImGui.text_colored('Dhuum tab', _c_head)
+    PyImGui.text_wrapped(
+        'In the Dhuum fight some accounts are deliberately killed so they take on '
+        'I sacrifice all but ST '
+        'who is frontlane and how many spirits the bot waits for. (2-3 should be enough)'
+    )
+    PyImGui.bullet_text('Sacrifice checkboxes: which follower accounts get sent to the death')
+    PyImGui.text_wrapped('   spot to die and become spirits. Everyone else is flagged as a survivor.')
+    PyImGui.bullet_text('Your own (leader) row is disabled — the leader is never sacrificed.')
+    PyImGui.bullet_text('Min Spiritform accounts: the bot holds combat until at least this many')
+    PyImGui.text_wrapped('   party members in UW actually have Spirit Form, then resumes the fight.')
+
+    PyImGui.separator()
+
+    # ── Known issues ──────────────────────────────────────────────────────────
+    PyImGui.text_colored('Status & known issues', _c_head)
+    PyImGui.bullet_text("Medium risk of getting stuck on 'Unwanted Guests' and Dhuum timing edge cases.")
+    PyImGui.bullet_text("Low risk of leaving dead mates behind.")
+    PyImGui.text_colored('Hard Mode has never been fully cleared. Maybe you can?', _c_warn)
+    PyImGui.separator()
 
 
 def _draw_quest_settings() -> None:
@@ -642,15 +682,9 @@ def _draw_inventory_settings() -> None:
 
 
 def _draw_cons_settings() -> None:
-    PyImGui.text_wrapped(
-        'Per-item Active controls in-run upkeep: checked items are kept up in explorable '
-        'areas by a single background ConsumableUpkeep service (round-robin per item; '
-        'requires *Use Cons* on the Run tab).'
-    )
-    PyImGui.spacing()
 
     new_restock = PyImGui.checkbox(
-        'Restock pcons/conset from Xunlai (Guild Hall, all accounts)', ConsSettings.RestockPcons
+        'Restock pcons/conset from Xunlai (all accounts)', ConsSettings.RestockPcons
     )
     _cons_changed = new_restock != ConsSettings.RestockPcons
     if _cons_changed:
@@ -677,12 +711,6 @@ def _draw_cons_settings() -> None:
         _cons_changed = True
     if _cons_changed:
         ConsSettings._save()
-
-    PyImGui.text_wrapped(
-        'Runs after the Guild Hall merchant; each account tops the listed pcons/conset '
-        'up to these amounts from its own Xunlai storage. The per-item Min Stock below '
-        'is not used for this restock.'
-    )
     PyImGui.separator()
     PyImGui.spacing()
 
@@ -705,15 +733,13 @@ def _draw_cons_settings() -> None:
     for cat in _seen_cats:
         PyImGui.text(cat)
         PyImGui.separator()
-        if PyImGui.begin_table(f'##cons_{cat}', 3, tbl_flags, 0.0, 0.0):
-            PyImGui.table_setup_column('Active',    PyImGui.TableColumnFlags.WidthFixed,   50.0)
-            PyImGui.table_setup_column('Min Stock', PyImGui.TableColumnFlags.WidthFixed,  110.0)
-            PyImGui.table_setup_column('Name',      PyImGui.TableColumnFlags.WidthStretch,  0.0)
+        if PyImGui.begin_table(f'##cons_{cat}', 2, tbl_flags, 0.0, 0.0):
+            PyImGui.table_setup_column('Active', PyImGui.TableColumnFlags.WidthFixed,   50.0)
+            PyImGui.table_setup_column('Name',   PyImGui.TableColumnFlags.WidthStretch,  0.0)
             PyImGui.table_headers_row()
 
-            for prop, dname, _, _ in _by_cat[cat]:
-                cur_active  = ConsSettings.is_active(prop)
-                cur_restock = ConsSettings.get_restock(prop)
+            for prop, dname, _ in _by_cat[cat]:
+                cur_active = ConsSettings.is_active(prop)
 
                 PyImGui.table_next_row()
 
@@ -721,15 +747,6 @@ def _draw_cons_settings() -> None:
                 new_active = PyImGui.checkbox(f'##ca_{prop}', cur_active)
                 if new_active != cur_active:
                     ConsSettings.set_active(prop, new_active)
-
-                PyImGui.table_next_column()
-                PyImGui.begin_disabled(not cur_active)
-                PyImGui.push_item_width(90.0)
-                new_restock = max(0, _input_int_val(PyImGui.input_int(f'##cr_{prop}', cur_restock, 0, 0, 0), cur_restock))
-                PyImGui.pop_item_width()
-                if new_restock != cur_restock:
-                    ConsSettings.set_restock(prop, new_restock)
-                PyImGui.end_disabled()
 
                 PyImGui.table_next_column()
                 PyImGui.text(dname)
@@ -1090,14 +1107,15 @@ def _draw_main_additional_ui() -> None:
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 bot = BottingTree.Create(bot_name=BOT_NAME, multi_account=True, auto_loot=True, isolation_enabled=False)
-# Reset the EnemyBlacklist on startup: clear any leftover entries from a previous
-# crashed or incomplete run so HeroAI starts with a clean state.
+# Reset the EnemyBlacklist on startup: drop only the bot's OWN leftover name entries
+# from a previous crashed or incomplete run. Manually-added entries (model IDs and any
+# user names from the HeroAI blacklist UI) are preserved.
 try:
     from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist as _EBL_Init
 
     _bl_init = _EBL_Init()
-    _bl_init._write(set())        # clear legacy model-ID entries
-    _bl_init._write_names(set())  # clear leftover name entries
+    _bot_bl_names = {n.strip().lower() for n in UW_BOT_BLACKLIST_NAMES}
+    _bl_init._write_names({n for n in _bl_init.get_all_names() if n not in _bot_bl_names})
 except Exception:
     pass
 bot.UI.override_draw_help(lambda: _draw_help())
@@ -1753,13 +1771,13 @@ def _follow_king_frozenwind() -> _BT:
         throttle_interval_ms=500,
         timeout_ms=int(_KING_FROZENWIND_TIMEOUT_S * 1000) + 5000,
     ))
-def _purge_all_enemy_blacklist_names() -> None:
-    """Drop every name-based blacklist entry (resets all bot-managed blacklist state)."""
-    _update_blacklist_names(clear=True)
+def _purge_bot_blacklist_names() -> None:
+    """Remove only the bot's own name entries, preserving manually-added blacklist entries."""
+    _update_blacklist_names(remove=UW_BOT_BLACKLIST_NAMES)
 
 
 def _purge_blacklist_names_action(_node: _BT.Node) -> _BT.NodeState:
-    _purge_all_enemy_blacklist_names()
+    _purge_bot_blacklist_names()
     return _BT.NodeState.SUCCESS
 
 
@@ -1807,7 +1825,7 @@ def _prepare_unwanted_guests_blacklist(_node: _BT.Node) -> _BT.NodeState:
 
 
 def _clear_bot_blacklist_names() -> None:
-    _purge_all_enemy_blacklist_names()
+    _purge_bot_blacklist_names()
 def _party_call_or_change_target(agent_id: int) -> None:
     """Match HeroAI UI: party leader uses Call Target (Ctrl+Space); others only change local target.
 
@@ -3784,7 +3802,7 @@ def _build_consolidated_consumable_upkeep_service() -> _BT:
             return _BT.NodeState.RUNNING
         if _skip_background_upkeep(node.blackboard):
             return _BT.NodeState.RUNNING
-        active = [p for p, _, _, _ in _CONS_DEFS if ConsSettings.is_active(p)]
+        active = [p for p, _, _ in _CONS_DEFS if ConsSettings.is_active(p)]
         if not active:
             return _BT.NodeState.RUNNING
 
