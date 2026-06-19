@@ -646,24 +646,7 @@ class Player:
         Returns: None
         """
         def _do_action():
-            try:
-                target_id = int(agent_id)
-            except Exception:
-                return
-
-            # Global safety guard: target ids can become invalid between caller
-            # selection and queued execution (e.g. Dhuum teleports/despawns).
-            # Re-validate at execution time to avoid native assertions on stale
-            # manual target ids. Target 0 (clear target) remains always allowed.
-            if target_id != 0:
-                try:
-                    from .Agent import Agent
-                    if not Agent.IsValid(target_id):
-                        return
-                except Exception:
-                    return
-
-            Player.player_instance().ChangeTarget(target_id)
+            Player.player_instance().ChangeTarget(agent_id)
         #ActionQueueManager().AddAction("ACTION",PlayerMethods.ChangeTarget,agent_id)
         ActionQueueManager().AddAction("ACTION",_do_action)
         

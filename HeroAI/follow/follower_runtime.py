@@ -54,12 +54,14 @@ def get_follow_destination_xy(cached_data: CacheData) -> tuple[float, float] | N
     def _is_nonzero_xy(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
 
-    if bool(getattr(options, "IsFlagged", False)) and _is_nonzero_xy(float(options.FlagPos.x), float(options.FlagPos.y)):
-        return (float(options.FlagPos.x), float(options.FlagPos.y))
-
     published_follow_xy = (float(options.FollowPos.x), float(options.FollowPos.y))
+    flag_xy = (float(options.FlagPos.x), float(options.FlagPos.y))
+    is_flagged = bool(getattr(options, "IsFlagged", False))
     if _is_nonzero_xy(*published_follow_xy):
         return published_follow_xy
+
+    if is_flagged and _is_nonzero_xy(*flag_xy):
+        return flag_xy
 
     return None
 
@@ -249,9 +251,13 @@ def execute_follower_follow(
     published_follow_z = int(float(options.FollowPos.z))
 
     if own_flag_active:
-        follow_x = float(options.FlagPos.x)
-        follow_y = float(options.FlagPos.y)
-        follow_z = 0
+        if _is_nonzero_xy(*published_follow_xy):
+            follow_x, follow_y = published_follow_xy
+            follow_z = published_follow_z
+        else:
+            follow_x = float(options.FlagPos.x)
+            follow_y = float(options.FlagPos.y)
+            follow_z = 0
     else:
         if not bool(getattr(options, "LeaderFollowReady", False)):
             _reset_follow_runtime()

@@ -684,41 +684,12 @@ class CombatClass:
             return False
         return EnemyBlacklist().is_blacklisted(agent_id)
 
-    @staticmethod
-    def _is_nonzero_xy(x: float, y: float) -> bool:
-        return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
-
-    def _is_leader_all_flag_active(self) -> bool:
-        """True when the party leader holds a global (all) flag.
-
-        In all-flag mode only the leader's ``IsFlagged``/``AllFlag`` is set; the
-        leader publishes that position into each follower's ``FollowPos`` so the
-        follower's own ``IsFlagged`` stays False.  Mirror ``execute_follower_follow``
-        so combat guards the flag in this case too.
-        """
-        try:
-            leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
-        except Exception:
-            return False
-        return (
-            leader_options is not None
-            and bool(getattr(leader_options, 'IsFlagged', False))
-            and self._is_nonzero_xy(float(leader_options.AllFlag.x), float(leader_options.AllFlag.y))
-        )
-
     def _get_guard_anchor_xy(self) -> tuple[float, float] | None:
         if self.cached_data is None or self.cached_data.data.is_leader:
             return None
 
         options = self.cached_data.account_options
-        if options is None:
-            return None
-
-        own_flag_active = bool(getattr(options, 'IsFlagged', False)) and self._is_nonzero_xy(
-            float(getattr(options.FlagPos, 'x', 0.0)),
-            float(getattr(options.FlagPos, 'y', 0.0)),
-        )
-        if not own_flag_active and not self._is_leader_all_flag_active():
+        if options is None or not bool(getattr(options, 'IsFlagged', False)):
             return None
 
         try:
@@ -733,7 +704,7 @@ class CombatClass:
 
         flag_x = float(getattr(options.FlagPos, 'x', 0.0))
         flag_y = float(getattr(options.FlagPos, 'y', 0.0))
-        if self._is_nonzero_xy(flag_x, flag_y):
+        if abs(flag_x) > 0.001 or abs(flag_y) > 0.001:
             return (flag_x, flag_y)
         return None
 
@@ -992,19 +963,6 @@ class CombatClass:
             v_target = preferred_enemy_target
             if v_target == 0:
                 v_target = get_nearest_enemy()
-
-        # When holding a flag anchor, never acquire enemies outside the guard zone.
-        # The nearest-enemy fallbacks above scan from the player position, so once a
-        # follower drifts toward one enemy it would keep picking up new ones and chase
-        # them off the flag — eventually past SafeCompass, which stalls the whole tree.
-        # Ally/self targets (heals, buffs) are intentionally left ungated.
-        if v_target != 0 and self._is_guarding_flag_anchor():
-            try:
-                _, v_target_allegiance = Agent.GetAllegiance(v_target)
-            except Exception:
-                v_target_allegiance = ''
-            if v_target_allegiance == 'Enemy' and not self._is_target_within_guard_anchor_range(v_target):
-                v_target = 0
 
         # Great Dwarf Weapon cannot self-target; keep an extra guard even if profile data is misconfigured.
         if self.skills[slot].skill_id == self.great_dwarf_weapon and v_target == Player.GetAgentID():
@@ -1780,7 +1738,7 @@ class CombatClass:
             return True
             
         nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-        if nearest != 0 and self._is_target_within_guard_anchor_range(nearest):
+        if nearest != 0:
             self.SafeInteract(nearest)
             return True
 
