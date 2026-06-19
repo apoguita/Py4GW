@@ -2017,9 +2017,6 @@ class CombatClass:
         """
         Execute the first castable skill in the prioritized skill order.
         """
-        if not ooc:
-            self._maybe_call_leader_selected_target(cached_data)
-
         slot, target_agent_id = self.FindCastableSkill(ooc=ooc)
         if slot < 0:
             self.ResetSkillPointer()

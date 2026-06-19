@@ -151,6 +151,10 @@ class HeroAI_Build(BuildMgr):
             yield from Routines.Yield.wait(250)
             return
 
+        # Leader auto-call-target for both generic and custom builds (custom builds bypass HandleCombat).
+        if is_in_combat:
+            cached_data.combat_handler._maybe_call_leader_selected_target(cached_data)
+
         if contract_build is self:
             if cached_data.combat_handler.HandleCombat(cached_data, ooc=not is_in_combat):
                 self.SetTickSuccess()
