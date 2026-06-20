@@ -3368,6 +3368,17 @@ def _loot_chest_tree() -> _BT:
             timeout_ms=300_000,
         )),
         BT.Player.Wait(duration_ms=15_000),
+        # Interacting with the chest only makes the reward drop on the ground
+        # (assigned per account); nothing collects it on its own. PickUpLoot is a
+        # self-contained per-account routine, so broadcasting it (include_self)
+        # makes the leader and every follower walk over and grab their own drops
+        # before the King dialog / resign below moves anyone off the loot.
+        BT.Shared.SendAndWait(
+            _SCT.PickUpLoot,
+            include_self=True,
+            timeout_ms=90_000,
+            log=True,
+        ),
         BT.Shared.SendAndWait(
             _SCT.TakeDialogWithTarget,
             params=king_params,
