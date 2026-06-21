@@ -348,6 +348,13 @@ _UW_EXPLORABLE_STEPS: frozenset[str] = frozenset(
     q for q in _QUEST_ORDER if q not in ('Enter Underworld', 'Loot Chest')
 )
 
+# Steps during which the dead-member rescue is allowed (Clear the Chamber through
+# Servants of Grenth, inclusive). Disabled everywhere else (entry, Dhuum, loot)
+# where backtracking to a corpse would do more harm than good.
+_DEAD_RESCUE_STEPS: frozenset[str] = frozenset(
+    _QUEST_ORDER[_QUEST_ORDER.index('Clear the Chamber'):_QUEST_ORDER.index('Servants of Grenth') + 1]
+)
+
 
 _quest_completion_times: dict[str, int] = {}
 _SPIRIT_FORM_SKILL_ID = 3134
@@ -2469,6 +2476,67 @@ def _build_restock_pcons_tree() -> _BT:
     return _BT(_BT.ActionNode(name='RestockPcons', action_fn=_tick))
 
 
+def _build_summon_stone_tree() -> _BT:
+    """Reusable building block: tell the FOLLOWER accounts to use a summoning stone.
+
+    Dispatches ``SharedCommandType.UseSummoningStone`` via ``BT.Shared.SendCommand``
+    to the same-map follower accounts. The leader (this account) is only used as a
+    fallback when there are no same-map followers (e.g. solo). The shared-command
+    handler itself guards the use (skips on Summoning Sickness or an already-active
+    party summon), so each follower only summons when it actually can — and it picks
+    whatever summoning stone that account carries (Ghastly/32557 included).
+
+    This is NOT wired anywhere automatically. Hook it into a quest tree where a
+    summon is wanted, e.g. inside a Sequence:
+
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
+
+    Returns SUCCESS immediately after dispatch, so it can never stall the planner.
+    """
+    BT = Routines.BT
+    from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType as _SCT
+
+    def _dispatch(node: _BT.Node) -> _BT:
+        my_email = str(Player.GetAccountEmail() or '')
+        try:
+            current_map_id = int(Map.GetMapID() or 0)
+        except Exception:
+            current_map_id = 0
+
+        followers: list[str] = []
+        for acc in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            email = str(getattr(acc, 'AccountEmail', '') or '')
+            if not email or email == my_email:
+                continue
+            try:
+                acc_map_id = int(getattr(acc.AgentData.Map, 'MapID', 0) or 0)
+            except Exception:
+                acc_map_id = 0
+            if acc_map_id != current_map_id:
+                continue
+            followers.append(email)
+
+        if followers:
+            recipients = followers
+            include_self = False
+            target_desc = f'{len(recipients)} follower account(s)'
+        else:
+            # No same-map followers → fall back to the leader so a solo run still summons.
+            recipients = [my_email] if my_email else []
+            include_self = True
+            target_desc = 'leader (no followers)'
+
+        ConsoleLog(BOT_NAME, f'Summon Stone: requesting summon on {target_desc}.', Py4GW.Console.MessageType.Info)
+        return BT.Shared.SendCommand(
+            _SCT.UseSummoningStone,
+            recipients=recipients,
+            include_self=include_self,
+            log=True,
+        )
+
+    return _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=_dispatch))
+
+
 def _enter_underworld_tree() -> _BT:
     """
     Step 1: Gather all accounts at Guild Hall, travel to entry point, create party, then enter UW.
@@ -2532,6 +2600,8 @@ def _clear_the_chamber_tree() -> _BT:
         _force_local_skills_on(),
         # Take quest from Lost Soul
         ApoBT.MoveAndAutoDialog(pos=(345, 7167), buttons=0, multi_account=True),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         # Move to combat staging area
         BT.Movement.Move(x=769, y=6564),
         # Clear the chamber — walk the full path
@@ -2789,6 +2859,8 @@ def _four_horsemen_tree() -> _BT:
     return BT.Composite.Sequence(
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         BT.Movement.Move(13600, -11956),
         _set_follower_flags(13600, -11956),
         _dialog_until_quest_active(
@@ -2881,6 +2953,8 @@ def _restore_pit_tree() -> _BT:
         _BT(_BT.ActionNode(name='PurgeBlacklistNames', action_fn=_purge_blacklist_names_action)),
         _BT(_BT.ActionNode(name='BlacklistChainedSoul', action_fn=_blacklist_chained_soul)),
         _BT(_BT.ActionNode(name='BlacklistDreamRider', action_fn=lambda node: (_blacklist_add_dream_rider() or _BT.NodeState.SUCCESS))),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         BT.Movement.Move(x=13672,  y=-16754),
         BT.Movement.Move(x=13390,  y=-10020),
         BT.Movement.Move(x=11416,  y=-2473),
@@ -2963,6 +3037,8 @@ def _imprisoned_spirits_tree() -> _BT:
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='UnblacklistDreamRider', action_fn=_unblacklist_dream_rider)),
         BT.Movement.Move(x=13010, y=4452),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         _BT(_BT.ActionNode(name='FlagTeams', action_fn=_flag_teams)),
         _dialog_until_quest_active(
             x=8679, y=6235,
@@ -3010,6 +3086,8 @@ def _restore_vale_tree() -> _BT:
             x=-5806, y=12831,
             dialog_id=0x806C01,
         ),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         BT.Movement.MoveAndKill(Vec2f(-8660, 5655), clear_area_radius=_r),
         BT.Movement.MoveAndKill(Vec2f(-9431, 1659), clear_area_radius=_r),
         BT.Movement.MoveAndKill(Vec2f(-11123, 2531), clear_area_radius=_r),
@@ -3159,6 +3237,8 @@ def _restore_wastes_tree() -> _BT:
         bot.Config.MultiboxAggressiveTree(auto_loot=True, pause_on_danger=True, resurrection_scroll=True),
         _force_local_skills_on(),
         _BT(_BT.ActionNode(name='UnblacklistVengefulAatxe', action_fn=_unblacklist_vengeful_aatxe)),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         BT.Movement.Move(x=8138, y=16929),
         BT.Movement.Move(x=6210, y=19120),
         BT.Movement.MoveAndKill(Vec2f(6320, 21167), clear_area_radius=_kr),
@@ -3247,6 +3327,8 @@ def _dhuum_tree() -> _BT:
             log=True,
         ),
         BT.Movement.Move(x=-12093, y=17282),
+        # Followers use their summoning stone (handler self-guards eligibility).
+        _BT(_BT.SubtreeNode(name='SummonStone', subtree_fn=lambda _n: _build_summon_stone_tree())),
         _disable_heroai_combat_all(),
         _flag_dhuum_accounts(),
         _enable_dhuum_helper_on_all_accounts(),
@@ -3844,6 +3926,171 @@ def _build_consolidated_consumable_upkeep_service() -> _BT:
     return _BT(_BT.ActionNode(name='ConsumableUpkeepConsolidated', action_fn=_tick, aftercast_ms=0))
 
 
+# Dead-member rescue tuning. When a party member dies and is left behind, the
+# leader backtracks to the corpse and holds there until the party rezzes them.
+_UW_RESCUE_ARRIVE_RANGE       = float(Range.Spellcast.value)  # close enough for the party to rez
+_UW_RESCUE_MOVE_TOLERANCE     = float(Range.Spellcast.value)
+_UW_RESCUE_ARRIVAL_WAIT_MS    = 25_000.0   # max hold at the corpse before giving up this attempt
+_UW_RESCUE_OVERALL_TIMEOUT_MS = 60_000.0   # absolute cap on a single rescue attempt (anti-stall)
+_UW_RESCUE_SCAN_INTERVAL_MS   = 400.0      # idle detection throttle (full-rate once active)
+# Private pause key for the rescue Move: it must keep walking while the planner's
+# own Move nodes are paused via PAUSE_MOVEMENT, so it reads a flag we never set.
+_UW_RESCUE_MOVE_PAUSE_KEY     = 'UW_RESCUE_NEVER_PAUSE'
+
+
+def _build_dead_member_recovery_service() -> _BT:
+    """Background service: walk the leader back to a dead party member left behind
+    and hold there until the party revives them.
+
+    Port of the legacy ``BottingClass._on_party_member_death_behind`` coroutine to
+    the BottingTree model. Leader-only. While a rescue is active it sets
+    ``uw_dead_recovery_active`` on the blackboard; the planner-tick override reads
+    that flag and forces ``PAUSE_MOVEMENT`` so the quest waypoints don't fight the
+    backtrack. The rescue itself drives a private ``Move`` subtree that uses its own
+    (never-set) pause key, so it keeps walking while the planner is paused.
+
+    Trigger:  a dead member is farther than Earshot behind the leader.
+    Hold:     while in danger or HeroAI looting, stay put (HeroAI handles it) but
+              keep the planner paused so we don't abandon the corpse.
+    Release:  no dead members remain (everyone alive), arrival-wait elapsed, the
+              overall timeout fired, or the party wiped — anti-stall safeguards so a
+              permanently-unrezzable corpse can never freeze the run.
+    """
+    state: dict = {
+        'active':       False,
+        'target_id':    0,
+        'move_tree':    None,
+        'arrived_ms':   None,
+        'started_ms':   0.0,
+        'last_scan_ms': 0.0,
+    }
+
+    def _release(node: _BT.Node) -> None:
+        state['active'] = False
+        state['target_id'] = 0
+        state['move_tree'] = None
+        state['arrived_ms'] = None
+        node.blackboard['uw_dead_recovery_active'] = False
+
+    def _tick(node: _BT.Node) -> _BT.NodeState:
+        bb = node.blackboard
+
+        # Tailored guards (intentionally NOT _skip_background_upkeep: that checks
+        # PAUSE_MOVEMENT, which the planner override sets True *because* we are
+        # active — using it here would instantly release the rescue).
+        if bb.get('party_wipe_recovery_active', False):
+            _release(node)
+            return _BT.NodeState.RUNNING
+        # Only rescue during the explorable quest steps Clear the Chamber …
+        # Servants of Grenth; disabled at entry, during Dhuum, and at Loot Chest.
+        if str(bb.get('current_step_name', '') or '') not in _DEAD_RESCUE_STEPS:
+            _release(node)
+            return _BT.NodeState.RUNNING
+        try:
+            if Map.IsMapLoading() or not Map.IsMapReady():
+                _release(node)
+                return _BT.NodeState.RUNNING
+            if not Map.IsExplorable() or int(Map.GetMapID()) != int(UW_MAP_ID):
+                _release(node)
+                return _BT.NodeState.RUNNING
+        except Exception:
+            _release(node)
+            return _BT.NodeState.RUNNING
+
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            _release(node)
+            return _BT.NodeState.RUNNING
+
+        # Leader-only: only the account driving planner movement should backtrack.
+        try:
+            leader_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+            local_id = int(Player.GetAgentID() or 0)
+        except Exception:
+            leader_id = local_id = 0
+        if leader_id > 0 and local_id > 0 and local_id != leader_id:
+            _release(node)
+            return _BT.NodeState.RUNNING
+
+        now_ms = time.monotonic() * 1000.0
+        # Throttle detection while idle; once a rescue is active we tick the Move
+        # every frame so movement progresses smoothly.
+        if not state['active'] and (now_ms - state['last_scan_ms']) < _UW_RESCUE_SCAN_INTERVAL_MS:
+            return _BT.NodeState.RUNNING
+        state['last_scan_ms'] = now_ms
+
+        dead_id = int(Routines.Party.GetDeadPartyMemberID() or 0)
+        if dead_id == 0 or not Agent.IsValid(dead_id):
+            # Everyone alive again → resume normal planner movement.
+            _release(node)
+            return _BT.NodeState.RUNNING
+
+        if not state['active']:
+            # Only trigger once the dead member is meaningfully *behind* us; if the
+            # party can rez in place no backtrack is needed.
+            if not Routines.Checks.Party.IsDeadPartyMemberBehind():
+                bb['uw_dead_recovery_active'] = False
+                return _BT.NodeState.RUNNING
+            state['active'] = True
+            state['started_ms'] = now_ms
+            state['arrived_ms'] = None
+            state['target_id'] = 0
+            state['move_tree'] = None
+            _append_run_log('Dead party member behind — walking back to revive.')
+
+        bb['uw_dead_recovery_active'] = True
+
+        # Absolute safety cap so a permanently-unrezzable corpse can't stall the run.
+        if (now_ms - state['started_ms']) >= _UW_RESCUE_OVERALL_TIMEOUT_MS:
+            _append_run_log('Dead-member rescue timed out — resuming run.')
+            _release(node)
+            return _BT.NodeState.RUNNING
+
+        player_pos = Player.GetXY()
+        dead_pos = Agent.GetXY(dead_id)
+        if not player_pos or not dead_pos:
+            return _BT.NodeState.RUNNING
+
+        if Utils.Distance(player_pos, dead_pos) <= _UW_RESCUE_ARRIVE_RANGE:
+            # At the corpse: hold and let the party rez. Give up after a while so a
+            # corpse that never gets rezzed doesn't pin us here forever.
+            state['move_tree'] = None
+            if state['arrived_ms'] is None:
+                state['arrived_ms'] = now_ms
+            elif (now_ms - state['arrived_ms']) >= _UW_RESCUE_ARRIVAL_WAIT_MS:
+                _append_run_log('Could not revive dead member in time — resuming run.')
+                _release(node)
+            return _BT.NodeState.RUNNING
+
+        # En route. While fighting or looting, hold position (HeroAI handles it) and
+        # keep the planner paused so we don't abandon the corpse.
+        if Routines.Checks.Agents.InDanger() or bb.get('LOOTING_ACTIVE', False):
+            state['move_tree'] = None
+            return _BT.NodeState.RUNNING
+
+        if state['move_tree'] is None or state['target_id'] != dead_id:
+            state['target_id'] = dead_id
+            state['move_tree'] = Routines.BT.Movement.Move(
+                x=float(dead_pos[0]),
+                y=float(dead_pos[1]),
+                tolerance=_UW_RESCUE_MOVE_TOLERANCE,
+                pause_on_combat=False,
+                pause_flag_key=_UW_RESCUE_MOVE_PAUSE_KEY,
+            )
+        move_tree = state['move_tree']
+        move_tree.blackboard = bb
+        result = move_tree.tick()
+        if result == _BT.NodeState.SUCCESS or result == _BT.NodeState.FAILURE:
+            state['move_tree'] = None  # rebuild / re-evaluate next tick
+        return _BT.NodeState.RUNNING
+
+    return _BT(
+        _BT.RepeaterForeverNode(
+            child=_BT.ActionNode(name='DeadMemberRecoveryTick', action_fn=_tick),
+            name='DeadMemberRecoveryService',
+        )
+    )
+
+
 # ╔══════════════════════════════════════════════════════════════════════════════
 # ║  BOT REGISTRATION
 # ║  (bind the step trees + services to the planner, then expose the module entry)
@@ -3886,6 +4133,7 @@ bot.AddServiceTree('PriorityTargetService',   _build_priority_target_service)
 bot.AddServiceTree('SoulkeeperCallService',   _build_soulkeeper_call_service)
 bot.AddServiceTree('ConsumableUpkeep', _build_consolidated_consumable_upkeep_service)
 bot.AddServiceTree('BehemothGuard', _build_behemoth_guard_service)
+bot.AddServiceTree('DeadMemberRecovery', _build_dead_member_recovery_service)
 
 # ── COMBAT_ACTIVE tightening ───────────────────────────────────────────────
 # The SharedMemory InAggro field can scan up to Spellcast range (~5000 units)
@@ -3944,6 +4192,12 @@ def _in_aggro_excluding_blacklist() -> bool:
 
 def _tight_combat_active_planner_tick(node):  # type: ignore[override]
     bb = node.blackboard
+    # Dead-member rescue owns movement while active: pause the planner's own Move
+    # nodes (they read PAUSE_MOVEMENT) so the quest waypoints don't fight the
+    # backtrack to the corpse driven by _build_dead_member_recovery_service. The
+    # rescue Move uses a separate, never-set pause key so it keeps walking.
+    if bb.get('uw_dead_recovery_active', False):
+        bb['PAUSE_MOVEMENT'] = True
     if str(bb.get('current_step_name', '') or '') != 'Enter Underworld':
         try:
             map_ok = Map.IsMapReady() and not Map.IsMapLoading()
