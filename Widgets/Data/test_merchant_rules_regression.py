@@ -3790,6 +3790,258 @@ def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
     _expect(candidate_reason.startswith("protected:"), "Protected items should also block salvage candidate evaluation.")
 
 
+def _test_protected_items_profile_roundtrip(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222, 111, 222, 0, -1]
+
+    payload = widget._build_profile_payload(include_window_geometry=False)
+    normalized = widget._normalize_profile_payload(payload)
+
+    _expect(
+        normalized["protected_item_model_ids"] == [222, 111],
+        "Protected item model IDs should normalize and persist in profile payloads.",
+    )
+
+    loaded_widget = _make_widget(module)
+    loaded_widget._apply_profile_payload(normalized)
+    _expect(
+        loaded_widget.protected_item_model_ids == [222, 111],
+        "Protected item model IDs should apply from normalized profiles.",
+    )
+
+    legacy_normalized = widget._normalize_profile_payload({"version": module.PROFILE_VERSION - 1})
+    _expect(
+        legacy_normalized["protected_item_model_ids"] == [],
+        "Legacy profiles without Protected Items should normalize to an empty list.",
+    )
+
+
+def _test_protected_items_skip_stackable_material_sell(module) -> None:
+    widget = _make_widget(module)
+    material_model_id = 921
+    widget.catalog_by_model_id[material_model_id] = {
+        "model_id": material_model_id,
+        "name": "Bone",
+        "material_type": "common",
+    }
+    widget.protected_item_model_ids = [material_model_id]
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_COMMON_MATERIALS,
+                whitelist_targets=[module.WhitelistTarget(model_id=material_model_id, keep_count=0)],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=501,
+            model_id=material_model_id,
+            name="Bone",
+            quantity=17,
+            rarity="White",
+            is_material=True,
+        )
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.material_sales, "Protected stackable materials should not be planned for trader sale.")
+    _expect(
+        501 not in plan.merchant_sell_item_ids,
+        "Protected stackable materials should not fall back to merchant sale.",
+    )
+    _expect(
+        any(
+            entry.action_type == "sell"
+            and entry.state == module.PLAN_STATE_SKIPPED
+            and "Protected Items" in entry.reason
+            for entry in plan.entries
+        ),
+        "Preview should show protected exact-model material stacks as skipped.",
+    )
+
+
+def _test_protected_items_block_salvage_candidate(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222]
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    item = _make_item(
+        module,
+        item_id=502,
+        model_id=222,
+        name="Protected Trophy",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+    )
+
+    reason = widget._get_salvage_candidate_block_reason(
+        item,
+        widget._collect_enabled_sell_rules(),
+        require_salvage_kit=True,
+        salvage_kit_id=1,
+    )
+
+    _expect(reason.startswith("protected:"), "Protected exact-model items should block salvage candidate evaluation.")
+    _expect(
+        "Protected Items" in reason,
+        "Protected exact-model salvage blocks should identify the Protected Items source.",
+    )
+
+
+def _test_protected_items_destroy_default_and_override(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=222, keep_count=0)],
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=503,
+            model_id=222,
+            name="Protected Trophy Stack",
+            quantity=5,
+            rarity="White",
+        )
+    ]
+
+    default_plan = widget._build_plan()
+
+    _expect(not default_plan.destroy_actions, "Protected exact-model items should be skipped by Destroy by default.")
+    _expect(
+        any(
+            entry.action_type == "destroy"
+            and entry.state == module.PLAN_STATE_SKIPPED
+            and "Protected Items" in entry.reason
+            for entry in default_plan.entries
+        ),
+        "Destroy preview should surface the Protected Items skip reason.",
+    )
+
+    widget.destroy_include_protected_items = True
+    override_plan = widget._build_plan()
+
+    _expect(
+        any(action.item_id == 503 and action.quantity_to_destroy == 5 for action in override_plan.destroy_actions),
+        "Destroy override should allow protected exact-model stack quantities just like existing protections.",
+    )
+    _expect(
+        any(
+            "Included protected item" in entry.reason
+            for entry in override_plan.entries
+            if entry.action_type == "destroy"
+        ),
+        "Destroy override preview should explain that a protected item is included.",
+    )
+
+
+def _test_protected_items_allow_configured_deposit(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222]
+    widget.cleanup_targets = [module.CleanupTarget(model_id=222, keep_on_character=0)]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(IsStorageOpen=lambda: False)
+        widget._collect_inventory_items = lambda: [
+            _make_item(
+                module,
+                item_id=504,
+                model_id=222,
+                name="Protected Trophy",
+                quantity=3,
+                rarity="White",
+            )
+        ]
+
+        plan = widget._build_plan()
+
+        deposit_transfers = [
+            transfer
+            for transfer in plan.storage_transfers
+            if transfer.direction == module.STORAGE_TRANSFER_DEPOSIT
+        ]
+        _expect(
+            len(deposit_transfers) == 1 and deposit_transfers[0].item_id == 504 and deposit_transfers[0].quantity == 3,
+            "Configured deposit targets should still move protected exact-model items.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+
+def _test_protected_items_block_xunlai_sell_withdrawals(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222, 921]
+    explicit_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_EXPLICIT_MODELS,
+            whitelist_targets=[module.WhitelistTarget(model_id=222, keep_count=0)],
+            sell_from_xunlai=True,
+        )
+    )
+    material_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_COMMON_MATERIALS,
+            whitelist_targets=[module.WhitelistTarget(model_id=921, keep_count=0)],
+            sell_from_xunlai=True,
+            include_material_storage=True,
+        )
+    )
+    widget.sell_rules = [explicit_rule, material_rule]
+    coords = {
+        module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+        module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+        module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+        module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+    }
+
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        list(enumerate(widget.sell_rules)),
+        current_items=[],
+        regular_storage_items=[
+            _make_item(module, item_id=601, model_id=222, name="Protected Trophy", quantity=2),
+        ],
+        material_storage_items=[
+            _make_item(module, item_id=602, model_id=921, name="Bone", quantity=250, is_material=True),
+        ],
+        coords=coords,
+    )
+
+    _expect(not transfers, "Protected exact-model storage items should not be withdrawn for sale.")
+    _expect(not adjusted_rules, "Xunlai sell pass should not create adjusted sell rules for protected storage matches.")
+
+
 def _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module) -> None:
     widget = _make_widget(module)
     widget.buy_rules = [
@@ -10547,6 +10799,24 @@ def main() -> int:
             ("identify_no_kit_still_claims_selected_items", lambda: _test_identify_no_kit_still_claims_selected_items(module)),
             ("identify_on_inventory_change_queues_auto_pass", lambda: _test_identify_on_inventory_change_queues_auto_pass(module)),
             ("protected_salvage_destroy_overlap_blocks_both", lambda: _test_protected_salvage_destroy_overlap_blocks_both(module)),
+            ("protected_items_profile_roundtrip", lambda: _test_protected_items_profile_roundtrip(module)),
+            (
+                "protected_items_skip_stackable_material_sell",
+                lambda: _test_protected_items_skip_stackable_material_sell(module),
+            ),
+            ("protected_items_block_salvage_candidate", lambda: _test_protected_items_block_salvage_candidate(module)),
+            (
+                "protected_items_destroy_default_and_override",
+                lambda: _test_protected_items_destroy_default_and_override(module),
+            ),
+            (
+                "protected_items_allow_configured_deposit",
+                lambda: _test_protected_items_allow_configured_deposit(module),
+            ),
+            (
+                "protected_items_block_xunlai_sell_withdrawals",
+                lambda: _test_protected_items_block_xunlai_sell_withdrawals(module),
+            ),
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("consumable_crafter_plan_title_gate_blocks_low_rank", lambda: _test_consumable_crafter_plan_title_gate_blocks_low_rank(module)),
             (
