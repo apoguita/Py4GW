@@ -240,15 +240,15 @@ PROFESSIONS_ORDERED = [
 SECONDARY_BUILDS = {
     Profession.WARRIOR: {
         Profession.WARRIOR:      "OQcSE5OTOMMMHMwODAFFxgi1",        # W 
-        Profession.RANGER:       "OQIREZaX0mEAAAAAAAAAYAA",        # W/R
-        Profession.MONK:         "OQMREZaX0mEAAAAAAAAAYAA",        # W/Mo
-        Profession.NECROMANCER:  "OQQREZaX0mEAAAAAAAAAYAA",        # W/N
-        Profession.MESMER:       "OQUREZaX0mEAAAAAAAAAYAA",        # W/Me
-        Profession.ELEMENTALIST: "OQYREZaX0mEAAAAAAAAAYAA",        # W/E
+        Profession.RANGER:       "OQITEZJnDSpgqAqA2ZAooIGUsGA",        # W/R
+        Profession.MONK:         "OQMT4iILZSpgqAqA2ZAooIGUsGA",        # W/Mo
+        Profession.NECROMANCER:  "OQQTQiILZSpgqAqA2ZAooIGUsGA",        # W/N
+        Profession.MESMER:       "OQUTEiILZSpgqAqA2ZAooIGUsGA",        # W/Me
+        Profession.ELEMENTALIST: "OQYTsiILZSpgqAqA2ZAooIGUsGA",        # W/E
         Profession.ASSASSIN:     "OQcSE5OTOMMMHMwODAFFxgi1",        # W/A
-        Profession.RITUALIST:    "OQgREZaX0mEAAAAAAAAAYAA",        # W/Rt
-        Profession.PARAGON:      "OQkREZaX0mEAAAAAAAAAYAA",        # W/P
-        Profession.DERVISH:      "OQoREZaX0mEAAAAAAAAAYAA",        # W/D
+        Profession.RITUALIST:    "OQgjExSsYQKFUFQFwODAFFxgi1A",        # W/Rt
+        Profession.PARAGON:      "OQkjExScZQKFUFQFwODAFFxgi1A",        # W/P
+        Profession.DERVISH:      "OQojExScaQKFUFQFwODAFFxgi1A",        # W/D
     },
     Profession.RANGER: {
         Profession.WARRIOR:      "OgEUUDLe1MTKGj1ghMGoSUNDA0GA",       # R/W 
@@ -3073,7 +3073,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Searing Flames",
         capture_function="Searing_Flames",
-        start_map=403,
+        start_map=478,
         icon_filename="[884] - Searing Flames.jpg"
     ),
     EliteSkill(
@@ -9843,8 +9843,6 @@ def RitualLord():
     bot.Move.XYAndExitMap(-13995, -20044, 203)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    #bot.Items.UseAllConsumables()
-    #bot.Move.XY(0, 0)
     bot.Move.XY(9018, -11643)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
@@ -10472,7 +10470,7 @@ def Savannah_Heat():
 def Searing_Flames(): 
     bot.States.AddHeader("Searing Flames")
     target_prof = Profession.ELEMENTALIST
-    start_map = 403
+    start_map = 478
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10480,12 +10478,12 @@ def Searing_Flames():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(-18812, 13402, 402)
+    bot.Move.XYAndExitMap(5042, -4839, 386)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-7285, 15774)
-    bot.Move.XY(4932, 14298)
-    bot.Move.XY(10875, 13329)
+    bot.Move.XY(-7298, 15105)
+    bot.Move.XY(-1703, 12884)
+    bot.Move.XY(-1078, 20148)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10532,11 +10530,11 @@ def Icy_Shackles():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(5109, 5319, 384)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(-11476, -11870)
+    bot.Move.XY(1573, -12592)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
