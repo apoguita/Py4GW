@@ -166,6 +166,18 @@ class Item:
             return true_id if true_id >= 0 else 0
         
         @staticmethod
+        def GetTextureKey(item_id, dyed = False):
+            model_file_id = Item.GetTrueModelFileID(Item.GetModelFileID(item_id))
+            if not model_file_id:
+                return ""
+            
+            if dyed:
+                dye_info = Item.Customization.GetDyeInfo(item_id)
+                return f"gwdat://{model_file_id}/{dye_info.dye_tint}/{dye_info.dye1.ToInt()}/{dye_info.dye2.ToInt()}/{dye_info.dye3.ToInt()}/{dye_info.dye4.ToInt()}"
+            else:
+                return f"gwdat://{model_file_id}"
+        
+        @staticmethod
         def GetSlot(item_id):
             """Purpose: Retrieve the slot of an item is in a bag by its ID."""
             return Item.item_instance(item_id).slot
@@ -463,6 +475,13 @@ class Item:
             def GetDyeInfo(item_id):
                 """Purpose: Retrieve the dye information of an item by its ID."""
                 return Item.item_instance(item_id).dye_info
+            
+            @staticmethod
+            def IsDyeable(item_id):
+                """Purpose: Check if an item is dyeable by its ID."""
+                interaction = Item.Properties.GetInteraction(item_id)
+                not_dyeable = (interaction & 0x00000200) != 0
+                return not not_dyeable
 
             @staticmethod
             def GetItemFormula(item_id):
