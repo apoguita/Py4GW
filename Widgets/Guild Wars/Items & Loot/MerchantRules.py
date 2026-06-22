@@ -1675,6 +1675,21 @@ class ExecutionPlanEntry:
     model_id: int = 0
 
 
+PROTECTED_DESTROY_SKIP_REASON_MARKERS = (
+    "Protected by Protected Items:",
+    "Hard-protected by ",
+)
+
+
+def _is_protected_destroy_skip_reason(reason: object) -> bool:
+    reason_text = str(reason or "")
+    return any(marker in reason_text for marker in PROTECTED_DESTROY_SKIP_REASON_MARKERS)
+
+
+def _is_protected_destroy_skip_entry(entry: ExecutionPlanEntry) -> bool:
+    return int(entry.quantity) > 0 and _is_protected_destroy_skip_reason(entry.reason)
+
+
 @dataclass
 class ProtectionHubEntry:
     source_label: str
@@ -9119,13 +9134,20 @@ class MerchantRulesWidget:
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
-                    label = self._format_model_label_long(model_id)
+                    label = self._format_model_label_with_exact_protection_status(
+                        self._format_model_label_long(model_id),
+                        model_id,
+                    )
                     if badge_label and model_id in existing_ids:
                         PyImGui.text_colored(label, self._get_model_text_color(model_id))
                         PyImGui.same_line(0, 8)
                         self._draw_inline_badge(badge_label, UI_COLOR_MUTED)
                         continue
-                    if self._draw_colored_selectable(label, self._get_model_text_color(model_id), f"{child_id}_{model_id}"):
+                    if self._draw_colored_selectable(
+                        label,
+                        self._get_model_text_color(model_id),
+                        f"{child_id}_{model_id}",
+                    ):
                         picked_model_id = model_id
                         break
         PyImGui.end_child()
@@ -9266,12 +9288,17 @@ class MerchantRulesWidget:
                     label = self._format_model_label(model_id)
                     if material_type:
                         label = f"{label} [{material_type}]"
+                    label = self._format_model_label_with_exact_protection_status(label, model_id)
                     if badge_label and model_id in existing_ids:
                         PyImGui.text_colored(label, UI_COLOR_TEAL)
                         PyImGui.same_line(0, 8)
                         self._draw_inline_badge(badge_label, UI_COLOR_MUTED)
                         continue
-                    if self._draw_colored_selectable(label, UI_COLOR_TEAL, f"{child_id}_{model_id}"):
+                    if self._draw_colored_selectable(
+                        label,
+                        UI_COLOR_TEAL,
+                        f"{child_id}_{model_id}",
+                    ):
                         picked_model_id = model_id
                         break
         PyImGui.end_child()
@@ -9304,13 +9331,20 @@ class MerchantRulesWidget:
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
-                    label = self._format_model_label_long(model_id)
+                    label = self._format_model_label_with_exact_protection_status(
+                        self._format_model_label_long(model_id),
+                        model_id,
+                    )
                     if badge_label and model_id in existing_ids:
                         PyImGui.text_colored(label, self._get_model_text_color(model_id))
                         PyImGui.same_line(0, 8)
                         self._draw_inline_badge(badge_label, UI_COLOR_MUTED)
                         continue
-                    if self._draw_colored_selectable(label, self._get_model_text_color(model_id), f"{child_id}_{model_id}"):
+                    if self._draw_colored_selectable(
+                        label,
+                        self._get_model_text_color(model_id),
+                        f"{child_id}_{model_id}",
+                    ):
                         picked_model_id = model_id
                         break
         PyImGui.end_child()
@@ -9751,6 +9785,7 @@ class MerchantRulesWidget:
         jump_anchor: str = "",
         display_model_ids: set[int] | None = None,
         filtered_empty_text: str = "",
+        show_exact_protection_badge: bool = False,
     ) -> int:
         if not model_ids:
             self._draw_secondary_text("No items selected yet.", wrapped=False)
@@ -9789,6 +9824,8 @@ class MerchantRulesWidget:
                         self._format_model_label_long(model_id),
                         self._get_model_text_color(model_id),
                     )
+                    if show_exact_protection_badge:
+                        self._draw_exact_protected_item_badge(model_id)
                     if jump_anchor:
                         self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"model:{int(model_id)}")
                 PyImGui.end_table()
@@ -9808,6 +9845,7 @@ class MerchantRulesWidget:
         merchant_label_getter: Callable[[int], str] | None = None,
         display_model_ids: set[int] | None = None,
         filtered_empty_text: str = "",
+        show_exact_protection_badge: bool = False,
     ) -> tuple[list[WhitelistTarget], int]:
         normalized_targets = _normalize_whitelist_targets(targets)
         if not normalized_targets:
@@ -9879,6 +9917,8 @@ class MerchantRulesWidget:
                         self._format_model_label_short(target_row.model_id),
                         self._get_model_text_color(target_row.model_id),
                     )
+                    if show_exact_protection_badge:
+                        self._draw_exact_protected_item_badge(target_row.model_id)
 
                     if show_merchant_column:
                         PyImGui.table_set_column_index(1)
@@ -11468,6 +11508,29 @@ class MerchantRulesWidget:
 
     def _get_protected_item_model_id_set(self) -> set[int]:
         return set(_normalize_protected_item_model_ids(self.protected_item_model_ids))
+
+    def _is_exact_protected_item_model_id(self, model_id: int) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        return safe_model_id > 0 and safe_model_id in self._get_protected_item_model_id_set()
+
+    def _format_model_label_with_exact_protection_status(self, label: str, model_id: int) -> str:
+        safe_label = str(label or "")
+        if not self._is_exact_protected_item_model_id(model_id):
+            return safe_label
+        if "[Protected]" in safe_label:
+            return safe_label
+        return f"{safe_label} [Protected]"
+
+    def _draw_exact_protected_item_badge(self, model_id: int) -> None:
+        if not self._is_exact_protected_item_model_id(model_id):
+            return
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("Protected", UI_COLOR_SUCCESS)
+        self._draw_hover_tooltip(
+            "Exact Protected Items protects every copy of this model from sell, salvage, destroy, "
+            "and sell-from-storage. "
+            "Destroy only includes it when Destroy Safety allows protected items for this session."
+        )
 
     def _get_exact_model_protection_hit(self, item: InventoryItemInfo) -> tuple[str, str] | None:
         if int(item.model_id) not in self._get_protected_item_model_id_set():
@@ -15531,6 +15594,7 @@ class MerchantRulesWidget:
         has_xunlai_sell_withdrawals = False
         if needs_xunlai_sell_storage_context:
             xunlai_sell_transfers: list[PlannedStorageTransfer] = []
+            xunlai_sell_protected_preview_entries: list[ExecutionPlanEntry] = []
             include_material_storage = any(
                 bool(getattr(rule, "include_material_storage", False))
                 and _sell_rule_can_include_material_storage(rule)
@@ -15549,13 +15613,15 @@ class MerchantRulesWidget:
                     storage_items,
                     xunlai_sell_material_storage_items,
                     coords,
+                    protected_preview_entries=xunlai_sell_protected_preview_entries,
                 )
                 self._debug_log(
                     f"Xunlai sell preview: enabled_rules={len(self._collect_enabled_xunlai_sell_rules())} "
                     f"inventory_items={len(items)} regular_storage_items={len(storage_items)} "
                     f"material_storage_items={len(xunlai_sell_material_storage_items)} "
                     f"include_material_storage={include_material_storage} transfers={len(xunlai_sell_transfers)} "
-                    f"quantity={sum(max(0, int(transfer.quantity)) for transfer in xunlai_sell_transfers)}"
+                    f"quantity={sum(max(0, int(transfer.quantity)) for transfer in xunlai_sell_transfers)} "
+                    f"protected_skips={len(xunlai_sell_protected_preview_entries)}"
                 )
             if xunlai_sell_transfers:
                 has_xunlai_sell_withdrawals = True
@@ -15580,6 +15646,8 @@ class MerchantRulesWidget:
                         f"Xunlai contents are not scanned yet. Open Xunlai for an exact scan before preview can confirm matching stacks in {source_detail}.",
                     )
                 )
+            if xunlai_sell_protected_preview_entries:
+                plan.entries.extend(xunlai_sell_protected_preview_entries)
 
         sim_model_counts = self._build_simulated_model_counts(items, plan)
         sim_inventory_items = self._get_items_after_planned_pre_buy_actions(items, plan)
@@ -17941,6 +18009,33 @@ class MerchantRulesWidget:
             return 0
         return max(0, int(withdraw_quantity))
 
+    def _get_xunlai_sell_withdraw_label(self, item: InventoryItemInfo) -> str:
+        if int(item.model_id) in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+            return self._format_model_label_short(int(item.model_id))
+        return str(item.name or f"Item {int(item.item_id)}")
+
+    def _append_xunlai_protected_sell_withdraw_preview_entries(
+        self,
+        entries: list[ExecutionPlanEntry] | None,
+        source_items: list[tuple[InventoryItemInfo, str, str]],
+        *,
+        rule_reference: str,
+    ) -> None:
+        if entries is None:
+            return
+        for item, _source_label, protection_reason in source_items:
+            entries.append(
+                ExecutionPlanEntry(
+                    "withdraw",
+                    MERCHANT_TYPE_STORAGE,
+                    self._get_xunlai_sell_withdraw_label(item),
+                    max(1, int(item.quantity)),
+                    PLAN_STATE_SKIPPED,
+                    f"Blocked by {rule_reference}: {protection_reason}",
+                    model_id=int(item.model_id),
+                )
+            )
+
     def _append_xunlai_sell_withdrawals(
         self,
         transfers: list[PlannedStorageTransfer],
@@ -17965,16 +18060,11 @@ class MerchantRulesWidget:
             move_quantity = min(remaining, available_quantity)
             if move_quantity <= 0:
                 continue
-            transfer_label = (
-                self._format_model_label_short(int(item.model_id))
-                if int(item.model_id) in ALL_CRAFTING_MATERIAL_MODEL_IDS
-                else str(item.name or f"Item {int(item.item_id)}")
-            )
             transfers.append(
                 PlannedStorageTransfer(
                     direction=STORAGE_TRANSFER_WITHDRAW,
                     key=key,
-                    label=transfer_label,
+                    label=self._get_xunlai_sell_withdraw_label(item),
                     item_id=int(item.item_id),
                     quantity=move_quantity,
                     model_id=int(item.model_id),
@@ -18024,6 +18114,8 @@ class MerchantRulesWidget:
         regular_storage_items: list[InventoryItemInfo],
         material_storage_items: list[InventoryItemInfo],
         coords: dict[str, tuple[float, float] | None],
+        *,
+        protected_preview_entries: list[ExecutionPlanEntry] | None = None,
     ) -> tuple[list[PlannedStorageTransfer], list[SellRule]]:
         all_enabled_sell_rules = self._collect_enabled_sell_rules()
         transfers: list[PlannedStorageTransfer] = []
@@ -18060,12 +18152,26 @@ class MerchantRulesWidget:
                     if rule.kind == SELL_KIND_COMMON_MATERIALS and target_model_id not in ALL_CRAFTING_MATERIAL_MODEL_IDS:
                         continue
 
-                    matching_sources = [
+                    candidate_sources = [
                         (item, source_label)
                         for item, source_label in [*regular_sources, *material_sources]
                         if int(item.model_id) == target_model_id
-                        and self._get_hard_protection_hit(item, all_enabled_sell_rules) is None
                     ]
+                    matching_sources: list[tuple[InventoryItemInfo, str]] = []
+                    protected_sources: list[tuple[InventoryItemInfo, str, str]] = []
+                    for item, source_label in candidate_sources:
+                        hard_protection = self._get_hard_protection_hit(item, all_enabled_sell_rules)
+                        if hard_protection is not None:
+                            _destination, protection_reason = hard_protection
+                            protected_sources.append((item, source_label, protection_reason))
+                            claimed_storage_item_ids.add(int(item.item_id))
+                            continue
+                        matching_sources.append((item, source_label))
+                    self._append_xunlai_protected_sell_withdraw_preview_entries(
+                        protected_preview_entries,
+                        protected_sources,
+                        rule_reference=rule_reference,
+                    )
                     if not matching_sources:
                         continue
 
@@ -18121,13 +18227,27 @@ class MerchantRulesWidget:
                     target_identifier = _normalize_rune_identifier(target.identifier)
                     if not target_identifier:
                         continue
-                    matching_sources = [
+                    candidate_sources = [
                         (item, source_label)
                         for item, source_label in regular_sources
                         if item.standalone_kind == RUNE_STANDALONE_KIND
                         and target_identifier in item.rune_identifiers
-                        and self._get_hard_protection_hit(item, all_enabled_sell_rules) is None
                     ]
+                    matching_sources: list[tuple[InventoryItemInfo, str]] = []
+                    protected_sources: list[tuple[InventoryItemInfo, str, str]] = []
+                    for item, source_label in candidate_sources:
+                        hard_protection = self._get_hard_protection_hit(item, all_enabled_sell_rules)
+                        if hard_protection is not None:
+                            _destination, protection_reason = hard_protection
+                            protected_sources.append((item, source_label, protection_reason))
+                            claimed_storage_item_ids.add(int(item.item_id))
+                            continue
+                        matching_sources.append((item, source_label))
+                    self._append_xunlai_protected_sell_withdraw_preview_entries(
+                        protected_preview_entries,
+                        protected_sources,
+                        rule_reference=rule_reference,
+                    )
                     if not matching_sources:
                         continue
 
@@ -18171,7 +18291,14 @@ class MerchantRulesWidget:
                         continue
                     if not self._rule_matches_selected_rarity(item, rule):
                         continue
-                    if self._get_hard_protection_hit(item, all_enabled_sell_rules) is not None:
+                    hard_protection = self._get_hard_protection_hit(item, all_enabled_sell_rules)
+                    if hard_protection is not None:
+                        _destination, protection_reason = hard_protection
+                        self._append_xunlai_protected_sell_withdraw_preview_entries(
+                            protected_preview_entries,
+                            [(item, source_label, protection_reason)],
+                            rule_reference=rule_reference,
+                        )
                         claimed_storage_item_ids.add(int(item.item_id))
                         continue
                     matching_sources.append((item, source_label))
@@ -20860,22 +20987,24 @@ class MerchantRulesWidget:
                 self._collect_enabled_sell_rules(),
                 set(),
             )
+            blocked_destroy_entries = [
+                entry
+                for entry in instant_plan.entries
+                if entry.action_type == "destroy"
+                and entry.merchant_type == MERCHANT_TYPE_INVENTORY
+                and entry.state == PLAN_STATE_SKIPPED
+                and str(entry.reason).startswith("Blocked by ")
+            ]
             protected_skip_count = sum(
                 1
-                for entry in instant_plan.entries
-                if entry.action_type == "destroy"
-                and entry.merchant_type == MERCHANT_TYPE_INVENTORY
-                and entry.state == PLAN_STATE_SKIPPED
-                and int(entry.quantity) > 0
-                and str(entry.reason).startswith("Blocked by ")
+                for entry in blocked_destroy_entries
+                if _is_protected_destroy_skip_entry(entry)
             )
-            blocked_destroy_count = sum(
+            blocked_destroy_count = len(blocked_destroy_entries)
+            split_block_count = sum(
                 1
-                for entry in instant_plan.entries
-                if entry.action_type == "destroy"
-                and entry.merchant_type == MERCHANT_TYPE_INVENTORY
-                and entry.state == PLAN_STATE_SKIPPED
-                and str(entry.reason).startswith("Blocked by ")
+                for entry in blocked_destroy_entries
+                if "Keep count requires splitting" in str(entry.reason)
             )
             destroy_actions = list({
                 int(action.item_id): action
@@ -20891,9 +21020,13 @@ class MerchantRulesWidget:
             if not destroy_actions:
                 if protected_skip_count > 0:
                     self.last_instant_destroy_summary = f"{subject} skipped {protected_skip_count} protected item(s)."
-                elif blocked_destroy_count > 0:
+                elif split_block_count > 0:
                     self.last_instant_destroy_summary = (
                         f"{subject} found matching items, but a required stack split could not be performed safely."
+                    )
+                elif blocked_destroy_count > 0:
+                    self.last_instant_destroy_summary = (
+                        f"{subject} found matching items, but all matching items were blocked by safety checks."
                     )
                 else:
                     self.last_instant_destroy_summary = f"{subject} found no matching items."
@@ -26523,6 +26656,7 @@ class MerchantRulesWidget:
                 index,
                 visible_blacklist_model_ids,
                 jump_anchor=SELL_PROTECTION_ANCHOR_MODELS,
+                show_exact_protection_badge=True,
             )
         if removed_model_id > 0:
             if self._set_sell_rule_blacklist_model_ids(
@@ -27281,6 +27415,7 @@ class MerchantRulesWidget:
                 merchant_label_getter=lambda model_id: MERCHANT_TYPE_LABELS[self._get_material_merchant_type_by_model(model_id)],
                 display_model_ids=visible_target_model_ids,
                 filtered_empty_text=filtered_empty_text,
+                show_exact_protection_badge=True,
             )
             if removed_model_id > 0:
                 if self._set_sell_rule_model_ids(index, rule, [model_id for model_id in rule.model_ids if model_id != removed_model_id]):
@@ -27497,6 +27632,7 @@ class MerchantRulesWidget:
             changed = self._draw_destroy_rule_rarity_toggles(index, rule) or changed
             self._draw_secondary_text("Protected items are skipped by default unless Destroy Safety allows them for this session.")
         else:
+            self._draw_secondary_text("Protected items are skipped by default unless Destroy Safety allows them for this session.")
             if rule.kind == DESTROY_KIND_MATERIALS:
                 self._draw_secondary_text("Matching material stacks honor Keep Count by quantity. Preview blocks partial destroys when a safe split slot is unavailable.")
                 if self._draw_confirm_destructive_button(f"Add All Common Materials##destroy_common_preset_{index}"):
@@ -27562,6 +27698,7 @@ class MerchantRulesWidget:
                 empty_text=empty_text,
                 display_model_ids=visible_target_model_ids,
                 filtered_empty_text=filtered_empty_text,
+                show_exact_protection_badge=True,
             )
             if removed_model_id > 0:
                 if self._set_destroy_rule_model_ids(index, rule, [model_id for model_id in rule.model_ids if model_id != removed_model_id]):
@@ -28291,6 +28428,7 @@ class MerchantRulesWidget:
             rule.model_ids,
             display_model_ids=visible_selected_model_ids,
             filtered_empty_text="No selected salvage items match this search.",
+            show_exact_protection_badge=True,
         )
         if removed_model_id > 0:
             changed = self._set_salvage_rule_model_ids(
@@ -29446,11 +29584,28 @@ class MerchantRulesWidget:
 
             PyImGui.end_table()
 
+    def _normalize_protected_preview_reason_display_text(self, reason: str) -> str:
+        display_reason = str(reason or "").strip()
+        if not display_reason:
+            return ""
+        display_reason = re.sub(
+            r"^Protected by Protected Items:\s*exact model\.?$",
+            "Protected by exact Protected Items.",
+            display_reason,
+        )
+        display_reason = re.sub(
+            r"^((?:Blocked by|Kept by|Matched by) [^:]+): Protected by Protected Items:\s*exact model\.?$",
+            r"\1: protected by exact Protected Items.",
+            display_reason,
+        )
+        return display_reason
+
     def _normalize_preview_reason_display_text(self, reason: str) -> str:
         display_reason = str(reason or "").strip()
         if not display_reason:
             return ""
         display_reason = re.sub(r"\bHard-protected by\b", "Protected by", display_reason)
+        display_reason = self._normalize_protected_preview_reason_display_text(display_reason)
         display_reason = re.sub(
             r":\s+Protected by\s+((?:all-weapons|model|requirement range|all-weapons requirement range)\b)",
             r": \1",
@@ -30240,7 +30395,7 @@ def tooltip():
     PyImGui.bullet_text("Optional auto-travel to a selected outpost before merchant handling.")
     PyImGui.bullet_text("Top-level Overview, Preview Plan, Rules, and Profiles workspaces.")
     PyImGui.bullet_text("Xunlai Deposits is a separate workspace with explicit stash targets and optional outpost-entry auto deposits.")
-    PyImGui.bullet_text("Protections manages sell keeps, deposit keep-outs, and linked protected-item deposits.")
+    PyImGui.bullet_text("Protected Items and Equipment & Upgrades keep selected models, gear, upgrades, runes, and insignias safe.")
     PyImGui.bullet_text("Identify can target exact rarities and optionally run before Execute rebuilds the live merchant plan.")
     PyImGui.bullet_text("Destroy supports Destroy Safety, Preview -> Execute, saved Auto Destroy, and session Auto Destroy.")
     PyImGui.bullet_text("Leader-driven multibox sync, preview, and execute for selected active accounts.")
