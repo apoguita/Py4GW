@@ -2036,6 +2036,174 @@ def _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module) -> N
     )
 
 
+def _test_sell_weapons_routes_standalone_weapon_mods_to_merchant_and_keeps_runes_on_rune_trader(module) -> None:
+    widget = _make_widget(module)
+    widget.rune_names = {
+        "rune_attunement": "Rune of Attunement",
+        "rune_vigor": "Rune of Vigor",
+    }
+    widget.sell_rules = module._normalize_sell_rules([
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rule_id="weapon_rule",
+            rarities=_rarity_flags("gold"),
+        ),
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_ARMOR,
+            rule_id="armor_rule",
+            rarities=_rarity_flags("gold"),
+            include_standalone_runes=True,
+        ),
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+            rule_id="rune_rule",
+            rune_sell_targets=[
+                module.RuneSellTarget(identifier="rune_attunement", keep_count=0),
+            ],
+        ),
+    ])
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (2.0, 2.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=101,
+            model_id=9101,
+            name="Sundering Sword Hilt",
+            rarity="Gold",
+            item_type_id=int(module.ItemType.Rune_Mod),
+            item_type_name="Rune_Mod",
+            standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+            weapon_mod_identifiers=["Sundering"],
+        ),
+        _make_item(
+            module,
+            item_id=102,
+            model_id=9102,
+            name='Inscription: "Brawn over Brains"',
+            rarity="Gold",
+            item_type_id=int(module.ItemType.Rune_Mod),
+            item_type_name="Rune_Mod",
+            standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+            weapon_mod_identifiers=['"Brawn over Brains"'],
+        ),
+        _make_item(
+            module,
+            item_id=103,
+            model_id=111,
+            name="Iron Sword",
+            rarity="Gold",
+            is_weapon_like=True,
+            item_type_id=int(module.ItemType.Sword),
+            item_type_name="Sword",
+        ),
+        _make_item(
+            module,
+            item_id=104,
+            model_id=9201,
+            name="Rune of Attunement",
+            rarity="Gold",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=105,
+            model_id=9202,
+            name="Rune of Vigor",
+            rarity="Gold",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_vigor"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(
+        set(plan.merchant_sell_item_ids) == {101, 102, 103},
+        "Sell Weapons should route normal weapons and standalone weapon upgrade components to Merchant.",
+    )
+    _expect(
+        {sale.item_id for sale in plan.rune_trader_sales} == {104, 105},
+        "Loose runes and exact rune sell targets should remain Rune Trader sales.",
+    )
+    merchant_labels = {
+        entry.label
+        for entry in plan.entries
+        if entry.action_type == "sell" and entry.merchant_type == module.MERCHANT_TYPE_MERCHANT
+    }
+    _expect(
+        {"Sundering Sword Hilt", 'Inscription: "Brawn over Brains"', "Iron Sword"} <= merchant_labels,
+        "Preview entries should show standalone weapon upgrades under Merchant.",
+    )
+
+
+def _test_xunlai_sell_weapons_withdraws_standalone_weapon_mods_for_merchant(module) -> None:
+    widget = _make_widget(module)
+    widget.sell_rules = module._normalize_sell_rules([
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rule_id="weapon_rule",
+            rarities=_rarity_flags("gold"),
+            sell_from_xunlai=True,
+        ),
+    ])
+    weapon_rule = widget.sell_rules[0]
+    storage_hilt = _make_item(
+        module,
+        item_id=201,
+        model_id=9101,
+        name="Sundering Sword Hilt",
+        rarity="Gold",
+        item_type_id=int(module.ItemType.Rune_Mod),
+        item_type_name="Rune_Mod",
+        standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+        weapon_mod_identifiers=["Sundering"],
+    )
+    merchant_coords = {
+        module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+        module.MERCHANT_TYPE_RUNE_TRADER: None,
+    }
+
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        [(0, weapon_rule)],
+        current_items=[],
+        regular_storage_items=[storage_hilt],
+        material_storage_items=[],
+        coords=merchant_coords,
+    )
+
+    _expect([transfer.item_id for transfer in transfers] == [201], "Xunlai weapon-mod sells should withdraw for Merchant sale.")
+    _expect(adjusted_rules and adjusted_rules[0].kind == module.SELL_KIND_WEAPONS, "Xunlai subplan should keep the weapon sell rule.")
+
+    rune_only_coords = {
+        module.MERCHANT_TYPE_MERCHANT: None,
+        module.MERCHANT_TYPE_RUNE_TRADER: (2.0, 2.0),
+    }
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        [(0, weapon_rule)],
+        current_items=[],
+        regular_storage_items=[storage_hilt],
+        material_storage_items=[],
+        coords=rune_only_coords,
+    )
+
+    _expect(
+        not transfers and not adjusted_rules,
+        "Xunlai weapon-mod sells should not treat Rune Trader availability as enough service coverage.",
+    )
+
+
 def _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module) -> None:
     widget = _make_widget(module)
     widget.auto_sell_on_manual_vendor_interaction = True
@@ -11180,6 +11348,14 @@ def main() -> int:
             ("exact_rune_sell_rule_profile_roundtrip", lambda: _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root)),
             ("exact_rune_sell_rule_plans_matching_standalone_runes", lambda: _test_exact_rune_sell_rule_plans_matching_standalone_runes(module)),
             ("exact_rune_sell_rule_reserves_names_from_broad_armor_rule", lambda: _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module)),
+            (
+                "sell_weapons_routes_standalone_weapon_mods_to_merchant_and_keeps_runes_on_rune_trader",
+                lambda: _test_sell_weapons_routes_standalone_weapon_mods_to_merchant_and_keeps_runes_on_rune_trader(module),
+            ),
+            (
+                "xunlai_sell_weapons_withdraws_standalone_weapon_mods_for_merchant",
+                lambda: _test_xunlai_sell_weapons_withdraws_standalone_weapon_mods_for_merchant(module),
+            ),
             ("manual_vendor_exact_rune_sell_runs_at_rune_trader", lambda: _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module)),
             ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
             ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),

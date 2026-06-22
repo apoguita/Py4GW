@@ -11114,7 +11114,7 @@ class MerchantRulesWidget:
     def _get_equippable_rule_destination(self, item: InventoryItemInfo, rule: SellRule) -> str:
         if rule.kind == SELL_KIND_WEAPONS:
             if item.standalone_kind == WEAPON_MOD_STANDALONE_KIND:
-                return MERCHANT_TYPE_RUNE_TRADER
+                return MERCHANT_TYPE_MERCHANT
             if item.is_weapon_like:
                 return MERCHANT_TYPE_MERCHANT
         elif rule.kind == SELL_KIND_ARMOR:
@@ -12346,7 +12346,15 @@ class MerchantRulesWidget:
             else:
                 plan.merchant_sell_item_ids.append(item.item_id)
 
-            reason = "Standalone mod item." if destination == MERCHANT_TYPE_RUNE_TRADER else ""
+            reason = (
+                "Standalone weapon upgrade component."
+                if rule.kind == SELL_KIND_WEAPONS and item.standalone_kind == WEAPON_MOD_STANDALONE_KIND
+                else (
+                    "Standalone rune / insignia item."
+                    if rule.kind == SELL_KIND_ARMOR and item.standalone_kind == RUNE_STANDALONE_KIND
+                    else ""
+                )
+            )
             plan.entries.append(
                 ExecutionPlanEntry(
                     "sell",
@@ -27314,7 +27322,7 @@ class MerchantRulesWidget:
         if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
             self._draw_light_separator()
             if rule.kind == SELL_KIND_WEAPONS:
-                self._draw_secondary_text("Equippable weapons sell to Merchant. Standalone weapon mods route to the Rune Trader.")
+                self._draw_secondary_text("Equippable weapons and standalone weapon upgrade components sell to Merchant.")
             else:
                 self._draw_secondary_text("Equippable armor sells to Merchant. Loose runes and insignias are optional.")
 
