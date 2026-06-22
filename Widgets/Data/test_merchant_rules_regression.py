@@ -929,6 +929,66 @@ def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
     _expect(not any(saved_payload["identify_settings"]["rarities"].values()), "Saved identify rarity selectors should remain off by default.")
     _expect(not saved_payload["identify_settings"]["before_execute"], "Saved Identify before Execute should remain off by default.")
     _expect(not saved_payload["identify_settings"]["on_inventory_change"], "Saved on-pickup/inventory-change identify should remain off by default.")
+    _expect(not widget.destroy_auto_enabled, "Saved Auto Destroy should default off for legacy profiles.")
+    _expect(not saved_payload["destroy_auto_enabled"], "Saved Auto Destroy should remain off by default.")
+
+
+def _test_destroy_auto_profile_roundtrip(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "destroy_auto_profile.json"
+    widget.config_path = str(config_path)
+    widget.destroy_auto_enabled = True
+    widget.destroy_include_protected_items = True
+
+    _expect(widget._save_profile(), "Destroy Auto profile should save.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(saved_payload["destroy_auto_enabled"], "Saved Auto Destroy should persist in the profile.")
+    _expect(
+        "destroy_include_protected_items" not in saved_payload,
+        "Protected-item destroy override should remain session-only and not be serialized.",
+    )
+
+    reloaded_widget = _make_widget(module)
+    reloaded_widget.config_path = str(config_path)
+    reloaded_widget._load_profile()
+    _expect(reloaded_widget.destroy_auto_enabled, "Saved Auto Destroy should reload from the profile.")
+    _expect(
+        not reloaded_widget.destroy_include_protected_items,
+        "Protected-item destroy override should reset when the profile reloads.",
+    )
+
+
+def _test_destroy_auto_effective_flag_and_runtime_queue(module) -> None:
+    widget = _make_widget(module)
+    widget._get_inventory_signature = lambda items=None: ((1, 1),)
+
+    original_coroutines = getattr(module.GLOBAL_CACHE, "Coroutines", None)
+    had_coroutines = hasattr(module.GLOBAL_CACHE, "Coroutines")
+    try:
+        module.GLOBAL_CACHE.Coroutines = []
+        _expect(not widget._is_destroy_auto_enabled(), "Auto Destroy should be off when both saved and session flags are off.")
+        widget._update_instant_destroy_runtime()
+        _expect(not module.GLOBAL_CACHE.Coroutines, "Auto Destroy should not queue when both flags are off.")
+
+        widget.destroy_auto_enabled = True
+        _expect(widget._is_destroy_auto_enabled(), "Saved Auto Destroy should enable the effective auto flag.")
+        widget._request_instant_destroy_rescan()
+        widget._update_instant_destroy_runtime()
+        _expect(len(module.GLOBAL_CACHE.Coroutines) == 1, "Saved Auto Destroy should queue the auto destroy runtime.")
+
+        widget = _make_widget(module)
+        widget._get_inventory_signature = lambda items=None: ((2, 1),)
+        module.GLOBAL_CACHE.Coroutines = []
+        widget.destroy_instant_enabled = True
+        _expect(widget._is_destroy_auto_enabled(), "Session Auto Destroy should enable the effective auto flag.")
+        widget._request_instant_destroy_rescan()
+        widget._update_instant_destroy_runtime()
+        _expect(len(module.GLOBAL_CACHE.Coroutines) == 1, "Session Auto Destroy should queue the auto destroy runtime.")
+    finally:
+        if had_coroutines:
+            module.GLOBAL_CACHE.Coroutines = original_coroutines
+        elif hasattr(module.GLOBAL_CACHE, "Coroutines"):
+            delattr(module.GLOBAL_CACHE, "Coroutines")
 
 
 def _test_salvage_auto_exact_upgrade_option_profile_roundtrip(module, temp_root: Path) -> None:
@@ -3953,6 +4013,89 @@ def _test_protected_items_destroy_default_and_override(module) -> None:
         ),
         "Destroy override preview should explain that a protected item is included.",
     )
+
+
+def _test_auto_destroy_entry_points_keep_protected_items_safe(module) -> None:
+    def make_widget(captured_item_ids: list[int]):
+        widget = _make_widget(module)
+        widget.protected_item_model_ids = [222]
+        widget.destroy_rules = [
+            module._normalize_destroy_rule(
+                module.DestroyRule(
+                    enabled=True,
+                    kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                    whitelist_targets=[module.WhitelistTarget(model_id=222, keep_count=0)],
+                )
+            )
+        ]
+        widget._collect_inventory_items = lambda: [
+            _make_item(
+                module,
+                item_id=503,
+                model_id=222,
+                name="Protected Trophy Stack",
+                quantity=5,
+                rarity="White",
+            )
+        ]
+        widget._get_inventory_signature = lambda items=None: ((503, 5),)
+        widget._pause_inventory_plus = lambda: None
+
+        def _capture_destroy_phase(actions):
+            captured_item_ids.extend(
+                int(action.item_id) if isinstance(action, module.PlannedDestroyAction) else int(action)
+                for action in actions
+            )
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(
+                label="Destroy",
+                measure_label="items",
+                attempted=len(captured_item_ids),
+                completed=len(captured_item_ids),
+            )
+
+        widget._execute_destroy_phase = _capture_destroy_phase
+        return widget
+
+    captured: list[int] = []
+    saved_auto_widget = make_widget(captured)
+    saved_auto_widget.destroy_auto_enabled = True
+    _drain_generator_return(saved_auto_widget._run_instant_destroy_pass())
+    _expect(not captured, "Saved Auto Destroy should skip protected items by default.")
+    _expect(
+        "protected" in saved_auto_widget.last_instant_destroy_summary.lower(),
+        "Saved Auto Destroy should report protected-item skips.",
+    )
+
+    captured = []
+    session_auto_widget = make_widget(captured)
+    session_auto_widget.destroy_instant_enabled = True
+    _drain_generator_return(session_auto_widget._run_instant_destroy_pass())
+    _expect(not captured, "Session Auto Destroy should skip protected items by default.")
+
+    original_coroutines = getattr(module.GLOBAL_CACHE, "Coroutines", None)
+    had_coroutines = hasattr(module.GLOBAL_CACHE, "Coroutines")
+    try:
+        captured = []
+        run_now_widget = make_widget(captured)
+        module.GLOBAL_CACHE.Coroutines = []
+        run_now_widget._queue_destroy_now()
+        _expect(len(module.GLOBAL_CACHE.Coroutines) == 1, "Run Destroy Now should queue a one-shot destroy pass.")
+        _drain_generator_return(module.GLOBAL_CACHE.Coroutines.pop(0))
+        _expect(not captured, "Run Destroy Now should skip protected items by default.")
+    finally:
+        if had_coroutines:
+            module.GLOBAL_CACHE.Coroutines = original_coroutines
+        elif hasattr(module.GLOBAL_CACHE, "Coroutines"):
+            delattr(module.GLOBAL_CACHE, "Coroutines")
+
+    captured = []
+    override_widget = make_widget(captured)
+    override_widget.destroy_auto_enabled = True
+    override_widget.destroy_include_protected_items = True
+    _drain_generator_return(override_widget._run_instant_destroy_pass())
+    _expect(captured == [503], "Protected-item override should allow Auto Destroy to destroy protected matches.")
 
 
 def _test_protected_items_allow_configured_deposit(module) -> None:
@@ -10632,6 +10775,8 @@ def main() -> int:
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
             ("salvage_profile_defaults_are_off", lambda: _test_salvage_profile_defaults_are_off(module, temp_root)),
+            ("destroy_auto_profile_roundtrip", lambda: _test_destroy_auto_profile_roundtrip(module, temp_root)),
+            ("destroy_auto_effective_flag_and_runtime_queue", lambda: _test_destroy_auto_effective_flag_and_runtime_queue(module)),
             (
                 "salvage_auto_exact_upgrade_option_profile_roundtrip",
                 lambda: _test_salvage_auto_exact_upgrade_option_profile_roundtrip(module, temp_root),
@@ -10808,6 +10953,10 @@ def main() -> int:
             (
                 "protected_items_destroy_default_and_override",
                 lambda: _test_protected_items_destroy_default_and_override(module),
+            ),
+            (
+                "auto_destroy_entry_points_keep_protected_items_safe",
+                lambda: _test_auto_destroy_entry_points_keep_protected_items_safe(module),
             ),
             (
                 "protected_items_allow_configured_deposit",
