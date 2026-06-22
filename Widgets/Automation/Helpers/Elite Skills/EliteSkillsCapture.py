@@ -287,16 +287,16 @@ SECONDARY_BUILDS = {
         Profession.DERVISH:      "Owok0wPCEnGUD4GxdzNx0HEYX0AA",   # Mo/D
     },
     Profession.NECROMANCER: {
-        Profession.WARRIOR:      "OAFUQ0ia2aQ0Bf1VVqiDC2QuBDAA",    # N/W
-        Profession.RANGER:       "OAJUQ0iaWcQ0Bf1VVqiDC2QuBDAA",    # N/R
-        Profession.MONK:         "OANEQap22BRH8VXVpKOIYD5GMAA",     # N/Mo
-        Profession.NECROMANCER:  "OAVEIBplaLRH8VXVpKOIYD5GMAA",     # N
-        Profession.MESMER:       "OAVEIBplaLRH8VXVpKOIYD5GMAA",     # N/Me
-        Profession.ELEMENTALIST: "OAZEQap2qBRH8VXVpKOIYD5GMAA",     # N/E
-        Profession.ASSASSIN:     "OAdUQ0ia2fQ0Bf1VVqiDC2QuBDAA",   # N/A
-        Profession.RITUALIST:    "OAhkQoFqxKGEdwXdVlq4ggNkbwAA",   # N/Rt
-        Profession.PARAGON:      "OAlkQoFqxWGEdwXdVlq4ggNkbwAA",   # N/P
-        Profession.DERVISH:      "OApkQoFqxmGEdwXdVlq4ggNkbwAA",   # N/D
+        Profession.WARRIOR:      "OAFTUYDLDqm5GUB8LYAImsqaLEA",    # N/W
+        Profession.RANGER:       "OAJTUYDjDqm5GUB8LYAImsqaLEA",    # N/R
+        Profession.MONK:         "OANDUsxfQ1M3gKgfBDAxkVVbhA",     # N/Mo
+        Profession.NECROMANCER:  "OANDUsxfQ1M3gKgfBDAxkVVbhA",     # N
+        Profession.MESMER:       "OAVDIRxGT1M3gKgfBDAxkVVbhA",     # N/Me
+        Profession.ELEMENTALIST: "OABCUsxUNzNoC4XwAQMZV1W",     # N/E
+        Profession.ASSASSIN:     "OAdTUYD/Dqm5GUB8LYAImsqaLEA",   # N/A
+        Profession.RITUALIST:    "OAhjUwGMYQ1M3gKgfBDAxkVVbhA",   # N/Rt
+        Profession.PARAGON:      "OAljUwGcZQ1M3gKgfBDAxkVVbhA",   # N/P
+        Profession.DERVISH:      "OApjUwGcaQ1M3gKgfBDAxkVVbhA",   # N/D
     },
     Profession.ELEMENTALIST: {
         Profession.WARRIOR:      "OgFToYGXHaX0msYQYgWAZIAYAAA",    # E/W
@@ -12530,7 +12530,7 @@ bot.States.AddCustomState(Energy_Boon, "[H]Energy Boon")
 bot.States.AddCustomState(Ether_Prism, "[H]Ether Prism")
 bot.States.AddCustomState(Ether_Renewal, "[H]Ether Renewal")
 bot.States.AddCustomState(Mind_Blast, "[H]Mind Blast")
-bot.States.AddCustomState(Savannah_Heat, "[H]Savanna Heat")
+bot.States.AddCustomState(Savannah_Heat, "[H]Savannah Heat")
 bot.States.AddCustomState(Searing_Flames, "[H]Searing Flames")
 bot.States.AddCustomState(Star_Burst, "[H]Star Burst")
 bot.States.AddCustomState(Icy_Shackles, "[H]Icy Shackles")
