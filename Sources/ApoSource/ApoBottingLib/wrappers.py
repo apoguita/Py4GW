@@ -2135,6 +2135,7 @@ def InviteAccountByEmail(
     )
 
 
+
 def CreateParty(
     hero_ids: list[int] | None = None,
     henchman_ids: list[int] | None = None,
@@ -2185,12 +2186,6 @@ def CreateParty(
         from Py4GWCoreLib.routines_src.behaviourtrees_src.shared import _account_emails_on_same_map_as_local
         return len(_account_emails_on_same_map_as_local(include_self=True)) > 1
 
-    def _need_add_heroes() -> bool:
-        return len(hero_ids) > 0
-
-    def _need_add_henchmen() -> bool:
-        return len(henchman_ids) > 0
-
     children: list[BehaviorTree | BehaviorTree.Node] = [LeaveParty()]
     if multibox_invite:
         children.append(_conditional_log_subtree("LogSummoningAccountsIfNeeded", "summoning accounts", _need_summon_accounts))
@@ -2219,12 +2214,16 @@ def CreateParty(
                 aftercast_ms=aftercast_ms,
             ),
         ))
-    if hero_ids:
-        children.append(_conditional_log_subtree("LogAddingHeroesIfNeeded", "adding heroes", _need_add_heroes))
-        children.append(RoutinesBT.Party.LoadParty(hero_ids=hero_ids))
-    if henchman_ids:
-        children.append(_conditional_log_subtree("LogAddingHenchmenIfNeeded", "adding henchmen", _need_add_henchmen))
-        children.append(RoutinesBT.Party.LoadParty(henchman_ids=henchman_ids))
+    if hero_ids or henchman_ids:
+        children.append(LogMessage(
+            message=f"loading party heroes={hero_ids}, henchmen={henchman_ids}"
+        ))
+        children.append(RoutinesBT.Party.LoadParty(
+            hero_ids=hero_ids,
+            henchman_ids=henchman_ids,
+            log=log,
+            aftercast_ms=aftercast_ms,
+        ))
 
     if not children:
         return Succeeder(name="CreatePartyEmpty",)
