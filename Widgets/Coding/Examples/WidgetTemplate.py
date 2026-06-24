@@ -1,26 +1,22 @@
 import PyImGui
 from Py4GWCoreLib import Routines, ImGui, Color
 from Py4GWCoreLib.IniManager import IniManager
+from Py4GWCoreLib import Database
 
 MODULE_NAME = "Widget Template" # Change this to your widget name
 MODULE_ICON = "Textures/Module_Icons/Template.png" # Change this to your widget icon (optional)
+WIDGET_KEY = 'Widgets/Coding/Examples/WidgetTemplate'
+WIDGET_DESCRIPTION = 'Template widget using Database.Settings persistence.'
+SETTINGS = Database.Settings().ForWidget(WIDGET_KEY, MODULE_NAME, WIDGET_DESCRIPTION)
 
 # ---------------------------------------
-# Ini Handling
-# Ini Managet handles Ini files automatically
-# You just need to define a unique INI_KEY, INI_PATH, and INI_FILENAME
+# Settings Handling
+# Database.Settings persists values for the current account or globally.
 # ---------------------------------------
 
 INI_KEY = ""
 INI_PATH = "Widgets/WidgetTemplate" #path to save ini key
 INI_FILENAME = "WidgetTemplate.ini" #ini file name
-
-def _add_config_vars():
-    """This is an internal helper to allow for easy addition of config variables to the ini file."""
-    global INI_KEY
-    IniManager().add_bool(INI_KEY, "test_bool_var", "TestBoolVar", "value", default=False)
-
-
 def draw_widget():
     """Draws the widget interface."""
     global INI_KEY
@@ -28,10 +24,10 @@ def draw_widget():
         
         PyImGui.text("Add your stuff here")
         
-        val = bool(IniManager().get(INI_KEY, "test_bool_var", False))
+        val = SETTINGS.GetBool('TestBoolVar', 'value', default=False)
         new_val = PyImGui.checkbox("Test Bool Variable", val)
         if new_val != val:
-            IniManager().set(INI_KEY, "test_bool_var", new_val)
+            SETTINGS.SetBool('TestBoolVar', 'value', new_val)
 
     ImGui.End(INI_KEY)
     
@@ -100,12 +96,11 @@ def main():
     #one time initialization
     if not Routines.Checks.Map.MapValid():
         return
-    
     if not INI_KEY:
         INI_KEY = IniManager().ensure_key("Widgets/WidgetTemplate", "WidgetTemplate.ini")
         if not INI_KEY:
             return
-        _add_config_vars()
+
         IniManager().load_once(INI_KEY)
         initialized = True
         

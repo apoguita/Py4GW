@@ -111,4 +111,25 @@ Prototypes = {
         ctypes.c_uint32,
         ctypes.c_uint32,
     ),
+    # void CtlBtnSetTextLiteral(uint32 frameId, wchar_t* text)
+    "Void_U32_WCharP": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_wchar_p,
+    ),
+    # void FrameSetSize(uint32 frameId, Coord2f* size)  —  Coord2f = {float x, float y}
+    # void FrameSetPosition(uint32 frameId, Coord2f* pos)
+    # void FrameMouseEnable(uint32 frameId, uint32 enable, uint32 unk)
+    "Void_U32_VoidP": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ),
+    "Void_U32_U32_U32_U32": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
 }

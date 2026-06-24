@@ -918,6 +918,7 @@ All files in `docs/RE/`:
 | `rosetta_stone.txt` | GwA2 (AutoIt) to Py4GW function mapping |
 | `title_rendering_research.md` | Title rendering investigation and working solution (11 approaches) |
 | `ui_controls_catalog.md` | Complete UI controls catalog - 39 types, tiers, structs, addresses, and Phase 3 crash documentation (2026-06-05) |
+| `native_button_pipeline.md` | **Complete button pipeline specification** — rendering, type registry, click dispatch, OnFrameNotify, 2-path comparison, gap inventory. 2026-06-19. |
 | `window_creation_architecture.md` | CContainerFrame window creation architecture reference |
 
 Other project docs remain in `docs/`:
