@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Type, TypeVar
+from typing import Iterable, Optional, Type
 
 import PyItem
 import PyInventory
@@ -7,12 +7,11 @@ from enum import Enum
 
 from Py4GWCoreLib.enums_src.GameData_enums import Attribute, DyeColor, Gender
 from Py4GWCoreLib.enums_src.Item_enums import DAMAGE_RANGES, ItemType, Rarity
+from Py4GWCoreLib.item_mods_src._typing import TUpgrade
 from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
 from Py4GWCoreLib.item_mods_src.properties import ArmorProperty, AttributeRequirement, DamageProperty, EnergyProperty
 from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
-
-UpgradeType = TypeVar("UpgradeType", bound="Upgrade")
 
 class Bag(Enum):
     NoBag = 0
@@ -482,7 +481,7 @@ class Item:
                 return Item.item_instance(item_id).is_sparkly
 
             @staticmethod
-            def GetUpgrade(item_id, upgrade : Type[UpgradeType] | Upgrade) -> Optional[UpgradeType] | None:
+            def GetUpgrade(item_id, upgrade : Type[TUpgrade] | TUpgrade) -> Optional[TUpgrade]:
                 """Gets a specific upgrade of an item by its ID and upgrade type.
                 Args:
                     item_id (int): The ID of the item to check for the upgrade.
@@ -490,7 +489,7 @@ class Item:
                 Returns:
                     Upgrade | None: The upgrade of the specified type if found, otherwise None.
                 """
-                existing_upgrade : Optional[UpgradeType] = ItemMod.get_upgrade(item_id, upgrade)
+                existing_upgrade : Optional[TUpgrade] = ItemMod.get_upgrade(item_id, upgrade)
                 return existing_upgrade
             
             @staticmethod
@@ -505,7 +504,7 @@ class Item:
                 return inherent_upgrades is not None and len(inherent_upgrades) > 0
             
             @staticmethod
-            def HasUpgradeType(item_id, upgrade_type : Type[UpgradeType], max : bool = False) -> bool:
+            def HasUpgradeType(item_id, upgrade_type : Type[TUpgrade], max : bool = False) -> bool:
                 """Purpose: Check if an item has a specific upgrade type by its ID."""             
                                   
                 if (upgrade := Item.Customization.GetUpgrade(item_id, upgrade_type)) is not None:
