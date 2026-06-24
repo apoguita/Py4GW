@@ -6,15 +6,15 @@
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 import enum
-import json
 import math
 import os
 import time
 
 import Py4GW
 import PyImGui
-from Py4GWCoreLib import Agent, GLOBAL_CACHE, ConsoleLog, IniHandler, Map, Player, Range, Routines, Utils
+from Py4GWCoreLib import Agent, GLOBAL_CACHE, ConsoleLog, Map, Player, Range, Routines, Utils
 from Py4GWCoreLib.BottingTree import BottingTree
+from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 
@@ -23,8 +23,54 @@ MODULE_ICON = 'Textures/Module_Icons/Underworld.png'
 BOT_NAME    = 'UnderworldBT'
 
 # ── Persistent configuration ──────────────────────────────────────────────────
-_ini_file = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT.ini')
-_ini = IniHandler(_ini_file)
+# Persistence goes through the shared IniManager: account-scoped config files under
+# <projects>/Settings/<email>/..., replacing the hand-rolled IniHandler path. The
+# adapter below keeps the old read/write surface but resolves the IniManager key
+# lazily, so module import never fails when the account isn't ready yet (the key is
+# empty until login; reads return defaults and writes are dropped until then).
+_INI_PATH     = 'Widgets/Automation/Bots/Missions/Core'
+_INI_FILENAME = 'UnderworldBT.ini'
+
+
+class _IniAdapter:
+    def __init__(self, path: str, filename: str) -> None:
+        self._path = path
+        self._filename = filename
+        self._key = ''
+
+    def key(self) -> str:
+        if not self._key:
+            self._key = IniManager().ensure_key(self._path, self._filename)
+        return self._key
+
+    def read_key(self, section: str, name: str, default: str = '') -> str:
+        k = self.key()
+        return IniManager().read_key(k, section, name, default) if k else default
+
+    def read_int(self, section: str, name: str, default: int = 0) -> int:
+        k = self.key()
+        return IniManager().read_int(k, section, name, default) if k else default
+
+    def read_float(self, section: str, name: str, default: float = 0.0) -> float:
+        k = self.key()
+        return IniManager().read_float(k, section, name, default) if k else default
+
+    def read_bool(self, section: str, name: str, default: bool = False) -> bool:
+        k = self.key()
+        return IniManager().read_bool(k, section, name, default) if k else default
+
+    def write_key(self, section: str, name: str, value) -> None:
+        k = self.key()
+        if k:
+            IniManager().write_key(k, section, name, value)
+
+    def delete_section(self, section: str) -> None:
+        k = self.key()
+        if k:
+            IniManager().delete_section(k, section)
+
+
+_ini = _IniAdapter(_INI_PATH, _INI_FILENAME)
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
@@ -41,9 +87,15 @@ def _read_emails_list(key: str) -> list[str]:
 # ── General / Run ─────────────────────────────────────────────────────────────
 class BotSettings:
     """General run settings (repeat, cons, hard mode)."""
-    Repeat:   bool = bool(_ini.read_bool(BOT_NAME, 'quest_repeat',   False))
-    UseCons:  bool = bool(_ini.read_bool(BOT_NAME, 'quest_use_cons', True))
-    HardMode: bool = bool(_ini.read_bool(BOT_NAME, 'quest_hardmode', False))
+    Repeat:   bool = False
+    UseCons:  bool = True
+    HardMode: bool = False
+
+    @classmethod
+    def load(cls) -> None:
+        cls.Repeat   = bool(_ini.read_bool(BOT_NAME, 'quest_repeat',   False))
+        cls.UseCons  = bool(_ini.read_bool(BOT_NAME, 'quest_use_cons', True))
+        cls.HardMode = bool(_ini.read_bool(BOT_NAME, 'quest_hardmode', False))
 
     @classmethod
     def save(cls) -> None:
@@ -108,43 +160,78 @@ UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     'zin_ku_corridor':    ('Zin Ku Corridor',     int(name_to_map_id['Zin Ku Corridor'])),
 }
 
+# Underworld enemy model IDs. Model/player numbers are language-independent, unlike
+# display names (which change with the client language), so targeting/priority is keyed
+# on these instead of GetNameByID. Sourced from the Enemy Tracker data for The
+# Underworld (map 72). Some enemies expose more than one model variant.
+class UWModelID(enum.IntEnum):
+    DYING_NIGHTMARE           = 2368
+    OBSIDIAN_BEHEMOTH         = 2369
+    OBSIDIAN_GUARDIAN         = 2370
+    TERRORWEB_DRYDER          = 2371
+    TERRORWEB_DRYDER_ALT      = 2372
+    KEEPER_OF_SOULS           = 2373
+    TERRORWEB_QUEEN           = 2374
+    SMITE_CRAWLER             = 2375
+    WAILING_LORD              = 2376
+    BANISHED_DREAM_RIDER      = 2377
+    DHUUM_SERVANT             = 2379  # Ghozer / Kazhad / Madruk / Thul Za Dhuum share this model
+    MINDBLADE_SPECTRE         = 2380
+    DEAD_COLLECTOR            = 2382
+    DEAD_THRESHER             = 2383
+    COLDFIRE_NIGHT            = 2384
+    STALKING_NIGHT            = 2385
+    CHARGED_BLACKNESS         = 2387
+    GRASPING_DARKNESS         = 2388
+    BLADED_AATXE              = 2389
+    SLAYER                    = 2391
+    SKELETON_OF_DHUUM         = 2392
+    SKELETON_OF_DHUUM_ALT     = 2393
+    # Bot-blacklisted enemies (kept for completeness / model-id reference)
+    CHAINED_SOUL              = 2367
+    VENGEFUL_AATXE            = 2390
+    TORTURED_SPIRIT           = 2422
+    TORTURED_SPIRIT_ALT       = 2423
+    SPIRIT_OF_NATURES_RENEWAL = 2938
+    BONE_HORROR               = 2280
+
+
 # Underworld enemies ordered from highest to lowest party-call priority (UnderworldV2 + tracker).
 # Omitted on purpose: Chained Soul, Tortured Spirit, Spirit of Nature's Renewal,
 # Vengeful Aatxe (all bot-blacklisted — a party call would override the per-account
 # blacklist filter and make every account attack them), Dire/Hearty Black Widow (trash).
-UW_TARGET_PRIORITY: list[str] = [
+# Note: Champion of Dhuum, Minion of Dhuum and Dhuum himself are not in the tracker
+# data (no model id captured) and were low-priority fallbacks only — the dedicated
+# Dhuum handling drives that fight, so they are dropped here rather than guessed.
+UW_TARGET_PRIORITY: list[int] = [
     # Quest / high-value targets
-    'Keeper of Souls',
-    'Skeleton of Dhuum',
-    'Terrorweb Queen',
-    'Ghozer Dhuum',
-    'Kazhad Dhuum',
-    'Madruk Dhuum',
-    'Thul Za Dhuum',
-    'Wailing Lord',
-    'Terrorweb Dryder',
-    'Mindblade Spectre',
-    'Banished Dream Rider',
-    'Dead Collector',
-    'Dead Thresher',
+    UWModelID.KEEPER_OF_SOULS,
+    UWModelID.SKELETON_OF_DHUUM,
+    UWModelID.SKELETON_OF_DHUUM_ALT,
+    UWModelID.TERRORWEB_QUEEN,
+    UWModelID.DHUUM_SERVANT,
+    UWModelID.WAILING_LORD,
+    UWModelID.TERRORWEB_DRYDER,
+    UWModelID.TERRORWEB_DRYDER_ALT,
+    UWModelID.MINDBLADE_SPECTRE,
+    UWModelID.BANISHED_DREAM_RIDER,
+    UWModelID.DEAD_COLLECTOR,
+    UWModelID.DEAD_THRESHER,
     # Nightmare / Aatxe packs
-    'Grasping Darkness',
-    'Charged Blackness',
-    'Coldfire Night',
-    'Stalking Night',
-    'Dying Nightmare',
-    'Bladed Aatxe',
+    UWModelID.GRASPING_DARKNESS,
+    UWModelID.CHARGED_BLACKNESS,
+    UWModelID.COLDFIRE_NIGHT,
+    UWModelID.STALKING_NIGHT,
+    UWModelID.DYING_NIGHTMARE,
+    UWModelID.BLADED_AATXE,
     # General UW mobs
-    'Smite Crawler',
-    'Bone Horror',
-    'Obsidian Guardian',
-    # Dhuum fight (Dhuum Helper still handles CB; low priority fallback)
-    'Champion of Dhuum',
-    'Slayer',
-    'Minion of Dhuum',
-    'Dhuum',
+    UWModelID.SMITE_CRAWLER,
+    UWModelID.BONE_HORROR,
+    UWModelID.OBSIDIAN_GUARDIAN,
+    # Dhuum fight (low-priority fallback)
+    UWModelID.SLAYER,
     # Behemoth last — usually blacklisted until BehemothGuard engages
-    'Obsidian Behemoth',
+    UWModelID.OBSIDIAN_BEHEMOTH,
 ]
 _UW_PRIORITY_TARGET_RANGE = Range.Earshot.value + 100.0
 _UW_PRIORITY_TARGET_COOLDOWN_MS = 2000.0
@@ -152,10 +239,14 @@ _UW_PRIORITY_TARGET_SCAN_INTERVAL_MS = 500.0
 
 class EnterSettings:
     """Entry outpost used before activating the UW scroll."""
-    EntryPoint: str = str(
-        _ini.read_key(BOT_NAME, 'enter_entrypoint', DEFAULT_UW_ENTRYPOINT_KEY)
-        or DEFAULT_UW_ENTRYPOINT_KEY
-    )
+    EntryPoint: str = DEFAULT_UW_ENTRYPOINT_KEY
+
+    @classmethod
+    def load(cls) -> None:
+        cls.EntryPoint = str(
+            _ini.read_key(BOT_NAME, 'enter_entrypoint', DEFAULT_UW_ENTRYPOINT_KEY)
+            or DEFAULT_UW_ENTRYPOINT_KEY
+        )
 
     @classmethod
     def save(cls) -> None:
@@ -165,16 +256,26 @@ class EnterSettings:
 # ── Inventory refill ──────────────────────────────────────────────────────────
 class InventorySettings:
     """Between-run inventory management (Guild Hall UW scroll purchasing)."""
-    BuyUWScrolls:  bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_uw_scrolls', False))
-    UWScrollMin:   int = max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_min', 1) or 1))
-    UWScrollMax:   int = max(
-        UWScrollMin,
-        max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_max', 2) or 2)),
-    )
-    BuySalvageKits:   bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_salvage_kits', True))
-    SalvageKitTarget: int = max(0, int(_ini.read_int(BOT_NAME, 'inv_salvage_kit_target', 4) or 4))
-    BuyIDKits:        bool = bool(_ini.read_bool(BOT_NAME, 'inv_buy_id_kits', True))
-    IDKitTarget:      int = max(0, int(_ini.read_int(BOT_NAME, 'inv_id_kit_target', 2) or 2))
+    BuyUWScrolls:  bool = False
+    UWScrollMin:   int = 1
+    UWScrollMax:   int = 2
+    BuySalvageKits:   bool = True
+    SalvageKitTarget: int = 4
+    BuyIDKits:        bool = True
+    IDKitTarget:      int = 2
+
+    @classmethod
+    def load(cls) -> None:
+        cls.BuyUWScrolls = bool(_ini.read_bool(BOT_NAME, 'inv_buy_uw_scrolls', False))
+        cls.UWScrollMin  = max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_min', 1) or 1))
+        cls.UWScrollMax  = max(
+            cls.UWScrollMin,
+            max(0, int(_ini.read_int(BOT_NAME, 'inv_uw_scroll_max', 2) or 2)),
+        )
+        cls.BuySalvageKits   = bool(_ini.read_bool(BOT_NAME, 'inv_buy_salvage_kits', True))
+        cls.SalvageKitTarget = max(0, int(_ini.read_int(BOT_NAME, 'inv_salvage_kit_target', 4) or 4))
+        cls.BuyIDKits        = bool(_ini.read_bool(BOT_NAME, 'inv_buy_id_kits', True))
+        cls.IDKitTarget      = max(0, int(_ini.read_int(BOT_NAME, 'inv_id_kit_target', 2) or 2))
 
     @classmethod
     def save(cls) -> None:
@@ -188,52 +289,49 @@ class InventorySettings:
 
 
 # ── Consumables ───────────────────────────────────────────────────────────────
-# Each entry: (ini_key, display_name, category)
-_CONS_DEFS: list[tuple[str, str, str]] = [
-    # Conset
-    ('armor_of_salvation',    'Armor of Salvation',    'Conset'),
-    ('essence_of_celerity',   'Essence of Celerity',   'Conset'),
-    ('grail_of_might',        'Grail of Might',        'Conset'),
-    # War
-    ('war_supplies',          'War Supplies',           'War'),
-    # Food
-    ('drake_kabob',           'Drake Kabob',            'Food'),
-    ('bowl_of_skalefin_soup', 'Bowl of Skalefin Soup', 'Food'),
-    ('pahnai_salad',          'Pahnai Salad',           'Food'),
-    # Sweet
-    ('candy_corn',            'Candy Corn',             'Sweet'),
-    ('candy_apple',           'Candy Apple',            'Sweet'),
-    ('birthday_cupcake',      'Birthday Cupcake',       'Sweet'),
-    ('golden_egg',            'Golden Egg',             'Sweet'),
-    ('slice_of_pumpkin_pie',  'Pumpkin Pie',            'Sweet'),
-    ('honeycomb',             'Honeycomb',              'Sweet'),
-]
+# Upkeep is toggled per category. Each category maps to a core-library consumable
+# mode (see botting_consumables.consumable_specs), so the actual item set stays in
+# sync with the library — "all pcons that exist", not a hand-maintained subset.
+#   Cons  → conset trio (Armor of Salvation, Essence of Celerity, Grail of Might)
+#   Pcons → every pcon the library knows (war supplies, food, and sweets)
+_CONS_CATEGORY_MODES: dict[str, str] = {
+    'Cons':  'conset',
+    'Pcons': 'pcons',
+}
+_CONS_CATEGORIES: list[str] = list(_CONS_CATEGORY_MODES.keys())
 
 class ConsSettings:
-    """Active flag (in-run upkeep) and multibox Xunlai-restock quantities."""
-    _active:  dict[str, bool] = {
-        p: bool(_ini.read_bool(BOT_NAME, f'cons_{p}_active', True))
-        for p, _, _ in _CONS_DEFS
-    }
+    """Per-category upkeep toggles and multibox Xunlai-restock quantities."""
+    _active:  dict[str, bool] = {cat: True for cat in _CONS_CATEGORIES}
     # Multibox Xunlai restock (broadcast after the Guild Hall merchant). Uses the
     # shared RestockAllPcons / RestockConset commands with a single quantity each.
-    RestockPcons:     bool = bool(_ini.read_bool(BOT_NAME, 'cons_restock_pcons', False))
-    PconRestockQty:   int  = max(0, int(_ini.read_int(BOT_NAME, 'cons_pcon_restock_qty', 20) or 20))
-    ConsetRestockQty: int  = max(0, int(_ini.read_int(BOT_NAME, 'cons_conset_restock_qty', 10) or 10))
+    RestockPcons:     bool = False
+    PconRestockQty:   int  = 20
+    ConsetRestockQty: int  = 10
 
     @classmethod
-    def is_active(cls, prop: str) -> bool:
-        return cls._active.get(prop, True)
+    def load(cls) -> None:
+        cls._active = {
+            cat: bool(_ini.read_bool(BOT_NAME, f'cons_cat_{cat.lower()}_active', True))
+            for cat in _CONS_CATEGORIES
+        }
+        cls.RestockPcons     = bool(_ini.read_bool(BOT_NAME, 'cons_restock_pcons', False))
+        cls.PconRestockQty   = max(0, int(_ini.read_int(BOT_NAME, 'cons_pcon_restock_qty', 20) or 20))
+        cls.ConsetRestockQty = max(0, int(_ini.read_int(BOT_NAME, 'cons_conset_restock_qty', 10) or 10))
 
     @classmethod
-    def set_active(cls, prop: str, value: bool) -> None:
-        cls._active[prop] = value
+    def is_category_active(cls, category: str) -> bool:
+        return cls._active.get(category, True)
+
+    @classmethod
+    def set_category_active(cls, category: str, value: bool) -> None:
+        cls._active[category] = value
         cls._save()
 
     @classmethod
     def _save(cls) -> None:
-        for prop, _, _ in _CONS_DEFS:
-            _ini.write_key(BOT_NAME, f'cons_{prop}_active',  str(cls._active.get(prop, True)))
+        for cat in _CONS_CATEGORIES:
+            _ini.write_key(BOT_NAME, f'cons_cat_{cat.lower()}_active', str(cls._active.get(cat, True)))
         _ini.write_key(BOT_NAME, 'cons_restock_pcons',     str(cls.RestockPcons))
         _ini.write_key(BOT_NAME, 'cons_pcon_restock_qty',  str(max(0, int(cls.PconRestockQty))))
         _ini.write_key(BOT_NAME, 'cons_conset_restock_qty', str(max(0, int(cls.ConsetRestockQty))))
@@ -249,8 +347,13 @@ _KING_FROZENWIND_TIMEOUT_S   = 600.0      # 10-min hard timeout
 
 class DhuumSettings:
     """Sacrifice account assignments for the Dhuum fight."""
-    SacrificeEmails:       set[str] = _read_emails_set('dhuum_sacrifice_emails')
-    MinSpiritformAccounts: int      = int(_ini.read_int(BOT_NAME, 'dhuum_min_spiritform', 2))
+    SacrificeEmails:       set[str] = set()
+    MinSpiritformAccounts: int      = 2
+
+    @classmethod
+    def load(cls) -> None:
+        cls.SacrificeEmails       = _read_emails_set('dhuum_sacrifice_emails')
+        cls.MinSpiritformAccounts = int(_ini.read_int(BOT_NAME, 'dhuum_min_spiritform', 2))
 
     @classmethod
     def save(cls) -> None:
@@ -272,8 +375,13 @@ class DhuumSettings:
 # ── Imprisoned Spirits teams ──────────────────────────────────────────────────
 class ImprisonedSpiritsSettings:
     """Left / right team assignments for the Imprisoned Spirits quest."""
-    LeftTeamEmails:  list[str] = _read_emails_list('imprisoned_left_emails')
-    RightTeamEmails: list[str] = _read_emails_list('imprisoned_right_emails')
+    LeftTeamEmails:  list[str] = []
+    RightTeamEmails: list[str] = []
+
+    @classmethod
+    def load(cls) -> None:
+        cls.LeftTeamEmails  = _read_emails_list('imprisoned_left_emails')
+        cls.RightTeamEmails = _read_emails_list('imprisoned_right_emails')
 
     @classmethod
     def save(cls) -> None:
@@ -302,6 +410,23 @@ class ImprisonedSpiritsSettings:
         cls.LeftTeamEmails  = emails[:3]
         cls.RightTeamEmails = emails[3:]
         cls.save()
+
+
+# Deferred load: settings classes hold safe defaults at import time and only pull
+# persisted values once the IniManager key resolves (i.e. the account is ready).
+# main() calls this once the key is available.
+_settings_loaded = False
+
+
+def _load_all_settings() -> None:
+    BotSettings.load()
+    EnterSettings.load()
+    InventorySettings.load()
+    ConsSettings.load()
+    DhuumSettings.load()
+    ImprisonedSpiritsSettings.load()
+    _load_quest_times_log()
+    _load_wipe_counts()
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
@@ -359,54 +484,44 @@ _DEAD_RESCUE_STEPS: frozenset[str] = frozenset(
 _quest_completion_times: dict[str, int] = {}
 _SPIRIT_FORM_SKILL_ID = 3134
 
-# ── Log files ─────────────────────────────────────────────────────────────────
-_WIPE_LOG_FILE    = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_wipes.log')
-_QUEST_TIMES_FILE = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_quest_times.json')
-_WIPE_COUNTS_FILE = os.path.join(Py4GW.Console.get_projects_path(), 'Widgets', 'Config', 'UnderworldBT_wipe_counts.json')
+# ── Statistics (persisted via IniManager in dedicated sections) ───────────────
+# quest_times: per-quest history of completed run times (seconds), serialized as a
+# ';'-joined list per quest under [QuestTimes]. wipe_counts: per-quest wipe tally
+# under [WipeCounts]. Both share the UnderworldBT.ini with the settings but in
+# their own sections, and load lazily once the account-scoped ini key resolves.
+_STATS_QUEST_TIMES_SECTION = 'QuestTimes'
+_STATS_WIPE_COUNTS_SECTION = 'WipeCounts'
 
-# How many most-recent runs to keep in the Run Log tab. Older runs are flushed to
-# the normal Py4GW console at the start of each run (set to 1 to keep only the
-# current run, raise it to retain more recent runs).
-_RUN_LOG_KEEP_RUNS = 3
-# Sentinel that marks the start of a run inside the run-log file.
-_RUN_LOG_HEADER = '----- run started '
-
-
-def _load_quest_times_log() -> dict[str, list[int]]:
-    try:
-        with open(_QUEST_TIMES_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            return {k: [int(v) for v in vs] for k, vs in data.items() if isinstance(vs, list)}
-    except (OSError, ValueError):
-        pass
-    return {}
+_quest_times_log: dict[str, list[int]] = {}
+_wipe_counts_log: dict[str, int] = {}
 
 
-_quest_times_log: dict[str, list[int]] = _load_quest_times_log()
+def _load_quest_times_log() -> None:
+    global _quest_times_log
+    result: dict[str, list[int]] = {}
+    for quest in _QUEST_ORDER:
+        raw = _ini.read_key(_STATS_QUEST_TIMES_SECTION, quest, '')
+        if not raw:
+            continue
+        times = [int(v) for v in raw.split(';') if v.strip().lstrip('-').isdigit()]
+        if times:
+            result[quest] = times
+    _quest_times_log = result
 
 
-def _load_wipe_counts() -> dict[str, int]:
-    try:
-        with open(_WIPE_COUNTS_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            return {k: int(v) for k, v in data.items() if isinstance(v, (int, float))}
-    except (OSError, ValueError):
-        pass
-    return {}
+def _load_wipe_counts() -> None:
+    global _wipe_counts_log
+    result: dict[str, int] = {}
+    for quest in _QUEST_ORDER:
+        count = _ini.read_int(_STATS_WIPE_COUNTS_SECTION, quest, 0)
+        if count > 0:
+            result[quest] = count
+    _wipe_counts_log = result
 
 
 def _save_wipe_counts() -> None:
-    try:
-        os.makedirs(os.path.dirname(_WIPE_COUNTS_FILE), exist_ok=True)
-        with open(_WIPE_COUNTS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(_wipe_counts_log, f, indent=2)
-    except OSError:
-        pass
-
-
-_wipe_counts_log: dict[str, int] = _load_wipe_counts()
+    for quest, count in _wipe_counts_log.items():
+        _ini.write_key(_STATS_WIPE_COUNTS_SECTION, quest, str(int(count)))
 
 # ── Step timer ────────────────────────────────────────────────────────────────
 # Timer starts when 'Clear the Chamber' begins.  Each step's recorded value is
@@ -422,66 +537,10 @@ _timing_state: dict = {
 
 
 def _save_quest_times_log() -> None:
-    try:
-        os.makedirs(os.path.dirname(_QUEST_TIMES_FILE), exist_ok=True)
-        with open(_QUEST_TIMES_FILE, 'w', encoding='utf-8') as f:
-            json.dump(_quest_times_log, f, indent=2)
-    except OSError:
-        pass
+    for quest, times in _quest_times_log.items():
+        _ini.write_key(_STATS_QUEST_TIMES_SECTION, quest, ';'.join(str(int(t)) for t in times))
 
 
-def _append_run_log(message: str) -> None:
-    """Append a timestamped line to the run log file (shown in the Run Log tab)."""
-    try:
-        os.makedirs(os.path.dirname(_WIPE_LOG_FILE), exist_ok=True)
-        ts = time.strftime('%Y-%m-%d %H:%M:%S')
-        with open(_WIPE_LOG_FILE, 'a', encoding='utf-8') as f:
-            f.write(f'[{ts}] {message}\n')
-    except OSError:
-        pass
-
-
-def _begin_run_log_run() -> None:
-    """Start a new run section in the run log.
-
-    Keeps only the most recent ``_RUN_LOG_KEEP_RUNS`` runs in the Run Log file and
-    writes everything older to the normal Py4GW console, so the Run Log tab only
-    ever shows the latest run(s) while older runs stay available in the console.
-    Called once per run start (the 'Enter Underworld' step transition).
-    """
-    ts = time.strftime('%Y-%m-%d %H:%M:%S')
-    header = f'{_RUN_LOG_HEADER}{ts} -----'
-    try:
-        os.makedirs(os.path.dirname(_WIPE_LOG_FILE), exist_ok=True)
-        try:
-            with open(_WIPE_LOG_FILE, 'r', encoding='utf-8') as f:
-                lines = [ln.rstrip('\n') for ln in f.readlines()]
-        except FileNotFoundError:
-            lines = []
-
-        # Group existing lines into runs. A run starts at a header sentinel; any
-        # leading lines without a header (e.g. logs from older sessions) form
-        # their own leading group.
-        runs: list[list[str]] = []
-        for ln in lines:
-            if ln.startswith(_RUN_LOG_HEADER) or not runs:
-                runs.append([])
-            runs[-1].append(ln)
-
-        keep_previous = max(0, _RUN_LOG_KEEP_RUNS - 1)
-        to_keep = runs[-keep_previous:] if keep_previous else []
-        to_flush = runs[:len(runs) - len(to_keep)]
-
-        flushed = [ln for grp in to_flush for ln in grp if ln.strip()]
-        for ln in flushed:
-            ConsoleLog(BOT_NAME, f'[Run Log] {ln}', Py4GW.Console.MessageType.Info)
-
-        kept_lines = [ln for grp in to_keep for ln in grp]
-        kept_lines.append(header)
-        with open(_WIPE_LOG_FILE, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(kept_lines) + '\n')
-    except OSError:
-        pass
 # ╔══════════════════════════════════════════════════════════════════════════════
 # ║  HELPERS
 # ╚══════════════════════════════════════════════════════════════════════════════
@@ -498,7 +557,7 @@ def _input_int_val(result: object, current: int) -> int:
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
-# ║  UI · DRAW FUNCTIONS  (settings tabs, run log, main-window widgets)
+# ║  UI · DRAW FUNCTIONS  (settings tabs, main-window widgets)
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 def _draw_help() -> None:
@@ -721,45 +780,13 @@ def _draw_cons_settings() -> None:
     PyImGui.separator()
     PyImGui.spacing()
 
-    _seen_cats: list[str] = []
-    _by_cat: dict[str, list] = {}
-    for entry in _CONS_DEFS:
-        cat = entry[2]
-        if cat not in _by_cat:
-            _seen_cats.append(cat)
-            _by_cat[cat] = []
-        _by_cat[cat].append(entry)
-
-    tbl_flags = (
-        PyImGui.TableFlags.RowBg
-        | PyImGui.TableFlags.BordersInnerV
-        | PyImGui.TableFlags.BordersOuterH
-        | PyImGui.TableFlags.SizingFixedFit
-    )
-
-    for cat in _seen_cats:
-        PyImGui.text(cat)
-        PyImGui.separator()
-        if PyImGui.begin_table(f'##cons_{cat}', 2, tbl_flags, 0.0, 0.0):
-            PyImGui.table_setup_column('Active', PyImGui.TableColumnFlags.WidthFixed,   50.0)
-            PyImGui.table_setup_column('Name',   PyImGui.TableColumnFlags.WidthStretch,  0.0)
-            PyImGui.table_headers_row()
-
-            for prop, dname, _ in _by_cat[cat]:
-                cur_active = ConsSettings.is_active(prop)
-
-                PyImGui.table_next_row()
-
-                PyImGui.table_next_column()
-                new_active = PyImGui.checkbox(f'##ca_{prop}', cur_active)
-                if new_active != cur_active:
-                    ConsSettings.set_active(prop, new_active)
-
-                PyImGui.table_next_column()
-                PyImGui.text(dname)
-
-        PyImGui.end_table()
-        PyImGui.spacing()
+    PyImGui.text('Upkeep categories')
+    PyImGui.separator()
+    for cat in _CONS_CATEGORIES:
+        cur_active = ConsSettings.is_category_active(cat)
+        new_active = PyImGui.checkbox(f'{cat}##cons_cat_{cat}', cur_active)
+        if new_active != cur_active:
+            ConsSettings.set_category_active(cat, new_active)
 
 
 def _draw_dhuum_settings() -> None:
@@ -979,41 +1006,19 @@ def _draw_settings() -> None:
         PyImGui.end_tab_bar()
 
 
-def _draw_run_log() -> None:
-    if PyImGui.button('Clear Log##run_log'):
-        try:
-            with open(_WIPE_LOG_FILE, 'w', encoding='utf-8') as f:
-                f.truncate(0)
-        except OSError:
-            pass
-    PyImGui.same_line(0, -1)
-    if PyImGui.button('Reset Times##run_log'):
-        # Reset every statistic shown in the Main tab's Quest Progress table:
-        # this-run times (Time), the per-quest history feeding Avg5/AvgAll, and
-        # the wipe counts feeding SR% (cleared together so SR% returns to '--'
-        # instead of a misleading 0%). Also reset the live run timer state so
-        # 'Enter Underworld' goes back to pending.
-        _quest_completion_times.clear()
-        _quest_times_log.clear()
-        _wipe_counts_log.clear()
-        _timing_state['run_start_ms'] = None
-        _timing_state['last_step'] = ''
-        _save_quest_times_log()
-        _save_wipe_counts()
-    PyImGui.separator()
-    try:
-        with open(_WIPE_LOG_FILE, 'r', encoding='utf-8') as f:
-            lines = [ln.rstrip('\n') for ln in f.readlines() if ln.strip()]
-        last_10 = lines[-10:] if len(lines) > 10 else lines
-        if not last_10:
-            PyImGui.text_wrapped('(log is empty)')
-        else:
-            for line in reversed(last_10):
-                PyImGui.text_wrapped(line)
-    except FileNotFoundError:
-        PyImGui.text_wrapped('(no log file yet — wipes and completed runs will appear here)')
-    except OSError as exc:
-        PyImGui.text_wrapped(f'Error reading log: {exc}')
+def _reset_stats() -> None:
+    # Reset every statistic shown in the Quest Progress table: this-run times
+    # (Time), the per-quest history feeding Avg5/AvgAll, and the wipe counts
+    # feeding SR% (cleared together so SR% returns to '--' instead of a misleading
+    # 0%). Also reset the live run timer state so 'Enter Underworld' goes back to
+    # pending, and drop the persisted stat sections from the ini.
+    _quest_completion_times.clear()
+    _quest_times_log.clear()
+    _wipe_counts_log.clear()
+    _timing_state['run_start_ms'] = None
+    _timing_state['last_step'] = ''
+    _ini.delete_section(_STATS_QUEST_TIMES_SECTION)
+    _ini.delete_section(_STATS_WIPE_COUNTS_SECTION)
 
 
 def _fmt_s(total_s: int) -> str:
@@ -1029,6 +1034,9 @@ def _draw_main_additional_ui() -> None:
     _color_slow    = Utils.RGBToNormal(255,  80,  80, 255)
 
     PyImGui.text('Quest Progress')
+    PyImGui.same_line(0, -1)
+    if PyImGui.button('Reset Times##uw_stats'):
+        _reset_stats()
     if PyImGui.begin_table(
         '##uw_quest_table', 5,
         PyImGui.TableFlags.RowBg
@@ -3564,7 +3572,7 @@ def _build_step_timer_service():
         # Record the just-completed step's cumulative time BEFORE applying any
         # run reset for the new step. The 'Loot Chest' → 'Enter Underworld'
         # transition (repeat mode) would otherwise clear run_start_ms first and
-        # silently drop both the Loot Chest stat and the run-success log line.
+        # silently drop the Loot Chest stat and the run-success console line.
         run_start = _timing_state['run_start_ms']
         if last_step and last_step in _TIMED_QUESTS and run_start is not None:
             elapsed_ms = now_ms - run_start
@@ -3574,12 +3582,9 @@ def _build_step_timer_service():
                 _save_quest_times_log()
                 if last_step == 'Loot Chest':
                     total_s = elapsed_ms // 1000
-                    _append_run_log(f'Run SUCCESS completed in {_fmt_s(total_s)}')
+                    ConsoleLog(BOT_NAME, f'Run SUCCESS completed in {_fmt_s(total_s)}', Py4GW.Console.MessageType.Success)
 
         if current_step == 'Enter Underworld':
-            # New run starting: rotate the Run Log so it only keeps the latest
-            # run(s); older runs are written to the normal console.
-            _begin_run_log_run()
             _quest_completion_times.clear()
             _timing_state['run_start_ms'] = None
 
@@ -3641,7 +3646,7 @@ def _build_uw_wipe_recovery_tree() -> _BT:
             _state['last_return_ms'] = 0.0
             node.blackboard['party_wipe_recovery_active'] = True
             step_at_wipe = str(node.blackboard.get('current_step_name', '') or 'unknown')
-            _append_run_log(f'Party wiped at step: {step_at_wipe}')
+            ConsoleLog(BOT_NAME, f'Party wiped at step: {step_at_wipe}', Py4GW.Console.MessageType.Warning)
             if step_at_wipe and step_at_wipe != 'unknown':
                 _wipe_counts_log[step_at_wipe] = _wipe_counts_log.get(step_at_wipe, 0) + 1
                 _save_wipe_counts()
@@ -3692,16 +3697,17 @@ def _build_priority_target_service() -> _BT:
 
     Port of UnderworldV2 ``BuildPriorityTargetService`` / ``CallPriorityTarget``.
     Uses HeroAI ``CallTarget`` on the party leader via ``_party_call_or_change_target``.
-    Priority lookup is name-based (GetNameByID, already called for blacklist checks).
-    ModelData is too sparse for UW enemies and is not used here.
+    Priority lookup is keyed on model id (Agent.GetModelID), which is language
+    independent; GetNameByID is only used for the (name-based) blacklist filter and
+    only for agents that already match a priority model id, to limit name lookups.
     """
-    priority_map: dict[str, int] = {name.strip().lower(): idx for idx, name in enumerate(UW_TARGET_PRIORITY)}
+    priority_map: dict[int, int] = {int(model_id): idx for idx, model_id in enumerate(UW_TARGET_PRIORITY)}
     sentinel_priority = len(UW_TARGET_PRIORITY)
     range_sq = float(_UW_PRIORITY_TARGET_RANGE) * float(_UW_PRIORITY_TARGET_RANGE)
     state: dict = {'last_call_ms': 0.0, 'last_scan_ms': 0.0}
 
-    def _agent_priority(agent_name: str) -> int:
-        return priority_map.get(agent_name, -1) if agent_name else -1
+    def _agent_priority(model_id: int) -> int:
+        return priority_map.get(int(model_id), -1) if model_id else -1
 
     def _blacklist_names_snapshot() -> frozenset[str]:
         try:
@@ -3754,14 +3760,15 @@ def _build_priority_target_service() -> _BT:
                 agent_id = int(raw_agent_id)
                 if not Agent.IsAlive(agent_id):
                     continue
+                prio = _agent_priority(Agent.GetModelID(agent_id))
+                if prio == -1 or prio >= best_priority:
+                    continue
+                # Only matched-priority agents reach the (name-based) blacklist filter.
                 try:
                     agent_name = (Agent.GetNameByID(agent_id) or '').strip().lower()
                 except Exception:
                     agent_name = ''
                 if agent_name and agent_name in blacklist_names:
-                    continue
-                prio = _agent_priority(agent_name)
-                if prio == -1 or prio >= best_priority:
                     continue
                 ax, ay = Agent.GetXY(agent_id)
                 dx, dy = px - float(ax), py - float(ay)
@@ -3782,10 +3789,12 @@ def _build_priority_target_service() -> _BT:
         if current_target_id != 0:
             current_prio = sentinel_priority
             try:
-                current_target_name = (Agent.GetNameByID(current_target_id) or '').strip().lower()
-                if not (current_target_name and current_target_name in blacklist_names):
-                    current_prio = _agent_priority(current_target_name)
-                    if current_prio == -1:
+                current_prio = _agent_priority(Agent.GetModelID(current_target_id))
+                if current_prio == -1:
+                    current_prio = sentinel_priority
+                else:
+                    current_target_name = (Agent.GetNameByID(current_target_id) or '').strip().lower()
+                    if current_target_name and current_target_name in blacklist_names:
                         current_prio = sentinel_priority
             except Exception:
                 pass
@@ -3890,40 +3899,40 @@ def _build_soulkeeper_call_service() -> _BT:
 
 
 def _build_consolidated_consumable_upkeep_service() -> _BT:
-    """Single background service that round-robins the per-item ConsumableService trees.
+    """Background consumable upkeep: one ConsumableService per item under a ParallelNode.
 
-    Many parallel ConsumableService branches (one per con) all ticked alongside HeroAI +
-    planner; each can issue ``UseItem`` and hit effect scans. That competes with movement
-    and ``WaitNode`` timing and showed up as frequent *Planner tree failed*.  Here only
-    **one** consumable subtree runs per frame, in rotation over active items.
+    The item set per category comes straight from the core library's canonical
+    consumable lists (``consumable_specs``), so every pcon the library knows is
+    covered — no hand-maintained subset. ConsumableService self-throttles
+    (``check_interval_ms``) and only acts when its effect is missing, so ticking
+    every item in parallel does not spam ``UseItem`` or effect scans. Each child is
+    guarded by the global Use-Cons toggle, its category toggle, and the planner's
+    background-upkeep skip flag. ConsumableService returns RUNNING in steady state,
+    so the ParallelNode stays RUNNING and never resets its children.
     """
-    _inners: dict[str, _BT] = {}
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_consumables import consumable_specs
 
-    def _inner_for(prop: str) -> _BT:
-        if prop not in _inners:
-            preset = Routines.BT.Upkeepers.CONSUMABLE_UPKEEP_PRESETS.get(prop, {})
-            model_id = int(preset.get('model_id', 0))
-            _inners[prop] = Routines.BT.Upkeepers.ConsumableService(model_id)
-        return _inners[prop]
+    def _make_child(category: str, model_id: int, effect_name: str) -> _BT.Node:
+        inner = Routines.BT.Upkeepers.ConsumableService(model_id, effect_name)
 
-    def _tick(node: _BT.Node) -> _BT.NodeState:
-        if not BotSettings.UseCons:
-            return _BT.NodeState.RUNNING
-        if _skip_background_upkeep(node.blackboard):
-            return _BT.NodeState.RUNNING
-        active = [p for p, _, _ in _CONS_DEFS if ConsSettings.is_active(p)]
-        if not active:
-            return _BT.NodeState.RUNNING
+        def _tick(node: _BT.Node) -> _BT.NodeState:
+            if not BotSettings.UseCons:
+                return _BT.NodeState.RUNNING
+            if _skip_background_upkeep(node.blackboard):
+                return _BT.NodeState.RUNNING
+            if not ConsSettings.is_category_active(category):
+                return _BT.NodeState.RUNNING
+            inner.blackboard = node.blackboard
+            return inner.tick()
 
-        rr = int(node.blackboard.setdefault('uw_cons_upkeep_rr', 0) or 0)
-        prop = active[rr % len(active)]
-        node.blackboard['uw_cons_upkeep_rr'] = rr + 1
+        return _BT.ActionNode(name=f'ConsumableUpkeep_{category}_{model_id}', action_fn=_tick, aftercast_ms=0)
 
-        inner = _inner_for(prop)
-        inner.blackboard = node.blackboard
-        return inner.tick()
+    children: list[_BT.Node] = []
+    for category, mode in _CONS_CATEGORY_MODES.items():
+        for model_id, effect_name in consumable_specs(mode):
+            children.append(_make_child(category, int(model_id), str(effect_name)))
 
-    return _BT(_BT.ActionNode(name='ConsumableUpkeepConsolidated', action_fn=_tick, aftercast_ms=0))
+    return _BT(_BT.ParallelNode(children=children, name='ConsumableUpkeepParallel'))
 
 
 # Dead-member rescue tuning. When a party member dies and is left behind, the
@@ -4035,13 +4044,13 @@ def _build_dead_member_recovery_service() -> _BT:
             state['arrived_ms'] = None
             state['target_id'] = 0
             state['move_tree'] = None
-            _append_run_log('Dead party member behind — walking back to revive.')
+            ConsoleLog(BOT_NAME, 'Dead party member behind — walking back to revive.', Py4GW.Console.MessageType.Info)
 
         bb['uw_dead_recovery_active'] = True
 
         # Absolute safety cap so a permanently-unrezzable corpse can't stall the run.
         if (now_ms - state['started_ms']) >= _UW_RESCUE_OVERALL_TIMEOUT_MS:
-            _append_run_log('Dead-member rescue timed out — resuming run.')
+            ConsoleLog(BOT_NAME, 'Dead-member rescue timed out — resuming run.', Py4GW.Console.MessageType.Info)
             _release(node)
             return _BT.NodeState.RUNNING
 
@@ -4057,7 +4066,7 @@ def _build_dead_member_recovery_service() -> _BT:
             if state['arrived_ms'] is None:
                 state['arrived_ms'] = now_ms
             elif (now_ms - state['arrived_ms']) >= _UW_RESCUE_ARRIVAL_WAIT_MS:
-                _append_run_log('Could not revive dead member in time — resuming run.')
+                ConsoleLog(BOT_NAME, 'Could not revive dead member in time — resuming run.', Py4GW.Console.MessageType.Info)
                 _release(node)
             return _BT.NodeState.RUNNING
 
@@ -4215,7 +4224,12 @@ _MAP_STABLE_THRESHOLD: int = 10
 
 
 def main() -> None:
-    global _map_stable_frames
+    global _map_stable_frames, _settings_loaded
+
+    # Pull persisted settings once the account-scoped IniManager key resolves.
+    if not _settings_loaded and _ini.key():
+        _load_all_settings()
+        _settings_loaded = True
 
     if not Map.IsMapDataLoaded():
         _map_stable_frames = 0
@@ -4232,7 +4246,6 @@ def main() -> None:
         icon_path=os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON),
         main_child_dimensions=(550, 680),
         additional_ui=_draw_main_additional_ui,
-        extra_tabs=[('Run Log', _draw_run_log)],
     )
 
 
