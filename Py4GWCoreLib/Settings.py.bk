@@ -1,0 +1,724 @@
+from dataclasses import dataclass
+from typing import Any, Optional, cast
+
+from .Account import Account
+from .DBMgr import DBMgr
+
+
+class WidgetSettings:
+    """Widget-bound convenience wrapper over Settings."""
+
+    def __init__(self, settings_db: 'Settings', widget_key: str, widget_name: Optional[str], description: Optional[str]) -> None:
+        self._settings_db = settings_db
+        self.widget_key = str(widget_key).strip()
+        self.widget_name = widget_name
+        self.description = description
+
+    def Ensure(self, commit: bool = True) -> int:
+        return self._settings_db.EnsureWidget(self.widget_key, self.widget_name, self.description, commit=commit)
+
+    def EnsureKey(self, section: str, key: str, key_type: str, default: Any, commit: bool = True) -> int:
+        self.Ensure(commit=commit)
+        existing = self._settings_db.GetCurrentAccountEntry(self.widget_key, section, key, commit=commit)
+        if existing is not None:
+            return int(existing['ID'])
+        return self.SetKey(section, key, key_type, default, commit=commit)
+
+    def EnsureBool(self, section: str, key: str, default: bool = False, commit: bool = True) -> int:
+        return self.EnsureKey(section, key, 'bool', default, commit=commit)
+
+    def EnsureInt(self, section: str, key: str, default: int = 0, commit: bool = True) -> int:
+        return self.EnsureKey(section, key, 'int', default, commit=commit)
+
+    def EnsureFloat(self, section: str, key: str, default: float = 0.0, commit: bool = True) -> int:
+        return self.EnsureKey(section, key, 'float', default, commit=commit)
+
+    def EnsureStr(self, section: str, key: str, default: str = '', commit: bool = True) -> int:
+        return self.EnsureKey(section, key, 'str', default, commit=commit)
+
+    def GetKey(self, section: str, key: str, key_type: str, default: Any, commit: bool = True) -> Any:
+        return self._settings_db.GetCurrentAccountValue(
+            self.widget_key,
+            section,
+            key,
+            key_type,
+            default,
+            widget_name=self.widget_name,
+            description=self.description,
+            commit=commit,
+        )
+
+    def GetBool(self, section: str, key: str, default: bool = False, commit: bool = True) -> bool:
+        return bool(self.GetKey(section, key, 'bool', default, commit=commit))
+
+    def GetInt(self, section: str, key: str, default: int = 0, commit: bool = True) -> int:
+        return int(self.GetKey(section, key, 'int', default, commit=commit))
+
+    def GetFloat(self, section: str, key: str, default: float = 0.0, commit: bool = True) -> float:
+        return float(self.GetKey(section, key, 'float', default, commit=commit))
+
+    def GetStr(self, section: str, key: str, default: str = '', commit: bool = True) -> str:
+        return str(self.GetKey(section, key, 'str', default, commit=commit))
+
+    def SetKey(self, section: str, key: str, key_type: str, value: Any, commit: bool = True) -> int:
+        return self._settings_db.SetCurrentAccountValue(
+            self.widget_key,
+            section,
+            key,
+            key_type,
+            value,
+            widget_name=self.widget_name,
+            description=self.description,
+            commit=commit,
+        )
+
+    def SetBool(self, section: str, key: str, value: bool, commit: bool = True) -> int:
+        return self.SetKey(section, key, 'bool', value, commit=commit)
+
+    def SetInt(self, section: str, key: str, value: int, commit: bool = True) -> int:
+        return self.SetKey(section, key, 'int', value, commit=commit)
+
+    def SetFloat(self, section: str, key: str, value: float, commit: bool = True) -> int:
+        return self.SetKey(section, key, 'float', value, commit=commit)
+
+    def SetStr(self, section: str, key: str, value: str, commit: bool = True) -> int:
+        return self.SetKey(section, key, 'str', value, commit=commit)
+
+    def DeleteKey(self, section: str, key: str, commit: bool = True) -> int:
+        email = Settings._get_current_account_email()
+        if not email:
+            return 0
+        return self._settings_db.DeleteAccountValueByEmail(self.widget_key, email, section, key, commit=commit)
+
+    def GetSection(self, section: str, commit: bool = True) -> list[dict]:
+        email = Settings._get_current_account_email()
+        if not email:
+            return []
+        account_id = Account().GetAccountKey(email, commit=commit)
+        if account_id is None:
+            return []
+        return self._settings_db.GetAccountSection(self.widget_key, account_id, section, commit=commit)
+
+    def GetGlobalKey(self, section: str, key: str, key_type: str, default: Any, commit: bool = True) -> Any:
+        return self._settings_db.GetGlobalValue(
+            self.widget_key,
+            section,
+            key,
+            key_type,
+            default,
+            widget_name=self.widget_name,
+            description=self.description,
+            commit=commit,
+        )
+
+    def EnsureGlobalKey(self, section: str, key: str, key_type: str, default: Any, commit: bool = True) -> int:
+        self.Ensure(commit=commit)
+        existing = self._settings_db.GetGlobalEntry(self.widget_key, section, key, commit=commit)
+        if existing is not None:
+            return int(existing['ID'])
+        return self.SetGlobalKey(section, key, key_type, default, commit=commit)
+
+    def EnsureGlobalBool(self, section: str, key: str, default: bool = False, commit: bool = True) -> int:
+        return self.EnsureGlobalKey(section, key, 'bool', default, commit=commit)
+
+    def EnsureGlobalInt(self, section: str, key: str, default: int = 0, commit: bool = True) -> int:
+        return self.EnsureGlobalKey(section, key, 'int', default, commit=commit)
+
+    def EnsureGlobalFloat(self, section: str, key: str, default: float = 0.0, commit: bool = True) -> int:
+        return self.EnsureGlobalKey(section, key, 'float', default, commit=commit)
+
+    def EnsureGlobalStr(self, section: str, key: str, default: str = '', commit: bool = True) -> int:
+        return self.EnsureGlobalKey(section, key, 'str', default, commit=commit)
+
+    def GetGlobalBool(self, section: str, key: str, default: bool = False, commit: bool = True) -> bool:
+        return bool(self.GetGlobalKey(section, key, 'bool', default, commit=commit))
+
+    def GetGlobalInt(self, section: str, key: str, default: int = 0, commit: bool = True) -> int:
+        return int(self.GetGlobalKey(section, key, 'int', default, commit=commit))
+
+    def GetGlobalFloat(self, section: str, key: str, default: float = 0.0, commit: bool = True) -> float:
+        return float(self.GetGlobalKey(section, key, 'float', default, commit=commit))
+
+    def GetGlobalStr(self, section: str, key: str, default: str = '', commit: bool = True) -> str:
+        return str(self.GetGlobalKey(section, key, 'str', default, commit=commit))
+
+    def SetGlobalKey(self, section: str, key: str, key_type: str, value: Any, commit: bool = True) -> int:
+        return self._settings_db.SetGlobalValue(
+            self.widget_key,
+            section,
+            key,
+            key_type,
+            value,
+            widget_name=self.widget_name,
+            description=self.description,
+            commit=commit,
+        )
+
+    def SetGlobalBool(self, section: str, key: str, value: bool, commit: bool = True) -> int:
+        return self.SetGlobalKey(section, key, 'bool', value, commit=commit)
+
+    def SetGlobalInt(self, section: str, key: str, value: int, commit: bool = True) -> int:
+        return self.SetGlobalKey(section, key, 'int', value, commit=commit)
+
+    def SetGlobalFloat(self, section: str, key: str, value: float, commit: bool = True) -> int:
+        return self.SetGlobalKey(section, key, 'float', value, commit=commit)
+
+    def SetGlobalStr(self, section: str, key: str, value: str, commit: bool = True) -> int:
+        return self.SetGlobalKey(section, key, 'str', value, commit=commit)
+
+    def DeleteGlobalKey(self, section: str, key: str, commit: bool = True) -> int:
+        return self._settings_db.DeleteGlobalValue(self.widget_key, section, key, commit=commit)
+
+
+@dataclass
+class WindowState:
+    initialized: bool = False
+    x_pos: int = 0
+    y_pos: int = 0
+    width: int = 0
+    height: int = 0
+    collapsed: bool = False
+    begin_called: bool = False
+    begin_returned_true: bool = False
+
+
+class Settings(DBMgr):
+    """Persistence helpers for the Py4GW settings database."""
+
+    DATABASE_NAME = 'Py4GW_Settings'
+    WIDGET_TABLE = 'Widget'
+    GLOBALS_TABLE = 'Globals'
+    KEYS_TABLE = 'Keys'
+
+    def __new__(cls) -> 'Settings':
+        return cast('Settings', super().__new__(cls, cls.DATABASE_NAME))
+
+    def __init__(self) -> None:
+        super().__init__(self.DATABASE_NAME)
+        if getattr(self, '_settings_initialized', False):
+            return
+        self._window_states: dict[str, WindowState] = {}
+        self._settings_initialized = True
+
+    def ForWidget(self, widget_key: str, widget_name: Optional[str] = None, description: Optional[str] = None) -> WidgetSettings:
+        return WidgetSettings(self, widget_key, widget_name, description)
+
+    def _get_window_state(self, widget_key: str) -> WindowState:
+        normalized_widget_key = self._normalize_text(widget_key)
+        state = self._window_states.get(normalized_widget_key)
+        if state is None:
+            state = WindowState()
+            self._window_states[normalized_widget_key] = state
+        return state
+
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        return str(value).strip()
+
+    @staticmethod
+    def _normalize_key_type(key_type: str) -> str:
+        normalized = str(key_type).strip().lower()
+        if normalized not in {'bool', 'int', 'float', 'str'}:
+            raise ValueError(f"Unsupported key type '{key_type}'. Expected one of: bool, int, float, str.")
+        return normalized
+
+    @staticmethod
+    def _serialize_value(value: Any, key_type: str) -> str:
+        normalized = Settings._normalize_key_type(key_type)
+        if normalized == 'bool':
+            return '1' if bool(value) else '0'
+        if normalized == 'int':
+            return str(int(value))
+        if normalized == 'float':
+            return str(float(value))
+        return str(value)
+
+    @staticmethod
+    def _deserialize_value(value: str, key_type: str) -> Any:
+        normalized = Settings._normalize_key_type(key_type)
+        if normalized == 'bool':
+            return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+        if normalized == 'int':
+            return int(value)
+        if normalized == 'float':
+            return float(value)
+        return str(value)
+
+    @staticmethod
+    def _get_current_account_email() -> str:
+        from ..Player import Player
+
+        return str(Player.GetAccountEmail() or '').strip()
+
+    def begin_window_config(self, widget_key: str) -> None:
+        import PyImGui
+
+        if not widget_key:
+            return
+
+        state = self._get_window_state(widget_key)
+        state.begin_called = True
+        state.begin_returned_true = False
+
+        if state.initialized:
+            return
+
+        settings = self.ForWidget(widget_key)
+        state.x_pos = settings.GetInt('Window config', 'x', default=0)
+        state.y_pos = settings.GetInt('Window config', 'y', default=0)
+        state.width = settings.GetInt('Window config', 'width', default=0)
+        state.height = settings.GetInt('Window config', 'height', default=0)
+        state.collapsed = settings.GetBool('Window config', 'collapsed', default=False)
+
+        PyImGui.set_next_window_pos(state.x_pos, state.y_pos)
+        if state.width > 0 and state.height > 0:
+            PyImGui.set_next_window_size(state.width, state.height)
+        PyImGui.set_next_window_collapsed(state.collapsed, 0)
+        state.initialized = True
+
+    def mark_begin_success(self, widget_key: str) -> None:
+        if not widget_key:
+            return
+        self._get_window_state(widget_key).begin_returned_true = True
+
+    def track_window_collapsed(self, widget_key: str, begin_result: bool) -> None:
+        if not widget_key:
+            return
+
+        state = self._get_window_state(widget_key)
+        new_collapsed = not begin_result
+        if new_collapsed == state.collapsed:
+            return
+
+        state.collapsed = new_collapsed
+        self.ForWidget(widget_key).SetBool('Window config', 'collapsed', state.collapsed)
+
+    def end_window_config(self, widget_key: str) -> None:
+        import PyImGui
+
+        if not widget_key:
+            return
+
+        state = self._get_window_state(widget_key)
+        if not state.begin_called or not state.begin_returned_true:
+            state.begin_called = False
+            state.begin_returned_true = False
+            return
+
+        end_pos = PyImGui.get_window_pos()
+        end_size = PyImGui.get_window_size()
+
+        new_x = int(end_pos[0])
+        new_y = int(end_pos[1])
+        new_width = int(end_size[0])
+        new_height = int(end_size[1])
+
+        settings = self.ForWidget(widget_key)
+        if new_x != state.x_pos:
+            state.x_pos = new_x
+            settings.SetInt('Window config', 'x', state.x_pos)
+        if new_y != state.y_pos:
+            state.y_pos = new_y
+            settings.SetInt('Window config', 'y', state.y_pos)
+        if new_width != state.width:
+            state.width = new_width
+            settings.SetInt('Window config', 'width', state.width)
+        if new_height != state.height:
+            state.height = new_height
+            settings.SetInt('Window config', 'height', state.height)
+
+        state.begin_called = False
+        state.begin_returned_true = False
+
+    def _get_widget_row(self, widget_key: str, commit: bool = True) -> Optional[dict]:
+        return self.GetFirstEntry(self.WIDGET_TABLE, 'Key', self._normalize_text(widget_key), commit=commit)
+
+    def _get_global_row(self, widget_id: int, section: str, key: str, commit: bool = True) -> Optional[dict]:
+        rows = self.Select(
+            self.GLOBALS_TABLE,
+            where={
+                'WidgetID': int(widget_id),
+                'Section': self._normalize_text(section),
+                'Key': self._normalize_text(key),
+            },
+            limit=1,
+            commit=commit,
+        )
+        return rows[0] if rows else None
+
+    def _get_account_row(self, widget_id: int, account_id: int, section: str, key: str, commit: bool = True) -> Optional[dict]:
+        rows = self.Select(
+            self.KEYS_TABLE,
+            where={
+                'WidgetID': int(widget_id),
+                'AccountID': int(account_id),
+                'Section': self._normalize_text(section),
+                'Key': self._normalize_text(key),
+            },
+            limit=1,
+            commit=commit,
+        )
+        return rows[0] if rows else None
+
+    def RegisterWidget(self, widget_key: str, name: str, description: Optional[str] = None, commit: bool = True) -> int:
+        existing = self._get_widget_row(widget_key, commit=commit)
+        if existing is not None:
+            return int(existing['ID'])
+        return self.Insert(
+            self.WIDGET_TABLE,
+            ['Key', 'Name', 'Description'],
+            [self._normalize_text(widget_key), self._normalize_text(name), description],
+            commit=commit,
+        )
+
+    def EnsureWidget(self, widget_key: str, name: Optional[str] = None, description: Optional[str] = None, commit: bool = True) -> int:
+        existing = self._get_widget_row(widget_key, commit=commit)
+        if existing is not None:
+            updates: dict[str, Any] = {}
+            if name is not None and self._normalize_text(name) != existing['Name']:
+                updates['Name'] = self._normalize_text(name)
+            if description is not None and description != existing.get('Description'):
+                updates['Description'] = description
+            if updates:
+                self.Update(self.WIDGET_TABLE, updates, where={'ID': int(existing['ID'])}, commit=commit)
+            return int(existing['ID'])
+        return self.RegisterWidget(widget_key, name or self._normalize_text(widget_key), description, commit=commit)
+
+    def GetWidgetData(self, widget_key: str, commit: bool = True) -> Optional[dict]:
+        return self._get_widget_row(widget_key, commit=commit)
+
+    def GetWidgetDataByID(self, widget_id: int, commit: bool = True) -> Optional[dict]:
+        return self.GetFirstEntry(self.WIDGET_TABLE, 'ID', int(widget_id), commit=commit)
+
+    def GetAllWidgets(self, commit: bool = True) -> list[dict]:
+        return self.Select(self.WIDGET_TABLE, order_by='Key', commit=commit)
+
+    def SetWidgetData(self, widget_key: str, data: dict, commit: bool = True) -> int:
+        return self.Update(self.WIDGET_TABLE, data, where={'Key': self._normalize_text(widget_key)}, commit=commit)
+
+    def DeleteWidget(self, widget_key: str, commit: bool = True) -> int:
+        return self.Delete(self.WIDGET_TABLE, where={'Key': self._normalize_text(widget_key)}, commit=commit)
+
+    def SetGlobalValue(
+        self,
+        widget_key: str,
+        section: str,
+        key: str,
+        key_type: str,
+        value: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> int:
+        widget_id = self.EnsureWidget(widget_key, widget_name, description, commit=commit)
+        normalized_section = self._normalize_text(section)
+        normalized_key = self._normalize_text(key)
+        normalized_type = self._normalize_key_type(key_type)
+        serialized_value = self._serialize_value(value, normalized_type)
+        existing = self._get_global_row(widget_id, normalized_section, normalized_key, commit=commit)
+        if existing is None:
+            return self.Insert(
+                self.GLOBALS_TABLE,
+                ['WidgetID', 'Section', 'Key', 'KeyType', 'Value'],
+                [widget_id, normalized_section, normalized_key, normalized_type, serialized_value],
+                commit=commit,
+            )
+        self.Update(
+            self.GLOBALS_TABLE,
+            {'KeyType': normalized_type, 'Value': serialized_value},
+            where={'ID': int(existing['ID'])},
+            commit=commit,
+        )
+        return int(existing['ID'])
+
+    def GetGlobalValue(
+        self,
+        widget_key: str,
+        section: str,
+        key: str,
+        key_type: str,
+        default: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> Any:
+        widget_id = self.EnsureWidget(widget_key, widget_name, description, commit=commit)
+        row = self._get_global_row(widget_id, section, key, commit=commit)
+        if row is None:
+            row_id = self.SetGlobalValue(
+                widget_key,
+                section,
+                key,
+                key_type,
+                default,
+                widget_name=widget_name,
+                description=description,
+                commit=commit,
+            )
+            row = {
+                'ID': int(row_id),
+                'WidgetID': int(widget_id),
+                'Section': self._normalize_text(section),
+                'Key': self._normalize_text(key),
+                'KeyType': self._normalize_key_type(key_type),
+                'Value': self._serialize_value(default, key_type),
+            }
+        return self._deserialize_value(row['Value'], row['KeyType'])
+
+    def GetGlobalEntry(self, widget_key: str, section: str, key: str, commit: bool = True) -> Optional[dict]:
+        widget = self._get_widget_row(widget_key, commit=commit)
+        if widget is None:
+            return None
+        return self._get_global_row(int(widget['ID']), section, key, commit=commit)
+
+    def DeleteGlobalValue(self, widget_key: str, section: str, key: str, commit: bool = True) -> int:
+        widget = self._get_widget_row(widget_key, commit=commit)
+        if widget is None:
+            return 0
+        return self.Delete(
+            self.GLOBALS_TABLE,
+            where={
+                'WidgetID': int(widget['ID']),
+                'Section': self._normalize_text(section),
+                'Key': self._normalize_text(key),
+            },
+            commit=commit,
+        )
+
+    def GetGlobalSection(self, widget_key: str, section: str, commit: bool = True) -> list[dict]:
+        widget = self._get_widget_row(widget_key, commit=commit)
+        if widget is None:
+            return []
+        return self.Select(
+            self.GLOBALS_TABLE,
+            where={'WidgetID': int(widget['ID']), 'Section': self._normalize_text(section)},
+            order_by='Key',
+            commit=commit,
+        )
+
+    def SetAccountValue(
+        self,
+        widget_key: str,
+        account_id: int,
+        section: str,
+        key: str,
+        key_type: str,
+        value: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> int:
+        widget_id = self.EnsureWidget(widget_key, widget_name, description, commit=commit)
+        normalized_section = self._normalize_text(section)
+        normalized_key = self._normalize_text(key)
+        normalized_type = self._normalize_key_type(key_type)
+        serialized_value = self._serialize_value(value, normalized_type)
+        existing = self._get_account_row(widget_id, int(account_id), normalized_section, normalized_key, commit=commit)
+        if existing is None:
+            return self.Insert(
+                self.KEYS_TABLE,
+                ['WidgetID', 'AccountID', 'Section', 'Key', 'KeyType', 'Value'],
+                [widget_id, int(account_id), normalized_section, normalized_key, normalized_type, serialized_value],
+                commit=commit,
+            )
+        self.Update(
+            self.KEYS_TABLE,
+            {'KeyType': normalized_type, 'Value': serialized_value},
+            where={'ID': int(existing['ID'])},
+            commit=commit,
+        )
+        return int(existing['ID'])
+
+    def SetAccountValueByEmail(
+        self,
+        widget_key: str,
+        email: str,
+        section: str,
+        key: str,
+        key_type: str,
+        value: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> int:
+        account_id = Account().GetAccountKey(email, commit=commit)
+        if account_id is None:
+            raise ValueError(f"Account '{email}' is not registered in Py4GW_Accounts.")
+        return self.SetAccountValue(
+            widget_key,
+            account_id,
+            section,
+            key,
+            key_type,
+            value,
+            widget_name=widget_name,
+            description=description,
+            commit=commit,
+        )
+
+    def GetAccountValue(
+        self,
+        widget_key: str,
+        account_id: int,
+        section: str,
+        key: str,
+        key_type: str,
+        default: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> Any:
+        widget_id = self.EnsureWidget(widget_key, widget_name, description, commit=commit)
+        row = self._get_account_row(widget_id, int(account_id), section, key, commit=commit)
+        if row is None:
+            row_id = self.SetAccountValue(
+                widget_key,
+                int(account_id),
+                section,
+                key,
+                key_type,
+                default,
+                widget_name=widget_name,
+                description=description,
+                commit=commit,
+            )
+            row = {
+                'ID': int(row_id),
+                'WidgetID': int(widget_id),
+                'AccountID': int(account_id),
+                'Section': self._normalize_text(section),
+                'Key': self._normalize_text(key),
+                'KeyType': self._normalize_key_type(key_type),
+                'Value': self._serialize_value(default, key_type),
+            }
+        return self._deserialize_value(row['Value'], row['KeyType'])
+
+    def GetAccountValueByEmail(
+        self,
+        widget_key: str,
+        email: str,
+        section: str,
+        key: str,
+        key_type: str,
+        default: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> Any:
+        account_id = Account().GetAccountKey(email, commit=commit)
+        if account_id is None:
+            raise ValueError(f"Account '{email}' is not registered in Py4GW_Accounts.")
+        return self.GetAccountValue(
+            widget_key,
+            account_id,
+            section,
+            key,
+            key_type,
+            default,
+            widget_name=widget_name,
+            description=description,
+            commit=commit,
+        )
+
+    def SetCurrentAccountValue(
+        self,
+        widget_key: str,
+        section: str,
+        key: str,
+        key_type: str,
+        value: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> int:
+        email = self._get_current_account_email()
+        if not email:
+            raise ValueError('Current account email is not available.')
+        return self.SetAccountValueByEmail(
+            widget_key,
+            email,
+            section,
+            key,
+            key_type,
+            value,
+            widget_name=widget_name,
+            description=description,
+            commit=commit,
+        )
+
+    def GetCurrentAccountValue(
+        self,
+        widget_key: str,
+        section: str,
+        key: str,
+        key_type: str,
+        default: Any,
+        widget_name: Optional[str] = None,
+        description: Optional[str] = None,
+        commit: bool = True,
+    ) -> Any:
+        email = self._get_current_account_email()
+        if not email:
+            raise ValueError('Current account email is not available.')
+        return self.GetAccountValueByEmail(
+            widget_key,
+            email,
+            section,
+            key,
+            key_type,
+            default,
+            widget_name=widget_name,
+            description=description,
+            commit=commit,
+        )
+
+    def GetAccountEntry(self, widget_key: str, account_id: int, section: str, key: str, commit: bool = True) -> Optional[dict]:
+        widget = self._get_widget_row(widget_key, commit=commit)
+        if widget is None:
+            return None
+        return self._get_account_row(int(widget['ID']), int(account_id), section, key, commit=commit)
+
+    def GetCurrentAccountEntry(self, widget_key: str, section: str, key: str, commit: bool = True) -> Optional[dict]:
+        email = self._get_current_account_email()
+        if not email:
+            return None
+        account_id = Account().GetAccountKey(email, commit=commit)
+        if account_id is None:
+            return None
+        return self.GetAccountEntry(widget_key, account_id, section, key, commit=commit)
+
+    def DeleteAccountValue(self, widget_key: str, account_id: int, section: str, key: str, commit: bool = True) -> int:
+        widget = self._get_widget_row(widget_key, commit=commit)
+        if widget is None:
+            return 0
+        return self.Delete(
+            self.KEYS_TABLE,
+            where={
+                'WidgetID': int(widget['ID']),
+                'AccountID': int(account_id),
+                'Section': self._normalize_text(section),
+                'Key': self._normalize_text(key),
+            },
+            commit=commit,
+        )
+
+    def DeleteAccountValueByEmail(self, widget_key: str, email: str, section: str, key: str, commit: bool = True) -> int:
+        account_id = Account().GetAccountKey(email, commit=commit)
+        if account_id is None:
+            return 0
+        return self.DeleteAccountValue(widget_key, account_id, section, key, commit=commit)
+
+    def GetAccountSection(self, widget_key: str, account_id: int, section: str, commit: bool = True) -> list[dict]:
+        widget = self._get_widget_row(widget_key, commit=commit)
+        if widget is None:
+            return []
+        return self.Select(
+            self.KEYS_TABLE,
+            where={
+                'WidgetID': int(widget['ID']),
+                'AccountID': int(account_id),
+                'Section': self._normalize_text(section),
+            },
+            order_by='Key',
+            commit=commit,
+        )

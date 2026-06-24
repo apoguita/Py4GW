@@ -5,6 +5,9 @@ Py4GW_Launcher.exe
 py4gw_accounts.json
 GodTools.py
 god_tools_src/*
+data/*.db
+data/*.db-wal
+data/*.db-shm
 Py4GW.ini
 .opencode
 AGENTS.md
@@ -224,6 +227,3 @@ cython_debug/
 # macOS system files
 .DS_Store
 /Sources/frenkeyLib/Scripts/output
-
-# Claude
-.claude

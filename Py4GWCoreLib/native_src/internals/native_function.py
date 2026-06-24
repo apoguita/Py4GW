@@ -81,7 +81,7 @@ class NativeFunction:
             cls,
             name: str,
             address: int,
-            prototype: NativeFunctionPrototype,
+            prototype: Optional[NativeFunctionPrototype] = None,
             report_success: bool = False,
         ):
             nf = cls.__new__(cls)
@@ -96,7 +96,11 @@ class NativeFunction:
             nf.near_call_offset = 0
             nf.report_success = report_success
 
-            nf.func_ptr = prototype.build()(address)
+            if prototype is not None:
+                nf.func_ptr = prototype.build()(address)
+            else:
+                # Raw address — no prototype, used as callback parameter
+                nf.func_ptr = address
             nf.initialized = True
 
             if report_success:
