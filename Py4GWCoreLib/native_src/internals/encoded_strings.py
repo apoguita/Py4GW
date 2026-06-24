@@ -1,13 +1,16 @@
 import re
 import struct
-from typing import Optional
+from typing import Optional, Sequence, TypeAlias
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, DamageType, Profession, Reduced_Ailment
-from Py4GWCoreLib.enums_src.Item_enums import ItemType
+from Py4GWCoreLib.enums_src.Item_enums import BowType, ItemType, Rarity
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies
 
+PlaceholderReplacement: TypeAlias = bytes | Sequence[int]
+
+
 class GWStringEncoded:
-    COLOR_TAG_RE = re.compile(r"<c=@[^>]+>(.*?)</c>")
+    COLOR_TAG_RE = re.compile(r"<c=[^>]+>(.*?)</c>", re.IGNORECASE)
     STAT_TAGS = (
         "<c=@ItemBonus>",
         "<c=@ItemUncommon>",
@@ -16,13 +19,15 @@ class GWStringEncoded:
 
     def __init__(self, encoded: bytes | list[int], fallback: str, placeholder_bytes: bytes = bytes(), placeholder_replacement: Optional[list[str]] = None):
         self.encoded = bytes(encoded) if isinstance(encoded, list) else encoded
-        self.fallback = fallback
+        self._fallback = fallback
         self.placeholder_bytes = placeholder_bytes
         self.placeholder_replacement = placeholder_replacement
         self.__plain = ""
+        self.__plain_singular = ""
         self.__bonuses_only = ""
         self.__full = ""
         self.__singular = ""
+        self.__plain_singular = ""
 
     def decode(self) -> str:
         decoded = string_table.decode(self.encoded)
@@ -30,12 +35,13 @@ class GWStringEncoded:
             decoded = decoded.replace(string_table.decode(self.placeholder_bytes), "").strip()
             
         return decoded if decoded else ""
-    
-    def decode_with_amount(self, amount: int) -> str:
+     
+    def decode_with_amount(self, amount: int, plain: bool = False, rarity : Optional[Rarity] = None) -> str:
         if amount < 1:
             raise ValueError("Encoded string amounts must be non-negative.")
-
+                
         encoded = bytes([
+            *GWStringEncoded.get_rarity_bytes(rarity=rarity, name=True),
             *GWEncoded.NUM1_STR1,
             0x1, 0x1,
             *GWEncoded._encode_string_table_number(amount),
@@ -43,7 +49,7 @@ class GWStringEncoded:
             *self.encoded,
             0x1, 0x0,
         ])
-        decoded = string_table.decode_plain(encoded)
+        decoded = string_table.decode_plain(encoded) if plain else string_table.decode(encoded)
         return decoded if decoded else ""
     
     def get_decoded(self) -> str:
@@ -69,6 +75,11 @@ class GWStringEncoded:
         
         return s.strip()
 
+    @property
+    def fallback(self) -> str:
+        ''' Returns the fallback string to use when decoding fails or results in an empty string. This is useful for ensuring that there is always a meaningful string to display, even if the encoded data cannot be properly decoded. '''
+        return self._fallback ##+ " (FALLBACK)"
+    
     @property
     def plain(self) -> str:
         ''' Returns the decoded string with color tags removed. This is useful for general display purposes where color formatting is not needed or desired. The result is cached after the first decoding for performance. If the encoded string cannot be decoded, the fallback value is returned. '''
@@ -121,18 +132,84 @@ class GWStringEncoded:
             if not decoded:
                 return self.fallback
             
-            if '[s]' in decoded or '[pl:' in decoded:
+            if '[f:' not in decoded and GWStringEncoded.__has_bracket_pair(decoded):
                 decoded = self.decode_with_amount(1)
             
             self.__singular = self.remove_placeholder(decoded)
             
         return self.__singular
     
+    @property
+    def plain_singular(self) -> str:
+        ''' Returns the singular form of the decoded string, if applicable. This is useful for item names that may have a plural form in the encoded string but need to be displayed in singular form (e.g., "Birthday Cupcake" instead of "137 Birthday Cupcakes").
+        \nThe method checks for specific patterns in the decoded string to determine if it should attempt to convert it to singular form. The result is cached after the first decoding for performance. If the encoded string cannot be decoded, the fallback value is returned. '''
+        if not self.__plain_singular:
+            decoded = self.decode()
+            
+            if not decoded:
+                return self.fallback
+            
+            if '[f:' not in decoded and GWStringEncoded.__has_bracket_pair(decoded):
+                decoded = self.decode_with_amount(1)
+            
+            plain = self.remove_placeholder(decoded)
+            plain = self.remove_placeholder(self.COLOR_TAG_RE.sub(r"\1", decoded))
+            self.__plain_singular = plain
+            
+        return self.__plain_singular
+    
     def with_amount(self, amount: int = 1) -> str:
         ''' Returns the decoded string with the specified amount inserted, if the encoded string is designed to include an amount. This is useful for item names that include a quantity (e.g., "137 Birthday Cupcakes") and allows you to get the correctly formatted string for any given amount.
         \nIf the encoded string does not support amounts, it will simply return the plain decoded string with the amount prefixed. '''
         return self.decode_with_amount(amount) or f"{amount} {self.plain}"
+    
+    @staticmethod
+    def __has_bracket_pair(s: str) -> bool:
+        try:
+            start = s.index('[')
+            end = s.index(']', start + 1)
+            # if the brackets are more than 3 characters apart, it's unlikely to be a valid item name format, so we can assume it's not meant to be singularized unless it contains the plural indicator '[pl:'
+            return end - start < 3 or '[pl:' in s
+        except ValueError:
+            return False
 
+
+    @staticmethod
+    def _parse_name_encoded(value: Optional[str]) -> bytes:
+        if not value:
+            return bytes()
+
+        value = value.strip()
+        if not value:
+            return bytes()
+
+        parts = [part.strip() for part in value.split(",") if part.strip()]
+        return bytes(int(part, 16) for part in parts)
+
+    @staticmethod
+    def _format_name_encoded(value: bytes | list[int]) -> str:
+        if not value:
+            return ""
+
+        return ", ".join(f"0x{byte:X}" for byte in value)
+    
+    @staticmethod
+    def get_rarity_bytes(rarity : Optional[Rarity] = None, name : bool = False) -> bytes:
+        match rarity:
+            case Rarity.Blue | Rarity.White:
+                return GWEncoded.ITEM_ENHANCE if name else GWEncoded.ITEM_BONUS
+            
+            case Rarity.Purple:
+                return GWEncoded.ITEM_UNCOMMON
+            
+            case Rarity.Gold:
+                return GWEncoded.ITEM_RARE
+            
+            case Rarity.Green:
+                return GWEncoded.ITEM_UNIQUE
+            
+        return bytes()
+    
 
 
 class GWEncoded():
@@ -318,16 +395,36 @@ class GWEncoded():
         DamageType.unknown_14:  bytes([]),
         DamageType.unknown_15:  bytes([]),
     }
+                           
+    BOW_TYPES = {
+        BowType.Shortbow: bytes([0x4B, 0x28, 0x0, 0x0]),
+        BowType.Longbow: bytes([0x4D, 0x28, 0x0, 0x0]),
+        BowType.Flatbow: bytes([0x4F, 0x28, 0x0, 0x0]),
+        BowType.Recurvebow: bytes([0x51, 0x28, 0x0, 0x0]),
+        BowType.Hornbow: bytes([0x53, 0x28, 0x0, 0x0]),
+    }
                               
-    ITEM_BASIC = bytes([0x2, 0x0, 0x3B, 0xA, 0xA, 0x1])
-    ITEM_BONUS = bytes([0x2, 0x0, 0x3C, 0xA, 0xA, 0x1])
-    ITEM_COMMON = bytes([0x2, 0x0, 0x3D, 0xA, 0xA, 0x1])
-    ITEM_DULL = bytes([0x2, 0x0, 0x3E, 0xA, 0xA, 0x1])
-    ITEM_ENHANCE = bytes([0x2, 0x0, 0x3F, 0xA, 0xA, 0x1])
-    ITEM_RARE = bytes([0x2, 0x0, 0x40, 0xA, 0xA, 0x1])
-    ITEM_RESTRICT = bytes([0x2, 0x0, 0x41, 0xA, 0xA, 0x1])
-    ITEM_UNCOMMON = bytes([0x2, 0x0, 0x42, 0xA, 0xA, 0x1])
-    ITEM_UNIQUE = bytes([0x2, 0x0, 0x43, 0xA, 0xA, 0x1])
+    ITEM_BASIC = bytes([0x3B, 0xA, 0xA, 0x1])
+    ITEM_BONUS = bytes([0x3C, 0xA, 0xA, 0x1])
+    ITEM_COMMON = bytes([0x3D, 0xA, 0xA, 0x1])
+    ITEM_DULL = bytes([0x3E, 0xA, 0xA, 0x1])
+    ITEM_ENHANCE = bytes([0x3F, 0xA, 0xA, 0x1])
+    ITEM_RARE = bytes([0x40, 0xA, 0xA, 0x1])
+    ITEM_RESTRICT = bytes([0x41, 0xA, 0xA, 0x1])
+    ITEM_UNCOMMON = bytes([0x42, 0xA, 0xA, 0x1])
+    ITEM_UNIQUE = bytes([0x43, 0xA, 0xA, 0x1])
+    
+    ITEM_MARKDOWNS = [
+        ITEM_BASIC,
+        ITEM_BONUS,
+        ITEM_COMMON,
+        ITEM_DULL,
+        ITEM_ENHANCE,
+        ITEM_RARE,
+        ITEM_RESTRICT,
+        ITEM_UNCOMMON,
+        ITEM_UNIQUE,
+    ]
 
     PLUS_NUM_TEMPLATE = bytes([0x84, 0xA, 0xA, 0x1])
     PLUS_PERCENT_TEMPLATE = bytes([0x85, 0xA, 0xA, 0x1])
@@ -365,6 +462,7 @@ class GWEncoded():
     WHILE_ABOVE_BYTES = bytes([0xBC, 0xA]) #while %str1% is above %num1%
     
     SEPARATING_BYTES = bytes([0xA, 0x1])
+    SEGMENT_SEPARATOR = bytes([0x2, 0x0])
     
     WHILE_HEALTH_ABOVE_BYTES = WHILE_ABOVE_BYTES + SEPARATING_BYTES + HEALTH_BYTES + bytes([0x1, 0x1, 0x32, 0x1]) # next byte is the health threshold
     WHILE_HEALTH_BELOW_BYTES = WHILE_BELOW_BYTES + SEPARATING_BYTES + HEALTH_BYTES + bytes([0x1, 0x1, 0x32, 0x1]) # next byte is the health threshold
@@ -533,19 +631,37 @@ class GWEncoded():
 
 
     @staticmethod
+    def _join_segments(*segments: bytes) -> bytes:
+        non_empty = [segment for segment in segments if segment]
+        if not non_empty:
+            return bytes()
+        return GWEncoded.SEGMENT_SEPARATOR.join(non_empty)
+
+
+    @staticmethod
     def _append_line(base: GWStringEncoded, line_bytes: bytes) -> GWStringEncoded:
-        return GWEncoded._encoded(base.encoded + line_bytes, base.fallback)
+        return GWEncoded._encoded(GWEncoded._join_segments(base.encoded, line_bytes), base.fallback)
 
 
     @staticmethod
     def _append_line_with_fallback(base: GWStringEncoded, line_bytes: bytes, fallback_suffix: str) -> GWStringEncoded:
         separator = "\n" if base.fallback else ""
-        return GWEncoded._encoded(base.encoded + line_bytes, f"{base.fallback}{separator}{fallback_suffix}")
+        return GWEncoded._encoded(GWEncoded._join_segments(base.encoded, line_bytes), f"{base.fallback}{separator}{fallback_suffix}")
 
 
     @staticmethod
     def combine_encoded_strings(parts: list[GWStringEncoded], fallback: str = "") -> GWStringEncoded:
-        encoded = b"".join(part.encoded for part in parts if part.encoded)
+        encoded = GWEncoded._join_segments(*(part.encoded for part in parts if part.encoded))
         fallback_parts = [part.fallback for part in parts if part.fallback]
         combined_fallback = "\n".join(fallback_parts) if fallback_parts else fallback
         return GWStringEncoded(encoded, combined_fallback or fallback)
+    
+    
+        
+    @staticmethod
+    def _bonus_plus_num_bytes(bonus_color: bytes, token: bytes, value: int) -> bytes:
+        return bytes([*bonus_color, *GWEncoded.PLUS_NUM_TEMPLATE, *token, 0x1, 0x1, value, 0x1, 0x1, 0x0])
+
+    @staticmethod
+    def _bonus_plus_percent_bytes(bonus_color: bytes, token: bytes, value: int) -> bytes:
+        return bytes([*bonus_color, *GWEncoded.PLUS_PERCENT_TEMPLATE, *token, 0x1, 0x1, value, 0x1, 0x1, 0x0])
