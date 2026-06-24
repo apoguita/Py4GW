@@ -1,20 +1,55 @@
-from typing import Optional, Type, TypeVar
+from typing import Optional, Type, cast
 
 from PyItem import ItemModifier
 
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
 from Py4GWCoreLib.item_mods_src.properties import InherentProperty, InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty, TargetItemTypeProperty
+from Py4GWCoreLib.item_mods_src._typing import TUpgrade
 from Py4GWCoreLib.item_mods_src.types import ItemUpgradeType
 from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
 from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 
 class ItemMod:
-    T = TypeVar("T", bound="Upgrade")
+    @staticmethod
+    def _same_enum_identity(left: object, right: object) -> bool:
+        if left is right:
+            return True
+
+        left_type = type(left)
+        right_type = type(right)
+        return (
+            left_type.__module__ == right_type.__module__
+            and left_type.__qualname__ == right_type.__qualname__
+            and getattr(left, 'name', None) == getattr(right, 'name', None)
+            and getattr(left, 'value', None) == getattr(right, 'value', None)
+        )
 
     @staticmethod
-    @frame_cache(category="ItemMod", source_lib="get_upgrade")
-    def get_upgrade(item_id : int, upgrade: Type[T] | T) -> Optional[T]:
+    def _same_upgrade_type(candidate: Upgrade, expected_type: type[Upgrade]) -> bool:
+        candidate_type = type(candidate)
+        if candidate_type is expected_type:
+            return True
+
+        return (
+            candidate_type.__module__ == expected_type.__module__
+            and candidate_type.__qualname__ == expected_type.__qualname__
+            and ItemMod._same_enum_identity(getattr(candidate_type, 'id', None), getattr(expected_type, 'id', None))
+            and ItemMod._same_enum_identity(getattr(candidate_type, 'mod_type', None), getattr(expected_type, 'mod_type', None))
+        )
+
+    @staticmethod
+    def _same_upgrade_value(left: object, right: object) -> bool:
+        left_comparison_data = getattr(left, '_comparison_data', None)
+        right_comparison_data = getattr(right, '_comparison_data', None)
+        return (
+            callable(left_comparison_data)
+            and callable(right_comparison_data)
+            and left_comparison_data() == right_comparison_data()
+        )
+
+    @staticmethod
+    def get_upgrade(item_id : int, upgrade: Type[TUpgrade] | TUpgrade | Upgrade) -> Optional[TUpgrade]:
         '''
         Gets the upgrade of the specified type from the item properties. This is a helper method that combines the logic of getting the item modifiers, parsing them into properties, and extracting the relevant upgrade property. It also includes validation for inherent upgrades on green items.
         Recommended usage is with an assignment expression to avoid unnecessary processing if the upgrade is not present or of the wrong type.
@@ -25,38 +60,33 @@ class ItemMod:
         '''
         
         prefix, suffix, inscription, inherent = ItemMod.get_item_upgrades(item_id)
-        upgrade_type = upgrade if isinstance(upgrade, type) else type(upgrade)
-        desired_upgrade = upgrade if isinstance(upgrade, Upgrade) else None
+        desired_upgrade = None if isinstance(upgrade, type) else upgrade
+        desired_upgrade_type = upgrade if isinstance(upgrade, type) else type(upgrade)
 
-        if prefix and isinstance(prefix, upgrade_type):
-            if desired_upgrade:
-                if desired_upgrade.matches(prefix):
-                    return prefix
-            else:
-                return prefix
+        def find_match(candidate: Upgrade | None) -> Optional[TUpgrade]:
+            if candidate is None:
+                return None
 
-        if suffix and isinstance(suffix, upgrade_type):
-            if desired_upgrade:
-                if desired_upgrade.matches(suffix):
-                    return suffix
-            else:
-                return suffix
+            if not ItemMod._same_upgrade_type(candidate, desired_upgrade_type):
+                return None
 
-        if inscription and isinstance(inscription, upgrade_type):
-            if desired_upgrade:
-                if desired_upgrade.matches(inscription):
-                    return inscription
-            else:
-                return inscription
-        
+            if desired_upgrade is not None and not ItemMod._same_upgrade_value(candidate, desired_upgrade):
+                return None
+
+            return cast(TUpgrade, candidate)
+
+        if (matched_prefix := find_match(prefix)) is not None:
+            return matched_prefix
+
+        if (matched_suffix := find_match(suffix)) is not None:
+            return matched_suffix
+
+        if (matched_inscription := find_match(inscription)) is not None:
+            return matched_inscription
+
         for inh in inherent or []:
-            if inh and isinstance(inh, upgrade_type):
-                if desired_upgrade:
-                    if desired_upgrade.matches(inh):
-                        return inh
-                else:
-                    return inh
-
+            if (matched_inherent := find_match(inh)) is not None:
+                return matched_inherent
         return None
     
     @staticmethod
