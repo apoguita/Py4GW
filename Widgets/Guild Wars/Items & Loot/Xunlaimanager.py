@@ -57,11 +57,13 @@ _cached_correct_items = 0
 _cached_total_items = 0
 _cached_correct_ratio = 1.0
 
-# Cached UIManager anchor-position state — frame IDs are resolved once (JSON/hash lookup)
-# and reused every frame; only GetFrameCoords runs each frame (fast GW memory read).
-_anchor_cached_frame_id = 0           # primary vault frame ID; 0 = not yet resolved
-_anchor_cached_fallback_frame_id = 0  # inventory fallback frame ID; 0 = not yet resolved
-_anchor_frame_ids_resolved = False    # True once the one-time lookup has completed
+# UIManager anchor-position state.  GW recycles numeric frame IDs when windows are
+# destroyed and recreated, so the vault frame ID is NEVER cached permanently — it is
+# re-resolved from the stable window hash every frame (a cheap in-memory GW read).
+# Only the optional JSON custom-label fallback touches disk, so that lookup is throttled
+# and its result is re-validated by hash before reuse.
+_anchor_label_frame_id = 0                         # last frame ID resolved via the JSON alias
+_anchor_label_lookup_timer = ThrottledTimer(1000)  # throttles re-reading the JSON alias file
 
 # Per-bag filter state — keyed by bag_enum.value
 _allowed_types_by_storage = {}              # type-name lists allowed per pane
@@ -76,6 +78,7 @@ _selected_allowed_entry_kind_by_storage = {}    # "type" or "model" — which fi
 SORT_STEPS_PER_FRAME = 8          # Max item moves executed per frame in normal mode
 MAX_AUTO_SORT_RETRIES = 3         # How many placement retry rounds are allowed before giving up
 MATERIAL_MAX_RESCAN_PASSES = 3    # Max deposit rescans when partial moves occurred
+SORT_DRAIN_TIMEOUT = 15.0         # Max seconds to wait for the shared ACTION queue to drain post-sort
 _sort_task_state = None           # Active sort task dict; None when idle
 _sort_progress_ratio = 0.0        # 0.0–1.0 progress shown in the UI progress bar
 _sort_progress_text = ""          # Human-readable status shown next to the progress bar
@@ -2017,6 +2020,13 @@ def _update_sort_progress_state(task):
 			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
 		return
 
+	if phase == "drain":
+		# All moves are issued; the game is still draining the shared ACTION queue.
+		# Hold just below 100% so the bar does not read "Done" while items still move.
+		_sort_progress_ratio = 0.99
+		_sort_progress_text = "Finishing moves..."
+		return
+
 	_sort_progress_ratio = 1.0
 	_sort_progress_text = "Done"
 
@@ -2479,9 +2489,39 @@ def _process_phase_execute(task, ctx):
 	if completed:
 		if AUTO_DEPOSIT_MATERIALS and not bool(task.get("post_material_phase_done", False)):
 			task["post_material_phase_done"] = True
-			_start_material_phase(task, ctx["available_storage_bags"], "finalize")
+			_start_material_phase(task, ctx["available_storage_bags"], "drain")
 		else:
-			task["phase"] = "finalize"
+			task["phase"] = "drain"
+
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_drain(task, ctx):
+	"""Wait for the shared ACTION queue to drain before declaring the sort finished.
+
+	Moves are not executed synchronously: GLOBAL_CACHE.Inventory.MoveItem only enqueues
+	each move onto the global "ACTION" queue, which the game drains over the following
+	frames.  Without this phase the progress bar would read "Done" while items are still
+	physically being relocated in-game.  A timeout guards against the queue being held by
+	an unrelated/stuck action.
+	"""
+	if task["phase"] != "drain":
+		return False
+
+	if "drain_deadline" not in task:
+		task["drain_deadline"] = time.monotonic() + SORT_DRAIN_TIMEOUT
+
+	try:
+		queue_empty = ActionQueueManager().IsEmpty("ACTION")
+	except Exception:
+		queue_empty = True
+
+	timed_out = time.monotonic() >= float(task.get("drain_deadline", 0.0))
+	if queue_empty or timed_out:
+		if timed_out and not queue_empty:
+			_debug_log("Drain phase timed out waiting for the ACTION queue to empty.")
+		task["phase"] = "finalize"
 
 	_update_sort_progress_state(task)
 	return True
@@ -2596,6 +2636,8 @@ def _process_sort_task():
 	if _process_phase_plan(task, ctx):
 		return
 	if _process_phase_execute(task, ctx):
+		return
+	if _process_phase_drain(task, ctx):
 		return
 	_process_phase_finalize(task, ctx)
 
@@ -2850,50 +2892,73 @@ def _get_slot_item_type_rows(bag_enum, allowed_types=None):
 	except Exception:
 		return []
 
+def _frame_matches_xunlai(frame_id):
+	"""True only if frame_id is a live frame whose hash is the Xunlai vault window.
+
+	GW recycles numeric frame IDs, so this identity check guards against anchoring
+	onto an unrelated frame that has merely inherited the same numeric ID.
+	"""
+	if not frame_id or frame_id <= 0 or not UIManager.FrameExists(frame_id):
+		return False
+	try:
+		return UIManager.GetFrameNameHash(frame_id) == XUNLAI_WINDOW_HASH
+	except Exception:
+		return False
+
+
+def _resolve_xunlai_frame_id():
+	"""Return the *current* frame ID of the Xunlai vault window, or 0 if it is closed.
+
+	The ID is resolved from the stable window hash every frame (cheap in-memory GW
+	read) rather than cached, because GW recycles frame IDs when windows are
+	destroyed and recreated.  The optional JSON custom-label alias is used only when
+	the hash lookup fails; its disk read is throttled and its result re-validated by
+	hash before reuse.
+	"""
+	global _anchor_label_frame_id
+
+	try:
+		frame_id = UIManager.GetFrameIDByHash(XUNLAI_WINDOW_HASH)
+	except Exception:
+		frame_id = 0
+	if frame_id and frame_id > 0:
+		return frame_id
+
+	# Hash miss: fall back to the human-readable JSON alias.  Reuse the last
+	# resolved ID while it still points at the vault; only re-read the file
+	# (throttled) once that ID has gone stale.
+	if _frame_matches_xunlai(_anchor_label_frame_id):
+		return _anchor_label_frame_id
+	if _anchor_label_lookup_timer.IsExpired():
+		_anchor_label_lookup_timer.Reset()
+		try:
+			_anchor_label_frame_id = UIManager.GetFrameIDByCustomLabel(FRAME_ALIAS_FILE, "Xunlai Window") or 0
+		except Exception:
+			_anchor_label_frame_id = 0
+		if _frame_matches_xunlai(_anchor_label_frame_id):
+			return _anchor_label_frame_id
+	return 0
+
+
 def _get_storage_anchor_position(anchor_window_width=None):
 	"""Calculate the screen position where our overlay window should be anchored.
 
-	Frame IDs are resolved lazily.  The primary ID is cached only once a real hash-based
-	or label-based lookup succeeds — the hardcoded CHEST_FRAME_ID fallback is used
-	on-the-fly without caching so the lookup is retried every frame until GW's UI is ready.
-	GetFrameCoords / FrameExists are fast per-frame GW memory reads with no file I/O.
+	The vault frame ID is re-resolved from its stable window hash every frame rather
+	than cached, because GW recycles numeric frame IDs when windows are destroyed and
+	recreated — a stale cached ID would otherwise make the overlay "lose its hook" and
+	snap onto an unrelated frame.  GetFrameCoords / FrameExists are fast per-frame GW
+	memory reads with no file I/O.
 	"""
-	global _anchor_cached_frame_id, _anchor_cached_fallback_frame_id, _anchor_frame_ids_resolved
-
 	if anchor_window_width is None:
 		anchor_window_width = max(float(_last_window_width), float(COMPACT_WINDOW_MIN_WIDTH))
 	else:
 		anchor_window_width = max(float(anchor_window_width), 1.0)
 
-	# Resolve frame IDs — retried every frame until a real (non-hardcoded) ID is found.
-	if not _anchor_frame_ids_resolved:
-		frame_id = 0
+	# Primary: the live Xunlai vault frame, re-resolved by hash each frame.
+	frame_id = _resolve_xunlai_frame_id()
+	if frame_id and frame_id > 0 and UIManager.FrameExists(frame_id):
 		try:
-			frame_id = UIManager.GetFrameIDByCustomLabel(FRAME_ALIAS_FILE, "Xunlai Window")
-		except Exception:
-			frame_id = 0
-		if frame_id == 0:
-			frame_id = UIManager.GetFrameIDByHash(XUNLAI_WINDOW_HASH)
-		if frame_id > 0:
-			# Real ID found — cache it and stop retrying.
-			_anchor_cached_frame_id = frame_id
-			try:
-				_anchor_cached_fallback_frame_id = UIManager.GetFrameIDByHash(INVENTORY_FRAME_HASH)
-			except Exception:
-				_anchor_cached_fallback_frame_id = 0
-			_anchor_frame_ids_resolved = True
-		else:
-			# GW UI not ready yet — resolve the fallback but do not set _anchor_frame_ids_resolved
-			# so we keep retrying the primary lookup next frame.
-			try:
-				_anchor_cached_fallback_frame_id = UIManager.GetFrameIDByHash(INVENTORY_FRAME_HASH)
-			except Exception:
-				_anchor_cached_fallback_frame_id = 0
-
-	# Primary: hash/label-resolved frame ID.
-	if _anchor_cached_frame_id > 0 and UIManager.FrameExists(_anchor_cached_frame_id):
-		try:
-			left, top, right, bottom = UIManager.GetFrameCoords(_anchor_cached_frame_id)
+			left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
 			x1 = min(left, right)
 			y1 = min(top, bottom)
 			y2 = max(top, bottom)
@@ -2903,17 +2968,22 @@ def _get_storage_anchor_position(anchor_window_width=None):
 		except Exception:
 			pass
 
-	# Fallback: inventory frame hash.
-	if _anchor_cached_fallback_frame_id > 0 and UIManager.FrameExists(_anchor_cached_fallback_frame_id):
+	# Fallback: anchor next to the player inventory panel, also re-resolved by hash.
+	try:
+		fallback_id = UIManager.GetFrameIDByHash(INVENTORY_FRAME_HASH)
+	except Exception:
+		fallback_id = 0
+	if fallback_id and fallback_id > 0 and UIManager.FrameExists(fallback_id):
 		try:
-			left, top, right, _ = UIManager.GetFrameCoords(_anchor_cached_fallback_frame_id)
+			left, top, right, _ = UIManager.GetFrameCoords(fallback_id)
 			if right > left:
 				return float(left - ANCHOR_OFFSET_X - anchor_window_width), float(top + ANCHOR_OFFSET_Y)
 		except Exception:
 			pass
 
-	# Last resort: hardcoded frame ID — not cached, retried every frame.
-	if UIManager.FrameExists(CHEST_FRAME_ID):
+	# Last resort: the hardcoded chest frame ID, but only when it really is the vault
+	# window — the hash guard prevents anchoring onto an unrelated recycled frame.
+	if _frame_matches_xunlai(CHEST_FRAME_ID):
 		try:
 			left, top, right, bottom = UIManager.GetFrameCoords(CHEST_FRAME_ID)
 			x1 = min(left, right)
