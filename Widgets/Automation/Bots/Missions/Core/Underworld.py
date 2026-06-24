@@ -160,78 +160,70 @@ UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     'zin_ku_corridor':    ('Zin Ku Corridor',     int(name_to_map_id['Zin Ku Corridor'])),
 }
 
-# Underworld enemy model IDs. Model/player numbers are language-independent, unlike
-# display names (which change with the client language), so targeting/priority is keyed
-# on these instead of GetNameByID. Sourced from the Enemy Tracker data for The
-# Underworld (map 72). Some enemies expose more than one model variant.
-class UWModelID(enum.IntEnum):
-    DYING_NIGHTMARE           = 2368
-    OBSIDIAN_BEHEMOTH         = 2369
-    OBSIDIAN_GUARDIAN         = 2370
-    TERRORWEB_DRYDER          = 2371
-    TERRORWEB_DRYDER_ALT      = 2372
-    KEEPER_OF_SOULS           = 2373
-    TERRORWEB_QUEEN           = 2374
-    SMITE_CRAWLER             = 2375
-    WAILING_LORD              = 2376
-    BANISHED_DREAM_RIDER      = 2377
-    DHUUM_SERVANT             = 2379  # Ghozer / Kazhad / Madruk / Thul Za Dhuum share this model
-    MINDBLADE_SPECTRE         = 2380
-    DEAD_COLLECTOR            = 2382
-    DEAD_THRESHER             = 2383
-    COLDFIRE_NIGHT            = 2384
-    STALKING_NIGHT            = 2385
-    CHARGED_BLACKNESS         = 2387
-    GRASPING_DARKNESS         = 2388
-    BLADED_AATXE              = 2389
-    SLAYER                    = 2391
-    SKELETON_OF_DHUUM         = 2392
-    SKELETON_OF_DHUUM_ALT     = 2393
-    # Bot-blacklisted enemies (kept for completeness / model-id reference)
-    CHAINED_SOUL              = 2367
-    VENGEFUL_AATXE            = 2390
-    TORTURED_SPIRIT           = 2422
-    TORTURED_SPIRIT_ALT       = 2423
-    SPIRIT_OF_NATURES_RENEWAL = 2938
-    BONE_HORROR               = 2280
+# Underworld enemy encoded names (GW string-table form). Encoded names are
+# language-independent AND stable across game updates (model/player numbers can in
+# theory shift), so targeting/priority is keyed on these. Matched at runtime against
+# Agent.GetEncNameStrByID(agent_id, literal=False). Sourced from the Enemy Tracker
+# data for The Underworld (map 72).
+#
+# NOTE: Skeleton of Dhuum and Dhuum Servant are intentionally absent. They have no
+# stable base encoded name — every spawn gets a unique per-instance name
+# (\x8102\x5C.. / \x8102\x5D..), so they cannot be matched reliably by encoded name
+# and are therefore dropped from priority. Terrorweb Dryder keeps its base name, but
+# instances using a per-spawn name are likewise not matched.
+class UWEncName(str, enum.Enum):
+    KEEPER_OF_SOULS           = r'\\x12AD\\xF69B\\xBD35\\x7A5E'
+    TERRORWEB_QUEEN           = r'\\x17DF\\xAC9D\\xE33B\\x63DE'
+    WAILING_LORD              = r'\\x12AF\\x8B85\\x9E38\\x7FED'
+    TERRORWEB_DRYDER          = r'\\x12AC\\x9F81\\xBFE4\\x3216'
+    MINDBLADE_SPECTRE         = r'\\x12BB\\xA3DC\\x0BDD'
+    BANISHED_DREAM_RIDER      = r'\\x12B0\\xA053\\x8415\\x6F58'
+    DEAD_COLLECTOR            = r'\\x12BC\\x98DC\\xFDF0\\x1FD0'
+    DEAD_THRESHER             = r'\\x12BD\\xB160\\xA954\\x4D4C'
+    GRASPING_DARKNESS         = r'\\x12C5\\xD142\\xFA22\\x1E49'
+    CHARGED_BLACKNESS         = r'\\x12C4\\xA887\\x7302'
+    COLDFIRE_NIGHT            = r'\\x12BE\\xB04F\\xE727\\x218F'
+    STALKING_NIGHT            = r'\\x12C0\\xCE4F\\xC177\\x75FE'
+    DYING_NIGHTMARE           = r'\\x12BF\\xF224\\xEA77\\x4E7D'
+    BLADED_AATXE              = r'\\x12C2\\x968C\\xB2A0\\x1035'
+    SMITE_CRAWLER             = r'\\x12BA\\xD696\\x4774'
+    BONE_HORROR               = r'\\x1230\\x9354\\x94B4\\x654F'
+    OBSIDIAN_GUARDIAN         = r'\\x12A8\\xE724\\xC399\\x1FB5'
+    SLAYER                    = r'\\x17C1\\xF036\\x8EDD\\x575E'
+    OBSIDIAN_BEHEMOTH         = r'\\x12A7\\xF511\\xCDD1\\x22D3'
 
 
 # Underworld enemies ordered from highest to lowest party-call priority (UnderworldV2 + tracker).
 # Omitted on purpose: Chained Soul, Tortured Spirit, Spirit of Nature's Renewal,
 # Vengeful Aatxe (all bot-blacklisted — a party call would override the per-account
 # blacklist filter and make every account attack them), Dire/Hearty Black Widow (trash).
-# Note: Champion of Dhuum, Minion of Dhuum and Dhuum himself are not in the tracker
-# data (no model id captured) and were low-priority fallbacks only — the dedicated
-# Dhuum handling drives that fight, so they are dropped here rather than guessed.
-UW_TARGET_PRIORITY: list[int] = [
+# Also omitted: Skeleton of Dhuum and Dhuum Servant — no stable encoded name (see
+# UWEncName note). The dedicated Dhuum handling drives that fight regardless.
+UW_TARGET_PRIORITY: list[UWEncName] = [
     # Quest / high-value targets
-    UWModelID.KEEPER_OF_SOULS,
-    UWModelID.SKELETON_OF_DHUUM,
-    UWModelID.SKELETON_OF_DHUUM_ALT,
-    UWModelID.TERRORWEB_QUEEN,
-    UWModelID.DHUUM_SERVANT,
-    UWModelID.WAILING_LORD,
-    UWModelID.TERRORWEB_DRYDER,
-    UWModelID.TERRORWEB_DRYDER_ALT,
-    UWModelID.MINDBLADE_SPECTRE,
-    UWModelID.BANISHED_DREAM_RIDER,
-    UWModelID.DEAD_COLLECTOR,
-    UWModelID.DEAD_THRESHER,
+    UWEncName.KEEPER_OF_SOULS,
+    UWEncName.TERRORWEB_QUEEN,
+    UWEncName.WAILING_LORD,
+    UWEncName.TERRORWEB_DRYDER,
+    UWEncName.MINDBLADE_SPECTRE,
+    UWEncName.BANISHED_DREAM_RIDER,
+    UWEncName.DEAD_COLLECTOR,
+    UWEncName.DEAD_THRESHER,
     # Nightmare / Aatxe packs
-    UWModelID.GRASPING_DARKNESS,
-    UWModelID.CHARGED_BLACKNESS,
-    UWModelID.COLDFIRE_NIGHT,
-    UWModelID.STALKING_NIGHT,
-    UWModelID.DYING_NIGHTMARE,
-    UWModelID.BLADED_AATXE,
+    UWEncName.GRASPING_DARKNESS,
+    UWEncName.CHARGED_BLACKNESS,
+    UWEncName.COLDFIRE_NIGHT,
+    UWEncName.STALKING_NIGHT,
+    UWEncName.DYING_NIGHTMARE,
+    UWEncName.BLADED_AATXE,
     # General UW mobs
-    UWModelID.SMITE_CRAWLER,
-    UWModelID.BONE_HORROR,
-    UWModelID.OBSIDIAN_GUARDIAN,
+    UWEncName.SMITE_CRAWLER,
+    UWEncName.BONE_HORROR,
+    UWEncName.OBSIDIAN_GUARDIAN,
     # Dhuum fight (low-priority fallback)
-    UWModelID.SLAYER,
+    UWEncName.SLAYER,
     # Behemoth last — usually blacklisted until BehemothGuard engages
-    UWModelID.OBSIDIAN_BEHEMOTH,
+    UWEncName.OBSIDIAN_BEHEMOTH,
 ]
 _UW_PRIORITY_TARGET_RANGE = Range.Earshot.value + 100.0
 _UW_PRIORITY_TARGET_COOLDOWN_MS = 2000.0
@@ -3697,17 +3689,24 @@ def _build_priority_target_service() -> _BT:
 
     Port of UnderworldV2 ``BuildPriorityTargetService`` / ``CallPriorityTarget``.
     Uses HeroAI ``CallTarget`` on the party leader via ``_party_call_or_change_target``.
-    Priority lookup is keyed on model id (Agent.GetModelID), which is language
-    independent; GetNameByID is only used for the (name-based) blacklist filter and
-    only for agents that already match a priority model id, to limit name lookups.
+    Priority lookup is keyed on the encoded name (Agent.GetEncNameStrByID), which is
+    language-independent and stable across game updates; it also avoids TextParser
+    (unlike GetNameByID). GetNameByID is only used for the (name-based) blacklist
+    filter, and only for agents that already match a priority encoded name.
     """
-    priority_map: dict[int, int] = {int(model_id): idx for idx, model_id in enumerate(UW_TARGET_PRIORITY)}
+    priority_map: dict[str, int] = {enc.value: idx for idx, enc in enumerate(UW_TARGET_PRIORITY)}
     sentinel_priority = len(UW_TARGET_PRIORITY)
     range_sq = float(_UW_PRIORITY_TARGET_RANGE) * float(_UW_PRIORITY_TARGET_RANGE)
     state: dict = {'last_call_ms': 0.0, 'last_scan_ms': 0.0}
 
-    def _agent_priority(model_id: int) -> int:
-        return priority_map.get(int(model_id), -1) if model_id else -1
+    def _agent_priority(enc_name: str) -> int:
+        return priority_map.get(enc_name, -1) if enc_name else -1
+
+    def _agent_enc(agent_id: int) -> str:
+        try:
+            return Agent.GetEncNameStrByID(agent_id, literal=False) or ''
+        except Exception:
+            return ''
 
     def _blacklist_names_snapshot() -> frozenset[str]:
         try:
@@ -3760,7 +3759,7 @@ def _build_priority_target_service() -> _BT:
                 agent_id = int(raw_agent_id)
                 if not Agent.IsAlive(agent_id):
                     continue
-                prio = _agent_priority(Agent.GetModelID(agent_id))
+                prio = _agent_priority(_agent_enc(agent_id))
                 if prio == -1 or prio >= best_priority:
                     continue
                 # Only matched-priority agents reach the (name-based) blacklist filter.
@@ -3789,7 +3788,7 @@ def _build_priority_target_service() -> _BT:
         if current_target_id != 0:
             current_prio = sentinel_priority
             try:
-                current_prio = _agent_priority(Agent.GetModelID(current_target_id))
+                current_prio = _agent_priority(_agent_enc(current_target_id))
                 if current_prio == -1:
                     current_prio = sentinel_priority
                 else:
