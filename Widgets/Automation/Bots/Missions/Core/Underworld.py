@@ -163,7 +163,7 @@ UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
 # Underworld enemy encoded names (GW string-table form). Encoded names are
 # language-independent AND stable across game updates (model/player numbers can in
 # theory shift), so targeting/priority is keyed on these. Matched at runtime against
-# Agent.GetEncNameStrByID(agent_id, literal=False). Sourced from the Enemy Tracker
+# Agent.GetEncNameStrByID(agent_id, literal=True). Sourced from the Enemy Tracker
 # data for The Underworld (map 72).
 #
 # NOTE: Skeleton of Dhuum and Dhuum Servant are intentionally absent. They have no
@@ -172,25 +172,35 @@ UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
 # and are therefore dropped from priority. Terrorweb Dryder keeps its base name, but
 # instances using a per-spawn name are likewise not matched.
 class UWEncName(str, enum.Enum):
-    KEEPER_OF_SOULS           = r'\\x12AD\\xF69B\\xBD35\\x7A5E'
-    TERRORWEB_QUEEN           = r'\\x17DF\\xAC9D\\xE33B\\x63DE'
-    WAILING_LORD              = r'\\x12AF\\x8B85\\x9E38\\x7FED'
-    TERRORWEB_DRYDER          = r'\\x12AC\\x9F81\\xBFE4\\x3216'
-    MINDBLADE_SPECTRE         = r'\\x12BB\\xA3DC\\x0BDD'
-    BANISHED_DREAM_RIDER      = r'\\x12B0\\xA053\\x8415\\x6F58'
-    DEAD_COLLECTOR            = r'\\x12BC\\x98DC\\xFDF0\\x1FD0'
-    DEAD_THRESHER             = r'\\x12BD\\xB160\\xA954\\x4D4C'
-    GRASPING_DARKNESS         = r'\\x12C5\\xD142\\xFA22\\x1E49'
-    CHARGED_BLACKNESS         = r'\\x12C4\\xA887\\x7302'
-    COLDFIRE_NIGHT            = r'\\x12BE\\xB04F\\xE727\\x218F'
-    STALKING_NIGHT            = r'\\x12C0\\xCE4F\\xC177\\x75FE'
-    DYING_NIGHTMARE           = r'\\x12BF\\xF224\\xEA77\\x4E7D'
-    BLADED_AATXE              = r'\\x12C2\\x968C\\xB2A0\\x1035'
-    SMITE_CRAWLER             = r'\\x12BA\\xD696\\x4774'
-    BONE_HORROR               = r'\\x1230\\x9354\\x94B4\\x654F'
-    OBSIDIAN_GUARDIAN         = r'\\x12A8\\xE724\\xC399\\x1FB5'
-    SLAYER                    = r'\\x17C1\\xF036\\x8EDD\\x575E'
-    OBSIDIAN_BEHEMOTH         = r'\\x12A7\\xF511\\xCDD1\\x22D3'
+    KEEPER_OF_SOULS           = r'\x12AD\xF69B\xBD35\x7A5E'
+    TERRORWEB_QUEEN           = r'\x17DF\xAC9D\xE33B\x63DE'
+    WAILING_LORD              = r'\x12AF\x8B85\x9E38\x7FED'
+    TERRORWEB_DRYDER          = r'\x12AC\x9F81\xBFE4\x3216'
+    MINDBLADE_SPECTRE         = r'\x12BB\xA3DC\x0BDD'
+    BANISHED_DREAM_RIDER      = r'\x12B0\xA053\x8415\x6F58'
+    DEAD_COLLECTOR            = r'\x12BC\x98DC\xFDF0\x1FD0'
+    DEAD_THRESHER             = r'\x12BD\xB160\xA954\x4D4C'
+    GRASPING_DARKNESS         = r'\x12C5\xD142\xFA22\x1E49'
+    CHARGED_BLACKNESS         = r'\x12C4\xA887\x7302'
+    COLDFIRE_NIGHT            = r'\x12BE\xB04F\xE727\x218F'
+    STALKING_NIGHT            = r'\x12C0\xCE4F\xC177\x75FE'
+    DYING_NIGHTMARE           = r'\x12BF\xF224\xEA77\x4E7D'
+    BLADED_AATXE              = r'\x12C2\x968C\xB2A0\x1035'
+    SMITE_CRAWLER             = r'\x12BA\xD696\x4774'
+    BONE_HORROR               = r'\x1230\x9354\x94B4\x654F'
+    OBSIDIAN_GUARDIAN         = r'\x12A8\xE724\xC399\x1FB5'
+    SLAYER                    = r'\x17C1\xF036\x8EDD\x575E'
+    OBSIDIAN_BEHEMOTH         = r'\x12A7\xF511\xCDD1\x22D3'
+
+    # Bot-blacklisted enemies — intentionally NOT in UW_TARGET_PRIORITY (no party
+    # call). Listed here only so their stable encoded names are available for
+    # reference. Vengeful Aatxe is omitted on purpose: it has no stable base
+    # encoded name (only per-instance \x8102\x5B.. names, like Skeleton of Dhuum),
+    # so it cannot be matched reliably by encoded name.
+    CHAINED_SOUL              = r'\x12A9\xE727\xE80D\x674A'
+    TORTURED_SPIRIT           = r'\x12B7\xEE5E\xE8CB\x660E'
+    TORTURED_SPIRIT_ALT       = r'\x12B9\x8271\xA9AA\x5E8F'
+    SPIRIT_OF_NATURES_RENEWAL = r'\x0F99\x863D\xD474\x6ACA'
 
 
 # Underworld enemies ordered from highest to lowest party-call priority (UnderworldV2 + tracker).
@@ -3704,7 +3714,7 @@ def _build_priority_target_service() -> _BT:
 
     def _agent_enc(agent_id: int) -> str:
         try:
-            return Agent.GetEncNameStrByID(agent_id, literal=False) or ''
+            return Agent.GetEncNameStrByID(agent_id, literal=True) or ''
         except Exception:
             return ''
 
