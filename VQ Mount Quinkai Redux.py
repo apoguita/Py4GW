@@ -88,7 +88,7 @@ def Killroute() -> BehaviorTree:
                 faction='luxon',
                 multi_account=True,
             ),
-            BT.VanquishNode(vanquish_steps, name='MountQinkaiVanquishPath', flag_heroes_to_waypoint=True),
+            BT.VanquishNode(vanquish_steps, name='MountQinkaiVanquishPath', flag_heroes_to_waypoint=False),
             BT.Resign(wait_for_map_load=True, target_map_id=ASPENWOOD_GATE_LUXON, multi_account=True),
         ]
     )

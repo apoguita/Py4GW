@@ -93,4 +93,43 @@ Prototypes = {
         ctypes.c_int32,
         ctypes.c_int32,
     ),
+    # --- Window Contents (frame list items) ---
+    # uint32 CtlFrameListCreateItem(uint32 parentFrameListId, uint32 flags,
+    #                               uint32 insertIndex, void* itemProc, void* encodedText)
+    "U32_U32_U32_U32_U32_U32": NativeFunctionPrototype(
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
+    # uint32 FrameNewSubclass(uint32 frameId, void* subclassProc, uint32 msgId)
+    "U32_U32_U32_U32": NativeFunctionPrototype(
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
+    # void CtlBtnSetTextLiteral(uint32 frameId, wchar_t* text)
+    "Void_U32_WCharP": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_wchar_p,
+    ),
+    # void FrameSetSize(uint32 frameId, Coord2f* size)  —  Coord2f = {float x, float y}
+    # void FrameSetPosition(uint32 frameId, Coord2f* pos)
+    # void FrameMouseEnable(uint32 frameId, uint32 enable, uint32 unk)
+    "Void_U32_VoidP": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ),
+    "Void_U32_U32_U32_U32": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
 }

@@ -2023,6 +2023,8 @@ class HeroAI_BaseUI:
                         from HeroAI.follow.editor import open_editor
                         open_editor()
 
+                dirty_runtime_cfg = False
+
                 if HeroAI_BaseUI.follow_formations_names:
                     idx = PyImGui.combo("Formation", HeroAI_BaseUI.follow_formations_selected_index, HeroAI_BaseUI.follow_formations_names)
                     if idx != HeroAI_BaseUI.follow_formations_selected_index:
@@ -2030,8 +2032,6 @@ class HeroAI_BaseUI:
                         HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
                 else:
                     PyImGui.text_disabled("No saved follow formations found.")
-
-                dirty_runtime_cfg = False
 
                 PyImGui.separator()
                 PyImGui.text("Follower Behavior")

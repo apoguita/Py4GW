@@ -303,9 +303,6 @@ class UIManager:
     ) -> int: ...
 
     @staticmethod
-    def resolve_devtext_dialog_proc() -> int: ...
-
-    @staticmethod
     def ensure_devtext_source() -> Tuple[int, bool]: ...
 
     @staticmethod
@@ -325,37 +322,34 @@ class UIManager:
 
     @staticmethod
     def clear_window_contents_by_frame_id(root_frame_id: int) -> bool: ...
-
+    
     @staticmethod
-    def create_window(
-        x: float,
-        y: float,
-        width: float,
-        height: float,
-        frame_label: str = ...,
-        parent_frame_id: int = ...,
-        child_index: int = ...,
-        frame_flags: int = ...,
-        create_param: int = ...,
-        frame_callback: int = ...,
-        anchor_flags: int = ...,
-        ensure_devtext_source: bool = ...
+    def CreateNativeWindow(
+        content_x: float,
+        content_y: float,
+        content_width: float,
+        content_height: float,
+        title: str = ...,
     ) -> int: ...
 
     @staticmethod
-    def create_empty_window(
+    def create_titled_window_clone(
+        title: str,
         x: float,
         y: float,
         width: float,
         height: float,
         frame_label: str = ...,
-        parent_frame_id: int = ...,
-        child_index: int = ...,
-        frame_flags: int = ...,
-        create_param: int = ...,
-        frame_callback: int = ...,
-        anchor_flags: int = ...,
-        ensure_devtext_source: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_titled_empty_window(
+        title: str,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = ...,
     ) -> int: ...
 
     @staticmethod
@@ -520,6 +514,14 @@ class UIManager:
         name_enc: str = ...,
         component_label: str = ...
     ) -> int: ...
+    @staticmethod
+    def create_text_button_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        caption: str = ...,
+        component_label: str = ...
+    ) -> int: ...
 
     @staticmethod
     def create_checkbox_frame_by_frame_id(
@@ -549,11 +551,53 @@ class UIManager:
     ) -> int: ...
 
     @staticmethod
+    def create_dropdown_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_slider_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_editable_text_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_progress_bar_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_tabs_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int = ...,
+        child_index: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
     def get_button_label_by_frame_id(frame_id: int) -> str: ...
     @staticmethod
     def set_button_label_by_frame_id(frame_id: int, enc_label: str) -> bool: ...
     @staticmethod
     def button_mouse_action_by_frame_id(frame_id: int, action: int) -> bool: ...
+    @staticmethod
+    def is_button_pushed_by_frame_id(frame_id: int) -> bool: ...
     @staticmethod
     def add_tab_by_frame_id(tabs_frame_id: int, tab_name_enc: str, flags: int, child_index: int, callback: int = ..., wparam: int = ...) -> int: ...
     @staticmethod
@@ -664,6 +708,8 @@ class UIManager:
     def get_slider_value_by_frame_id(frame_id: int) -> int: ...
     @staticmethod
     def set_slider_value_by_frame_id(frame_id: int, value: int) -> bool: ...
+    @staticmethod
+    def set_slider_range_by_frame_id(frame_id: int, min_val: int, max_val: int) -> bool: ...
 
     @staticmethod
     def create_text_label_frame_with_plain_text_by_frame_id(
@@ -769,3 +815,44 @@ class UIManager:
     def set_window_position(window_id: int, position: list[int]) -> None: ...
     @staticmethod
     def is_shift_screenshot() -> bool: ...
+
+    # =========================================================================
+    # Window Contents — Frame List Item Management (2026-06-04)
+    # =========================================================================
+    @staticmethod
+    def ctl_frame_list_create_item_by_frame_id(
+        parent_frame_list_id: int,
+        flags: int,
+        insert_index: int,
+        item_proc: int,
+        encoded_text: str,
+    ) -> int: ...
+    @staticmethod
+    def frame_new_subclass_by_frame_id(
+        frame_id: int,
+        subclass_proc: int,
+        msg_id: int,
+    ) -> int: ...
+    @staticmethod
+    def create_scrollable_content_by_frame_id(
+        window_id: int,
+        child_index: int = 0,
+        component_flags: int = 0x20000,
+        component_label: str = "",
+    ) -> int: ...
+    @staticmethod
+    def add_text_item_to_frame_list_by_frame_id(
+        frame_list_id: int,
+        plain_text: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def create_scrollable_text_window(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        title: str,
+        items: list[str],
+    ) -> int: ...

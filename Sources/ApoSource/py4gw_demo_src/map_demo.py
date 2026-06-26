@@ -597,6 +597,16 @@ def draw_world_map_tab():
                     PyImGui.end_table()
                     
 def draw_pregame_tab():
+    def _fmt_ptr(value) -> str:
+        if not value:
+            return '0x0'
+        return f'0x{int(value):08X}'
+
+    def _fmt_map(map_id) -> str:
+        if not isinstance(map_id, int):
+            return f'{map_id}'
+        return f'{map_id} - {Map.GetMapName(map_id)}'
+
     available_character_list = Map.Pregame.GetAvailableCharacterList()
     if PyImGui.collapsing_header("Available Characters:"):
         for char in available_character_list:
@@ -654,24 +664,53 @@ def draw_pregame_tab():
                     return
                 
                 rows: list[tuple[str, str | int | float]] = [
-                    ("Unk01",           f"{list(context.Unk01)}"),
-                    ("h0054",          f"{context.h0054}"),
-                    ("h0058",          f"{context.h0058}"),
-                    ("Unk02_0",        f"{context.Unk02[0]} - {context.Unk02[1]}"),
-                    ("h0060",          f"{context.h0060}"),
-                    ("Unk03_0",        f"{context.Unk03[0]} - {context.Unk03[1]}"),
-                    ("h0068",          f"{context.h0068}"),
-                    ("Unk04",          f"{context.Unk04}"),
-                    ("h0070",          f"{context.h0070}"),
-                    ("Unk05",          f"{context.Unk05}"),
-                    ("h0078",          f"{context.h0078}"),
-                    ("Unk06",          f"{list(context.Unk06)}"),
-                    ("h00a0",          f"{context.h00a0}"),
-                    ("h00a4",          f"{context.h00a4}"),
-                    ("h00a8",          f"{context.h00a8}"),
-                    ("Unk07",          f"{list(context.Unk07)}"),
-                    ("Unk08",          f"{context.Unk08}"),
-                ]     
+                    ("frame_id", f'{context.frame_id}'),
+                    ("scene_type", f'{context.scene_type}'),
+                    ("scene_controller_iface", _fmt_ptr(context.scene_controller_iface)),
+                    ("camera_pitch_frequency", f'{context.camera_pitch_frequency}'),
+                    ("camera_pitch_current", f'{context.camera_pitch_current}'),
+                    ("camera_pitch_target", f'{context.camera_pitch_target}'),
+                    ("camera_pitch_velocity", f'{context.camera_pitch_velocity}'),
+                    ("RESERVED_0x1C", f'{list(context.RESERVED_0x1C)}'),
+                    ("camera_mode", f'{context.camera_mode}'),
+                    ("RESERVED_0x50", f'{list(context.RESERVED_0x50)}'),
+                    ("RESERVED_0x64", f'{context.RESERVED_0x64}'),
+                    ("camera_limits_frequency", f'{context.camera_limits_frequency}'),
+                    ("camera_limits_min_current", f'{context.camera_limits_min_current}'),
+                    ("camera_limits_max_current", f'{context.camera_limits_max_current}'),
+                    ("camera_limits_min_target", f'{context.camera_limits_min_target}'),
+                    ("camera_limits_max_target", f'{context.camera_limits_max_target}'),
+                    ("camera_limits_min_velocity", f'{context.camera_limits_min_velocity}'),
+                    ("camera_limits_max_velocity", f'{context.camera_limits_max_velocity}'),
+                    ("scroll_offset_frequency", f'{context.scroll_offset_frequency}'),
+                    ("scroll_offset_current", f'{context.scroll_offset_current}'),
+                    ("scroll_offset_target", f'{context.scroll_offset_target}'),
+                    ("scroll_offset_velocity", f'{context.scroll_offset_velocity}'),
+                    ("scroll_speed_frequency", f'{context.scroll_speed_frequency}'),
+                    ("scroll_speed_current", f'{context.scroll_speed_current}'),
+                    ("scroll_speed_target", f'{context.scroll_speed_target}'),
+                    ("scroll_speed_velocity", f'{context.scroll_speed_velocity}'),
+                    ("camera_height", f'{context.camera_height}'),
+                    ("camera_height_min", f'{context.camera_height_min}'),
+                    ("camera_height_max", f'{context.camera_height_max}'),
+                    ("camera_rotation_frequency", f'{context.camera_rotation_frequency}'),
+                    ("camera_rotation_current", f'{context.camera_rotation_current}'),
+                    ("camera_rotation_target", f'{context.camera_rotation_target}'),
+                    ("camera_rotation_velocity", f'{context.camera_rotation_velocity}'),
+                    ("RESERVED_0xC0", f'{list(context.RESERVED_0xC0)}'),
+                    ("max_characters", f'{context.max_characters}'),
+                    ("chosen_character_index", f'{context.chosen_character_index}'),
+                    ("preview_character_index", f'{context.preview_character_index}'),
+                    ("pending_character_index", f'{context.pending_character_index}'),
+                    ("chars_array.m_buffer", _fmt_ptr(context.chars_array.m_buffer)),
+                    ("chars_array.m_capacity", f'{context.chars_array.m_capacity}'),
+                    ("chars_array.m_size", f'{context.chars_array.m_size}'),
+                    ("char_creation_flag", f'{context.char_creation_flag}'),
+                    ("create_slot_index", f'{context.create_slot_index}'),
+                    ("sentinel_guard", f'{context.sentinel_guard}'),
+                    ("self_link", _fmt_ptr(context.self_link)),
+                    ("list_head", _fmt_ptr(context.list_head)),
+                ]
                 draw_kv_table("PregameExtraData", rows)
                 
                 PyImGui.separator()
@@ -680,24 +719,39 @@ def draw_pregame_tab():
                 for i, char in enumerate(character_list):
                     if PyImGui.collapsing_header(f"Character {i}: {char.character_name}"):
                         rows: list[tuple[str, str | int | float]] = [
-                            ("Index",                   f"{i}"),
-                            ("Character Name",          f"{char.character_name}"),
-                            ("Level",                   f"{char.level}"),
-                            ("Current Map ID",          f"{char.current_map_id} - {Map.GetMapName(char.current_map_id)}"),
+                            ("Index", f"{i}"),
+                            ("appearance_packed", f"{char.appearance_packed}"),
+                            ("pvp_flag", f"{char.pvp_flag}"),
+                            ("guild_guid_0", f"{char.guild_guid_0}"),
+                            ("guild_guid_1", f"{char.guild_guid_1}"),
+                            ("guild_guid_2", f"{char.guild_guid_2}"),
+                            ("guild_guid_3", f"{char.guild_guid_3}"),
+                            ("items_data", f"{char.items_data}"),
+                            ("items_capacity", f"{char.items_capacity}"),
+                            ("items_count", f"{char.items_count}"),
+                            ("items_param", f"{char.items_param}"),
+                            ("Level", f"{char.level}"),
+                            ("Current Map ID", f"{char.current_map_id}"),
+                            ("field_0x30", f"{char.field_0x30}"),
+                            ("primary_profession", f"{char.primary_profession}"),
+                            ("profession_enum", f"{char.profession_enum}"),
+                            ("field_0x3C", f"{char.field_0x3C}"),
+                            ("field_0x40", f"{char.field_0x40}"),
+                            ("field_0x44", f"{char.field_0x44}"),
+                            ("field_0x48", f"{char.field_0x48}"),
+                            ("char_model_ptr", _fmt_ptr(char.char_model_ptr)),
+                            ("Character Name (encoded)", f"{char.character_name_enc}"),
+                            ("Character Name", f"{char.character_name}"),
                         ]
                         draw_kv_table(f"Character_{i}", rows)
                         PyImGui.separator()
                         
                         if PyImGui.collapsing_header("extra_data"):
                             rows: list[tuple[str, str | int | float]] = [
-                                ("Unk00",           f"{char.Unk00}"),
-                                ("pvp_or_campaign", f"{char.pvp_or_campaign}"),
-                                ("UnkPvPData01",    f"{char.UnkPvPData01}"),
-                                ("UnkPvPData02",    f"{char.UnkPvPData02}"),
-                                ("UnkPvPData03",    f"{char.UnkPvPData03}"),
-                                ("UnkPvPData04",    f"{char.UnkPvPData04}"),
-                                ("Unk01",           f"{list(char.Unk01)}"),
-                                ("Unk02",           f"{list(char.Unk02)}"),
+                                ("guild_guid", f"{char.guild_guid.hex().upper()}"),
+                                ("char_model_ptr", f"{char.char_model_ptr}"),
+                                ("character_name_enc", f"{char.character_name_enc}"),
+                                ("character_name", f"{char.character_name}"),
                             ]
                             draw_kv_table(f"CharacterExtraData_{i}", rows)
                             PyImGui.separator()

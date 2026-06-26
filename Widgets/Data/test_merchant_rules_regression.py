@@ -273,11 +273,6 @@ def _install_stub_modules(project_root: Path) -> None:
     )
     sys.modules["Py4GWCoreLib.py4gwcorelib_src.WidgetManager"] = widget_manager
 
-    _ensure_package("Py4GWCoreLib.modular")
-    modular_selectors = types.ModuleType("Py4GWCoreLib.modular.selectors")
-    modular_selectors.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
-    sys.modules["Py4GWCoreLib.modular.selectors"] = modular_selectors
-
     _ensure_package("Py4GWCoreLib.routines_src")
     _ensure_package("Py4GWCoreLib.routines_src.behaviourtrees_src")
     botting_inventory = types.ModuleType("Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory")
@@ -934,6 +929,66 @@ def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
     _expect(not any(saved_payload["identify_settings"]["rarities"].values()), "Saved identify rarity selectors should remain off by default.")
     _expect(not saved_payload["identify_settings"]["before_execute"], "Saved Identify before Execute should remain off by default.")
     _expect(not saved_payload["identify_settings"]["on_inventory_change"], "Saved on-pickup/inventory-change identify should remain off by default.")
+    _expect(not widget.destroy_auto_enabled, "Saved Auto Destroy should default off for legacy profiles.")
+    _expect(not saved_payload["destroy_auto_enabled"], "Saved Auto Destroy should remain off by default.")
+
+
+def _test_destroy_auto_profile_roundtrip(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "destroy_auto_profile.json"
+    widget.config_path = str(config_path)
+    widget.destroy_auto_enabled = True
+    widget.destroy_include_protected_items = True
+
+    _expect(widget._save_profile(), "Destroy Auto profile should save.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(saved_payload["destroy_auto_enabled"], "Saved Auto Destroy should persist in the profile.")
+    _expect(
+        "destroy_include_protected_items" not in saved_payload,
+        "Protected-item destroy override should remain session-only and not be serialized.",
+    )
+
+    reloaded_widget = _make_widget(module)
+    reloaded_widget.config_path = str(config_path)
+    reloaded_widget._load_profile()
+    _expect(reloaded_widget.destroy_auto_enabled, "Saved Auto Destroy should reload from the profile.")
+    _expect(
+        not reloaded_widget.destroy_include_protected_items,
+        "Protected-item destroy override should reset when the profile reloads.",
+    )
+
+
+def _test_destroy_auto_effective_flag_and_runtime_queue(module) -> None:
+    widget = _make_widget(module)
+    widget._get_inventory_signature = lambda items=None: ((1, 1),)
+
+    original_coroutines = getattr(module.GLOBAL_CACHE, "Coroutines", None)
+    had_coroutines = hasattr(module.GLOBAL_CACHE, "Coroutines")
+    try:
+        module.GLOBAL_CACHE.Coroutines = []
+        _expect(not widget._is_destroy_auto_enabled(), "Auto Destroy should be off when both saved and session flags are off.")
+        widget._update_instant_destroy_runtime()
+        _expect(not module.GLOBAL_CACHE.Coroutines, "Auto Destroy should not queue when both flags are off.")
+
+        widget.destroy_auto_enabled = True
+        _expect(widget._is_destroy_auto_enabled(), "Saved Auto Destroy should enable the effective auto flag.")
+        widget._request_instant_destroy_rescan()
+        widget._update_instant_destroy_runtime()
+        _expect(len(module.GLOBAL_CACHE.Coroutines) == 1, "Saved Auto Destroy should queue the auto destroy runtime.")
+
+        widget = _make_widget(module)
+        widget._get_inventory_signature = lambda items=None: ((2, 1),)
+        module.GLOBAL_CACHE.Coroutines = []
+        widget.destroy_instant_enabled = True
+        _expect(widget._is_destroy_auto_enabled(), "Session Auto Destroy should enable the effective auto flag.")
+        widget._request_instant_destroy_rescan()
+        widget._update_instant_destroy_runtime()
+        _expect(len(module.GLOBAL_CACHE.Coroutines) == 1, "Session Auto Destroy should queue the auto destroy runtime.")
+    finally:
+        if had_coroutines:
+            module.GLOBAL_CACHE.Coroutines = original_coroutines
+        elif hasattr(module.GLOBAL_CACHE, "Coroutines"):
+            delattr(module.GLOBAL_CACHE, "Coroutines")
 
 
 def _test_salvage_auto_exact_upgrade_option_profile_roundtrip(module, temp_root: Path) -> None:
@@ -1978,6 +2033,174 @@ def _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module) -> N
     _expect(
         any("reserved to satisfy keep count 1" in entry.reason for entry in plan.entries),
         "Exact rune keep counts should still apply when a broad armor loose-rune rule exists first.",
+    )
+
+
+def _test_sell_weapons_routes_standalone_weapon_mods_to_merchant_and_keeps_runes_on_rune_trader(module) -> None:
+    widget = _make_widget(module)
+    widget.rune_names = {
+        "rune_attunement": "Rune of Attunement",
+        "rune_vigor": "Rune of Vigor",
+    }
+    widget.sell_rules = module._normalize_sell_rules([
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rule_id="weapon_rule",
+            rarities=_rarity_flags("gold"),
+        ),
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_ARMOR,
+            rule_id="armor_rule",
+            rarities=_rarity_flags("gold"),
+            include_standalone_runes=True,
+        ),
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+            rule_id="rune_rule",
+            rune_sell_targets=[
+                module.RuneSellTarget(identifier="rune_attunement", keep_count=0),
+            ],
+        ),
+    ])
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (2.0, 2.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=101,
+            model_id=9101,
+            name="Sundering Sword Hilt",
+            rarity="Gold",
+            item_type_id=int(module.ItemType.Rune_Mod),
+            item_type_name="Rune_Mod",
+            standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+            weapon_mod_identifiers=["Sundering"],
+        ),
+        _make_item(
+            module,
+            item_id=102,
+            model_id=9102,
+            name='Inscription: "Brawn over Brains"',
+            rarity="Gold",
+            item_type_id=int(module.ItemType.Rune_Mod),
+            item_type_name="Rune_Mod",
+            standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+            weapon_mod_identifiers=['"Brawn over Brains"'],
+        ),
+        _make_item(
+            module,
+            item_id=103,
+            model_id=111,
+            name="Iron Sword",
+            rarity="Gold",
+            is_weapon_like=True,
+            item_type_id=int(module.ItemType.Sword),
+            item_type_name="Sword",
+        ),
+        _make_item(
+            module,
+            item_id=104,
+            model_id=9201,
+            name="Rune of Attunement",
+            rarity="Gold",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=105,
+            model_id=9202,
+            name="Rune of Vigor",
+            rarity="Gold",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_vigor"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(
+        set(plan.merchant_sell_item_ids) == {101, 102, 103},
+        "Sell Weapons should route normal weapons and standalone weapon upgrade components to Merchant.",
+    )
+    _expect(
+        {sale.item_id for sale in plan.rune_trader_sales} == {104, 105},
+        "Loose runes and exact rune sell targets should remain Rune Trader sales.",
+    )
+    merchant_labels = {
+        entry.label
+        for entry in plan.entries
+        if entry.action_type == "sell" and entry.merchant_type == module.MERCHANT_TYPE_MERCHANT
+    }
+    _expect(
+        {"Sundering Sword Hilt", 'Inscription: "Brawn over Brains"', "Iron Sword"} <= merchant_labels,
+        "Preview entries should show standalone weapon upgrades under Merchant.",
+    )
+
+
+def _test_xunlai_sell_weapons_withdraws_standalone_weapon_mods_for_merchant(module) -> None:
+    widget = _make_widget(module)
+    widget.sell_rules = module._normalize_sell_rules([
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rule_id="weapon_rule",
+            rarities=_rarity_flags("gold"),
+            sell_from_xunlai=True,
+        ),
+    ])
+    weapon_rule = widget.sell_rules[0]
+    storage_hilt = _make_item(
+        module,
+        item_id=201,
+        model_id=9101,
+        name="Sundering Sword Hilt",
+        rarity="Gold",
+        item_type_id=int(module.ItemType.Rune_Mod),
+        item_type_name="Rune_Mod",
+        standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+        weapon_mod_identifiers=["Sundering"],
+    )
+    merchant_coords = {
+        module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+        module.MERCHANT_TYPE_RUNE_TRADER: None,
+    }
+
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        [(0, weapon_rule)],
+        current_items=[],
+        regular_storage_items=[storage_hilt],
+        material_storage_items=[],
+        coords=merchant_coords,
+    )
+
+    _expect([transfer.item_id for transfer in transfers] == [201], "Xunlai weapon-mod sells should withdraw for Merchant sale.")
+    _expect(adjusted_rules and adjusted_rules[0].kind == module.SELL_KIND_WEAPONS, "Xunlai subplan should keep the weapon sell rule.")
+
+    rune_only_coords = {
+        module.MERCHANT_TYPE_MERCHANT: None,
+        module.MERCHANT_TYPE_RUNE_TRADER: (2.0, 2.0),
+    }
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        [(0, weapon_rule)],
+        current_items=[],
+        regular_storage_items=[storage_hilt],
+        material_storage_items=[],
+        coords=rune_only_coords,
+    )
+
+    _expect(
+        not transfers and not adjusted_rules,
+        "Xunlai weapon-mod sells should not treat Rune Trader availability as enough service coverage.",
     )
 
 
@@ -3793,6 +4016,640 @@ def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
         salvage_kit_id=1,
     )
     _expect(candidate_reason.startswith("protected:"), "Protected items should also block salvage candidate evaluation.")
+
+
+def _test_protected_items_profile_roundtrip(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222, 111, 222, 0, -1]
+
+    payload = widget._build_profile_payload(include_window_geometry=False)
+    normalized = widget._normalize_profile_payload(payload)
+
+    _expect(
+        normalized["protected_item_model_ids"] == [222, 111],
+        "Protected item model IDs should normalize and persist in profile payloads.",
+    )
+
+    loaded_widget = _make_widget(module)
+    loaded_widget._apply_profile_payload(normalized)
+    _expect(
+        loaded_widget.protected_item_model_ids == [222, 111],
+        "Protected item model IDs should apply from normalized profiles.",
+    )
+
+    legacy_normalized = widget._normalize_profile_payload({"version": module.PROFILE_VERSION - 1})
+    _expect(
+        legacy_normalized["protected_item_model_ids"] == [],
+        "Legacy profiles without Protected Items should normalize to an empty list.",
+    )
+
+
+def _test_protected_items_skip_stackable_material_sell(module) -> None:
+    widget = _make_widget(module)
+    material_model_id = 921
+    widget.catalog_by_model_id[material_model_id] = {
+        "model_id": material_model_id,
+        "name": "Bone",
+        "material_type": "common",
+    }
+    widget.protected_item_model_ids = [material_model_id]
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_COMMON_MATERIALS,
+                whitelist_targets=[module.WhitelistTarget(model_id=material_model_id, keep_count=0)],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=501,
+            model_id=material_model_id,
+            name="Bone",
+            quantity=17,
+            rarity="White",
+            is_material=True,
+        )
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.material_sales, "Protected stackable materials should not be planned for trader sale.")
+    _expect(
+        501 not in plan.merchant_sell_item_ids,
+        "Protected stackable materials should not fall back to merchant sale.",
+    )
+    _expect(
+        any(
+            entry.action_type == "sell"
+            and entry.state == module.PLAN_STATE_SKIPPED
+            and "Protected Items" in entry.reason
+            for entry in plan.entries
+        ),
+        "Preview should show protected exact-model material stacks as skipped.",
+    )
+
+
+def _test_protected_items_skip_exact_rune_trader_sell(module) -> None:
+    widget = _make_widget(module)
+    protected_rune_model_id = 9001
+    sellable_rune_model_id = 9002
+    widget.protected_item_model_ids = [protected_rune_model_id]
+    widget.rune_names = {
+        "rune_attunement": "Rune of Attunement",
+    }
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+                rune_sell_targets=[module.RuneSellTarget(identifier="rune_attunement", keep_count=0)],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (2.0, 2.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=701,
+            model_id=protected_rune_model_id,
+            name="Protected Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=702,
+            model_id=sellable_rune_model_id,
+            name="Sellable Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    sold_ids = {sale.item_id for sale in plan.rune_trader_sales}
+    _expect(701 not in sold_ids, "Protected exact-model loose runes should not be sold to the Rune Trader.")
+    _expect(702 in sold_ids, "Unprotected matching loose runes should still be sold to the Rune Trader.")
+    _expect(
+        any(
+            entry.action_type == "sell"
+            and entry.merchant_type == module.MERCHANT_TYPE_RUNE_TRADER
+            and entry.state == module.PLAN_STATE_SKIPPED
+            and entry.model_id == protected_rune_model_id
+            and "Protected Items" in entry.reason
+            for entry in plan.entries
+        ),
+        "Preview should show protected exact-model loose runes as skipped.",
+    )
+
+
+def _test_protected_items_block_salvage_candidate(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222]
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    item = _make_item(
+        module,
+        item_id=502,
+        model_id=222,
+        name="Protected Trophy",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+    )
+
+    reason = widget._get_salvage_candidate_block_reason(
+        item,
+        widget._collect_enabled_sell_rules(),
+        require_salvage_kit=True,
+        salvage_kit_id=1,
+    )
+
+    _expect(reason.startswith("protected:"), "Protected exact-model items should block salvage candidate evaluation.")
+    _expect(
+        "Protected Items" in reason,
+        "Protected exact-model salvage blocks should identify the Protected Items source.",
+    )
+
+
+def _test_protected_items_destroy_default_and_override(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=222, keep_count=0)],
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=503,
+            model_id=222,
+            name="Protected Trophy Stack",
+            quantity=5,
+            rarity="White",
+        )
+    ]
+
+    default_plan = widget._build_plan()
+
+    _expect(not default_plan.destroy_actions, "Protected exact-model items should be skipped by Destroy by default.")
+    _expect(
+        any(
+            entry.action_type == "destroy"
+            and entry.state == module.PLAN_STATE_SKIPPED
+            and "Protected Items" in entry.reason
+            for entry in default_plan.entries
+        ),
+        "Destroy preview should surface the Protected Items skip reason.",
+    )
+
+    widget.destroy_include_protected_items = True
+    override_plan = widget._build_plan()
+
+    _expect(
+        any(action.item_id == 503 and action.quantity_to_destroy == 5 for action in override_plan.destroy_actions),
+        "Destroy override should allow protected exact-model stack quantities just like existing protections.",
+    )
+    _expect(
+        any(
+            "Included protected item" in entry.reason
+            for entry in override_plan.entries
+            if entry.action_type == "destroy"
+        ),
+        "Destroy override preview should explain that a protected item is included.",
+    )
+
+
+def _test_auto_destroy_entry_points_keep_protected_items_safe(module) -> None:
+    def make_widget(captured_item_ids: list[int]):
+        widget = _make_widget(module)
+        widget.protected_item_model_ids = [222]
+        widget.destroy_rules = [
+            module._normalize_destroy_rule(
+                module.DestroyRule(
+                    enabled=True,
+                    kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                    whitelist_targets=[module.WhitelistTarget(model_id=222, keep_count=0)],
+                )
+            )
+        ]
+        widget._collect_inventory_items = lambda: [
+            _make_item(
+                module,
+                item_id=503,
+                model_id=222,
+                name="Protected Trophy Stack",
+                quantity=5,
+                rarity="White",
+            )
+        ]
+        widget._get_inventory_signature = lambda items=None: ((503, 5),)
+        widget._pause_inventory_plus = lambda: None
+
+        def _capture_destroy_phase(actions):
+            captured_item_ids.extend(
+                int(action.item_id) if isinstance(action, module.PlannedDestroyAction) else int(action)
+                for action in actions
+            )
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(
+                label="Destroy",
+                measure_label="items",
+                attempted=len(captured_item_ids),
+                completed=len(captured_item_ids),
+            )
+
+        widget._execute_destroy_phase = _capture_destroy_phase
+        return widget
+
+    captured: list[int] = []
+    saved_auto_widget = make_widget(captured)
+    saved_auto_widget.destroy_auto_enabled = True
+    _drain_generator_return(saved_auto_widget._run_instant_destroy_pass())
+    _expect(not captured, "Saved Auto Destroy should skip protected items by default.")
+    _expect(
+        "protected" in saved_auto_widget.last_instant_destroy_summary.lower(),
+        "Saved Auto Destroy should report protected-item skips.",
+    )
+
+    captured = []
+    session_auto_widget = make_widget(captured)
+    session_auto_widget.destroy_instant_enabled = True
+    _drain_generator_return(session_auto_widget._run_instant_destroy_pass())
+    _expect(not captured, "Session Auto Destroy should skip protected items by default.")
+
+    original_coroutines = getattr(module.GLOBAL_CACHE, "Coroutines", None)
+    had_coroutines = hasattr(module.GLOBAL_CACHE, "Coroutines")
+    try:
+        captured = []
+        run_now_widget = make_widget(captured)
+        module.GLOBAL_CACHE.Coroutines = []
+        run_now_widget._queue_destroy_now()
+        _expect(len(module.GLOBAL_CACHE.Coroutines) == 1, "Run Destroy Now should queue a one-shot destroy pass.")
+        _drain_generator_return(module.GLOBAL_CACHE.Coroutines.pop(0))
+        _expect(not captured, "Run Destroy Now should skip protected items by default.")
+
+        captured = []
+        run_now_override_widget = make_widget(captured)
+        run_now_override_widget.destroy_include_protected_items = True
+        module.GLOBAL_CACHE.Coroutines = []
+        run_now_override_widget._queue_destroy_now()
+        _expect(
+            len(module.GLOBAL_CACHE.Coroutines) == 1,
+            "Run Destroy Now with protected override should queue a one-shot destroy pass.",
+        )
+        _drain_generator_return(module.GLOBAL_CACHE.Coroutines.pop(0))
+        _expect(captured == [503], "Run Destroy Now should honor the session protected-item override.")
+    finally:
+        if had_coroutines:
+            module.GLOBAL_CACHE.Coroutines = original_coroutines
+        elif hasattr(module.GLOBAL_CACHE, "Coroutines"):
+            delattr(module.GLOBAL_CACHE, "Coroutines")
+
+    captured = []
+    override_widget = make_widget(captured)
+    override_widget.destroy_auto_enabled = True
+    override_widget.destroy_include_protected_items = True
+    _drain_generator_return(override_widget._run_instant_destroy_pass())
+    _expect(captured == [503], "Protected-item override should allow Auto Destroy to destroy protected matches.")
+
+
+def _test_auto_destroy_summary_does_not_label_salvage_blocks_as_protected(module) -> None:
+    captured: list[int] = []
+    widget = _make_widget(module)
+    widget.destroy_auto_enabled = True
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+            )
+        )
+    ]
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=702,
+            model_id=333,
+            name="Salvage Reserved Sword",
+            rarity="Gold",
+            identified=True,
+            salvageable=True,
+            is_weapon_like=True,
+        )
+    ]
+    widget._get_inventory_signature = lambda items=None: ((702, 1),)
+    widget._pause_inventory_plus = lambda: None
+
+    def _capture_destroy_phase(actions):
+        captured.extend(
+            int(action.item_id) if isinstance(action, module.PlannedDestroyAction) else int(action)
+            for action in actions
+        )
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label="Destroy",
+            measure_label="items",
+            attempted=len(captured),
+            completed=len(captured),
+        )
+
+    widget._execute_destroy_phase = _capture_destroy_phase
+    _drain_generator_return(widget._run_instant_destroy_pass())
+
+    _expect(not captured, "Salvage-reserved items should not be destroyed by Auto Destroy.")
+    _expect(
+        "protected" not in widget.last_instant_destroy_summary.lower(),
+        "Auto Destroy should not report salvage-reserved destroy skips as protected-item skips.",
+    )
+    _expect(
+        "blocked by safety checks" in widget.last_instant_destroy_summary.lower(),
+        "Auto Destroy should describe non-protected blocked destroy matches generically.",
+    )
+
+
+def _test_protected_items_allow_configured_deposit(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222]
+    widget.cleanup_targets = [module.CleanupTarget(model_id=222, keep_on_character=0)]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(IsStorageOpen=lambda: False)
+        widget._collect_inventory_items = lambda: [
+            _make_item(
+                module,
+                item_id=504,
+                model_id=222,
+                name="Protected Trophy",
+                quantity=3,
+                rarity="White",
+            )
+        ]
+
+        plan = widget._build_plan()
+
+        deposit_transfers = [
+            transfer
+            for transfer in plan.storage_transfers
+            if transfer.direction == module.STORAGE_TRANSFER_DEPOSIT
+        ]
+        _expect(
+            len(deposit_transfers) == 1 and deposit_transfers[0].item_id == 504 and deposit_transfers[0].quantity == 3,
+            "Configured deposit targets should still move protected exact-model items.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+
+def _test_protected_items_block_xunlai_sell_withdrawals(module) -> None:
+    widget = _make_widget(module)
+    widget.protected_item_model_ids = [222, 921, 9001]
+    explicit_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_EXPLICIT_MODELS,
+            whitelist_targets=[module.WhitelistTarget(model_id=222, keep_count=0)],
+            sell_from_xunlai=True,
+        )
+    )
+    material_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_COMMON_MATERIALS,
+            whitelist_targets=[module.WhitelistTarget(model_id=921, keep_count=0)],
+            sell_from_xunlai=True,
+            include_material_storage=True,
+        )
+    )
+    rune_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+            rune_sell_targets=[module.RuneSellTarget(identifier="rune_attunement", keep_count=0)],
+            sell_from_xunlai=True,
+        )
+    )
+    widget.sell_rules = [explicit_rule, material_rule, rune_rule]
+    coords = {
+        module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+        module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+        module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+        module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+    }
+    regular_storage_items = [
+        _make_item(module, item_id=601, model_id=222, name="Protected Trophy", quantity=2),
+        _make_item(
+            module,
+            item_id=603,
+            model_id=9001,
+            name="Protected Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+    ]
+    material_storage_items = [
+        _make_item(module, item_id=602, model_id=921, name="Bone", quantity=250, is_material=True),
+    ]
+    protected_preview_entries = []
+
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        list(enumerate(widget.sell_rules)),
+        current_items=[],
+        regular_storage_items=regular_storage_items,
+        material_storage_items=material_storage_items,
+        coords=coords,
+        protected_preview_entries=protected_preview_entries,
+    )
+
+    _expect(not transfers, "Protected exact-model storage and rune-trader items should not be withdrawn for sale.")
+    _expect(not adjusted_rules, "Xunlai sell pass should not create adjusted sell rules for protected storage matches.")
+    _expect(
+        {entry.model_id for entry in protected_preview_entries} == {222, 921, 9001},
+        "Xunlai sell planning should report protected storage matches as skipped preview rows.",
+    )
+    _expect(
+        all(
+            entry.action_type == "withdraw"
+            and entry.merchant_type == module.MERCHANT_TYPE_STORAGE
+            and entry.state == module.PLAN_STATE_SKIPPED
+            for entry in protected_preview_entries
+        ),
+        "Protected Xunlai sell preview rows should be skipped storage-withdraw rows.",
+    )
+    _expect(
+        all(
+            "protected by exact Protected Items" in widget._get_preview_reason_for_display(entry)
+            for entry in protected_preview_entries
+        ),
+        "Protected Xunlai sell preview rows should use simplified exact Protected Items display wording.",
+    )
+
+    original_inventory = module.GLOBAL_CACHE.Inventory
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(IsStorageOpen=lambda: True)
+        widget._get_supported_context = lambda: (True, "Ready", coords)
+        widget._collect_inventory_items = lambda: []
+        widget._collect_storage_items = lambda: regular_storage_items
+        widget._collect_material_storage_items = lambda: material_storage_items
+
+        plan = widget._build_plan()
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+    plan_protected_models = {
+        entry.model_id
+        for entry in plan.entries
+        if entry.action_type == "withdraw"
+        and entry.merchant_type == module.MERCHANT_TYPE_STORAGE
+        and entry.state == module.PLAN_STATE_SKIPPED
+    }
+    _expect(
+        plan_protected_models == {222, 921, 9001},
+        "Preview Plan should include Not Changed rows for protected sell-from-Xunlai storage matches.",
+    )
+
+
+def _test_equipment_protections_report_xunlai_sell_withdraw_skips(module) -> None:
+    widget = _make_widget(module)
+    protection_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=8),
+            ],
+        )
+    )
+    xunlai_sell_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rarities=_rarity_flags("gold"),
+            sell_from_xunlai=True,
+        )
+    )
+    widget.sell_rules = [protection_rule, xunlai_sell_rule]
+    coords = {
+        module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+        module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+        module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+        module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+    }
+    regular_storage_items = [
+        _make_item(
+            module,
+            item_id=611,
+            model_id=111,
+            name="Protected Chaos Axe",
+            rarity="Gold",
+            is_weapon_like=True,
+            requirement=8,
+            item_type_id=int(module.ItemType.Axe),
+            item_type_name="Axe",
+        ),
+    ]
+    protected_preview_entries = []
+
+    transfers, adjusted_rules = widget._plan_xunlai_sell_withdrawals(
+        widget._collect_enabled_xunlai_sell_rules(),
+        current_items=[],
+        regular_storage_items=regular_storage_items,
+        material_storage_items=[],
+        coords=coords,
+        protected_preview_entries=protected_preview_entries,
+    )
+
+    _expect(not transfers, "Equipment-protected storage weapons should not be withdrawn for sale.")
+    _expect(not adjusted_rules, "Xunlai sell pass should not create adjusted sell rules for equipment-protected storage matches.")
+    _expect(len(protected_preview_entries) == 1, "Equipment-protected storage weapons should produce one skipped preview row.")
+    preview_entry = protected_preview_entries[0]
+    _expect(
+        preview_entry.action_type == "withdraw"
+        and preview_entry.merchant_type == module.MERCHANT_TYPE_STORAGE
+        and preview_entry.state == module.PLAN_STATE_SKIPPED
+        and preview_entry.model_id == 111,
+        "Equipment-protected Xunlai preview rows should be skipped storage-withdraw rows.",
+    )
+    _expect(
+        "Hard-protected by" in preview_entry.reason and "Protected by requirement range:" in preview_entry.reason,
+        "Raw equipment-protected Xunlai preview reasons should preserve the detailed protection reason.",
+    )
+    display_reason = widget._get_preview_reason_for_display(preview_entry)
+    _expect(
+        "Rule 1 (Sell Weapons)" in display_reason and "requirement range" in display_reason and "Iron Sword req 8 in 1-8" in display_reason,
+        "Equipment-protected Xunlai preview display should retain rule, category, and detail text.",
+    )
+
+    original_inventory = module.GLOBAL_CACHE.Inventory
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(IsStorageOpen=lambda: True)
+        widget._get_supported_context = lambda: (True, "Ready", coords)
+        widget._collect_inventory_items = lambda: []
+        widget._collect_storage_items = lambda: regular_storage_items
+        widget._collect_material_storage_items = lambda: []
+
+        plan = widget._build_plan()
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+    plan_preview_entries = [
+        entry
+        for entry in plan.entries
+        if entry.action_type == "withdraw"
+        and entry.merchant_type == module.MERCHANT_TYPE_STORAGE
+        and entry.state == module.PLAN_STATE_SKIPPED
+        and entry.model_id == 111
+    ]
+    _expect(
+        len(plan_preview_entries) == 1,
+        "Preview Plan should include a Not Changed row for equipment-protected sell-from-Xunlai storage matches.",
+    )
+    _expect(
+        not [transfer for transfer in plan.storage_transfers if transfer.direction == module.STORAGE_TRANSFER_WITHDRAW],
+        "Equipment-protected Xunlai preview rows should not create storage withdraw transfers.",
+    )
 
 
 def _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module) -> None:
@@ -7432,6 +8289,22 @@ def _test_preview_reason_display_normalizes_nested_protection_wording(module) ->
         state=module.PLAN_STATE_SKIPPED,
         reason="Blocked by Destroy Weapons rule #2: Hard-protected by Weapons Protections (#1): Protected by model perfect-base range: Chaos Axe 6-28, req 9 Axe Mastery.",
     )
+    exact_direct = module.ExecutionPlanEntry(
+        action_type="sell",
+        merchant_type=module.MERCHANT_TYPE_MERCHANT,
+        label="Protected Trophy",
+        quantity=1,
+        state=module.PLAN_STATE_SKIPPED,
+        reason="Protected by Protected Items: exact model.",
+    )
+    exact_blocked = module.ExecutionPlanEntry(
+        action_type="destroy",
+        merchant_type=module.MERCHANT_TYPE_INVENTORY,
+        label="Protected Trophy",
+        quantity=1,
+        state=module.PLAN_STATE_SKIPPED,
+        reason="Blocked by Destroy Exact Items rule #1: Protected by Protected Items: exact model.",
+    )
 
     _expect(
         widget._get_preview_reason_for_display(direct_linked)
@@ -7447,6 +8320,34 @@ def _test_preview_reason_display_normalizes_nested_protection_wording(module) ->
         widget._get_preview_reason_for_display(blocked_destroy)
         == "Blocked by Destroy Weapons rule #2: protected by Weapons Protections (#1), model perfect-base range, Chaos Axe 6-28, req 9 Axe Mastery.",
         "Preview display should make blocked nested protection wording scannable.",
+    )
+    _expect(
+        blocked_destroy.reason
+        == "Blocked by Destroy Weapons rule #2: Hard-protected by Weapons Protections (#1): Protected by model perfect-base range: Chaos Axe 6-28, req 9 Axe Mastery.",
+        "Equipment and upgrade protection display cleanup should not mutate the stored reason.",
+    )
+    _expect(
+        "Weapons Protections (#1)" in widget._get_preview_reason_for_display(blocked_destroy)
+        and "model perfect-base range" in widget._get_preview_reason_for_display(blocked_destroy)
+        and "Chaos Axe 6-28" in widget._get_preview_reason_for_display(blocked_destroy),
+        "Equipment and upgrade protection display should retain useful rule and detail text.",
+    )
+    _expect(
+        widget._get_preview_reason_for_display(exact_direct) == "Protected by exact Protected Items.",
+        "Exact Protected Items preview display should use a simple direct phrase.",
+    )
+    _expect(
+        exact_direct.reason == "Protected by Protected Items: exact model.",
+        "Exact Protected Items direct display cleanup should not mutate the stored reason.",
+    )
+    _expect(
+        widget._get_preview_reason_for_display(exact_blocked)
+        == "Blocked by Destroy Exact Items rule #1: protected by exact Protected Items.",
+        "Blocked exact Protected Items preview display should use a simple protected phrase.",
+    )
+    _expect(
+        exact_blocked.reason == "Blocked by Destroy Exact Items rule #1: Protected by Protected Items: exact model.",
+        "Blocked exact Protected Items display cleanup should not mutate the stored reason.",
     )
 
 
@@ -8710,6 +9611,211 @@ def _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module) -
     finally:
         for name, value in original_paths.items():
             setattr(module, name, value)
+
+
+def _test_cleanup_deposit_item_type_filter_classifies_catalog_entries(module) -> None:
+    widget = _make_widget(module)
+    widget.catalog_by_model_id.update(
+        {
+            921: {"model_id": 921, "name": "Bone", "material_type": "common"},
+            int(module.ECTOPLASM_MODEL_ID): {
+                "model_id": int(module.ECTOPLASM_MODEL_ID),
+                "name": "Glob of Ectoplasm",
+                "material_type": "rare",
+            },
+            945: {"model_id": 945, "name": "Obsidian Shard", "material_type": "rare"},
+            19122: {
+                "model_id": 19122,
+                "name": "Minor Rune of Vigor",
+                "item_type": "Rune_Mod",
+                "rune_model_kinds": ["rune"],
+            },
+            19131: {
+                "model_id": 19131,
+                "name": "Insignia",
+                "item_type": "Rune_Mod",
+                "rune_model_kinds": ["insignia"],
+                "rune_model_names": ["Radiant Insignia"],
+                "alias_labels": module._build_catalog_alias_labels("Radiant Insignia"),
+            },
+            15542: {"model_id": 15542, "name": "Aptitude Not Attitude Inscription", "item_type": "Rune_Mod"},
+            893: {"model_id": 893, "name": "Cruel Sword Hilt", "item_type": "Rune_Mod"},
+            905: {"model_id": 905, "name": "Sword Pommel of Fortitude", "item_type": "Rune_Mod"},
+            2988: {"model_id": 2988, "name": "Rune of Holding", "item_type": "Kit"},
+            400: {"model_id": 400, "name": "Fellblade", "item_type": "Sword"},
+            401: {"model_id": 401, "name": "Protective Focus", "item_type": "Focus"},
+            402: {"model_id": 402, "name": "Plate Chestpiece", "item_type": "Chestpiece"},
+            5853: {"model_id": 5853, "name": "Scroll of Adventurer's Insight", "item_type": "Scroll"},
+            24859: {"model_id": 24859, "name": "Essence of Celerity", "item_type": "Usable"},
+            31023: {"model_id": 31023, "name": "Frosty Summoning Stone", "item_type": "Usable"},
+            22269: {"model_id": 22269, "name": "Birthday Cupcake", "item_type": "Usable", "category": "Sweet"},
+            77777: {"model_id": 77777, "name": "Mystery Token"},
+        }
+    )
+
+    def matches(model_id: int, category: str, subcategory: str) -> bool:
+        return widget._catalog_entry_matches_cleanup_deposit_filter(
+            widget.catalog_by_model_id[int(model_id)],
+            category,
+            subcategory,
+        )
+
+    _expect(
+        matches(921, module.DEPOSIT_FILTER_MATERIALS, module.DEPOSIT_FILTER_MATERIALS_COMMON),
+        "Common material models should classify under Crafting Materials / Common.",
+    )
+    _expect(
+        matches(int(module.ECTOPLASM_MODEL_ID), module.DEPOSIT_FILTER_MATERIALS, module.DEPOSIT_FILTER_MATERIALS_RARE),
+        "Rare material models should classify under Crafting Materials / Rare.",
+    )
+    _expect(
+        matches(19122, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_RUNES),
+        "Rune model metadata should classify under Upgrade Components / Runes.",
+    )
+    _expect(
+        matches(19131, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_INSIGNIAS),
+        "Insignia model metadata should classify under Upgrade Components / Insignias.",
+    )
+    _expect(
+        matches(15542, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_INSCRIPTIONS),
+        "Inscription names on Rune_Mod entries should classify under Upgrade Components / Inscriptions.",
+    )
+    _expect(
+        matches(893, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_WEAPON_PREFIX),
+        "Prefix component names should classify under Upgrade Components / Weapon Mods - Prefix.",
+    )
+    _expect(
+        matches(905, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_WEAPON_SUFFIX),
+        "Suffix component names should classify under Upgrade Components / Weapon Mods - Suffix.",
+    )
+    _expect(
+        matches(2988, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_BAG),
+        "Rune of Holding should classify as a bag upgrade instead of a rune.",
+    )
+    _expect(
+        not matches(2988, module.DEPOSIT_FILTER_UPGRADES, module.DEPOSIT_FILTER_UPGRADES_RUNES),
+        "Rune of Holding should not pollute the rune subtype.",
+    )
+    _expect(
+        not matches(2988, module.DEPOSIT_FILTER_OTHER, module.DEPOSIT_FILTER_OTHER_UTILITY),
+        "Rune of Holding should stay out of the generic kit bucket once classified as a bag upgrade.",
+    )
+    _expect(
+        matches(400, module.DEPOSIT_FILTER_EQUIPMENT, module.DEPOSIT_FILTER_EQUIPMENT_WEAPONS),
+        "Weapon item types should classify under Equipment / Weapons.",
+    )
+    _expect(
+        matches(401, module.DEPOSIT_FILTER_EQUIPMENT, module.DEPOSIT_FILTER_EQUIPMENT_OFFHANDS),
+        "Focus/shield item types should classify under Equipment / Offhands.",
+    )
+    _expect(
+        matches(402, module.DEPOSIT_FILTER_EQUIPMENT, module.DEPOSIT_FILTER_EQUIPMENT_ARMOR),
+        "Armor piece item types should classify under Equipment / Armor.",
+    )
+    _expect(
+        matches(5853, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_SCROLLS),
+        "Scroll item types should classify under Consumables / Scrolls.",
+    )
+    _expect(
+        matches(24859, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_COMBAT),
+        "Known combat consumable names should classify under Consumables / Combat.",
+    )
+    _expect(
+        matches(31023, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_SUMMONING),
+        "Summoning consumable names should classify under Consumables / Summoning.",
+    )
+    _expect(
+        matches(22269, module.DEPOSIT_FILTER_CONSUMABLES, module.DEPOSIT_FILTER_CONSUMABLES_PARTY),
+        "Sweet/party metadata should classify under Consumables / Party.",
+    )
+    _expect(
+        matches(77777, module.DEPOSIT_FILTER_OTHER, module.DEPOSIT_FILTER_OTHER_UNKNOWN),
+        "Entries without usable metadata should remain findable under Other / Unknown.",
+    )
+    rare_material_model_ids = set(
+        widget._get_cleanup_deposit_filter_model_ids(
+            module.DEPOSIT_FILTER_MATERIALS,
+            module.DEPOSIT_FILTER_MATERIALS_RARE,
+        )
+    )
+    _expect(
+        {int(module.ECTOPLASM_MODEL_ID), 945}.issubset(rare_material_model_ids),
+        "Bulk deposit filter collection should include every rare material catalog model.",
+    )
+    _expect(
+        921 not in rare_material_model_ids,
+        "Bulk rare material collection should not include common material models.",
+    )
+    _expect(
+        widget._get_cleanup_deposit_filter_model_ids(module.DEPOSIT_FILTER_ALL, module.DEPOSIT_FILTER_ALL) == [],
+        "Bulk deposit collection should not expose an all-catalog add path.",
+    )
+
+    widget.cleanup_targets = [module.CleanupTarget(model_id=int(module.ECTOPLASM_MODEL_ID), keep_on_character=2)]
+    addable_rare_material_model_ids = set(
+        widget._get_addable_cleanup_deposit_filter_model_ids(
+            module.DEPOSIT_FILTER_MATERIALS,
+            module.DEPOSIT_FILTER_MATERIALS_RARE,
+            widget.cleanup_targets,
+        )
+    )
+    _expect(
+        945 in addable_rare_material_model_ids,
+        "Bulk deposit add should keep rare material models that are not already selected.",
+    )
+    _expect(
+        int(module.ECTOPLASM_MODEL_ID) not in addable_rare_material_model_ids,
+        "Bulk deposit add should skip rare material models already present in deposit targets.",
+    )
+
+    widget.cleanup_item_type_filter_category = module.DEPOSIT_FILTER_UPGRADES
+    widget.cleanup_item_type_filter_subcategory = module.DEPOSIT_FILTER_UPGRADES_INSIGNIAS
+    insignia_matches = widget._search_cleanup_deposit_catalog("radiant", limit=10)
+    _expect(
+        {int(entry.get("model_id", 0)) for entry in insignia_matches} == {19131},
+        "Deposit search should apply the selected item-type subtype filter to alias-backed matches.",
+    )
+
+
+def _test_rune_model_catalog_enriches_deposit_filter_aliases(module) -> None:
+    original_runes_path = module.RUNES_CATALOG_PATH
+    try:
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+        widget = _make_widget(module)
+        widget.catalog_by_model_id[19131] = {
+            "model_id": 19131,
+            "name": "Insignia",
+            "item_type": "Rune_Mod",
+            "source": "test_existing_catalog",
+            "priority": 10,
+        }
+
+        loaded_count = widget._load_rune_model_catalog()
+        _expect(loaded_count > 0, "Rune model catalog should load grouped rune/insignia model metadata.")
+
+        entry = widget.catalog_by_model_id.get(19131, {})
+        _expect(
+            entry.get("source") == "test_existing_catalog",
+            "Rune metadata should enrich existing entries without replacing them.",
+        )
+        _expect(
+            "insignia" in entry.get("rune_model_kinds", []),
+            "Radiant Insignia's model should be tagged as an insignia.",
+        )
+        _expect(
+            "Radiant Insignia" in entry.get("rune_model_names", []),
+            "Rune model aliases should preserve specific rune/insignia display names.",
+        )
+
+        widget.cleanup_item_type_filter_category = module.DEPOSIT_FILTER_UPGRADES
+        widget.cleanup_item_type_filter_subcategory = module.DEPOSIT_FILTER_UPGRADES_INSIGNIAS
+        matches = widget._search_cleanup_deposit_catalog("Radiant", limit=10)
+        _expect(
+            19131 in {int(entry.get("model_id", 0)) for entry in matches},
+            "Deposit search should find grouped rune/insignia models by their specific alias names.",
+        )
+    finally:
+        module.RUNES_CATALOG_PATH = original_runes_path
 
 
 def _test_inventory_item_log_label_avoids_stale_cached_names(module) -> None:
@@ -10180,6 +11286,8 @@ def main() -> int:
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
             ("salvage_profile_defaults_are_off", lambda: _test_salvage_profile_defaults_are_off(module, temp_root)),
+            ("destroy_auto_profile_roundtrip", lambda: _test_destroy_auto_profile_roundtrip(module, temp_root)),
+            ("destroy_auto_effective_flag_and_runtime_queue", lambda: _test_destroy_auto_effective_flag_and_runtime_queue(module)),
             (
                 "salvage_auto_exact_upgrade_option_profile_roundtrip",
                 lambda: _test_salvage_auto_exact_upgrade_option_profile_roundtrip(module, temp_root),
@@ -10240,6 +11348,14 @@ def main() -> int:
             ("exact_rune_sell_rule_profile_roundtrip", lambda: _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root)),
             ("exact_rune_sell_rule_plans_matching_standalone_runes", lambda: _test_exact_rune_sell_rule_plans_matching_standalone_runes(module)),
             ("exact_rune_sell_rule_reserves_names_from_broad_armor_rule", lambda: _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module)),
+            (
+                "sell_weapons_routes_standalone_weapon_mods_to_merchant_and_keeps_runes_on_rune_trader",
+                lambda: _test_sell_weapons_routes_standalone_weapon_mods_to_merchant_and_keeps_runes_on_rune_trader(module),
+            ),
+            (
+                "xunlai_sell_weapons_withdraws_standalone_weapon_mods_for_merchant",
+                lambda: _test_xunlai_sell_weapons_withdraws_standalone_weapon_mods_for_merchant(module),
+            ),
             ("manual_vendor_exact_rune_sell_runs_at_rune_trader", lambda: _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module)),
             ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
             ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),
@@ -10347,6 +11463,40 @@ def main() -> int:
             ("identify_no_kit_still_claims_selected_items", lambda: _test_identify_no_kit_still_claims_selected_items(module)),
             ("identify_on_inventory_change_queues_auto_pass", lambda: _test_identify_on_inventory_change_queues_auto_pass(module)),
             ("protected_salvage_destroy_overlap_blocks_both", lambda: _test_protected_salvage_destroy_overlap_blocks_both(module)),
+            ("protected_items_profile_roundtrip", lambda: _test_protected_items_profile_roundtrip(module)),
+            (
+                "protected_items_skip_stackable_material_sell",
+                lambda: _test_protected_items_skip_stackable_material_sell(module),
+            ),
+            (
+                "protected_items_skip_exact_rune_trader_sell",
+                lambda: _test_protected_items_skip_exact_rune_trader_sell(module),
+            ),
+            ("protected_items_block_salvage_candidate", lambda: _test_protected_items_block_salvage_candidate(module)),
+            (
+                "protected_items_destroy_default_and_override",
+                lambda: _test_protected_items_destroy_default_and_override(module),
+            ),
+            (
+                "auto_destroy_entry_points_keep_protected_items_safe",
+                lambda: _test_auto_destroy_entry_points_keep_protected_items_safe(module),
+            ),
+            (
+                "auto_destroy_summary_does_not_label_salvage_blocks_as_protected",
+                lambda: _test_auto_destroy_summary_does_not_label_salvage_blocks_as_protected(module),
+            ),
+            (
+                "protected_items_allow_configured_deposit",
+                lambda: _test_protected_items_allow_configured_deposit(module),
+            ),
+            (
+                "protected_items_block_xunlai_sell_withdrawals",
+                lambda: _test_protected_items_block_xunlai_sell_withdrawals(module),
+            ),
+            (
+                "equipment_protections_report_xunlai_sell_withdraw_skips",
+                lambda: _test_equipment_protections_report_xunlai_sell_withdraw_skips(module),
+            ),
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("consumable_crafter_plan_title_gate_blocks_low_rank", lambda: _test_consumable_crafter_plan_title_gate_blocks_low_rank(module)),
             (
@@ -10513,6 +11663,14 @@ def main() -> int:
             (
                 "scroll_of_heros_insight_wins_duplicate_model_id_and_searches",
                 lambda: _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module),
+            ),
+            (
+                "cleanup_deposit_item_type_filter_classifies_catalog_entries",
+                lambda: _test_cleanup_deposit_item_type_filter_classifies_catalog_entries(module),
+            ),
+            (
+                "rune_model_catalog_enriches_deposit_filter_aliases",
+                lambda: _test_rune_model_catalog_enriches_deposit_filter_aliases(module),
             ),
             (
                 "inventory_item_log_label_avoids_stale_cached_names",

@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Optional
 from dataclasses import dataclass, field
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, AttributeNames, DamageType, Profession, Reduced_Ailment
-from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
+from Py4GWCoreLib.enums_src.Item_enums import BowType, ItemType, Rarity
 from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
 from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies, ItemUpgradeId
+from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded, GWEncoded
 
 PERSISTENT = True
@@ -688,4 +689,12 @@ class TargetItemTypeProperty(ItemProperty):
     
     def create_encoded_description(self) -> GWStringEncoded:
         return GWStringEncoded(bytes(), f"{self.item_type.name}")
+    
+@dataclass
+class BowTypeProperty(ItemProperty):
+    bow_type: BowType
+
+    def create_encoded_description(self) -> GWStringEncoded:
+        bow_bytes = GWEncoded.BOW_TYPES.get(self.bow_type, bytes())        
+        return GWStringEncoded(bow_bytes, f"{self.bow_type.name}")
 #endregion Item Properties

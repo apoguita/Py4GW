@@ -16,7 +16,7 @@
 
 ## RE (Reverse Engineering) — `docs/RE/`
 
-- **Start with `docs/RE/handover.md`** — the comprehensive library reference. Covers the three-layer architecture (Python `native_src`, C++ GWCA, Ghidra), key function catalogs with EXE↔WASM↔CPP mappings, bridging techniques, UI message dispatch architecture, and workflows for adding new functions.
+- **Start with `docs/RE/reverse_engineering_reference.md`** — the comprehensive library reference. Covers the three-layer architecture (Python `native_src`, C++ GWCA, Ghidra), key function catalogs with EXE↔WASM↔CPP mappings, bridging techniques, UI message dispatch architecture, and workflows for adding new functions.
 - `docs/RE/CPP_WASM_MAPPING.md` — the full CPP↔WASM↔EXE translation procedure with worked examples and pitfall notes.
 - `docs/RE/rosetta_stone.txt` — GwA2 (AutoIt) to Py4GW function mapping reference.
 - `docs/RE/gw_combat_ai_reverse_engineering.md` — combat AI RE analysis.
@@ -45,7 +45,7 @@
 | `MoveTo_Func` | `IUi::Game::Walk*` | `0x00534fa0` |
 | `SendAgentDialog_Func` | (thunk) | `0x008105b0` |
 
-Full catalog with sub-function breakdowns in `docs/RE/handover.md`.
+Full catalog with sub-function breakdowns in `docs/RE/reverse_engineering_reference.md`.
 
 ### UI Message System
 
@@ -54,7 +54,7 @@ The game uses a **hash table** (`THashTable<IFrame::Msg::CHandler>` at `DAT_ram_
 - `0x100000xx` — server→client notifications (~90 mapped, ~15 unknown, ~6 newly discovered via WASM)
 - `0x300000xx` — client→server commands (~30 mapped, all send-to-server actions)
 
-The authoritative UIMessage enum is at `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Managers\UIMgr.h:294` (~120 entries). To discover missing messages, either hook `SendUIMessage_Func` at runtime (GWCA already does this) or run a Ghidra script against WASM callers of `FrameMsgSendRegistered`. Full procedure including the script is in `docs/RE/handover.md` Section 4.
+The authoritative UIMessage enum is at `C:\Users\Apo\Py4GW\vendor\gwca\Include\GWCA\Managers\UIMgr.h:294` (~120 entries). To discover missing messages, either hook `SendUIMessage_Func` at runtime (GWCA already does this) or run a Ghidra script against WASM callers of `FrameMsgSendRegistered`. Full procedure including the script is in `docs/RE/reverse_engineering_reference.md` Section 4.
 
 ### RE Tool Locations
 
@@ -77,7 +77,7 @@ The authoritative UIMessage enum is at `C:\Users\Apo\Py4GW\vendor\gwca\Include\G
 | `MoveTo_Func` | `IUi::Game::Walk*` | `0x00534fa0` |
 | `SendAgentDialog_Func` | (thunk) | `0x008105b0` |
 
-Full catalog with sub-function breakdowns in `docs/RE/handover.md`.
+Full catalog with sub-function breakdowns in `docs/RE/reverse_engineering_reference.md`.
 
 ## Entry Points
 
