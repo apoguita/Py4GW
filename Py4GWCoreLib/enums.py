@@ -37,6 +37,7 @@ from .enums_src.Map_enums import (
 )
 from .enums_src.Model_enums import AgentModelID, ModelID, PetModelID, SPIRIT_BUFF_MAP, SpiritModelID
 from .enums_src.Multiboxing_enums import CombatPrepSkillsType, SharedCommandType
+from .enums_src.Player_enums import PlayerStatus
 from .enums_src.Py4GW_enums import Console
 from .enums_src.Whiteboard_enums import (
     WhiteboardClaimStrength,
