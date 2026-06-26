@@ -13,19 +13,16 @@ from .py4gwcorelib_src.FrameCache import frame_cache
 # Player
 class Player:
     _ACCOUNT_EMAIL_MAX_LEN = 64
-    PLAYER_STATUS = {
-        "offline": 0,
-        "online": 1,
-        "do_not_disturb": 2,
-        "dnd": 2,
-        "away": 3,
-    }
-    PLAYER_STATUS_NAMES = {
-        0: "offline",
-        1: "online",
-        2: "do_not_disturb",
-        3: "away",
-    }
+    PlayerStatus = PlayerStatus
+
+    @staticmethod
+    def ResolvePlayerStatus(status):
+        return PlayerStatus.from_value(status)
+
+    @staticmethod
+    def GetPlayerStatusNameFromValue(status) -> str:
+        player_status = PlayerStatus.from_value(status)
+        return player_status.display_name if player_status is not None else str(status)
 
     @staticmethod
     def _hwnd_account_fallback() -> str:
@@ -666,26 +663,21 @@ class Player:
         Purpose: Retrieve the player's friend-list status name.
         Returns: str
         """
-        return Player.PLAYER_STATUS_NAMES.get(Player.GetPlayerStatus(), "unknown")
+        status = PlayerStatus.from_value(Player.GetPlayerStatus())
+        return status.display_name if status is not None else "unknown"
 
     @staticmethod
-    def SetPlayerStatus(status: int | str) -> bool:
+    def SetPlayerStatus(status: PlayerStatus | int | str) -> bool:
         """
         Purpose: Set the player's friend-list status.
         Args:
             status: 0/offline, 1/online, 2/do_not_disturb/dnd, or 3/away.
         Returns: bool
         """
-        if isinstance(status, str):
-            normalized = status.strip().lower().replace(" ", "_").replace("-", "_")
-            if normalized not in Player.PLAYER_STATUS:
-                return False
-            status_value = Player.PLAYER_STATUS[normalized]
-        else:
-            status_value = int(status)
-
-        if status_value not in Player.PLAYER_STATUS_NAMES:
+        player_status = PlayerStatus.from_value(status)
+        if player_status is None:
             return False
+        status_value = int(player_status)
 
         def _do_action():
             from .native_src.methods.PlayerMethods import PlayerMethods

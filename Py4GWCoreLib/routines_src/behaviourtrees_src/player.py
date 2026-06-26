@@ -55,6 +55,7 @@ import PyImGui
 from ...Py4GWcorelib import ConsoleLog, Console, Vec2f
 from ...enums_src.IO_enums import CHAR_MAP, Key
 from ...enums_src.GameData_enums import Range
+from ...enums import PlayerStatus
 from ...Map import Map
 from ...Agent import Agent
 from ...Player import Player
@@ -546,7 +547,7 @@ class BTPlayer:
 
         @staticmethod
         def SetPlayerStatus(
-            status: int | str,
+            status: PlayerStatus | int | str,
             log: bool = False,
             aftercast_ms: int = 250,
             verify: bool = True,
@@ -563,44 +564,25 @@ class BTPlayer:
               UserDescription: Use this to switch the player between online, do not disturb, away, and offline.
               Notes: Accepts 0/offline, 1/online, 2/do_not_disturb/dnd, or 3/away.
             """
-            status_names = {
-                0: "offline",
-                1: "online",
-                2: "do_not_disturb",
-                3: "away",
-            }
-            status_values = {
-                "offline": 0,
-                "online": 1,
-                "do_not_disturb": 2,
-                "dnd": 2,
-                "away": 3,
-            }
             state = {
                 "requested": False,
                 "started_at": 0.0,
                 "status_value": -1,
             }
 
-            def _resolve_status() -> int | None:
-                if isinstance(status, str):
-                    normalized = status.strip().lower().replace(" ", "_").replace("-", "_")
-                    return status_values.get(normalized)
-                try:
-                    value = int(status)
-                except Exception:
-                    return None
-                return value if value in status_names else None
+            def _status_name(status_value: int) -> str:
+                return Player.GetPlayerStatusNameFromValue(status_value)
 
-            def _set_online_status() -> BehaviorTree.NodeState:
-                status_value = _resolve_status()
-                if status_value is None:
+            def _set_player_status() -> BehaviorTree.NodeState:
+                player_status = Player.ResolvePlayerStatus(status)
+                if player_status is None:
                     _fail_log(
                         "SetPlayerStatus",
-                        f"Invalid online status: {status!r}. Use offline, online, dnd, or away.",
+                        f"Invalid player status: {status!r}. Use offline, online, dnd, or away.",
                         Console.MessageType.Error,
                     )
                     return BehaviorTree.NodeState.FAILURE
+                status_value = int(player_status)
 
                 player = Player.player_instance()
                 if not hasattr(player, "SetPlayerStatus") or not hasattr(player, "GetPlayerStatus"):
@@ -616,7 +598,7 @@ class BTPlayer:
                     if not bool(player.SetPlayerStatus(status_value)):
                         _fail_log(
                             "SetPlayerStatus",
-                            f"Native SetPlayerStatus rejected {status_value} ({status_names[status_value]}).",
+                            f"Native SetPlayerStatus rejected {status_value} ({_status_name(status_value)}).",
                             Console.MessageType.Error,
                         )
                         return BehaviorTree.NodeState.FAILURE
@@ -626,7 +608,7 @@ class BTPlayer:
                     state["status_value"] = status_value
                     _log(
                         "SetPlayerStatus",
-                        f"Requested {status_names[status_value]} status; previous={status_names.get(before, before)}.",
+                        f"Requested {_status_name(status_value)} status; previous={_status_name(before)}.",
                         log=log,
                     )
                     if not verify:
@@ -634,7 +616,7 @@ class BTPlayer:
 
                 current = int(Player.GetPlayerStatus())
                 if current == int(state["status_value"]):
-                    _log("SetPlayerStatus", f"Confirmed status {status_names[current]}.", log=log)
+                    _log("SetPlayerStatus", f"Confirmed status {_status_name(current)}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
 
                 elapsed_ms = (time.time() * 1000.0) - float(state["started_at"])
@@ -642,8 +624,8 @@ class BTPlayer:
                     _fail_log(
                         "SetPlayerStatus",
                         (
-                            f"Timed out waiting for {status_names[int(state['status_value'])]}; "
-                            f"current={status_names.get(current, current)}."
+                            f"Timed out waiting for {_status_name(int(state['status_value']))}; "
+                            f"current={_status_name(current)}."
                         ),
                         Console.MessageType.Warning,
                     )
@@ -654,7 +636,7 @@ class BTPlayer:
             return BehaviorTree(
                 BehaviorTree.ActionNode(
                     name="SetPlayerStatus",
-                    action_fn=_set_online_status,
+                    action_fn=_set_player_status,
                     aftercast_ms=aftercast_ms,
                 )
             )
