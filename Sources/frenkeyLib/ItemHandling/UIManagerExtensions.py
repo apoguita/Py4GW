@@ -2,7 +2,6 @@ import Py4GW
 import PyUIManager
 
 from Py4GWCoreLib.Inventory import Inventory
-from Py4GWCoreLib.GWUI import GWUI
 from Py4GWCoreLib.UIManager import UIManager
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
 
@@ -46,6 +45,7 @@ class UIManagerExtensions:
         candidate_frame_ids = [
             UIManager.GetChildFrameID(140452905, [6, 110, 6]),
             UIManager.GetChildFrameID(140452905, [6, 111, 6]),
+            UIManager.GetChildFrameID(140452905, [6, 113, 6]),
             UIManager.GetChildFrameID(140452905, [6, 100, 6]),
             UIManager.GetChildFrameID(684387150, [0, 6]),
         ]

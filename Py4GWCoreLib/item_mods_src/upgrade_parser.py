@@ -1,7 +1,5 @@
 from typing import Callable, Optional
 
-import Py4GW
-
 from Py4GWCoreLib.enums_src.GameData_enums import _ATTRIBUTE_TO_PROFESSION, Ailment, Attribute, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType
 from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
@@ -156,6 +154,7 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.ReduceConditionTupleDuration: lambda m, _, rarity: ReduceConditionTupleDuration(modifier=m, condition_1=Reduced_Ailment(m.arg2), condition_2=Reduced_Ailment(m.arg1), rarity=rarity),
         ModifierIdentifier.ReducesDiseaseDuration: lambda m, _, rarity: ReducesDiseaseDuration(modifier=m, rarity=rarity),
         ModifierIdentifier.ReceiveLessDamage: lambda m, _, rarity: ReceiveLessDamage(modifier=m, damage_reduction=m.arg2, chance=m.arg1, rarity=rarity),
+        ModifierIdentifier.BowType: lambda m, _, rarity: BowTypeProperty(modifier=m, bow_type=BowType(m.arg1), rarity=rarity),
         ModifierIdentifier.TargetItemType: lambda m, _, rarity: TargetItemTypeProperty(modifier=m, item_type=ItemType(m.arg1), rarity=rarity),
         ModifierIdentifier.TooltipDescription: lambda m, _, rarity: TooltipProperty(modifier=m, rarity=rarity),
         

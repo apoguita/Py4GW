@@ -271,6 +271,31 @@ Always confirm a `Scanner::Find` pattern has exactly **one** match before trusti
 
 ---
 
+## UI Control FrameProc Mappings (2026-06-05)
+
+After the UI Elements Universe Discovery project, 11 FrameProc addresses are confirmed via string-anchoring. All addresses valid for EXE build **05-30-2026**.
+
+| Control | WASM FrameProc | WASM Addr | EXE Address | Assertion |
+|---------|---------------|-----------|-------------|-----------|
+| DropdownFrame | `CtlDropListProc` | `ram:80e3c9a3` | `0x0087f5f0` | `"!FrameGetChild(thisFrame, CTL_LIST_ENTRIES)"` |
+| SliderFrame (base) | `CtlSliderProc` | `ram:80fcc337` | `0x00615fe0` | `"value >= m_range.min"` |
+| SliderFrame (wrapper) | `IUi::UiCtlSliderProc` | `ram:80fcd65d` | `0x0087f440` | byte pattern: `\x55\x8B\xEC\x83\xEC\x18\x53\x8B\x5D\x08\x56\x57\x8B\x43\x04\x48\x83\xF8\x58` |
+| EditableTextFrame | `CtlEditProc` | `ram:80dee7ef` | `0x00888aa0` | `"!s_editCaretMaterial"` |
+| ProgressBar | `CtlProgressProc` | `ram:80f6ce9a` | `0x008812e0` | `"!sm_rateArrowImageList"` |
+| TabsFrame | `CtlPageProc` | `ram:80e078f3` | `0x0061a950` | `"!IsBtnCode(pageCode)"` |
+| MultiLineTextLabel | `CtlTextMlProc` | `ram:80da0629` | `0x00610c40` | `"FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)"` |
+| GroupHeader | `IUi::CGroupHeaderFrame::FrameProc` | `ram:81192c89` | `0x0087ddc0` | `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlGroupHeader.cpp"` |
+| TextShy | `IUi::TextShy::CTextShyFrame::FrameProc` | `ram:8149a9a7` | `0x0087f0d0` | `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlTextShy.cpp"` |
+| Bullet | `IUi::UiCtlBulletProc` | `ram:8134512b` | `0x00884f20` | `"!s_bulletImageList"` |
+| BtnExpand | `IUi::UiCtlBtnExpandProc` | `ram:80e7b6f7` | `0x008867f0` | `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlBtnExpand.cpp"` |
+| BtnToggle | `IUi::UiCtlBtnToggleProc` | `ram:816b67fd` | `0x00886370` | (path assertion) |
+
+**Procedure used**: For each control, the WASM FrameProc was identified by searching WASM for the source file path string (e.g., `"UiCtlDropMenu.cpp"`), then the same string was searched in the EXE and its xref identified the EXE function. Standard Direction B (WASM symbol → EXE address) procedure.
+
+**CRITICAL**: Tier 2 controls (Dropdown, Slider, EditableText, ProgressBar, Tabs, MultiLineTextLabel, GroupHeader) had Phase 3 Create functions implemented but ALL crashed the client. The address mappings are verified correct — the C++ implementation needs rework. DO NOT reuse the Phase 3 C++ code as-is. Full catalog at `docs/RE/ui_controls_catalog.md`.
+
+---
+
 ## Cheat sheet: Ghidra MCP tools used in this procedure
 
 | Step | Tool |

@@ -416,10 +416,10 @@ def execute_follower_follow(
     if not assigned_changed and state.last_follow_move_point is not None:
         last_x, last_y = state.last_follow_move_point
         if Utils.Distance((last_x, last_y), (xx, yy)) <= 10.0:
-            return follow_active_state
+            return BehaviorTree.NodeState.FAILURE
 
     if not ActionQueueManager().IsEmpty("ACTION"):
-        return follow_active_state
+        return BehaviorTree.NodeState.FAILURE
 
     if follow_z == 0 or own_flag_active or all_flag_active:
         Player.Move(xx, yy)
@@ -430,4 +430,4 @@ def execute_follower_follow(
     state.last_follow_move_point = (xx, yy)
 
     cached_data.follow_throttle_timer.Reset()
-    return follow_active_state
+    return BehaviorTree.NodeState.FAILURE

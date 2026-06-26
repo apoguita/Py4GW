@@ -130,6 +130,8 @@ def main():
                 ImGui.End(INI_KEY)
         else:
             widget_catalog.draw()
+            
+        widget_manager._draw_pending_disable_confirmation()
     
     if widget_manager.enable_all:
         #deprecated in place of callbacks

@@ -11,7 +11,7 @@ from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.enums_src.IO_enums import ImGuiKey, Key
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
-from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import CatalogScope, WidgetCatalog, WidgetCatalogNode, WidgetCatalogQuery, WidgetHandler, get_widget_handler
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import CatalogScope, Widget, WidgetCatalog, WidgetCatalogNode, WidgetCatalogQuery, WidgetHandler, get_widget_handler
 from typing import Any, Callable, cast
 
 MODULE_NAME = "Widgets"
@@ -1559,23 +1559,11 @@ class WidgetCatalogWindow:
             favorite_ids.discard(widget_id)
         self._save_favorite_ids(favorite_ids)
 
-    def _set_widget_active(self, widget, active: bool) -> None:
+    def _set_widget_active(self, widget : Widget, active: bool) -> None:
         if active:
-            widget.enable()
+            self.widget_manager._set_widget_state(self.widget_manager.MANAGER_INI_KEY, widget.plain_name, state=True)
         else:
-            widget.disable()
-
-        widget_id = widget.folder_script_name
-        v_enabled = self.widget_manager._widget_var(widget_id, "enabled")
-        cv = self.widget_manager._get_config_var(widget_id, v_enabled)
-        if cv:
-            IniManager().set(
-                key=self.widget_manager.MANAGER_INI_KEY,
-                section=cv.section,
-                var_name=cv.var_name,
-                value=active,
-            )
-            IniManager().save_vars(self.widget_manager.MANAGER_INI_KEY)
+            self.widget_manager._request_disable_widget(widget)
 
     @staticmethod
     def _center_cursor_y(content_height: float) -> None:

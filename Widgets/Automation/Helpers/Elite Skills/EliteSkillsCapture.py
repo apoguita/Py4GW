@@ -240,15 +240,15 @@ PROFESSIONS_ORDERED = [
 SECONDARY_BUILDS = {
     Profession.WARRIOR: {
         Profession.WARRIOR:      "OQcSE5OTOMMMHMwODAFFxgi1",        # W 
-        Profession.RANGER:       "OQIREZaX0mEAAAAAAAAAYAA",        # W/R
-        Profession.MONK:         "OQMREZaX0mEAAAAAAAAAYAA",        # W/Mo
-        Profession.NECROMANCER:  "OQQREZaX0mEAAAAAAAAAYAA",        # W/N
-        Profession.MESMER:       "OQUREZaX0mEAAAAAAAAAYAA",        # W/Me
-        Profession.ELEMENTALIST: "OQYREZaX0mEAAAAAAAAAYAA",        # W/E
+        Profession.RANGER:       "OQITEZJnDSpgqAqA2ZAooIGUsGA",        # W/R
+        Profession.MONK:         "OQMT4iILZSpgqAqA2ZAooIGUsGA",        # W/Mo
+        Profession.NECROMANCER:  "OQQTQiILZSpgqAqA2ZAooIGUsGA",        # W/N
+        Profession.MESMER:       "OQUTEiILZSpgqAqA2ZAooIGUsGA",        # W/Me
+        Profession.ELEMENTALIST: "OQYTsiILZSpgqAqA2ZAooIGUsGA",        # W/E
         Profession.ASSASSIN:     "OQcSE5OTOMMMHMwODAFFxgi1",        # W/A
-        Profession.RITUALIST:    "OQgREZaX0mEAAAAAAAAAYAA",        # W/Rt
-        Profession.PARAGON:      "OQkREZaX0mEAAAAAAAAAYAA",        # W/P
-        Profession.DERVISH:      "OQoREZaX0mEAAAAAAAAAYAA",        # W/D
+        Profession.RITUALIST:    "OQgjExSsYQKFUFQFwODAFFxgi1A",        # W/Rt
+        Profession.PARAGON:      "OQkjExScZQKFUFQFwODAFFxgi1A",        # W/P
+        Profession.DERVISH:      "OQojExScaQKFUFQFwODAFFxgi1A",        # W/D
     },
     Profession.RANGER: {
         Profession.WARRIOR:      "OgEUUDLe1MTKGj1ghMGoSUNDA0GA",       # R/W 
@@ -287,16 +287,16 @@ SECONDARY_BUILDS = {
         Profession.DERVISH:      "Owok0wPCEnGUD4GxdzNx0HEYX0AA",   # Mo/D
     },
     Profession.NECROMANCER: {
-        Profession.WARRIOR:      "OAFUQ0ia2aQ0Bf1VVqiDC2QuBDAA",    # N/W
-        Profession.RANGER:       "OAJUQ0iaWcQ0Bf1VVqiDC2QuBDAA",    # N/R
-        Profession.MONK:         "OANEQap22BRH8VXVpKOIYD5GMAA",     # N/Mo
-        Profession.NECROMANCER:  "OAVEIBplaLRH8VXVpKOIYD5GMAA",     # N
-        Profession.MESMER:       "OAVEIBplaLRH8VXVpKOIYD5GMAA",     # N/Me
-        Profession.ELEMENTALIST: "OAZEQap2qBRH8VXVpKOIYD5GMAA",     # N/E
-        Profession.ASSASSIN:     "OAdUQ0ia2fQ0Bf1VVqiDC2QuBDAA",   # N/A
-        Profession.RITUALIST:    "OAhkQoFqxKGEdwXdVlq4ggNkbwAA",   # N/Rt
-        Profession.PARAGON:      "OAlkQoFqxWGEdwXdVlq4ggNkbwAA",   # N/P
-        Profession.DERVISH:      "OApkQoFqxmGEdwXdVlq4ggNkbwAA",   # N/D
+        Profession.WARRIOR:      "OAFTUYDLDqm5GUB8LYAImsqaLEA",    # N/W
+        Profession.RANGER:       "OAJTUYDjDqm5GUB8LYAImsqaLEA",    # N/R
+        Profession.MONK:         "OANDUsxfQ1M3gKgfBDAxkVVbhA",     # N/Mo
+        Profession.NECROMANCER:  "OANDUsxfQ1M3gKgfBDAxkVVbhA",     # N
+        Profession.MESMER:       "OAVDIRxGT1M3gKgfBDAxkVVbhA",     # N/Me
+        Profession.ELEMENTALIST: "OABCUsxUNzNoC4XwAQMZV1W",     # N/E
+        Profession.ASSASSIN:     "OAdTUYD/Dqm5GUB8LYAImsqaLEA",   # N/A
+        Profession.RITUALIST:    "OAhjUwGMYQ1M3gKgfBDAxkVVbhA",   # N/Rt
+        Profession.PARAGON:      "OAljUwGcZQ1M3gKgfBDAxkVVbhA",   # N/P
+        Profession.DERVISH:      "OApjUwGcaQ1M3gKgfBDAxkVVbhA",   # N/D
     },
     Profession.ELEMENTALIST: {
         Profession.WARRIOR:      "OgFToYGXHaX0msYQYgWAZIAYAAA",    # E/W
@@ -2820,7 +2820,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Signet of Ghostly Might",
         capture_function="SignetOfGhostlyMight",
-        start_map=427,
+        start_map=480,
         icon_filename="[1742] - Signet of Ghostly Might.jpg"
     ),
     EliteSkill(
@@ -3073,7 +3073,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Searing Flames",
         capture_function="Searing_Flames",
-        start_map=403,
+        start_map=478,
         icon_filename="[884] - Searing Flames.jpg"
     ),
     EliteSkill(
@@ -9843,8 +9843,6 @@ def RitualLord():
     bot.Move.XYAndExitMap(-13995, -20044, 203)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    #bot.Items.UseAllConsumables()
-    #bot.Move.XY(0, 0)
     bot.Move.XY(9018, -11643)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
@@ -10472,7 +10470,7 @@ def Savannah_Heat():
 def Searing_Flames(): 
     bot.States.AddHeader("Searing Flames")
     target_prof = Profession.ELEMENTALIST
-    start_map = 403
+    start_map = 478
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
@@ -10480,12 +10478,12 @@ def Searing_Flames():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(-18812, 13402, 402)
+    bot.Move.XYAndExitMap(5042, -4839, 386)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-7285, 15774)
-    bot.Move.XY(4932, 14298)
-    bot.Move.XY(10875, 13329)
+    bot.Move.XY(-7298, 15105)
+    bot.Move.XY(-1703, 12884)
+    bot.Move.XY(-1078, 20148)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10532,11 +10530,11 @@ def Icy_Shackles():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XYAndExitMap(5109, 5319, 384)
     #bot.Items.UseAllConsumables() #uncomment for harder areas
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Move.XY(-11476, -11870)
+    bot.Move.XY(1573, -12592)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -12532,7 +12530,7 @@ bot.States.AddCustomState(Energy_Boon, "[H]Energy Boon")
 bot.States.AddCustomState(Ether_Prism, "[H]Ether Prism")
 bot.States.AddCustomState(Ether_Renewal, "[H]Ether Renewal")
 bot.States.AddCustomState(Mind_Blast, "[H]Mind Blast")
-bot.States.AddCustomState(Savannah_Heat, "[H]Savanna Heat")
+bot.States.AddCustomState(Savannah_Heat, "[H]Savannah Heat")
 bot.States.AddCustomState(Searing_Flames, "[H]Searing Flames")
 bot.States.AddCustomState(Star_Burst, "[H]Star Burst")
 bot.States.AddCustomState(Icy_Shackles, "[H]Icy Shackles")

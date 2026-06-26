@@ -150,6 +150,14 @@ class ItemType(IntEnum):
     
     def is_armor_type(self) -> bool:
         return self in ARMOR_TYPES
+    
+class BowType(IntEnum):
+    None_ = -1
+    Shortbow = 0
+    Longbow = 1
+    Flatbow = 2
+    Recurvebow = 3
+    Hornbow = 4
 
 WeaponType: TypeAlias = Literal[ItemType.Axe, ItemType.Bow, ItemType.Daggers, ItemType.Hammer, ItemType.Offhand, ItemType.Scythe, ItemType.Shield, ItemType.Spear, ItemType.Staff, ItemType.Sword, ItemType.Wand]
 WEAPON_TYPES: frozenset[ItemType] = frozenset(cast(tuple[ItemType, ...], get_args(WeaponType)))

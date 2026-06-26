@@ -2040,7 +2040,7 @@ class Map:
             """Get the chosen character index from pregame map."""
             if not (pre_game_ctx := GWContext.PreGame.GetContext()):
                 return -1
-            return pre_game_ctx.chosen_character_index
+            return pre_game_ctx.preview_character_index
         
         @staticmethod
         def GetContextStruct() -> PreGameContextStruct | None:
@@ -2115,7 +2115,7 @@ class Map:
                 from .native_src.context.MapContext import MapContext
                 from .Pathing import AutoPathing
 
-                MapContext.ClearPathingCache(map_id)
+                #MapContext.ClearPathingCache(map_id)
                 AutoPathing().clear_navmesh_cache(map_id)
 
         @staticmethod

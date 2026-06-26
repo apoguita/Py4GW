@@ -384,8 +384,22 @@ class Upgrade:
         }
         return type(self).__name__, tuple(sorted(comparison_values.items()))
 
+    @staticmethod
+    def _same_semantic_type(other: object, expected_type: type['Upgrade']) -> bool:
+        other_type = type(other)
+        if other_type is expected_type:
+            return True
+
+        return (
+            other_type.__module__ == expected_type.__module__
+            and other_type.__qualname__ == expected_type.__qualname__
+            and getattr(other_type, 'id', None) == getattr(expected_type, 'id', None)
+            and getattr(other_type, 'mod_type', None) == getattr(expected_type, 'mod_type', None)
+        )
+
     def equals(self, other: object) -> bool:
-        return isinstance(other, Upgrade) and self._comparison_data() == other._comparison_data()
+        other_comparison_data = getattr(other, '_comparison_data', None)
+        return callable(other_comparison_data) and self._comparison_data() == other_comparison_data()
 
     def matches(self, other: object) -> bool:
         return self.equals(other)
@@ -1160,10 +1174,10 @@ class OfAttributeUpgrade(WeaponSuffix):
 
     def equals(self, other: object) -> bool:
         return (
-            isinstance(other, OfAttributeUpgrade)
-            and self.attribute == other.attribute
-            and self.attribute_level == other.attribute_level
-            and self.chance == other.chance
+            Upgrade._same_semantic_type(other, OfAttributeUpgrade)
+            and self.attribute == other.attribute  # type: ignore
+            and self.attribute_level == other.attribute_level  # type: ignore
+            and self.chance == other.chance  # type: ignore
         )
 
     def matches(self, other: object) -> bool:
@@ -2649,12 +2663,12 @@ class OfTheProfessionUpgrade(WeaponSuffix):
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(self.get_text_color(True) + GWEncoded.STR1_OF_STR2 + GWEncoded.PLACEHOLDER_TO_REMOVE + GWEncoded.THE_PROFESSION.get(self.profession, bytes()), f"of {self.profession.name if self.profession != Profession._None else 'Unknown Profession'}", GWEncoded.PLACEHOLDER_TO_REMOVE, ["", self.profession.name if self.profession != Profession._None else "Profession"])
 
-    def equals(self, other: object) -> bool:
+    def equals(self, other: object) -> bool:        
         return (
-            isinstance(other, OfTheProfessionUpgrade)
-            and self.profession == other.profession
-            and self.attribute == other.attribute
-            and self.attribute_level == other.attribute_level
+            Upgrade._same_semantic_type(other, OfTheProfessionUpgrade)
+            and self.profession == other.profession # type: ignore
+            and self.attribute == other.attribute # type: ignore
+            and self.attribute_level == other.attribute_level # type: ignore
         )
 
     def matches(self, other: object) -> bool:
