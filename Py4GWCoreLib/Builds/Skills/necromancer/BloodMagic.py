@@ -165,3 +165,25 @@ class BloodMagic:
 
         return False
     #endregion
+
+    #region S
+    def Signet_of_Agony(self) -> BuildCoroutine:
+        """Self-cast Signet of Agony while a foe stands within "nearby" range.
+
+        Signet of Agony deals damage to foes near the caster (and self-inflicts
+        Bleeding), so it is gated purely on an enemy being in range; its recharge
+        prevents spam.
+        """
+        signet_of_agony_id: int = Skill.GetID("Signet_of_Agony")
+
+        if not self.build.IsSkillEquipped(signet_of_agony_id):
+            return False
+        if not Routines.Agents.GetNearestEnemy(Range.Nearby.value):
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=signet_of_agony_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion

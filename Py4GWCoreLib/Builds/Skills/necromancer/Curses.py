@@ -19,6 +19,27 @@ class Curses:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
+    #region P
+    def Poisoned_Heart(self) -> BuildCoroutine:
+        """Self-cast Poisoned Heart while a foe stands within "nearby" range.
+
+        Poisoned Heart poisons foes around the caster (and the caster), so it is
+        gated purely on an enemy being in range; its recharge prevents spam.
+        """
+        poisoned_heart_id: int = Skill.GetID("Poisoned_Heart")
+
+        if not self.build.IsSkillEquipped(poisoned_heart_id):
+            return False
+        if not Routines.Agents.GetNearestEnemy(Range.Nearby.value):
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=poisoned_heart_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     #region E
     def Enfeebling_Blood(self) -> BuildCoroutine:
         enfeebling_blood_id: int = Skill.GetID("Enfeebling_Blood")
