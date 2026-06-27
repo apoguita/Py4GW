@@ -18,6 +18,24 @@ class ProtectionPrayers:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
+    def _resolve_precombat_melee_prebuff_target(self, skill_id: int, custom_skill: CustomSkill) -> int:
+        """Pre-combat prebuff target for a self/ally enchantment.
+
+        Picks a melee-weapon ally in spellcast range that does not already carry
+        this enchantment, so frontliners are protected the moment combat starts
+        rather than reactively after the first hits land. Lowest-HP first as a
+        stable tiebreak.
+        """
+        return self.build.ResolveRankedPartyAllyTarget(
+            skill_id,
+            custom_skill,
+            validator=lambda agent_id: (
+                Agent.IsMelee(agent_id)
+                and not Routines.Checks.Effects.HasBuff(agent_id, skill_id)
+            ),
+            rank_key=lambda agent_id: Agent.GetHealth(agent_id),
+        )
+
     #region D
     def Draw_Conditions(self) -> BuildCoroutine:
         draw_conditions_id: int = Skill.GetID("Draw_Conditions")
@@ -40,7 +58,7 @@ class ProtectionPrayers:
     #endregion
 
     #region P
-    def Protective_Spirit(self) -> BuildCoroutine:
+    def Protective_Spirit(self, *, prebuff_melee_precombat: bool = False) -> BuildCoroutine:
         protective_spirit_id: int = Skill.GetID("Protective_Spirit")
         protective_spirit: CustomSkill = self.build.GetCustomSkill(protective_spirit_id)
         sample_interval_ms = 500
@@ -65,10 +83,18 @@ class ProtectionPrayers:
 
         if not self.build.IsSkillEquipped(protective_spirit_id):
             return False
-        if not self.build.IsInAggro():
+
+        if self.build.IsInAggro():
+            target_agent_id = _resolve_protective_spirit_target()
+        elif prebuff_melee_precombat and self.build.IsCloseToAggro():
+            # Just before combat: prebuff melee allies so the first spike is
+            # already capped instead of reacting to it.
+            target_agent_id = self._resolve_precombat_melee_prebuff_target(
+                protective_spirit_id, protective_spirit,
+            )
+        else:
             return False
 
-        target_agent_id = _resolve_protective_spirit_target()
         if not target_agent_id:
             return False
 
@@ -124,3 +150,114 @@ class ProtectionPrayers:
             reversal_of_fortune_id,
             target_agent_id,
         ))
+
+    def Reverse_Hex(self) -> BuildCoroutine:
+        reverse_hex_id: int = Skill.GetID("Reverse_Hex")
+        reverse_hex: CustomSkill = self.build.GetCustomSkill(reverse_hex_id)
+        sample_interval_ms = 500
+        # Reverse Hex removes one hex and reduces the target's next incoming
+        # damage (no heal, no per-hex scaling). It is pure hex removal, so it
+        # fires on any hexed ally regardless of current health.
+
+        def _resolve_reverse_hex_target() -> int:
+            return self.build.ResolveRankedPartyAllyTarget(
+                reverse_hex_id,
+                reverse_hex,
+                validator=lambda agent_id: Routines.Checks.Agents.IsHexed(agent_id),
+                rank_key=lambda agent_id: (
+                    Agent.GetHealth(agent_id),
+                    -self.build.GetPartyHealthDelta(agent_id),
+                ),
+                sample_interval_ms=sample_interval_ms,
+            )
+
+        if not self.build.IsSkillEquipped(reverse_hex_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        target_agent_id = _resolve_reverse_hex_target()
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            reverse_hex_id,
+            target_agent_id,
+        ))
+    #endregion
+
+    #region S
+    def Shield_of_Absorption(self) -> BuildCoroutine:
+        shield_of_absorption_id: int = Skill.GetID("Shield_of_Absorption")
+        shield_of_absorption: CustomSkill = self.build.GetCustomSkill(shield_of_absorption_id)
+        sample_interval_ms = 500
+        focused_drop_threshold = 0.10
+        health_threshold: float = max(0.0, min(1.0, float(shield_of_absorption.Conditions.LessLife or 0.60)))
+
+        def _resolve_shield_of_absorption_target() -> int:
+            return self.build.ResolveRankedPartyAllyTarget(
+                shield_of_absorption_id,
+                shield_of_absorption,
+                validator=lambda agent_id: (
+                    Agent.GetHealth(agent_id) < health_threshold
+                    and not Routines.Checks.Effects.HasBuff(agent_id, shield_of_absorption_id)
+                    and self.build.GetPartyHealthDelta(agent_id) >= focused_drop_threshold
+                ),
+                rank_key=lambda agent_id: (
+                    -self.build.GetPartyHealthDelta(agent_id),
+                    Agent.GetHealth(agent_id),
+                ),
+                sample_interval_ms=sample_interval_ms,
+            )
+
+        if not self.build.IsSkillEquipped(shield_of_absorption_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        target_agent_id = _resolve_shield_of_absorption_target()
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            shield_of_absorption_id,
+            target_agent_id,
+        ))
+
+    def Spirit_Bond(self) -> BuildCoroutine:
+        spirit_bond_id: int = Skill.GetID("Spirit_Bond")
+        spirit_bond: CustomSkill = self.build.GetCustomSkill(spirit_bond_id)
+        sample_interval_ms = 500
+        focused_drop_threshold = 0.10
+        health_threshold: float = max(0.0, min(1.0, float(spirit_bond.Conditions.LessLife or 0.70)))
+
+        def _resolve_spirit_bond_target() -> int:
+            return self.build.ResolveRankedPartyAllyTarget(
+                spirit_bond_id,
+                spirit_bond,
+                validator=lambda agent_id: (
+                    Agent.GetHealth(agent_id) < health_threshold
+                    and not Routines.Checks.Effects.HasBuff(agent_id, spirit_bond_id)
+                    and self.build.GetPartyHealthDelta(agent_id) >= focused_drop_threshold
+                ),
+                rank_key=lambda agent_id: (
+                    -self.build.GetPartyHealthDelta(agent_id),
+                    Agent.GetHealth(agent_id),
+                ),
+                sample_interval_ms=sample_interval_ms,
+            )
+
+        if not self.build.IsSkillEquipped(spirit_bond_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        target_agent_id = _resolve_spirit_bond_target()
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            spirit_bond_id,
+            target_agent_id,
+        ))
+    #endregion
