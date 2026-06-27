@@ -16,6 +16,12 @@ REVERSE_HEX_ID = Skill.GetID("Reverse_Hex")
 MARTYR_ID = Skill.GetID("Martyr")
 REVERSAL_OF_FORTUNE_ID = Skill.GetID("Reversal_of_Fortune")
 SHIELD_OF_ABSORPTION_ID = Skill.GetID("Shield_of_Absorption")
+DRAW_CONDITIONS_ID = Skill.GetID("Draw_Conditions")
+# Elite alternatives to Martyr — only one elite is allowed per skillbar, so at
+# most one of Martyr / Aura of Faith / Life Sheath / Divert Hexes is equipped.
+AURA_OF_FAITH_ID = Skill.GetID("Aura_of_Faith")
+LIFE_SHEATH_ID = Skill.GetID("Life_Sheath")
+DIVERT_HEXES_ID = Skill.GetID("Divert_Hexes")
 
 # Caster-energy ceiling for the Signet of Lost Souls energy engine: only fire
 # while own energy is strictly below 60%.
@@ -43,6 +49,10 @@ class Necro_Prot(BuildMgr):
                 MARTYR_ID,
                 REVERSAL_OF_FORTUNE_ID,
                 SHIELD_OF_ABSORPTION_ID,
+                DRAW_CONDITIONS_ID,
+                AURA_OF_FAITH_ID,
+                LIFE_SHEATH_ID,
+                DIVERT_HEXES_ID,
             ],
         )
         if match_only:
@@ -74,6 +84,14 @@ class Necro_Prot(BuildMgr):
         )):
             return True
 
+        # Draw Conditions (optional): single-target condition transfer — pull a
+        # conditioned ally's conditions onto the caster. Combat-gated; the helper
+        # resolves the conditioned-ally target itself.
+        if self.IsSkillEquipped(DRAW_CONDITIONS_ID) and self.IsInAggro() and (
+            yield from self.skills.Monk.ProtectionPrayers.Draw_Conditions()
+        ):
+            return True
+
         # Reactive protection. Every helper below gates on aggro and resolves
         # its own party-ally target (lowest-HP / most-spiked first). Protective
         # Spirit additionally prebuffs melee allies the moment combat is
@@ -86,6 +104,27 @@ class Necro_Prot(BuildMgr):
 
         if self.IsSkillEquipped(SHIELD_OF_ABSORPTION_ID) and (
             yield from self.skills.Monk.ProtectionPrayers.Shield_of_Absorption()
+        ):
+            return True
+
+        # Aura of Faith (optional, ELITE — runs in place of Martyr): amplify
+        # healing received and reduce damage on a spiked ally.
+        if self.IsSkillEquipped(AURA_OF_FAITH_ID) and (
+            yield from self.skills.Monk.ProtectionPrayers.Aura_of_Faith()
+        ):
+            return True
+
+        # Life Sheath (optional, ELITE): block the next damage and strip
+        # conditions off an ally carrying at least two of them.
+        if self.IsSkillEquipped(LIFE_SHEATH_ID) and (
+            yield from self.skills.Monk.ProtectionPrayers.Life_Sheath(min_conditions=2)
+        ):
+            return True
+
+        # Divert Hexes (optional, ELITE): strip hexes (and a condition each) off
+        # an ally carrying at least two hexes.
+        if self.IsSkillEquipped(DIVERT_HEXES_ID) and (
+            yield from self.skills.Monk.ProtectionPrayers.Divert_Hexes(min_hexes=2)
         ):
             return True
 
