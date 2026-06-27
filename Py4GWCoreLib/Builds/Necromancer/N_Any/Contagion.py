@@ -113,6 +113,12 @@ class Contagion(BuildMgr):
         if (yield from self.skills.Necromancer.DeathMagic.Contagion()):
             return True
 
+        # High-priority Foul Feast: when an ally is overloaded with conditions
+        # (more than 3), cleanse them immediately, ahead of the offensive
+        # rotation and the normal (>=1 condition) Foul Feast below.
+        if (yield from self._foul_feast(min_conditions=4)):
+            return True
+
         # Offensive damage/condition skills prioritised ahead of Foul Feast,
         # each gated on a foe within "nearby" (umstehend) range inside its
         # helper.
@@ -376,15 +382,17 @@ class Contagion(BuildMgr):
             count = 1
         return count
 
-    def _foul_feast(self):
+    def _foul_feast(self, min_conditions: int = 1):
         """Foul Feast on the most-conditioned ally, lowest-HP first on ties.
 
         Only fires while a live enemy stands within "nearby" range of the
         player, and never targets the caster (allies only). Among allies in
         spellcast range, the one carrying the most distinct (detectable)
         conditions is chosen; ties are broken toward the lowest health so the
-        most endangered conditioned ally is cleansed. Holds if no ally has any
-        condition.
+        most endangered conditioned ally is cleansed. Only allies carrying at
+        least ``min_conditions`` distinct conditions qualify, so a higher
+        threshold lets an overloaded ally be cleansed earlier in the rotation.
+        Holds if no ally meets the threshold.
         """
         if not self.IsSkillEquipped(FOUL_FEAST_ID):
             return False
@@ -411,7 +419,7 @@ class Contagion(BuildMgr):
         best_key = None
         for ally_id in allies:
             condition_count = self._count_distinct_conditions(ally_id)
-            if condition_count <= 0:
+            if condition_count < min_conditions:
                 continue
             key = (condition_count, -Agent.GetHealth(ally_id))
             if best_key is None or key > best_key:
