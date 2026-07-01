@@ -28,6 +28,14 @@ EXPECTED_API = (
     'clear',
     'alias_count',
     'get_aliases',
+    'get_real_name',
+    'get_display_name',
+    'require_real_name',
+    'set_surface_enabled',
+    'is_surface_enabled',
+    'list_surfaces',
+    'scrub_guild_roster',
+    'scrub_guild_identity',
     'clear_observed_cache',
     'observed_count',
     'get_observed_players',
@@ -38,6 +46,11 @@ EXPECTED_API = (
 _last_error: str | None = None
 _ui_real_name = ''
 _ui_fake_name = ''
+_ui_guild_real = ''
+_ui_guild_fake = ''
+_ui_tag_real = ''
+_ui_tag_fake = ''
+_surface_state: dict[str, bool] = {}
 
 
 def _log(message: str) -> None:
@@ -250,6 +263,83 @@ def dump_aliases() -> Any:
     return aliases
 
 
+def surfaces() -> dict[str, Any]:
+    """Print and return each name surface and whether it is enabled. Refreshes the UI cache."""
+    global _surface_state
+    module = _module()
+    if module is None:
+        return {}
+
+    names = _call('list_surfaces()', module.list_surfaces) or []
+    _surface_state = {name: bool(_call('is_surface_enabled()', module.is_surface_enabled, name)) for name in names}
+    _log(f'surfaces: {_surface_state}')
+    return dict(_surface_state)
+
+
+def set_surface(name: str, enabled: bool) -> bool:
+    """Enable/disable one name surface (e.g. 'guild_identity', 'own_name', 'message_global')."""
+    module = _module()
+    if module is None:
+        return False
+
+    ok = _call('set_surface_enabled()', module.set_surface_enabled, name, bool(enabled))
+    _log(f'surface {name!r} -> {bool(enabled)} (ok={ok})')
+    return bool(ok)
+
+
+def get_real(display_name: str) -> Any:
+    """Resolve an obfuscated display name back to the real name (observed cache, then alias reverse)."""
+    module = _module()
+    if module is None:
+        return display_name
+
+    value = _call('get_real_name()', module.get_real_name, display_name)
+    _log(f'get_real {display_name!r} -> {value!r}')
+    return value if value is not None else display_name
+
+
+def get_display(real_name: str) -> Any:
+    """Resolve a real name to its current obfuscated display name."""
+    module = _module()
+    if module is None:
+        return real_name
+
+    value = _call('get_display_name()', module.get_display_name, real_name)
+    _log(f'get_display {real_name!r} -> {value!r}')
+    return value if value is not None else real_name
+
+
+def scrub_guild() -> int:
+    """Rewrite already-loaded guild name+tag now (no re-zone needed)."""
+    module = _module()
+    if module is None:
+        return 0
+
+    count = _call('scrub_guild_identity()', module.scrub_guild_identity)
+    _log(f'scrub_guild_identity -> {count}')
+    return int(count or 0)
+
+
+def set_guild_alias(guild_real: str = '', guild_fake: str = '',
+                    tag_real: str = '', tag_fake: str = '') -> bool:
+    """Alias a guild name and/or tag, then scrub the live guild struct so it applies immediately.
+
+    Enable obfuscation first. Alias a tag to an empty fake to blank it.
+    """
+    module = _module()
+    if module is None:
+        return False
+
+    if guild_real:
+        _call('set_alias()', module.set_alias, guild_real, guild_fake)
+        _log(f'guild name alias: {guild_real!r} -> {guild_fake!r}')
+    if tag_real:
+        _call('set_alias()', module.set_alias, tag_real, tag_fake)
+        _log(f'guild tag alias: {tag_real!r} -> {tag_fake!r}')
+    scrub_guild()
+    return True
+
+
 def draw_window() -> None:
     """
     Optional Py4GW/ImGui manual UI.
@@ -259,6 +349,7 @@ def draw_window() -> None:
     button/status action is clicked.
     """
     global _ui_fake_name, _ui_real_name
+    global _ui_guild_real, _ui_guild_fake, _ui_tag_real, _ui_tag_fake
 
     try:
         import PyImGui  # type: ignore[import-not-found]
@@ -275,6 +366,8 @@ def draw_window() -> None:
         if PyImGui.button('Status'):
             status()
 
+        PyImGui.text('Alias = real -> fake. Works for player names, guild names, guild tags,')
+        PyImGui.text('and your own name. Alias a guild tag to an empty fake to blank it.')
         _ui_real_name = PyImGui.input_text('Real name', _ui_real_name)
         _ui_fake_name = PyImGui.input_text('Fake name', _ui_fake_name)
         if PyImGui.button('Set alias'):
@@ -283,11 +376,30 @@ def draw_window() -> None:
         if PyImGui.button('Dump aliases'):
             dump_aliases()
 
+        PyImGui.text('Guild (separate). Applies immediately via guild scrub; no re-zone needed.')
+        _ui_guild_real = PyImGui.input_text('Real guild name', _ui_guild_real)
+        _ui_guild_fake = PyImGui.input_text('Fake guild name', _ui_guild_fake)
+        _ui_tag_real = PyImGui.input_text('Real guild tag', _ui_tag_real)
+        _ui_tag_fake = PyImGui.input_text('Fake guild tag', _ui_tag_fake)
+        if PyImGui.button('Set guild alias + scrub'):
+            set_guild_alias(_ui_guild_real, _ui_guild_fake, _ui_tag_real, _ui_tag_fake)
+        PyImGui.same_line(0, -1)
+        if PyImGui.button('Scrub guild now'):
+            scrub_guild()
+
         if PyImGui.button('Enable'):
             enable()
         PyImGui.same_line(0, -1)
         if PyImGui.button('Disable'):
             disable()
+
+        if PyImGui.button('Refresh surfaces'):
+            surfaces()
+        for surface_name in list(_surface_state):
+            surface_on = _surface_state[surface_name]
+            if PyImGui.button(f'{surface_name}: {"ON" if surface_on else "OFF"}'):
+                if set_surface(surface_name, not surface_on):
+                    _surface_state[surface_name] = not surface_on
 
         if PyImGui.button('Clear aliases'):
             clear_aliases()
@@ -314,4 +426,4 @@ def main() -> None:
     draw_window()
 
 
-_log('loaded; call check_import_api(), status(), set_alias(), enable(), disable(), observed(), diagnostics(), etc. manually')
+_log('loaded; call check_import_api(), status(), set_alias(), set_guild_alias(), scrub_guild(), enable(), disable(), surfaces(), set_surface(), get_real(), get_display(), observed(), diagnostics(), etc. manually')
