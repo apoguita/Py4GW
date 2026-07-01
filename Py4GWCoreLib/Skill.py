@@ -1,7 +1,11 @@
 import PySkill
 import json
 import os
+
+from Py4GW import Game
+
 from .enums import SkillTextureMap
+from .native_src.methods.SkillMethods import SkillMethods
 
 class Skill:
     _desc_cache = None  # Cache JSON data once loaded
@@ -501,6 +505,37 @@ class Skill:
             filename = SkillTextureMap.get(skill_id)
             full_path = f"Textures\\Skill_Icons\\{filename}" if filename else ""
             return full_path
+
+
+def is_interact_place_skill_available() -> bool:
+    return SkillMethods.IsOrderInteractSetHotKeyAvailable()
+
+
+def get_interact_place_skill_address() -> int:
+    return SkillMethods.GetOrderInteractSetHotKeyAddress()
+
+
+def order_interact_set_hotkey(hotkey: int) -> bool:
+    hotkey = int(hotkey)
+    if hotkey < 0 or hotkey > 7 or not is_interact_place_skill_available():
+        return False
+
+    def _action():
+        SkillMethods.OrderInteractSetHotKey(hotkey)
+
+    Game.enqueue(_action)
+    return True
+
+
+def clamp_skill_slot(slot: int) -> int:
+    return max(1, min(8, _as_int(slot, 6)))
+
+
+def _as_int(value, default=0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
 
 
         
