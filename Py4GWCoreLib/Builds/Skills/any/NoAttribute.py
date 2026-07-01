@@ -590,7 +590,6 @@ class NoAttribute:
 
     def _summon_spirits(self, skill_id: int) -> BuildCoroutine:
         if not self.build.IsSkillEquipped(skill_id):
-            self.build._debug(f"Summon Spirits skipped: skill not equipped ({skill_id})", True)
             return False
 
         in_aggro = self.build.IsInAggro()
@@ -601,27 +600,8 @@ class NoAttribute:
                 Range.Compass.value,
                 include_owner_fallback=True,
             )
-            if spirits:
-                self.build._debug(
-                    "Summon Spirits owner fallback: nearby core spirits found with non-matching owner metadata",
-                    True,
-                )
-            else:
-                spirits_safe_compass = self._get_owned_core_spirits(
-                    Range.SafeCompass.value,
-                    include_owner_fallback=True,
-                )
-                if spirits_safe_compass:
-                    self.build._debug(
-                        "Summon Spirits skipped: owned core spirits found, but all are outside compass range",
-                        True,
-                    )
-                else:
-                    self.build._debug("Summon Spirits skipped: no owned core spirits found", True)
+            if not spirits:
                 return False
-
-        if not spirits:
-            return False
 
         player_xy = Player.GetXY()
         spirit_distances = [
@@ -634,42 +614,20 @@ class NoAttribute:
                 Range.Nearby.value < distance <= Range.Compass.value
                 for distance in spirit_distances
             )
-            mode_label = "aggro-nearby"
         else:
             should_reposition = any(
                 Range.Spirit.value < distance <= Range.Compass.value
                 for distance in spirit_distances
             )
-            mode_label = "ooc-compass"
 
         if not should_reposition:
-            nearest_distance = min(spirit_distances) if spirit_distances else 0.0
-            farthest_distance = max(spirit_distances) if spirit_distances else 0.0
-            self.build._debug(
-                (
-                    "Summon Spirits skipped: all owned core spirits within threshold "
-                    f"(nearest={nearest_distance:.1f}, farthest={farthest_distance:.1f}, mode={mode_label})"
-                ),
-                True,
-            )
             return False
 
-        self.build._debug(
-            f"Summon Spirits trigger: owned core spirit is beyond spirit range (mode={mode_label})",
-            True,
-        )
-        precheck_failure = self.build._get_can_cast_skill_failure_reason(skill_id)
-        if precheck_failure is not None:
-            self.build._debug(f"Summon Spirits precheck blocked: reason={precheck_failure}", True)
+        if not self.build.CanCastSkillID(skill_id):
             return False
 
-        result = (yield from self.build.CastSkillID(
+        return (yield from self.build.CastSkillID(
             skill_id=skill_id,
             log=False,
             aftercast_delay=250,
         ))
-        if result:
-            self.build._debug("Summon Spirits cast success", True)
-        else:
-            self.build._debug("Summon Spirits cast failed (CanCastSkillID or runtime cast failure)", True)
-        return result

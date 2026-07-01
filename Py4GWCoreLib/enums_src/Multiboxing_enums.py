@@ -6,6 +6,7 @@ class SharedCommandType(IntEnum):
     TravelToMap = auto()
     InviteToParty = auto()
     InteractWithTarget = auto()
+    InteractGadgetWithLock = auto()
     TakeDialogWithTarget = auto()
     GetBlessing = auto()
     OpenChest = auto()

@@ -21,6 +21,8 @@ from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.GlobalCache.WhiteboardLocks import post_loot_lock, clear_loot_lock
+from Py4GWCoreLib.GlobalCache.WhiteboardLocks import is_interact_lock_blocked, post_interact_lock, clear_interact_lock, get_interact_lock_owner
+from Py4GWCoreLib.routines_src.Agents import Agents
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -330,6 +332,7 @@ _HERO_AI_SUSPENDING_COMMANDS = {
     SharedCommandType.PixelStack,
     SharedCommandType.BruteForceUnstuck,
     SharedCommandType.InteractWithTarget,
+    SharedCommandType.InteractGadgetWithLock,
     SharedCommandType.TakeDialogWithTarget,
     SharedCommandType.SendDialogToTarget,
     SharedCommandType.SendDialog,
@@ -670,6 +673,99 @@ def InteractWithTarget(index: int, message: SharedMessageStruct):
 
         ConsoleLog(MODULE_NAME, "InteractWithTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
+        RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
+# endregion
+# region InteractGadgetWithLock
+
+
+def InteractGadgetWithLock(index: int, message: SharedMessageStruct):
+    # Multibox gadget interaction: every recipient runs this; the per-gadget INTERACT_AGENT
+    # lock serialises turns. Mark running before any wait so it is not re-dispatched.
+    ConsoleLog(MODULE_NAME, f"Processing InteractGadgetWithLock message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    x = float(message.Params[0])
+    y = float(message.Params[1])
+    distance = float(message.Params[2])
+
+    POLL_MS = 100
+    STAGGER_MS = 200
+    LOCK_WAIT_TIMEOUT_MS = 60000
+    HOLD_MS = 1500
+    FOLLOWPATH_TIMEOUT_MS = 10000
+    LOOT_BUDGET_MS = 6000
+    PING_MARGIN_MS = 2000
+    # Lease must outlive the whole turn (move + interact + loot + hold) or a peer races in.
+    LOCK_LEASE_MS = FOLLOWPATH_TIMEOUT_MS + LOOT_BUDGET_MS + HOLD_MS + PING_MARGIN_MS
+
+    SnapshotHeroAIOptions(message.ReceiverEmail)
+    gadget_id = 0
+    try:
+        DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+
+        gadget_id = Agents.GetNearestGadgetXY(x, y, distance)
+        if gadget_id == 0:
+            ConsoleLog(MODULE_NAME, "InteractGadgetWithLock: no gadget found near point.", Console.MessageType.Warning, False)
+            return
+
+        # Stagger by party position so peers do not poll/post on the same frame.
+        account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.ReceiverEmail)
+        party_position = int(account_data.AgentPartyData.PartyPosition or 0) if account_data is not None else 0
+        if party_position > 0:
+            yield from Routines.Yield.wait(party_position * STAGGER_MS)
+
+        # PostLock is check-then-post (not CAS): post, then confirm we are the effective owner;
+        # if a peer beat us, release our slot and keep waiting. Bail on despawn or timeout.
+        wait_start = int(Py4GW.Game.get_tick_count64())
+        claimed = False
+        while not claimed:
+            while is_interact_lock_blocked(gadget_id):
+                if int(Py4GW.Game.get_tick_count64()) - wait_start > LOCK_WAIT_TIMEOUT_MS:
+                    ConsoleLog(MODULE_NAME, "InteractGadgetWithLock: timed out waiting for gadget lock.", Console.MessageType.Warning, False)
+                    return
+                gadget_id = Agents.GetNearestGadgetXY(x, y, distance)
+                if gadget_id == 0:
+                    ConsoleLog(MODULE_NAME, "InteractGadgetWithLock: gadget disappeared while waiting.", Console.MessageType.Warning, False)
+                    return
+                yield from Routines.Yield.wait(POLL_MS)
+
+            slot = post_interact_lock(gadget_id, minimum_ms=LOCK_LEASE_MS)
+            if slot < 0:
+                # No lock held (ShMem failure / full table): never interact unlocked.
+                ConsoleLog(MODULE_NAME, "InteractGadgetWithLock: failed to post gadget lock.", Console.MessageType.Warning, False)
+                clear_interact_lock(gadget_id)
+                return
+
+            owner_email, owner_slot = get_interact_lock_owner(gadget_id)
+            if owner_email == message.ReceiverEmail and int(owner_slot) == int(slot):
+                claimed = True
+                break
+            clear_interact_lock(gadget_id)
+            if int(Py4GW.Game.get_tick_count64()) - wait_start > LOCK_WAIT_TIMEOUT_MS:
+                ConsoleLog(MODULE_NAME, "InteractGadgetWithLock: timed out contending for gadget lock.", Console.MessageType.Warning, False)
+                return
+            yield from Routines.Yield.wait(POLL_MS)
+
+        gx, gy = Agent.GetXY(gadget_id)
+        yield from Routines.Yield.Movement.FollowPath([(gx, gy)], timeout=FOLLOWPATH_TIMEOUT_MS)
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Player.InteractAgent(gadget_id)
+        yield from Routines.Yield.wait(100)
+
+        loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
+        if loot_array:
+            yield from Routines.Yield.Items.LootItems(loot_array)
+
+        yield from Routines.Yield.wait(HOLD_MS)  # let loot/interaction settle before release
+
+        ConsoleLog(MODULE_NAME, "InteractGadgetWithLock message processed and finished.", Console.MessageType.Info, False)
+    finally:
+        if gadget_id:
+            clear_interact_lock(gadget_id)
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
@@ -2761,6 +2857,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(LeaveParty(index, message))
         case SharedCommandType.InteractWithTarget:
             GLOBAL_CACHE.Coroutines.append(InteractWithTarget(index, message))
+        case SharedCommandType.InteractGadgetWithLock:
+            GLOBAL_CACHE.Coroutines.append(InteractGadgetWithLock(index, message))
         case SharedCommandType.TakeDialogWithTarget:
             GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
         case SharedCommandType.SendDialogToTarget:
@@ -2768,7 +2866,7 @@ def ProcessMessages():
         case SharedCommandType.SendDialog:
             GLOBAL_CACHE.Coroutines.append(SendDialog(index, message))
         case SharedCommandType.GetBlessing:
-            pass
+            GLOBAL_CACHE.Coroutines.append(GetBlessing(index, message))
         case SharedCommandType.OpenChest:
             GLOBAL_CACHE.Coroutines.append(OpenChest(index, message))
             pass

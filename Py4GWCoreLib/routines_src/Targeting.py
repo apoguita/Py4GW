@@ -7,7 +7,7 @@ class _RProxy:
 
 Routines = _RProxy()
 
-from ..enums_src.GameData_enums import Range
+from ..enums_src.GameData_enums import Allegiance, Range
 from ..Player import Player
 
 #region Targetting
@@ -731,7 +731,14 @@ class Targeting:
         player_pos = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+        enemy_array = AgentArray.Filter.ByCondition(
+            enemy_array,
+            lambda agent_id: (
+                Agent.IsValid(agent_id)
+                and not Agent.IsDead(agent_id)
+                and Agent.GetAllegiance(agent_id)[0] == Allegiance.Enemy
+            ),
+        )
         if not enemy_array:
             return 0
 

@@ -20,7 +20,7 @@ class DominationMagic:
 
     #region E
     def Energy_Surge(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
+        from Py4GWCoreLib import Agent, Allegiance, Player, Range, GLOBAL_CACHE
 
         energy_surge_id: int = Skill.GetID("Energy_Surge")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(energy_surge_id) or Range.Nearby.value
@@ -48,7 +48,16 @@ class DominationMagic:
                 filter_radius=Range.Spellcast.value,
             )
             current_target_id = Player.GetTargetID()
-            if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
+            # Only fall back to the current target when the gated picker found
+            # at least one real enemy and the current target itself is a live
+            # enemy — a snapshot-desynced ally (e.g. EVAS summon) must never
+            # win the 0 >= 0 comparison and eat the cast.
+            if (
+                best_enemy_target_id
+                and Agent.IsValid(current_target_id)
+                and not Agent.IsDead(current_target_id)
+                and Agent.GetAllegiance(current_target_id)[0] == Allegiance.Enemy
+            ):
                 current_target_score = Routines.Targeting.CountNearbyEnemies(current_target_id, aoe_range)
                 best_enemy_score = Routines.Targeting.CountNearbyEnemies(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:
@@ -96,7 +105,7 @@ class DominationMagic:
     #region M
     @coordinates_whiteboard_skill_target(Skill.GetID("Mistrust"))
     def Mistrust(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
+        from Py4GWCoreLib import Agent, Allegiance, Player, Range, GLOBAL_CACHE
 
         mistrust_id: int = Skill.GetID("Mistrust")
 
@@ -125,7 +134,16 @@ class DominationMagic:
                 filter_radius=Range.Spellcast.value,
             )
             current_target_id = Player.GetTargetID()
-            if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
+            # Only fall back to the current target when the gated picker found
+            # at least one real enemy and the current target itself is a live
+            # enemy — a snapshot-desynced ally (e.g. EVAS summon) must never
+            # win the 0 >= 0 comparison and eat the cast.
+            if (
+                best_enemy_target_id
+                and Agent.IsValid(current_target_id)
+                and not Agent.IsDead(current_target_id)
+                and Agent.GetAllegiance(current_target_id)[0] == Allegiance.Enemy
+            ):
                 current_target_score = Routines.Targeting.CountNearbyEnemies(current_target_id, aoe_range)
                 best_enemy_score = Routines.Targeting.CountNearbyEnemies(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:

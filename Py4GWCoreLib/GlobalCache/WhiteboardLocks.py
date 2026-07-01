@@ -20,6 +20,12 @@ HEX_REMOVAL_LOCK_KEY = 0
 HEX_REMOVAL_LOCK_MIN_DURATION_MS = 750
 LOOT_LOCK_KEY = 0
 LOOT_LOCK_MIN_DURATION_MS = 4000
+INTERACT_LOCK_KEY = 0
+# Lease must outlive the entire gated turn (FollowPath timeout 10000 + interact +
+# LootItems wait(1000)+per-item pickups ~5000 + 1500ms mandatory hold + ping budget).
+# The handler also passes an explicit minimum_ms derived from its own timeouts so the
+# lease and the turn can never drift apart; this floor is the safe default.
+INTERACT_LOCK_MIN_DURATION_MS = 20000
 BUFF_TARGET_LOCK_KEY = 0
 BUFF_TARGET_LOCK_MIN_DURATION_MS = 1000
 BLOOD_ENERGY_BUFF_LOCK_KEY = 1
@@ -600,6 +606,134 @@ def clear_loot_lock(item_agent_id: int) -> bool:
             email,
             int(WhiteboardLockKind.LOOT_ITEM),
             int(item_agent_id),
+            int(group_id),
+        ))
+        return cleared > 0
+    except Exception:
+        return False
+
+
+def get_interact_lock_owner(gadget_agent_id: int, now_tick: int | None = None) -> tuple[str, int]:
+    """Effective owner (email, slot) of a gadget interact lock: earliest poster wins
+    (PostLock is not CAS), so a claimant can verify it won the race."""
+    if gadget_agent_id <= 0:
+        return "", -1
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return "", -1
+        if now_tick is None:
+            now_tick = int(Py4GW.Game.get_tick_count64())
+
+        winner = None
+        for slot_index, intent in GLOBAL_CACHE.ShMem.GetAllAccounts().GetAllIntents():
+            if int(intent.KindID) != int(WhiteboardLockKind.INTERACT_AGENT):
+                continue
+            if int(intent.SkillID) != int(INTERACT_LOCK_KEY):
+                continue
+            if int(intent.TargetAgentID) != int(gadget_agent_id):
+                continue
+            if int(intent.IsolationGroupID) != int(group_id):
+                continue
+            if int(intent.ExpiresAtTick) <= int(now_tick):
+                continue
+            candidate = (int(intent.PostedAtTick), int(slot_index), intent.OwnerEmail or "")
+            if winner is None or candidate < winner:
+                winner = candidate
+
+        if winner is None:
+            return "", -1
+        return winner[2], winner[1]
+    except Exception:
+        return "", -1
+
+
+def is_interact_lock_blocked(gadget_agent_id: int, now_tick: int | None = None) -> bool:
+    """True when another account already holds the interact lock for this gadget."""
+    if gadget_agent_id <= 0:
+        return False
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return False
+        if now_tick is None:
+            now_tick = int(Py4GW.Game.get_tick_count64())
+        return bool(GLOBAL_CACHE.ShMem.IsLockBlocked(
+            int(WhiteboardLockKind.INTERACT_AGENT),
+            INTERACT_LOCK_KEY,
+            int(gadget_agent_id),
+            int(group_id),
+            email,
+            int(now_tick),
+            int(WhiteboardLockMode.EXCLUSIVE),
+            1,
+            int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+            int(WhiteboardClaimStrength.HARD),
+        ))
+    except Exception:
+        return False
+
+
+def post_interact_lock(gadget_agent_id: int, minimum_ms: int = INTERACT_LOCK_MIN_DURATION_MS) -> int:
+    """Reserve a gadget for exclusive interaction. Returns slot index or -1."""
+    if gadget_agent_id <= 0:
+        return -1
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return -1
+        now = int(Py4GW.Game.get_tick_count64())
+
+        for slot_index, intent in GLOBAL_CACHE.ShMem.GetAllAccounts().GetAllIntents():
+            if intent.OwnerEmail != email:
+                continue
+            if int(intent.KindID) != int(WhiteboardLockKind.INTERACT_AGENT):
+                continue
+            if int(intent.TargetAgentID) != int(gadget_agent_id):
+                continue
+            if int(intent.IsolationGroupID) != int(group_id):
+                continue
+            if int(intent.ExpiresAtTick) <= now:
+                continue
+            return int(slot_index)
+
+        expires_at = now + max(int(minimum_ms), INTERACT_LOCK_MIN_DURATION_MS)
+        return int(GLOBAL_CACHE.ShMem.PostLock(
+            email,
+            int(WhiteboardLockKind.INTERACT_AGENT),
+            INTERACT_LOCK_KEY,
+            int(gadget_agent_id),
+            int(expires_at),
+            int(group_id),
+            int(WhiteboardLockMode.EXCLUSIVE),
+            1,
+            int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+            int(WhiteboardClaimStrength.HARD),
+        ))
+    except Exception:
+        return -1
+
+
+def clear_interact_lock(gadget_agent_id: int) -> bool:
+    """Release the local interact lock early after a successful interaction or skip."""
+    if gadget_agent_id <= 0:
+        return False
+    try:
+        from Py4GWCoreLib import GLOBAL_CACHE
+
+        email, group_id = _owner_context()
+        if not email:
+            return False
+        cleared = int(GLOBAL_CACHE.ShMem.ClearLockByOwnerKindTarget(
+            email,
+            int(WhiteboardLockKind.INTERACT_AGENT),
+            int(gadget_agent_id),
             int(group_id),
         ))
         return cleared > 0

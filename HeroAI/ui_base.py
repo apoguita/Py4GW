@@ -2047,156 +2047,156 @@ class HeroAI_BaseUI:
                         HeroAI_BaseUI._set_party_follow_option(cached_data, "Avoidance", new_avoidance)
                         HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
 
-            PyImGui.separator()
-            PyImGui.text("Follow Publish")
+                PyImGui.separator()
+                PyImGui.text("Follow Publish")
 
-            if PyImGui.button("Print Follow Debug"):
-                HeroAI_BaseUI._print_follow_debug_dump()
+                if PyImGui.button("Print Follow Debug"):
+                    HeroAI_BaseUI._print_follow_debug_dump()
 
-            new_show_broadcast_follow_positions = PyImGui.checkbox("Draw Followers FollowPos (3D)", hero_globals.show_broadcast_follow_positions)
-            if new_show_broadcast_follow_positions != hero_globals.show_broadcast_follow_positions:
-                hero_globals.show_broadcast_follow_positions = new_show_broadcast_follow_positions
-                dirty_runtime_cfg = True
+                new_show_broadcast_follow_positions = PyImGui.checkbox("Draw Followers FollowPos (3D)", hero_globals.show_broadcast_follow_positions)
+                if new_show_broadcast_follow_positions != hero_globals.show_broadcast_follow_positions:
+                    hero_globals.show_broadcast_follow_positions = new_show_broadcast_follow_positions
+                    dirty_runtime_cfg = True
 
-            new_show_followers_unstuck_overlay = PyImGui.checkbox("Draw Followers Unstuck (3D)", hero_globals.show_followers_unstuck_overlay)
-            if new_show_followers_unstuck_overlay != hero_globals.show_followers_unstuck_overlay:
-                hero_globals.show_followers_unstuck_overlay = new_show_followers_unstuck_overlay
-                dirty_runtime_cfg = True
+                new_show_followers_unstuck_overlay = PyImGui.checkbox("Draw Followers Unstuck (3D)", hero_globals.show_followers_unstuck_overlay)
+                if new_show_followers_unstuck_overlay != hero_globals.show_followers_unstuck_overlay:
+                    hero_globals.show_followers_unstuck_overlay = new_show_followers_unstuck_overlay
+                    dirty_runtime_cfg = True
 
-            new_show_broadcast_follow_threshold_rings = PyImGui.checkbox("Draw Followers Threshold Rings (3D)", hero_globals.show_broadcast_follow_threshold_rings)
-            if new_show_broadcast_follow_threshold_rings != hero_globals.show_broadcast_follow_threshold_rings:
-                hero_globals.show_broadcast_follow_threshold_rings = new_show_broadcast_follow_threshold_rings
-                dirty_runtime_cfg = True
+                new_show_broadcast_follow_threshold_rings = PyImGui.checkbox("Draw Followers Threshold Rings (3D)", hero_globals.show_broadcast_follow_threshold_rings)
+                if new_show_broadcast_follow_threshold_rings != hero_globals.show_broadcast_follow_threshold_rings:
+                    hero_globals.show_broadcast_follow_threshold_rings = new_show_broadcast_follow_threshold_rings
+                    dirty_runtime_cfg = True
 
-            new_show_stuck_avoidance_debug = PyImGui.checkbox("Stuck Avoidance Verbose Logs", hero_globals.show_stuck_avoidance_debug)
-            if new_show_stuck_avoidance_debug != hero_globals.show_stuck_avoidance_debug:
-                hero_globals.show_stuck_avoidance_debug = new_show_stuck_avoidance_debug
-                dirty_runtime_cfg = True
+                new_show_stuck_avoidance_debug = PyImGui.checkbox("Stuck Avoidance Verbose Logs", hero_globals.show_stuck_avoidance_debug)
+                if new_show_stuck_avoidance_debug != hero_globals.show_stuck_avoidance_debug:
+                    hero_globals.show_stuck_avoidance_debug = new_show_stuck_avoidance_debug
+                    dirty_runtime_cfg = True
 
-            presets = HeroAI_BaseUI._follow_threshold_presets()
-            preset_names = [name for name, _ in presets]
+                presets = HeroAI_BaseUI._follow_threshold_presets()
+                preset_names = [name for name, _ in presets]
 
-            d_idx = PyImGui.combo("Follow Threshold Preset", HeroAI_BaseUI._threshold_mode_index(HeroAI_BaseUI.follow_move_threshold_default_mode), preset_names)
-            d_name, d_val = presets[d_idx]
-            if d_name != HeroAI_BaseUI.follow_move_threshold_default_mode:
-                HeroAI_BaseUI.follow_move_threshold_default_mode = d_name
-                if d_val is not None:
-                    HeroAI_BaseUI.follow_move_threshold_default = float(d_val)
-                dirty_runtime_cfg = True
-            new_default_thr = max(0.0, float(PyImGui.input_float("Follow Threshold", float(HeroAI_BaseUI.follow_move_threshold_default))))
-            if abs(new_default_thr - HeroAI_BaseUI.follow_move_threshold_default) > 0.0001:
-                HeroAI_BaseUI.follow_move_threshold_default = new_default_thr
-                if HeroAI_BaseUI.follow_move_threshold_default_mode != "Manual":
-                    HeroAI_BaseUI.follow_move_threshold_default_mode = "Manual"
-                dirty_runtime_cfg = True
+                d_idx = PyImGui.combo("Follow Threshold Preset", HeroAI_BaseUI._threshold_mode_index(HeroAI_BaseUI.follow_move_threshold_default_mode), preset_names)
+                d_name, d_val = presets[d_idx]
+                if d_name != HeroAI_BaseUI.follow_move_threshold_default_mode:
+                    HeroAI_BaseUI.follow_move_threshold_default_mode = d_name
+                    if d_val is not None:
+                        HeroAI_BaseUI.follow_move_threshold_default = float(d_val)
+                    dirty_runtime_cfg = True
+                new_default_thr = max(0.0, float(PyImGui.input_float("Follow Threshold", float(HeroAI_BaseUI.follow_move_threshold_default))))
+                if abs(new_default_thr - HeroAI_BaseUI.follow_move_threshold_default) > 0.0001:
+                    HeroAI_BaseUI.follow_move_threshold_default = new_default_thr
+                    if HeroAI_BaseUI.follow_move_threshold_default_mode != "Manual":
+                        HeroAI_BaseUI.follow_move_threshold_default_mode = "Manual"
+                    dirty_runtime_cfg = True
 
-            c_idx = PyImGui.combo("Combat Threshold Preset", HeroAI_BaseUI._threshold_mode_index(HeroAI_BaseUI.follow_move_threshold_combat_mode), preset_names)
-            c_name, c_val = presets[c_idx]
-            if c_name != HeroAI_BaseUI.follow_move_threshold_combat_mode:
-                HeroAI_BaseUI.follow_move_threshold_combat_mode = c_name
-                if c_val is not None:
-                    HeroAI_BaseUI.follow_move_threshold_combat = float(c_val)
-                dirty_runtime_cfg = True
-            new_combat_thr = max(0.0, float(PyImGui.input_float("Combat Follow Threshold", float(HeroAI_BaseUI.follow_move_threshold_combat))))
-            if abs(new_combat_thr - HeroAI_BaseUI.follow_move_threshold_combat) > 0.0001:
-                HeroAI_BaseUI.follow_move_threshold_combat = new_combat_thr
-                if HeroAI_BaseUI.follow_move_threshold_combat_mode != "Manual":
-                    HeroAI_BaseUI.follow_move_threshold_combat_mode = "Manual"
-                dirty_runtime_cfg = True
+                c_idx = PyImGui.combo("Combat Threshold Preset", HeroAI_BaseUI._threshold_mode_index(HeroAI_BaseUI.follow_move_threshold_combat_mode), preset_names)
+                c_name, c_val = presets[c_idx]
+                if c_name != HeroAI_BaseUI.follow_move_threshold_combat_mode:
+                    HeroAI_BaseUI.follow_move_threshold_combat_mode = c_name
+                    if c_val is not None:
+                        HeroAI_BaseUI.follow_move_threshold_combat = float(c_val)
+                    dirty_runtime_cfg = True
+                new_combat_thr = max(0.0, float(PyImGui.input_float("Combat Follow Threshold", float(HeroAI_BaseUI.follow_move_threshold_combat))))
+                if abs(new_combat_thr - HeroAI_BaseUI.follow_move_threshold_combat) > 0.0001:
+                    HeroAI_BaseUI.follow_move_threshold_combat = new_combat_thr
+                    if HeroAI_BaseUI.follow_move_threshold_combat_mode != "Manual":
+                        HeroAI_BaseUI.follow_move_threshold_combat_mode = "Manual"
+                    dirty_runtime_cfg = True
 
-            f_idx = PyImGui.combo("Flag Threshold Preset", HeroAI_BaseUI._threshold_mode_index(HeroAI_BaseUI.follow_move_threshold_flagged_mode), preset_names)
-            f_name, f_val = presets[f_idx]
-            if f_name != HeroAI_BaseUI.follow_move_threshold_flagged_mode:
-                HeroAI_BaseUI.follow_move_threshold_flagged_mode = f_name
-                if f_val is not None:
-                    HeroAI_BaseUI.follow_move_threshold_flagged = float(f_val)
-                dirty_runtime_cfg = True
-            new_flagged_thr = max(0.0, float(PyImGui.input_float("Flag Threshold", float(HeroAI_BaseUI.follow_move_threshold_flagged))))
-            if abs(new_flagged_thr - HeroAI_BaseUI.follow_move_threshold_flagged) > 0.0001:
-                HeroAI_BaseUI.follow_move_threshold_flagged = new_flagged_thr
-                if HeroAI_BaseUI.follow_move_threshold_flagged_mode != "Manual":
-                    HeroAI_BaseUI.follow_move_threshold_flagged_mode = "Manual"
-                dirty_runtime_cfg = True
+                f_idx = PyImGui.combo("Flag Threshold Preset", HeroAI_BaseUI._threshold_mode_index(HeroAI_BaseUI.follow_move_threshold_flagged_mode), preset_names)
+                f_name, f_val = presets[f_idx]
+                if f_name != HeroAI_BaseUI.follow_move_threshold_flagged_mode:
+                    HeroAI_BaseUI.follow_move_threshold_flagged_mode = f_name
+                    if f_val is not None:
+                        HeroAI_BaseUI.follow_move_threshold_flagged = float(f_val)
+                    dirty_runtime_cfg = True
+                new_flagged_thr = max(0.0, float(PyImGui.input_float("Flag Threshold", float(HeroAI_BaseUI.follow_move_threshold_flagged))))
+                if abs(new_flagged_thr - HeroAI_BaseUI.follow_move_threshold_flagged) > 0.0001:
+                    HeroAI_BaseUI.follow_move_threshold_flagged = new_flagged_thr
+                    if HeroAI_BaseUI.follow_move_threshold_flagged_mode != "Manual":
+                        HeroAI_BaseUI.follow_move_threshold_flagged_mode = "Manual"
+                    dirty_runtime_cfg = True
 
-            PyImGui.separator()
-            PyImGui.text("Follower Resolves (unstuck)")
-            # Stuck-avoidance live-tunable knobs. All sync cross-client via
-            # FollowRuntime.ini on the leader-write, follower-poll throttle in
-            # smart_unstuck.reload_smart_unstuck_config_from_ini.
-            #   Geometry knobs:
-            #     - Waypoint Smoothing: BT.Move "advance on approach" threshold.
-            #     - Stuck Circle Radius: imaginary obstacle circle radius. The
-            #       waypoint arc auto-scales — circle and arc stay in sync.
-            #     - Enemy Detection Range: scan radius for the body-block
-            #       fallback. When ≥1 enemy is in this range and the follower
-            #       is stuck, the detour pivots to circles centered on the
-            #       enemies instead of a single front-of-follower circle.
-            #   Detection-sensitivity knobs (per ~500ms sample):
-            #     - Stuck Sample Count: consecutive no-progress samples to
-            #       trigger (1 = fire on the first comparison after baseline).
-            #     - Min Distance Activate Unstuck: short-circuit detection when the
-            #       follower is already this close to follow_xy.
-            #     - No-Progress Move Units: sample counts as no-progress when
-            #       the avatar moved less than this in the sample window.
-            #     - No-Progress Close Units: sample counts as no-progress when
-            #       the gap to follow_xy shrank by less than this.
-            from HeroAI.follow.smart_unstuck import (
-                SMART_UNSTUCK_CFG,
-                reload_smart_unstuck_config_from_ini,
-            )
-            new_waypoint_smoothing = max(1.0, float(PyImGui.input_float(
-                "Waypoint Smoothing", float(SMART_UNSTUCK_CFG.waypoint_smoothing)
-            )))
-            new_touch_radius = max(50.0, min(400.0, float(PyImGui.input_float(
-                "Stuck Circle Radius", float(SMART_UNSTUCK_CFG.touch_radius)
-            ))))
-            new_enemy_range = max(50.0, min(400.0, float(PyImGui.input_float(
-                "Enemy Detection Range", float(SMART_UNSTUCK_CFG.enemy_detection_range)
-            ))))
-            new_sample_count = max(1, min(10, int(PyImGui.input_int(
-                "Stuck Sample Count", int(SMART_UNSTUCK_CFG.stuck_sample_count)
-            ))))
-            new_min_distance = max(50.0, min(600.0, float(PyImGui.input_float(
-                "Min Distance Activate Unstuck", float(SMART_UNSTUCK_CFG.min_distance_activate_unstuck)
-            ))))
-            new_move_units = max(1.0, min(100.0, float(PyImGui.input_float(
-                "No-Progress Move Units", float(SMART_UNSTUCK_CFG.no_progress_move_units)
-            ))))
-            new_close_units = max(1.0, min(100.0, float(PyImGui.input_float(
-                "No-Progress Close Units", float(SMART_UNSTUCK_CFG.no_progress_close_units)
-            ))))
-            new_early_exit = max(50.0, min(800.0, float(PyImGui.input_float(
-                "Min Dist Early Exit", float(SMART_UNSTUCK_CFG.obstacle_cleared_delta)
-            ))))
-            stuck_cfg_changed = (
-                abs(new_waypoint_smoothing - SMART_UNSTUCK_CFG.waypoint_smoothing) > 0.0001
-                or abs(new_touch_radius - SMART_UNSTUCK_CFG.touch_radius) > 0.0001
-                or abs(new_enemy_range - SMART_UNSTUCK_CFG.enemy_detection_range) > 0.0001
-                or new_sample_count != SMART_UNSTUCK_CFG.stuck_sample_count
-                or abs(new_min_distance - SMART_UNSTUCK_CFG.min_distance_activate_unstuck) > 0.0001
-                or abs(new_move_units - SMART_UNSTUCK_CFG.no_progress_move_units) > 0.0001
-                or abs(new_close_units - SMART_UNSTUCK_CFG.no_progress_close_units) > 0.0001
-                or abs(new_early_exit - SMART_UNSTUCK_CFG.obstacle_cleared_delta) > 0.0001
-            )
-            if stuck_cfg_changed:
-                SMART_UNSTUCK_CFG.waypoint_smoothing = new_waypoint_smoothing
-                SMART_UNSTUCK_CFG.touch_radius = new_touch_radius
-                SMART_UNSTUCK_CFG.enemy_detection_range = new_enemy_range
-                SMART_UNSTUCK_CFG.stuck_sample_count = new_sample_count
-                SMART_UNSTUCK_CFG.min_distance_activate_unstuck = new_min_distance
-                SMART_UNSTUCK_CFG.no_progress_move_units = new_move_units
-                SMART_UNSTUCK_CFG.no_progress_close_units = new_close_units
-                SMART_UNSTUCK_CFG.obstacle_cleared_delta = new_early_exit
-                dirty_runtime_cfg = True
-                # Force-write to INI immediately so follower clients see the
-                # change within their next 1s reload poll.
-                HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
-                reload_smart_unstuck_config_from_ini(force_reload=True)
+                PyImGui.separator()
+                PyImGui.text("Follower Resolves (unstuck)")
+                # Stuck-avoidance live-tunable knobs. All sync cross-client via
+                # FollowRuntime.ini on the leader-write, follower-poll throttle in
+                # smart_unstuck.reload_smart_unstuck_config_from_ini.
+                #   Geometry knobs:
+                #     - Waypoint Smoothing: BT.Move "advance on approach" threshold.
+                #     - Stuck Circle Radius: imaginary obstacle circle radius. The
+                #       waypoint arc auto-scales — circle and arc stay in sync.
+                #     - Enemy Detection Range: scan radius for the body-block
+                #       fallback. When ≥1 enemy is in this range and the follower
+                #       is stuck, the detour pivots to circles centered on the
+                #       enemies instead of a single front-of-follower circle.
+                #   Detection-sensitivity knobs (per ~500ms sample):
+                #     - Stuck Sample Count: consecutive no-progress samples to
+                #       trigger (1 = fire on the first comparison after baseline).
+                #     - Min Distance Activate Unstuck: short-circuit detection when the
+                #       follower is already this close to follow_xy.
+                #     - No-Progress Move Units: sample counts as no-progress when
+                #       the avatar moved less than this in the sample window.
+                #     - No-Progress Close Units: sample counts as no-progress when
+                #       the gap to follow_xy shrank by less than this.
+                from HeroAI.follow.smart_unstuck import (
+                    SMART_UNSTUCK_CFG,
+                    reload_smart_unstuck_config_from_ini,
+                )
+                new_waypoint_smoothing = max(1.0, float(PyImGui.input_float(
+                    "Waypoint Smoothing", float(SMART_UNSTUCK_CFG.waypoint_smoothing)
+                )))
+                new_touch_radius = max(50.0, min(400.0, float(PyImGui.input_float(
+                    "Stuck Circle Radius", float(SMART_UNSTUCK_CFG.touch_radius)
+                ))))
+                new_enemy_range = max(50.0, min(400.0, float(PyImGui.input_float(
+                    "Enemy Detection Range", float(SMART_UNSTUCK_CFG.enemy_detection_range)
+                ))))
+                new_sample_count = max(1, min(10, int(PyImGui.input_int(
+                    "Stuck Sample Count", int(SMART_UNSTUCK_CFG.stuck_sample_count)
+                ))))
+                new_min_distance = max(50.0, min(600.0, float(PyImGui.input_float(
+                    "Min Distance Activate Unstuck", float(SMART_UNSTUCK_CFG.min_distance_activate_unstuck)
+                ))))
+                new_move_units = max(1.0, min(100.0, float(PyImGui.input_float(
+                    "No-Progress Move Units", float(SMART_UNSTUCK_CFG.no_progress_move_units)
+                ))))
+                new_close_units = max(1.0, min(100.0, float(PyImGui.input_float(
+                    "No-Progress Close Units", float(SMART_UNSTUCK_CFG.no_progress_close_units)
+                ))))
+                new_early_exit = max(50.0, min(800.0, float(PyImGui.input_float(
+                    "Min Dist Early Exit", float(SMART_UNSTUCK_CFG.obstacle_cleared_delta)
+                ))))
+                stuck_cfg_changed = (
+                    abs(new_waypoint_smoothing - SMART_UNSTUCK_CFG.waypoint_smoothing) > 0.0001
+                    or abs(new_touch_radius - SMART_UNSTUCK_CFG.touch_radius) > 0.0001
+                    or abs(new_enemy_range - SMART_UNSTUCK_CFG.enemy_detection_range) > 0.0001
+                    or new_sample_count != SMART_UNSTUCK_CFG.stuck_sample_count
+                    or abs(new_min_distance - SMART_UNSTUCK_CFG.min_distance_activate_unstuck) > 0.0001
+                    or abs(new_move_units - SMART_UNSTUCK_CFG.no_progress_move_units) > 0.0001
+                    or abs(new_close_units - SMART_UNSTUCK_CFG.no_progress_close_units) > 0.0001
+                    or abs(new_early_exit - SMART_UNSTUCK_CFG.obstacle_cleared_delta) > 0.0001
+                )
+                if stuck_cfg_changed:
+                    SMART_UNSTUCK_CFG.waypoint_smoothing = new_waypoint_smoothing
+                    SMART_UNSTUCK_CFG.touch_radius = new_touch_radius
+                    SMART_UNSTUCK_CFG.enemy_detection_range = new_enemy_range
+                    SMART_UNSTUCK_CFG.stuck_sample_count = new_sample_count
+                    SMART_UNSTUCK_CFG.min_distance_activate_unstuck = new_min_distance
+                    SMART_UNSTUCK_CFG.no_progress_move_units = new_move_units
+                    SMART_UNSTUCK_CFG.no_progress_close_units = new_close_units
+                    SMART_UNSTUCK_CFG.obstacle_cleared_delta = new_early_exit
+                    dirty_runtime_cfg = True
+                    # Force-write to INI immediately so follower clients see the
+                    # change within their next 1s reload poll.
+                    HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                    reload_smart_unstuck_config_from_ini(force_reload=True)
 
-            if dirty_runtime_cfg:
-                HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
-                HeroAI_BaseUI._apply_follow_thresholds_to_party(cached_data)
-                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
+                if dirty_runtime_cfg:
+                    HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                    HeroAI_BaseUI._apply_follow_thresholds_to_party(cached_data)
+                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
                 if Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
                     new_show_flagging_window = PyImGui.checkbox("Show Flagging Window", hero_globals.show_flagging_window)

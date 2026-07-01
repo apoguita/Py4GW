@@ -1,6 +1,14 @@
 import os
+import tempfile
+import time
 import configparser
 from datetime import datetime
+
+# Atomic save() retry budget for the os.replace rename step: a Windows AV or
+# search indexer can transiently hold the destination file handle, so retry a
+# few times (then fall back to an in-place write) instead of failing the save.
+_ATOMIC_SAVE_RETRIES = 3
+_ATOMIC_SAVE_RETRY_DELAY_S = 0.01
 
 #region IniHandler
 class IniHandler:
@@ -56,10 +64,43 @@ class IniHandler:
 
     def save(self, config: configparser.ConfigParser) -> None:
         """
-        Save changes to the INI file.
+        Save changes to the INI file atomically.
+
+        Serialize to a temp file in the same directory, flush+fsync, then
+        os.replace() it onto the target (an atomic rename on NTFS). This
+        prevents torn/half-written files when multiple processes (multibox
+        clients) write the same shared INI concurrently: a reader always sees
+        either the complete old file or the complete new one. If the rename
+        keeps failing (for example an AV/indexer holds the destination), fall
+        back to an in-place write so behavior is never worse than before.
         """
-        with open(self.filename, 'w', encoding="utf-8") as configfile:
-            config.write(configfile)
+        directory = os.path.dirname(self.filename) or "."
+        tmp_path = None
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir=directory, suffix=".ini.tmp")
+            with os.fdopen(fd, "w", encoding="utf-8") as configfile:
+                config.write(configfile)
+                configfile.flush()
+                os.fsync(configfile.fileno())
+
+            for attempt in range(_ATOMIC_SAVE_RETRIES):
+                try:
+                    os.replace(tmp_path, self.filename)
+                    tmp_path = None  # renamed onto target; nothing to clean up
+                    break
+                except PermissionError:
+                    if attempt == _ATOMIC_SAVE_RETRIES - 1:
+                        with open(self.filename, "w", encoding="utf-8") as configfile:
+                            config.write(configfile)
+                    else:
+                        time.sleep(_ATOMIC_SAVE_RETRY_DELAY_S)
+        finally:
+            if tmp_path is not None:
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+
         self.config = config
         try:
             self.last_modified = os.path.getmtime(self.filename)

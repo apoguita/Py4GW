@@ -183,10 +183,7 @@ class PvE:
 
         target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=cluster_radius,
-            preferred_condition=lambda agent_id: (
-                Agent.GetHealth(agent_id) > 0.3
-                and (Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id))
-            ),
+            preferred_condition=lambda agent_id: Agent.GetHealth(agent_id) > 0.3,
             filter_radius=Range.Spellcast.value,
         )
 

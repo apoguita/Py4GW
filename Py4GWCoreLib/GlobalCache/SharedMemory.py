@@ -490,6 +490,23 @@ class Py4GWSharedMemoryManager:
         """Zero every intent slot whose OwnerEmail matches."""
         return self.GetAllAccounts().ClearIntentsByOwner(owner_email)
 
+    def ClearLockByOwnerKindTarget(
+        self,
+        owner_email: str,
+        kind_id: int,
+        target_id: int,
+        group_id: int,
+    ) -> int:
+        """Zero active locks matching (owner, kind, target, group). Returns count cleared.
+
+        Lets a lock owner release a held lock immediately (e.g. after a gadget
+        interaction or loot pickup) so waiting peers proceed at once instead of
+        waiting out the lease expiry.
+        """
+        return self.GetAllAccounts().ClearLockByOwnerKindTarget(
+            owner_email, kind_id, target_id, group_id
+        )
+
     @frame_cache(category="SharedMemory", source_lib="IsIntentClaimed")
     def IsIntentClaimed(
         self,

@@ -317,6 +317,102 @@ def _send_multibox_get_blessing_with_target(
     )
 
 
+def _broadcast_gadget_interact_with_lock(
+    x: float,
+    y: float,
+    distance: float,
+    *,
+    refs_blackboard_key: str = 'apo_gadget_interact_refs',
+    poll_interval_ms: int = 100,
+    log: bool = False,
+) -> BehaviorTree:
+    """Broadcast InteractGadgetWithLock to all in-group same-map accounts (incl. self) and
+    wait for all to finish. The per-gadget lock serialises turns; the wait timeout scales
+    with the participant count."""
+    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+    from Py4GWCoreLib.Player import Player
+
+    px = float(x)
+    py = float(y)
+    pdistance = float(distance)
+
+    def _prepare(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        own_email = str(Player.GetAccountEmail() or '')
+        sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(own_email) if own_email else None
+
+        recipients: list[str] = []
+        if sender_data is not None:
+            try:
+                own_group = int(GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(own_email))
+            except Exception:
+                own_group = 0
+            own_map = (
+                sender_data.AgentData.Map.MapID,
+                sender_data.AgentData.Map.Region,
+                sender_data.AgentData.Map.District,
+                sender_data.AgentData.Map.Language,
+            )
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+                receiver_email = str(getattr(account, 'AccountEmail', '') or '')
+                if not receiver_email:
+                    continue
+                try:
+                    account_group = int(GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(receiver_email))
+                except Exception:
+                    account_group = 0
+                if account_group != own_group:
+                    continue
+                account_map = (
+                    account.AgentData.Map.MapID,
+                    account.AgentData.Map.Region,
+                    account.AgentData.Map.District,
+                    account.AgentData.Map.Language,
+                )
+                if account_map != own_map:
+                    continue
+                recipients.append(receiver_email)
+
+        if own_email and own_email not in recipients:
+            recipients.append(own_email)
+
+        node.blackboard[f'{refs_blackboard_key}_recipient_emails'] = recipients
+        node.blackboard[f'{refs_blackboard_key}_include_self'] = bool(own_email)
+        return BehaviorTree.NodeState.SUCCESS
+
+    def _dispatch(node: BehaviorTree.Node) -> BehaviorTree:
+        recipients = list(node.blackboard.get(f'{refs_blackboard_key}_recipient_emails', []))
+        # ~20s worst case per serialised turn; budget must outwait all followers.
+        timeout_ms = max(60000, 20000 * max(1, len(recipients)))
+        return RoutinesBT.Shared.SendAndWait(
+            command=SharedCommandType.InteractGadgetWithLock,
+            params=(px, py, pdistance, 0.0),
+            recipients=recipients,
+            include_self=bool(node.blackboard.get(f'{refs_blackboard_key}_include_self', False)),
+            refs_blackboard_key=refs_blackboard_key,
+            timeout_ms=timeout_ms,
+            poll_interval_ms=poll_interval_ms,
+            log=log,
+        )
+
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
+            name='BroadcastGadgetInteractWithLock',
+            children=[
+                BehaviorTree.ActionNode(
+                    name='PrepareGadgetInteractRecipients',
+                    action_fn=_prepare,
+                ),
+                BehaviorTree(
+                    BehaviorTree.SubtreeNode(
+                        name='DispatchGadgetInteractWithLock',
+                        subtree_fn=_dispatch,
+                    )
+                ),
+            ],
+        )
+    )
+
+
 def _final_point(pos: PointOrPath) -> Vec2f:
     point = PointPath.final_point(pos)
     if point is None:
