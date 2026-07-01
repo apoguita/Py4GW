@@ -26,6 +26,7 @@ def Node(tree_or_node) -> BehaviorTree.Node:
 
 from Py4GWCoreLib.native_src.internals.types import PointPath
 from Py4GWCoreLib.native_src.internals.types import PointOrPath
+from Py4GWCoreLib.enums import PlayerStatus
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.enums_src.IO_enums import Key
@@ -2308,6 +2309,21 @@ def SendChatMessage(message: str, channel: str = "say", log: bool = False) -> Be
 
 def SendChatCommand(command: str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Player.SendChatCommand(command=command, log=log,)
+
+def SetPlayerStatus(
+    status: PlayerStatus | int | str,
+    log: bool = False,
+    aftercast_ms: int = 250,
+    verify: bool = True,
+    timeout_ms: int = 3000,
+) -> BehaviorTree:
+    return RoutinesBT.Player.SetPlayerStatus(
+        status=status,
+        log=log,
+        aftercast_ms=aftercast_ms,
+        verify=verify,
+        timeout_ms=timeout_ms,
+    )
 
 def ClickWindowFrame(frame_name: str, aftercast_ms: int = 250) -> BehaviorTree:
     return RoutinesBT.Player.ClickWindowFrame(frame_name=frame_name,aftercast_ms=aftercast_ms,)
