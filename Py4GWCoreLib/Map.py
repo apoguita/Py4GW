@@ -15,6 +15,9 @@ from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
 from Py4GWCoreLib.enums import outposts
 
 import PyOverlay
+import PyMap
+
+from .native_src.internals import raycast_math as _rc
 
 from .enums import FlagPreference
 from typing import List, Optional
@@ -2305,6 +2308,138 @@ class Map:
                         return True
 
             return False
+
+    class Raycast:
+        """World-collision raycast primitives (terrain + props), backed by native PyMap.
+
+        Geometry-only and agent-agnostic: callers pass exact world (x, y, z) endpoints.
+        ALL math (normalize, the blocked decision, hit reconstruction, the prop-mesh v*M
+        transform) is done here in Python on top of the raw native bridge -- the native
+        side returns engine numbers verbatim. Results are NOT @frame_cache'd (they vary by
+        arbitrary start/end). GW world Z is negative-up; any eye-height lift is the
+        caller's concern and is kept out of these primitives.
+
+        Mirrors the Map.Pathing nested-class precedent. Result types are re-exported as
+        Map.Raycast.RaycastHit / PropHit / PropInfo.
+        """
+
+        RaycastHit = _rc.RaycastHit
+        PropHit = _rc.PropHit
+        PropInfo = _rc.PropInfo
+        DEFAULT_SLACK = _rc.DEFAULT_SLACK
+
+        @staticmethod
+        def Cast(start, end, slack: float = _rc.DEFAULT_SLACK) -> _rc.RaycastHit:
+            """Combined terrain + walkable-prop cast (engine MapCliQueryIntersection).
+
+            .blocked is the line-of-sight answer; .point is the contact; .source is
+            'terrain' or 'props' decided from the engine prop_layer.
+            """
+            unit_dir, seg_len = _rc.direction(start, end)
+            if unit_dir is None:
+                return _rc.RaycastHit(False, None, None, _rc.SOURCE_NONE)
+            try:
+                has_hit, hx, hy, hz, prop_layer = PyMap.RayCast(
+                    (start[0], start[1], start[2]), unit_dir)
+            except Exception:
+                return _rc.RaycastHit(False, None, None, _rc.SOURCE_UNAVAILABLE)
+            if not has_hit:
+                return _rc.RaycastHit(False, None, None, _rc.SOURCE_NONE)
+            point = (float(hx), float(hy), float(hz))
+            hit_dist = _rc.segment_length(start, point)
+            if _rc.is_blocked(hit_dist, seg_len, slack):
+                source = _rc.SOURCE_TERRAIN if int(prop_layer) == 0 else _rc.SOURCE_PROPS
+                return _rc.RaycastHit(True, point, hit_dist, source)
+            return _rc.RaycastHit(False, None, None, _rc.SOURCE_NONE)
+
+        @staticmethod
+        def CastTerrain(start, end, slack: float = _rc.DEFAULT_SLACK) -> _rc.RaycastHit:
+            """Terrain-only cast (engine TerrainQueryIntersection).
+
+            The bound terrain kernel writes the hit as a parametric FRACTION in [0,1] along
+            start->end, NOT a world distance, so it is scaled by seg_len here to get the
+            world hit distance (hit = start + frac*(end-start)).
+            """
+            unit_dir, seg_len = _rc.direction(start, end)
+            if unit_dir is None:
+                return _rc.RaycastHit(False, None, None, _rc.SOURCE_NONE)
+            try:
+                has_hit, frac = PyMap.RayCastTerrain(
+                    (start[0], start[1], start[2]), (end[0], end[1], end[2]))
+            except Exception:
+                return _rc.RaycastHit(False, None, None, _rc.SOURCE_UNAVAILABLE)
+            dist = float(frac) * seg_len   # fraction [0,1] along the segment -> world distance
+            if has_hit and _rc.is_blocked(dist, seg_len, slack):
+                point = _rc.point_along(start, unit_dir, dist)
+                return _rc.RaycastHit(True, point, dist, _rc.SOURCE_TERRAIN)
+            return _rc.RaycastHit(False, None, None, _rc.SOURCE_NONE)
+
+        @staticmethod
+        def CastInteractive(start, end, slack: float = _rc.DEFAULT_SLACK) -> _rc.PropHit:
+            """Interactive-prop mesh cast (engine IProps::IntersectGeometry over every prop).
+
+            n_scanned == -1 signals the probe could not run (stale DLL); n_scanned == 0 from
+            a successful call means the map has no interactive-prop meshes (a clear result).
+            """
+            unit_dir, seg_len = _rc.direction(start, end)
+            if unit_dir is None:
+                return _rc.PropHit(False, None, None, -1, 0)
+            try:
+                has_hit, dist, prop_id, n_scanned = PyMap.RayCastInteractive(
+                    (start[0], start[1], start[2]), unit_dir, seg_len)
+            except Exception:
+                return _rc.PropHit(False, None, None, -1, -1)
+            dist = float(dist)
+            prop_id = int(prop_id)
+            n_scanned = int(n_scanned)
+            if has_hit and _rc.is_blocked(dist, seg_len, slack):
+                point = _rc.point_along(start, unit_dir, dist)
+                return _rc.PropHit(True, point, dist, prop_id, n_scanned)
+            return _rc.PropHit(False, None, None, -1, n_scanned)
+
+        @staticmethod
+        def HasLos(start, end, terrain: bool = True, props: bool = True,
+                   slack: float = _rc.DEFAULT_SLACK) -> _rc.RaycastHit:
+            """Reference HasLos: nearest-block combine of CastTerrain + CastInteractive.
+
+            blocked = terrain OR a prop; the nearest block wins. .blocked is the LoS answer,
+            .point is the nearest blocking contact. Probes a source only when its flag is set,
+            so toggling one off both skips its native raycast and excludes it from blocking.
+            """
+            hits = []
+            if terrain:
+                hits.append(Map.Raycast.CastTerrain(start, end, slack))
+            if props:
+                prop = Map.Raycast.CastInteractive(start, end, slack)
+                if prop.n_scanned < 0:                       # probe unavailable (stale DLL)
+                    hits.append(_rc.RaycastHit(False, None, None, _rc.SOURCE_UNAVAILABLE))
+                else:
+                    src = _rc.SOURCE_PROPS if prop.blocked else _rc.SOURCE_NONE
+                    hits.append(_rc.RaycastHit(prop.blocked, prop.point, prop.distance, src))
+            return _rc.nearest_block(hits)
+
+        @staticmethod
+        def GetProps() -> "list[_rc.PropInfo]":
+            """Enumerate all map props (world position + collision flags)."""
+            try:
+                raw = PyMap.GetProps()
+            except Exception:
+                return []
+            return [_rc.PropInfo(int(p[0]), float(p[1]), float(p[2]), float(p[3]),
+                                 bool(p[4]), int(p[5])) for p in raw]
+
+        @staticmethod
+        def GetPropGeometry(prop_id: int) -> "list[_rc.Triangle]":
+            """One prop's collision mesh as world-space triangles (applies v*M in Python).
+
+            Returns a flat list of 9-float (x1,y1,z1, x2,y2,z2, x3,y3,z3) world triangles,
+            ready for Overlay.DrawTriangle3D. Empty if the prop has no collision geometry.
+            """
+            try:
+                submodels = PyMap.GetPropGeometry(int(prop_id))
+            except Exception:
+                return []
+            return _rc.transform_local_triangles(submodels)
 
     
     
