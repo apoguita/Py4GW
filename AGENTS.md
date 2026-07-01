@@ -100,8 +100,6 @@ Full catalog with sub-function breakdowns in `docs/RE/reverse_engineering_refere
   - `python "py4gw_mcp_server.py" --help`
 - ModularBot docs coverage check:
   - `python "Sources/modular_bot/tools/validate_modular_docs.py"`
-- Merchant Rules offline regression harness:
-  - `python "Widgets/Data/test_merchant_rules_regression.py"`
 
 ## Repo-Specific Gotchas
 
