@@ -210,6 +210,14 @@ DestroyUIComponent(uint32_t frame_id) → bool
 
 **GWCA scanner:** Assertion `"frame->state.Test(FRAME_STATE_CREATED)"` in `\\Code\\Gw\\Ui\\Frame\\FrApi.cpp`
 
+> **⚠️ BROKEN on Gw.exe 06-14 (2026-07-01).** This resolver returns NULL on the current build: the
+> engine renamed the source path from `\Code\Gw\Ui\Frame\FrApi.cpp` to `\Code\Engine\Frame\FrApi.cpp`,
+> so `FindAssertion` never matches → `DestroyUIComponent_Func` stays NULL → the wrapper silently
+> returns false and the frame persists (this was "Destroy All never works"). **Fix:** call the public
+> id-based native destroyer **`FUN_0062c550(frame_id)`** (`__cdecl`, by value) directly — prologue anchor
+> `55 8B EC 51 56 8B 75 08 85 F6 75 19 68 13 04 00 00`. Implemented in `py_ui.h`
+> `DestroyUIComponentByFrameId`. See `native_button_pipeline.md`.
+
 ### Typed Component Helpers
 
 From `Ui_InitializeTypedComponentCallbacks` @ GWCA `100164a0`:
