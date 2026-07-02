@@ -7,6 +7,7 @@ from ...Scanner import Scanner
 import ctypes
 from typing import List
 from Py4GW import Game
+import PyPlayer
 
 class WorldActionId:
     InteractEnemy = 0
@@ -72,6 +73,32 @@ RemoveActiveTitle_Func = NativeFunction.from_address(
     
             
 class PlayerMethods:
+    @staticmethod
+    def GetPlayerStatus() -> int:
+        """
+        Return the player's friend-list status.
+
+        Native values:
+            0 = offline, 1 = online, 2 = do_not_disturb, 3 = away.
+        """
+        return int(PyPlayer.PyPlayer().GetPlayerStatus())
+
+    @staticmethod
+    def SetPlayerStatus(status: int) -> bool:
+        """
+        Set the player's friend-list status.
+
+        Args:
+            status: 0=offline, 1=online, 2=do_not_disturb, 3=away.
+        """
+        try:
+            status_value = int(status)
+        except Exception:
+            return False
+        if status_value not in (0, 1, 2, 3):
+            return False
+        return bool(PyPlayer.PyPlayer().SetPlayerStatus(status_value))
+
     @staticmethod
     def ChangeTarget(agent_id: int) -> None:
         def _action():
