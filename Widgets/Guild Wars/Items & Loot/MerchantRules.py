@@ -41,13 +41,16 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 QUICK_ACTIONS_POPUP_ID = "merchant_rules_quick_actions_popup"
+INVENTORY_SHORTCUTS_POPUP_ID = "merchant_rules_inventory_right_click_shortcuts_popup"
 QUICK_ACTIONS_MENU_ESTIMATED_WIDTH = 150.0
 QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT = 360.0
 QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
 QUICK_ACTIONS_MENU_ICON_GAP = 4.0
 QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
+INVENTORY_SHORTCUTS_MOUSE_LEAVE_GRACE_MS = 220
+INVENTORY_SHORTCUTS_MOUSE_LEAVE_PADDING = 4.0
 
-PROFILE_VERSION = 32
+PROFILE_VERSION = 33
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -841,6 +844,11 @@ HELPER_TOOLTIP_TEXTS: dict[str, dict[str, str]] = {
         "short": "Shows extra help when you hover important Merchant Rules controls.",
         "long": "Help Tips adds short, practical explanations to the controls that most often cause setup mistakes.",
         "why": "Turn it off once the screens feel familiar to keep the UI quieter.",
+    },
+    "inventory_right_click_shortcuts": {
+        "short": "Adds Merchant Rules shortcuts to inventory item right-clicks.",
+        "long": "These shortcuts only update Merchant Rules settings and never use or move the clicked item.",
+        "why": "Leave this off if Inventory+ should own the inventory right-click menu.",
     },
     "workspace_overview": {
         "short": "Shows current safety, preview, travel, and automation status.",
@@ -4763,6 +4771,7 @@ class MerchantRulesWidget:
         self.auto_sell_any_merchant_normal_items = False
         self.auto_sell_any_merchant_materials = False
         self.auto_sell_any_merchant_runes = False
+        self.inventory_right_click_shortcuts_enabled = False
         self.auto_travel_enabled = False
         self.target_outpost_id = 0
         self.favorite_outpost_ids: list[int] = []
@@ -4914,6 +4923,11 @@ class MerchantRulesWidget:
             QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT,
         )
         self.quick_actions_popup_visible = False
+        self.inventory_shortcuts_selected_item: InventoryItemInfo | None = None
+        self.inventory_shortcuts_selected_header = ""
+        self.inventory_shortcuts_popup_visible = False
+        self.inventory_shortcuts_popup_opened_at_ms = 0
+        self.inventory_shortcuts_popup_last_hovered_at_ms = 0
         self.floating_ui_ini_key = ""
         self.floating_ui_ini_loaded = False
         self.floating_button = None
@@ -5247,6 +5261,580 @@ class MerchantRulesWidget:
             self.quick_actions_popup_visible = False
             self._clear_pending_destructive_button()
 
+    def _format_inventory_shortcut_item_label(self, item: InventoryItemInfo | None) -> str:
+        item_name = self._format_inventory_shortcut_item_name(item)
+        if item is None:
+            return item_name
+        quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
+        return f"{item_name} x{quantity}" if quantity > 1 else item_name
+
+    def _format_inventory_shortcut_item_name(self, item: InventoryItemInfo | None) -> str:
+        if item is None:
+            return "Selected item"
+        safe_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_name = _strip_item_display_markup(getattr(item, "name", ""))
+        if not item_name and safe_model_id > 0:
+            item_name = self._get_model_name(safe_model_id)
+        if not item_name:
+            item_name = "Selected item"
+        return item_name
+
+    def _count_inventory_shortcut_matching_quantity(
+        self,
+        item: InventoryItemInfo,
+        items: list[InventoryItemInfo],
+    ) -> int:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return 0
+        return sum(
+            max(0, _safe_int(getattr(candidate, "quantity", 0), 0))
+            for candidate in items
+            if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) == model_id
+        )
+
+    def _get_inventory_shortcut_bag_quantity(self, item: InventoryItemInfo) -> int:
+        fallback_quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
+        try:
+            bag_quantity = self._count_inventory_shortcut_matching_quantity(item, self._collect_inventory_items())
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut bag count failed: {exc}")
+            return fallback_quantity
+        return bag_quantity if bag_quantity > 0 else fallback_quantity
+
+    def _get_inventory_shortcut_vault_quantity(self, item: InventoryItemInfo) -> int | None:
+        if not self._is_storage_open():
+            return None
+        try:
+            return self._count_inventory_shortcut_matching_quantity(item, self._collect_storage_items())
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut vault count failed: {exc}")
+            return None
+
+    def _get_inventory_shortcut_material_storage_quantity(self, item: InventoryItemInfo) -> int | None:
+        if not bool(getattr(item, "is_material", False)):
+            return None
+        if not self._is_storage_open():
+            return None
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return None
+        try:
+            quantity, _slot, _bag_size = self._get_material_storage_quantity_and_slot(model_id)
+            return max(0, int(quantity))
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut material storage count failed: {exc}")
+            return None
+
+    def _format_inventory_shortcut_menu_header(self, item: InventoryItemInfo | None) -> str:
+        item_name = self._format_inventory_shortcut_item_name(item)
+        if item is None:
+            return item_name
+
+        parts = [f"Bags: {self._get_inventory_shortcut_bag_quantity(item)}"]
+        vault_quantity = self._get_inventory_shortcut_vault_quantity(item)
+        parts.append(
+            f"Vault: {vault_quantity}"
+            if vault_quantity is not None
+            else "Vault: unavailable"
+        )
+        if bool(getattr(item, "is_material", False)):
+            material_storage_quantity = self._get_inventory_shortcut_material_storage_quantity(item)
+            parts.append(
+                f"Material Storage: {material_storage_quantity}"
+                if material_storage_quantity is not None
+                else "Material Storage: unavailable"
+            )
+        return f"{item_name} - {', '.join(parts)}"
+
+    def _get_hovered_inventory_shortcut_item(self) -> InventoryItemInfo | None:
+        inventory_api = getattr(GLOBAL_CACHE, "Inventory", None)
+        if inventory_api is None:
+            return None
+        try:
+            hovered_item_id = max(0, _safe_int(getattr(inventory_api, "GetHoveredItemID", lambda: 0)(), 0))
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut hover read failed: {exc}")
+            return None
+        if hovered_item_id <= 0:
+            return None
+
+        try:
+            inventory_item_ids = {int(item_id) for item_id in self._get_inventory_item_ids()}
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut inventory scan failed: {exc}")
+            return None
+        if hovered_item_id not in inventory_item_ids:
+            return None
+
+        item = self._build_inventory_item_info(hovered_item_id)
+        if item is None or max(0, _safe_int(getattr(item, "model_id", 0), 0)) <= 0:
+            return None
+        return item
+
+    def _handle_inventory_shortcut_right_click(self):
+        if not bool(self.inventory_right_click_shortcuts_enabled):
+            return
+        try:
+            if not PyImGui.is_mouse_clicked(1):
+                return
+        except Exception:
+            return
+
+        clicked_item = self._get_hovered_inventory_shortcut_item()
+        if clicked_item is None:
+            return
+
+        now_ms = int(time.time() * 1000)
+        self.inventory_shortcuts_selected_item = clicked_item
+        self.inventory_shortcuts_selected_header = self._format_inventory_shortcut_menu_header(clicked_item)
+        self.inventory_shortcuts_popup_opened_at_ms = now_ms
+        self.inventory_shortcuts_popup_last_hovered_at_ms = 0
+        PyImGui.open_popup(INVENTORY_SHORTCUTS_POPUP_ID)
+
+    def _close_inventory_shortcuts_popup(self):
+        self.inventory_shortcuts_popup_visible = False
+        self.inventory_shortcuts_selected_item = None
+        self.inventory_shortcuts_selected_header = ""
+        self.inventory_shortcuts_popup_opened_at_ms = 0
+        self.inventory_shortcuts_popup_last_hovered_at_ms = 0
+        try:
+            PyImGui.close_current_popup()
+        except Exception:
+            pass
+
+    def _is_inventory_shortcuts_mouse_inside_popup(self) -> bool | None:
+        try:
+            window_x, window_y = PyImGui.get_window_pos()
+            window_width, window_height = PyImGui.get_window_size()
+            io = PyImGui.get_io()
+            mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+            mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+        except Exception:
+            return None
+
+        safe_width = max(0.0, float(window_width or 0.0))
+        safe_height = max(0.0, float(window_height or 0.0))
+        if safe_width <= 0.0 or safe_height <= 0.0:
+            return None
+
+        padding = max(0.0, float(INVENTORY_SHORTCUTS_MOUSE_LEAVE_PADDING))
+        left = float(window_x) - padding
+        top = float(window_y) - padding
+        right = float(window_x) + safe_width + padding
+        bottom = float(window_y) + safe_height + padding
+        return bool(left <= mouse_x <= right and top <= mouse_y <= bottom)
+
+    def _should_close_inventory_shortcuts_popup_for_mouse_leave(self) -> bool:
+        mouse_inside = self._is_inventory_shortcuts_mouse_inside_popup()
+        if mouse_inside is None:
+            return False
+
+        now_ms = int(time.time() * 1000)
+        if mouse_inside:
+            self.inventory_shortcuts_popup_last_hovered_at_ms = now_ms
+            return False
+
+        opened_at_ms = max(0, int(self.inventory_shortcuts_popup_opened_at_ms))
+        if opened_at_ms <= 0:
+            return False
+        if now_ms - opened_at_ms < INVENTORY_SHORTCUTS_MOUSE_LEAVE_GRACE_MS:
+            return False
+
+        last_hovered_at_ms = max(0, int(self.inventory_shortcuts_popup_last_hovered_at_ms))
+        if last_hovered_at_ms <= 0:
+            return True
+        return bool(now_ms - last_hovered_at_ms >= INVENTORY_SHORTCUTS_MOUSE_LEAVE_GRACE_MS)
+
+    def _finish_inventory_shortcut_config_change(self, message: str):
+        if self._save_profile():
+            self._mark_preview_dirty(message)
+        else:
+            self.status_message = "Merchant Rules changed this shortcut in memory, but could not save it."
+
+    def _focus_inventory_shortcut_workspace(
+        self,
+        rules_workspace: str,
+        *,
+        sell_rule_kind: str = "",
+        destroy_rule_kind: str = "",
+        protections_workspace: str = "",
+    ):
+        self._set_active_workspace(WORKSPACE_RULES)
+        self._set_active_rules_workspace(rules_workspace)
+        if sell_rule_kind:
+            self._set_active_sell_rule_kind(sell_rule_kind)
+        if destroy_rule_kind:
+            self.active_destroy_rule_kind = destroy_rule_kind
+        if protections_workspace:
+            self.active_protections_workspace = protections_workspace
+
+    def _apply_inventory_shortcut_protect(self, item: InventoryItemInfo):
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_label = self._format_inventory_shortcut_item_label(item)
+        if model_id <= 0:
+            self.status_message = "Could not protect this item because Merchant Rules could not read it."
+            return
+        if model_id in _normalize_protected_item_model_ids(self.protected_item_model_ids):
+            self.status_message = f"{item_label} is already protected."
+            return
+        if not self._add_protected_item_model_id(model_id):
+            self.status_message = f"Could not add {item_label} to Protected Items."
+            return
+        self._focus_inventory_shortcut_workspace(
+            RULES_WORKSPACE_PROTECTIONS,
+            protections_workspace=PROTECTIONS_WORKSPACE_PROTECTED_ITEMS,
+        )
+        self.active_protected_items_workspace = PROTECTED_ITEMS_WORKSPACE_EXACT
+        self._finish_inventory_shortcut_config_change(
+            f"Protected {item_label}. Preview again before execution."
+        )
+
+    def _apply_inventory_shortcut_deposit_target(self, item: InventoryItemInfo):
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_label = self._format_inventory_shortcut_item_label(item)
+        if model_id <= 0:
+            self.status_message = "Could not add this item because Merchant Rules could not read it."
+            return
+        existing_targets = _normalize_cleanup_targets(self.cleanup_targets)
+        if any(int(target.model_id) == model_id for target in existing_targets):
+            self.status_message = f"{item_label} is already in Deposit Targets."
+            return
+        if not self._add_cleanup_target(model_id, keep_on_character=0):
+            self.status_message = f"Could not add {item_label} to Deposit Targets."
+            return
+        self._focus_inventory_shortcut_workspace(RULES_WORKSPACE_CLEANUP)
+        self._finish_inventory_shortcut_config_change(
+            f"Added {item_label} to Deposit Targets. Preview again before execution."
+        )
+
+    def _apply_inventory_shortcut_deposit_keep_out(self, item: InventoryItemInfo):
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_label = self._format_inventory_shortcut_item_label(item)
+        if model_id <= 0:
+            self.status_message = "Could not keep this item out because Merchant Rules could not read it."
+            return
+        if model_id in _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids):
+            self.status_message = f"{item_label} is already kept out of deposits."
+            return
+        if not self._add_cleanup_blacklist_model_id(model_id):
+            self.status_message = f"Could not keep {item_label} out of deposits."
+            return
+        self._focus_inventory_shortcut_workspace(
+            RULES_WORKSPACE_PROTECTIONS,
+            protections_workspace=PROTECTIONS_WORKSPACE_CLEANUP,
+        )
+        self._finish_inventory_shortcut_config_change(
+            f"Kept {item_label} out of deposits. Preview again before execution."
+        )
+
+    def _get_exact_sell_rule_model_ids(self, rule: SellRule) -> list[int]:
+        if str(getattr(rule, "kind", "")) not in (SELL_KIND_COMMON_MATERIALS, SELL_KIND_EXPLICIT_MODELS):
+            return []
+        return _get_whitelist_target_model_ids(_normalize_whitelist_targets(getattr(rule, "whitelist_targets", [])))
+
+    def _get_inventory_shortcut_rune_identifier(self, item: InventoryItemInfo) -> str:
+        identifiers = _dedupe_identifiers(_coerce_list(getattr(item, "rune_identifiers", [])))
+        return identifiers[0] if identifiers else ""
+
+    def _get_inventory_shortcut_sell_rule_target(self, item: InventoryItemInfo) -> tuple[str, str, str]:
+        destination = self._get_explicit_sell_destination(item)
+        if bool(getattr(item, "is_material", False)) and destination in (
+            MERCHANT_TYPE_MATERIALS,
+            MERCHANT_TYPE_RARE_MATERIALS,
+        ):
+            return SELL_KIND_COMMON_MATERIALS, "Materials", ""
+        if destination == MERCHANT_TYPE_RUNE_TRADER:
+            rune_identifier = self._get_inventory_shortcut_rune_identifier(item)
+            if rune_identifier:
+                return SELL_KIND_RUNE_TRADER_TARGET, "Runes and Insignias", rune_identifier
+        return SELL_KIND_EXPLICIT_MODELS, "Items", ""
+
+    def _get_inventory_shortcut_sell_rule_name(self, target_kind: str) -> str:
+        if target_kind == SELL_KIND_COMMON_MATERIALS:
+            return "Review right-click sell materials"
+        if target_kind == SELL_KIND_RUNE_TRADER_TARGET:
+            return "Review right-click sell runes and insignias"
+        return "Review right-click sell items"
+
+    def _apply_inventory_shortcut_sell_rule(self, item: InventoryItemInfo):
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_label = self._format_inventory_shortcut_item_label(item)
+        if model_id <= 0:
+            self.status_message = "Could not add this item because Merchant Rules could not read it."
+            return
+
+        target_kind, target_area_label, rune_identifier = self._get_inventory_shortcut_sell_rule_target(item)
+        if target_kind == SELL_KIND_RUNE_TRADER_TARGET:
+            rune_label = self._get_rune_label(rune_identifier)
+            target_index = -1
+            for index, rule in enumerate(self.sell_rules):
+                if str(getattr(rule, "kind", "")) != SELL_KIND_RUNE_TRADER_TARGET:
+                    continue
+                rune_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+                if any(target.identifier == rune_identifier for target in rune_targets):
+                    self.status_message = f"{rune_label} is already in Sell Runes and Insignias."
+                    return
+                if target_index < 0:
+                    target_index = index
+
+            created_rule = False
+            if target_index < 0:
+                if not self._append_sell_rule_of_kind(SELL_KIND_RUNE_TRADER_TARGET):
+                    self.status_message = f"Could not create a Sell Runes and Insignias rule for {rune_label}."
+                    return
+                target_index = len(self.sell_rules) - 1
+                self.sell_rules[target_index].enabled = False
+                self.sell_rules[target_index].name = self._get_inventory_shortcut_sell_rule_name(target_kind)
+                created_rule = True
+
+            if not (0 <= target_index < len(self.sell_rules)):
+                self.status_message = f"Could not find a Sell Runes and Insignias rule for {rune_label}."
+                return
+
+            rule = self.sell_rules[target_index]
+            if not self._add_sell_rule_rune_sell_target(rule, rune_identifier):
+                self.status_message = f"{rune_label} is already in Sell Runes and Insignias."
+                return
+
+            self.sell_rules = _normalize_sell_rules(self.sell_rules)
+            self._refresh_rule_ui_caches()
+            self._focus_inventory_shortcut_workspace(
+                RULES_WORKSPACE_SELL,
+                sell_rule_kind=SELL_KIND_RUNE_TRADER_TARGET,
+            )
+            message = (
+                f"Created a disabled Sell Runes and Insignias rule for {rune_label}. Review and enable it when ready."
+                if created_rule
+                else f"Added {rune_label} to Sell Runes and Insignias. Rule on/off state was left unchanged."
+            )
+            self._finish_inventory_shortcut_config_change(message)
+            return
+
+        target_index = -1
+        for index, rule in enumerate(self.sell_rules):
+            if str(getattr(rule, "kind", "")) != target_kind:
+                continue
+            model_ids = self._get_exact_sell_rule_model_ids(rule)
+            if model_id in model_ids:
+                self.status_message = f"{item_label} is already in Sell {target_area_label}."
+                return
+            if target_index < 0:
+                target_index = index
+
+        created_rule = False
+        if target_index < 0:
+            if not self._append_sell_rule_of_kind(target_kind):
+                self.status_message = f"Could not create a Sell {target_area_label} rule for {item_label}."
+                return
+            target_index = len(self.sell_rules) - 1
+            self.sell_rules[target_index].enabled = False
+            self.sell_rules[target_index].name = self._get_inventory_shortcut_sell_rule_name(target_kind)
+            created_rule = True
+
+        if not (0 <= target_index < len(self.sell_rules)):
+            self.status_message = f"Could not find a Sell {target_area_label} rule for {item_label}."
+            return
+
+        rule = self.sell_rules[target_index]
+        next_model_ids = self._get_exact_sell_rule_model_ids(rule) + [model_id]
+        if not self._set_sell_rule_model_ids(target_index, rule, next_model_ids):
+            self.status_message = f"{item_label} is already in Sell {target_area_label}."
+            return
+
+        self.sell_rules = _normalize_sell_rules(self.sell_rules)
+        self._refresh_rule_ui_caches()
+        self._focus_inventory_shortcut_workspace(RULES_WORKSPACE_SELL, sell_rule_kind=target_kind)
+        message = (
+            f"Created a disabled Sell {target_area_label} rule for {item_label}. Review and enable it when ready."
+            if created_rule
+            else f"Added {item_label} to Sell {target_area_label}. Rule on/off state was left unchanged."
+        )
+        self._finish_inventory_shortcut_config_change(message)
+
+    def _salvage_rule_is_exact_item_list(self, rule: SalvageRule) -> bool:
+        rarities = _normalize_salvage_rarity_flags(getattr(rule, "rarities", {}))
+        categories = _normalize_salvage_category_flags(getattr(rule, "categories", {}))
+        return not (
+            any(bool(value) for value in rarities.values())
+            or any(bool(value) for value in categories.values())
+            or _salvage_rule_has_upgrade_targets(rule)
+        )
+
+    def _apply_inventory_shortcut_salvage_rule(self, item: InventoryItemInfo):
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_label = self._format_inventory_shortcut_item_label(item)
+        if model_id <= 0:
+            self.status_message = "Could not add this item because Merchant Rules could not read it."
+            return
+
+        settings = _normalize_salvage_settings(self.salvage_settings)
+        target_index = -1
+        for index, rule in enumerate(settings.rules):
+            model_ids = _dedupe_model_ids(getattr(rule, "model_ids", []))
+            if model_id in model_ids:
+                self.status_message = f"{item_label} is already in a salvage rule."
+                return
+            if target_index < 0 and self._salvage_rule_is_exact_item_list(rule):
+                target_index = index
+
+        created_rule = False
+        if target_index < 0:
+            settings.rules.append(
+                SalvageRule(
+                    enabled=False,
+                    model_ids=[],
+                    name="Review right-click salvage items",
+                )
+            )
+            target_index = len(settings.rules) - 1
+            created_rule = True
+
+        if not (0 <= target_index < len(settings.rules)):
+            self.status_message = f"Could not find a salvage rule for {item_label}."
+            return
+
+        rule = settings.rules[target_index]
+        next_model_ids = _dedupe_model_ids(getattr(rule, "model_ids", [])) + [model_id]
+        if not self._set_salvage_rule_model_ids(rule, next_model_ids):
+            self.status_message = f"{item_label} is already in a salvage rule."
+            return
+
+        self.salvage_settings = _normalize_salvage_settings(settings)
+        self._refresh_rule_ui_caches()
+        self._focus_inventory_shortcut_workspace(RULES_WORKSPACE_SALVAGE)
+        message = (
+            f"Created a disabled salvage rule for {item_label}. Review and enable it when ready."
+            if created_rule
+            else f"Added {item_label} to an existing salvage rule. Rule on/off state was left unchanged."
+        )
+        self._finish_inventory_shortcut_config_change(message)
+
+    def _get_exact_destroy_rule_model_ids(self, rule: DestroyRule) -> list[int]:
+        if str(getattr(rule, "kind", "")) not in (DESTROY_KIND_EXPLICIT_MODELS, DESTROY_KIND_MATERIALS):
+            return []
+        return _get_whitelist_target_model_ids(_normalize_whitelist_targets(getattr(rule, "whitelist_targets", [])))
+
+    def _get_inventory_shortcut_destroy_rule_target(self, item: InventoryItemInfo) -> tuple[str, str]:
+        if bool(getattr(item, "is_material", False)):
+            return DESTROY_KIND_MATERIALS, "Materials"
+        return DESTROY_KIND_EXPLICIT_MODELS, "Items"
+
+    def _get_inventory_shortcut_destroy_rule_name(self, target_kind: str) -> str:
+        if target_kind == DESTROY_KIND_MATERIALS:
+            return "Review right-click destroy materials"
+        return "Review right-click destroy items"
+
+    def _apply_inventory_shortcut_destroy_rule(self, item: InventoryItemInfo):
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_label = self._format_inventory_shortcut_item_label(item)
+        if model_id <= 0:
+            self.status_message = "Could not add this item because Merchant Rules could not read it."
+            return
+
+        target_kind, target_area_label = self._get_inventory_shortcut_destroy_rule_target(item)
+        target_index = -1
+        for index, rule in enumerate(self.destroy_rules):
+            if str(getattr(rule, "kind", "")) != target_kind:
+                continue
+            model_ids = self._get_exact_destroy_rule_model_ids(rule)
+            if model_id in model_ids:
+                self.status_message = f"{item_label} is already in Destroy {target_area_label}."
+                return
+            if target_index < 0:
+                target_index = index
+
+        created_rule = False
+        if target_index < 0:
+            if not self._append_destroy_rule_of_kind(target_kind):
+                self.status_message = f"Could not create a Destroy {target_area_label} rule for {item_label}."
+                return
+            target_index = len(self.destroy_rules) - 1
+            self.destroy_rules[target_index].enabled = False
+            self.destroy_rules[target_index].name = self._get_inventory_shortcut_destroy_rule_name(target_kind)
+            created_rule = True
+
+        if not (0 <= target_index < len(self.destroy_rules)):
+            self.status_message = f"Could not find a Destroy {target_area_label} rule for {item_label}."
+            return
+
+        rule = self.destroy_rules[target_index]
+        next_model_ids = self._get_exact_destroy_rule_model_ids(rule) + [model_id]
+        if not self._set_destroy_rule_model_ids(target_index, rule, next_model_ids):
+            self.status_message = f"{item_label} is already in Destroy {target_area_label}."
+            return
+
+        self.destroy_rules = _normalize_destroy_rules(self.destroy_rules)
+        self._refresh_rule_ui_caches()
+        self._focus_inventory_shortcut_workspace(
+            RULES_WORKSPACE_DESTROY,
+            destroy_rule_kind=target_kind,
+        )
+        message = (
+            f"Created a disabled Destroy {target_area_label} rule for {item_label}. Review and enable it when ready."
+            if created_rule
+            else f"Added {item_label} to Destroy {target_area_label}. Rule on/off state was left unchanged."
+        )
+        self._finish_inventory_shortcut_config_change(message)
+
+    def _draw_inventory_shortcut_menu_item(self, label: str, item: InventoryItemInfo, action: Callable):
+        if PyImGui.menu_item(label):
+            action(item)
+            self._close_inventory_shortcuts_popup()
+
+    def _draw_inventory_shortcuts_menu(self):
+        if PyImGui.begin_popup(INVENTORY_SHORTCUTS_POPUP_ID):
+            self.inventory_shortcuts_popup_visible = True
+            if self._should_close_inventory_shortcuts_popup_for_mouse_leave():
+                self._close_inventory_shortcuts_popup()
+                PyImGui.end_popup()
+                return
+            selected_item = self.inventory_shortcuts_selected_item
+            if selected_item is None:
+                self._draw_secondary_text("No inventory item selected.", wrapped=False)
+            else:
+                header_text = self.inventory_shortcuts_selected_header or self._format_inventory_shortcut_menu_header(selected_item)
+                PyImGui.text(header_text)
+                PyImGui.separator()
+                self._draw_inventory_shortcut_menu_item(
+                    "Protect This Item",
+                    selected_item,
+                    self._apply_inventory_shortcut_protect,
+                )
+                self._draw_inventory_shortcut_menu_item(
+                    "Add To Deposit Targets",
+                    selected_item,
+                    self._apply_inventory_shortcut_deposit_target,
+                )
+                self._draw_inventory_shortcut_menu_item(
+                    "Keep Out Of Deposits",
+                    selected_item,
+                    self._apply_inventory_shortcut_deposit_keep_out,
+                )
+                PyImGui.separator()
+                self._draw_inventory_shortcut_menu_item(
+                    "Add To Sell Rule",
+                    selected_item,
+                    self._apply_inventory_shortcut_sell_rule,
+                )
+                self._draw_inventory_shortcut_menu_item(
+                    "Add To Salvage Rule",
+                    selected_item,
+                    self._apply_inventory_shortcut_salvage_rule,
+                )
+                self._draw_inventory_shortcut_menu_item(
+                    "Add To Destroy Rule",
+                    selected_item,
+                    self._apply_inventory_shortcut_destroy_rule,
+                )
+            PyImGui.end_popup()
+        elif self.inventory_shortcuts_popup_visible:
+            self.inventory_shortcuts_popup_visible = False
+            self.inventory_shortcuts_selected_item = None
+            self.inventory_shortcuts_selected_header = ""
+            self.inventory_shortcuts_popup_opened_at_ms = 0
+            self.inventory_shortcuts_popup_last_hovered_at_ms = 0
+
     def on_enable(self):
         self._set_main_window_visible(False, expand_on_show=True)
 
@@ -5332,6 +5920,7 @@ class MerchantRulesWidget:
             "auto_sell_any_merchant_normal_items": bool(self.auto_sell_any_merchant_normal_items),
             "auto_sell_any_merchant_materials": bool(self.auto_sell_any_merchant_materials),
             "auto_sell_any_merchant_runes": bool(self.auto_sell_any_merchant_runes),
+            "inventory_right_click_shortcuts_enabled": bool(self.inventory_right_click_shortcuts_enabled),
             "destroy_auto_enabled": bool(self.destroy_auto_enabled),
             "auto_travel_enabled": bool(self.auto_travel_enabled),
             "target_outpost_id": max(0, int(self.target_outpost_id)),
@@ -5561,6 +6150,9 @@ class MerchantRulesWidget:
             "auto_sell_any_merchant_normal_items": bool(raw_payload.get("auto_sell_any_merchant_normal_items", False)),
             "auto_sell_any_merchant_materials": bool(raw_payload.get("auto_sell_any_merchant_materials", False)),
             "auto_sell_any_merchant_runes": bool(raw_payload.get("auto_sell_any_merchant_runes", False)),
+            "inventory_right_click_shortcuts_enabled": bool(
+                raw_payload.get("inventory_right_click_shortcuts_enabled", False)
+            ),
             "destroy_auto_enabled": bool(raw_payload.get("destroy_auto_enabled", False)),
             "auto_travel_enabled": bool(raw_payload.get("auto_travel_enabled", False)),
             "target_outpost_id": max(0, _safe_int(raw_payload.get("target_outpost_id", 0), 0)),
@@ -5667,6 +6259,9 @@ class MerchantRulesWidget:
         self.auto_sell_any_merchant_normal_items = bool(payload.get("auto_sell_any_merchant_normal_items", False))
         self.auto_sell_any_merchant_materials = bool(payload.get("auto_sell_any_merchant_materials", False))
         self.auto_sell_any_merchant_runes = bool(payload.get("auto_sell_any_merchant_runes", False))
+        self.inventory_right_click_shortcuts_enabled = bool(
+            payload.get("inventory_right_click_shortcuts_enabled", False)
+        )
         self.destroy_auto_enabled = bool(payload.get("destroy_auto_enabled", False))
         self.auto_travel_enabled = bool(payload.get("auto_travel_enabled", False))
         self.target_outpost_id = max(0, _safe_int(payload.get("target_outpost_id", 0), 0))
@@ -10112,6 +10707,7 @@ class MerchantRulesWidget:
             "auto_sell_any_merchant_normal_items": False,
             "auto_sell_any_merchant_materials": False,
             "auto_sell_any_merchant_runes": False,
+            "inventory_right_click_shortcuts_enabled": False,
             "destroy_auto_enabled": False,
             "auto_travel_enabled": False,
             "target_outpost_id": 0,
@@ -30009,8 +30605,30 @@ class MerchantRulesWidget:
         if changed:
             self._save_profile()
 
+    def _draw_inventory_shortcut_settings_section(self):
+        self._draw_section_heading("Inventory Shortcuts")
+        enabled = PyImGui.checkbox(
+            "Enable inventory right-click shortcuts##merchant_rules_inventory_right_click_shortcuts",
+            bool(self.inventory_right_click_shortcuts_enabled),
+        )
+        self._draw_helper_tooltip("inventory_right_click_shortcuts")
+        if enabled != bool(self.inventory_right_click_shortcuts_enabled):
+            self.inventory_right_click_shortcuts_enabled = bool(enabled)
+            self._save_profile()
+            self.status_message = (
+                "Inventory right-click shortcuts enabled."
+                if self.inventory_right_click_shortcuts_enabled
+                else "Inventory right-click shortcuts disabled."
+            )
+        self._draw_secondary_text(
+            "Shortcuts only update Merchant Rules settings. They do not use or move inventory items.",
+            wrapped=False,
+        )
+
     def _draw_overview_automation_section(self):
         self._draw_manual_vendor_automation_section()
+        PyImGui.separator()
+        self._draw_inventory_shortcut_settings_section()
 
     def _get_shared_profile_match_presentation(
         self,
@@ -30328,6 +30946,8 @@ class MerchantRulesWidget:
         floating_button.draw(self.floating_ui_ini_key)
         self._handle_floating_icon_right_click(floating_button)
         self._draw_floating_icon_quick_actions_menu()
+        self._handle_inventory_shortcut_right_click()
+        self._draw_inventory_shortcuts_menu()
         self.show_main_window = bool(floating_button.visible)
         if not self.show_main_window:
             return
