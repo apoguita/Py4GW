@@ -75,7 +75,7 @@ KessexPeak_transit_path = [
     (6093,-18015),
 ]
 
-CursedLands_ids = {
+KessexPeak_ids = {
     "outpost_id": 138,
     "map_id": 64,
     "transit_id": 18
