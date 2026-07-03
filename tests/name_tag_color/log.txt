@@ -1,0 +1,25 @@
+[13:49:49] set_agent_color id=0 -> 0xFFFF00FF
+[13:50:27] set_agent_color id=54 -> 0xFFFF00FF
+[13:50:30] read_consider_color id=54 = 0xFFA0FF00
+[13:50:34] set_agent_color id=54 -> 0xFFFF00FF
+[13:50:37] set_allegiance_color allegiance=3 -> 0xFFFF00FF
+[13:50:38] set_allegiance_color allegiance=1 -> 0xFF00FFFF
+[14:07:05] enabled (is_enabled=True)
+[14:07:07] validated 21 agents | PASS=21 FAIL=0 UNKNOWN=0
+[14:07:11] set_agent_color id=54 -> 0xFFFF00FF
+[14:07:14] read_consider_color id=54 = 0xFFA0FF00
+[14:07:23] set_allegiance_color allegiance=3 -> 0xFFFF00FF
+[14:07:24] set_allegiance_color allegiance=1 -> 0xFF00FFFF
+[14:08:13] enabled (is_enabled=True)
+[14:23:06] enabled (is_enabled=True)
+[14:23:08] validated 21 agents | PASS=21 FAIL=0 UNKNOWN=0
+[14:23:11] set_agent_color id=54 -> 0xFFFF00FF
+[14:24:54] set_agent_color id=54 -> 0xFF0000FF
+[14:25:05] set_agent_color id=54 -> 0xFF00BBFF
+[14:41:00] disabled (is_enabled=False)
+[14:41:04] enabled (is_enabled=True)
+[14:41:13] disabled (is_enabled=False)
+[14:41:31] set_allegiance_color allegiance=1 -> 0xFF00FFFF
+[14:41:32] enabled (is_enabled=True)
+[14:41:33] set_allegiance_color allegiance=1 -> 0xFF00FFFF
+[14:41:53] disabled (is_enabled=False)

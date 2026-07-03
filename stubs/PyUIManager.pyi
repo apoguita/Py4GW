@@ -483,6 +483,14 @@ class UIManager:
 
     @staticmethod
     def destroy_ui_component_by_frame_id(frame_id: int) -> bool: ...
+    @staticmethod
+    def destroy_window_safely_by_frame_id(window_id: int) -> bool: ...
+    @staticmethod
+    def clear_ui_input_targets() -> None: ...
+    @staticmethod
+    def frame_exists_by_frame_id(frame_id: int) -> bool: ...
+    @staticmethod
+    def create_content_panel_by_frame_id(window_id: int, width: float = 0.0, height: float = 0.0, child_index: int = 0) -> int: ...
 
     @staticmethod
     def add_frame_ui_interaction_callback_by_frame_id(
@@ -846,6 +854,148 @@ class UIManager:
         plain_text: str,
         insert_index: int = 0,
         item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def add_button_item_to_frame_list_by_frame_id(
+        frame_list_id: int,
+        plain_text: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def add_flat_button_item_to_frame_list_by_frame_id(
+        frame_list_id: int,
+        caption: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+        width: float = 120.0,
+        height: float = 22.0,
+    ) -> int: ...
+    @staticmethod
+    def add_control_item_by_frame_id(
+        frame_list_id: int,
+        control: str,
+        caption: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def create_control_child_by_frame_id(
+        parent_frame_id: int,
+        control: str,
+        caption: str,
+        child_index: int = 0,
+        x: float = 10.0,
+        y: float = 10.0,
+        width: float = 120.0,
+        height: float = 22.0,
+    ) -> int: ...
+    @staticmethod
+    def set_frame_list_no_stretch_by_frame_id(
+        frame_list_id: int,
+    ) -> int: ...
+    @staticmethod
+    def create_checkbox_child_by_frame_id(parent_window_id: int, label: str = "", child_index: int = 1, initial_checked: bool = False) -> int: ...
+    # (already present) is_checkbox_checked_by_frame_id(frame_id) -> bool  # msg 0x58
+    # (already present) set_checkbox_checked_by_frame_id(frame_id, checked) -> bool  # msg 0x57
+    @staticmethod
+    def set_frame_list_selection_by_frame_id(
+        frame_list_id: int,
+        child_code: int,
+    ) -> int: ...
+    @staticmethod
+    def add_clickable_text_button_to_selectable_list(
+        selectable_frame_list_id: int,
+        caption: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def set_text_button_color_by_frame_id(
+        text_button_id: int,
+        color_abgr: int,
+    ) -> bool: ...
+    @staticmethod
+    def set_text_button_hover_color_by_frame_id(
+        text_button_id: int,
+        color_abgr: int,
+    ) -> bool: ...
+    @staticmethod
+    def set_text_button_text_by_frame_id(
+        text_button_id: int,
+        caption: str,
+    ) -> bool: ...
+    @staticmethod
+    def create_edit_box_child_by_frame_id(parent_frame_id: int, label: str = "EditBox", child_index: int = 0, component_flags: int = 0x892e000, width: float = 200.0, height: float = 20.0) -> int: ...
+    @staticmethod
+    def set_edit_box_text_by_frame_id(frame_id: int, plain_text: str) -> bool: ...
+    @staticmethod
+    def set_edit_box_max_length_by_frame_id(frame_id: int, max_length: int) -> bool: ...
+    @staticmethod
+    def ensure_edit_caret_material(edit_frame_id: int) -> None: ...
+    @staticmethod
+    def is_edit_caret_material_ready() -> bool: ...
+    @staticmethod
+    def create_progress_bar_child_by_frame_id(parent_frame_id: int, x: float = 10.0, y: float = 10.0, width: float = 160.0, height: float = 0.0, child_index: int = 0, component_flags: int = 0x300) -> int: ...
+    @staticmethod
+    def set_progress_bar_percent_by_frame_id(frame_id: int, percent: int) -> bool: ...
+    @staticmethod
+    def get_progress_bar_max_by_frame_id(frame_id: int) -> int: ...
+    @staticmethod
+    def set_progress_bar_increments_per_second_by_frame_id(frame_id: int, per_second: float) -> bool: ...
+    @staticmethod
+    def set_progress_bar_overlay_text_by_frame_id(frame_id: int, enc_text: str) -> bool: ...
+    @staticmethod
+    def create_tabs_as_list_item_by_frame_id(
+        frame_list_id: int,
+        insert_index: int = 0,
+        flags: int = 0x300,
+    ) -> int: ...
+    @staticmethod
+    def add_tab_to_page_by_frame_id(
+        tabs_frame_id: int,
+        tab_caption: str,
+        tab_code: int,
+        body_proc: int = 0,
+        body_text: str = "",
+    ) -> int: ...
+    @staticmethod
+    def tab_set_active_by_frame_id(tabs_frame_id: int, index: int) -> bool: ...
+    @staticmethod
+    def tab_get_active_by_frame_id(tabs_frame_id: int) -> int: ...
+    @staticmethod
+    def tab_get_body_frame_by_frame_id(tabs_frame_id: int, index: int) -> int: ...
+    @staticmethod
+    def set_tab_enabled_by_frame_id(tabs_frame_id: int, index: int, enabled: bool) -> bool: ...
+    @staticmethod
+    def create_slider_control_by_frame_id(parent_window_id: int, min_value: int, max_value: int, initial_value: int, width: float = 150.0, height: float = 18.0, child_index: int = 0) -> int: ...
+    @staticmethod
+    def destroy_slider_control_by_frame_id(slider_id: int) -> bool: ...
+
+    @staticmethod
+    def add_group_header_item_to_frame_list_by_frame_id(
+        frame_list_id: int,
+        header_text: str,
+        insert_index: int = 0,
+        item_flags: int = 0,
+    ) -> int: ...
+    @staticmethod
+    def ctl_frame_list_show_item_by_frame_id(frame_list_id: int, item_code: int, show: bool) -> bool: ...
+    @staticmethod
+    def group_header_get_is_open_by_frame_id(frame_id: int) -> bool: ...
+    @staticmethod
+    def group_header_set_is_open_by_frame_id(frame_id: int, is_open: bool) -> bool: ...
+    @staticmethod
+    def group_header_set_text_by_frame_id(frame_id: int, header_text: str) -> bool: ...
+    @staticmethod
+    def create_selectable_scrollable_content_by_frame_id(
+        window_id: int,
+        child_index: int = 0,
+        component_flags: int = 0x20000,
+    ) -> int: ...
+    @staticmethod
+    def get_frame_list_selection_by_frame_id(
+        frame_list_id: int,
     ) -> int: ...
     @staticmethod
     def create_scrollable_text_window(

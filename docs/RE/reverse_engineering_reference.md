@@ -5,9 +5,22 @@ Read this first before any RE work. `AGENTS.md` points here for tool paths and m
 
 ## How To Use This File
 
-1. Read Sections 1-4 first for architecture, bridging, key function maps, and UI message dispatch.
-2. Use Section 13 as the local RE document map.
-3. Jump to subsystem-specific documents once you know the problem area.
+1. **Reverse-engineer on `Gw.wasm` first, map to `Gw.exe` last** — see "WASM-First Workflow" below. This is the default method for every RE task here.
+2. Read Sections 1-4 first for architecture, bridging, key function maps, and UI message dispatch.
+3. Use Section 13 as the local RE document map.
+4. Jump to subsystem-specific documents once you know the problem area.
+
+## WASM-First Workflow (default method)
+
+Do the *understanding* on `/Gw.wasm`; enter the stripped `/Gw.exe` only to pin the final address.
+
+- **Why:** `Gw.wasm` retains full debug symbols — functions have semantic names (`CCharAgent::GetConsiderColor`, `CtlTextMl::Markup`, `CBaseAgent::NameUpdate`), so control flow, struct field offsets, and call chains are readable directly. `Gw.exe` is stripped to `FUN_xxxxxxxx`; reading architecture there first is slow and error-prone.
+- **Procedure:**
+  1. Find and read the named function(s) on `/Gw.wasm`. Establish the mechanism, struct offsets, constants, and the full call chain there.
+  2. Only once the behaviour is understood, resolve the corresponding `/Gw.exe (…)` address — the EXE is what Py4GW actually injects into. Anchor the map on stable immediates (unique color constants, error strings, assertion text) rather than shared byte-pattern prologues.
+  3. Re-confirm low-level ABI on the EXE. Architecture transfers, but calling details do not always: WASM uses `call_indirect` table indices where x86 uses real function pointers, and value layouts can repack at boundaries (e.g. a `Color4b` that reads `0xAARRGGBB` in the markup layer may be stored `[R,G,B,A]` at the render global). Verify return-in-EAX vs. out-pointer, calling convention, and channel order on the EXE before writing a hook.
+- **Always pass the explicit `program` path on every Ghidra MCP call.** The project holds several same-named `Gw.exe` images (`/Gw.exe(Symbols)`, `/Gw.exe (06-14)`, …); a name-omitted call silently resolves to the first-registered one. Do not rely on `switch_program` / the active program when multiple `Gw.exe` images are open.
+- See `CPP_WASM_MAPPING.md` for the full CPP↔WASM↔EXE translation procedure and worked examples.
 
 ---
 
@@ -72,11 +85,10 @@ Two programs permanently loaded via MCP bridge:
 | **Gw.exe** (current) | `/Gw.exe(Symbols)` | x86:LE:32 | `0x00400000` | 18,017 |
 | **Gw.wasm** | `/Gw.wasm` | Wasm:LE:32 | `ram:80000000` | 18,004 |
 
-- EXE has NO debug symbols except MSVC CRT — functions are `FUN_xxxxxxxx`
+- EXE has NO debug symbols except MSVC CRT — functions are `FUN_xxxxxxxx`. **Read behaviour on WASM first (see "WASM-First Workflow" above), map to the EXE last.**
 - WASM has FULL debug symbols — functions have semantic names like `CharCliPlayerOrderAlertSimple`
 - Address spaces: EXE uses flat image-base addressing (`0x00513670`); WASM uses `ram:` prefix (`ram:80c4bada`)
-
-Switch programs with: `mcp__ghidra__switch_program` (all Ghidra tools accept `program` parameter)
+- More than two same-named images may be registered (e.g. `/Gw.exe(Symbols)`, `/Gw.exe (06-14)`). **Pass the explicit `program` path on every tool call** — do not rely on `switch_program` or the active program to disambiguate, as a name-omitted call silently hits the first-registered `Gw.exe`.
 
 ---
 
@@ -440,6 +452,36 @@ The real FrApi functions are in the `0x0062XXXX` range, verified via the `"Engin
 assertion string at `0x00a4e36c` which has 100+ xrefs from functions at `0x0062a6e0` through `0x0062d010`.
 The remaining hardcoded addresses (`0x0062ccb0`, `0x0062d960`, `0x0062daa0`) are in the correct range 
 but should be replaced with `Scanner::Find` patterns for resilience across game updates.
+
+### Native UI Control FrameProcs & Helpers (EXE 06-14-2026, 2026-07-01)
+
+Discovered/confirmed while implementing the full native UI-control toolkit. All verified in Ghidra
+program `/Gw.exe (06-14)`. Consumers live in `include/py_ui.h`; the authoritative recipes are in
+`native_button_pipeline.md`.
+
+| Function / global | EXE addr | Role / notes |
+|---|---|---|
+| Frame message dispatcher | `FUN_0062ef40` | `(frame_id, msg, wparam, out*)` — GWCA `SendFrameUIMessage` wraps it |
+| Frame create primitive | `FUN_0062bfc0` | `(parent, flags, child_idx, proc, userdata, 0)` → returns `*(frame+0xbc)` = frame id |
+| **Native frame destroyer** | `FUN_0062c550` | `__cdecl(frame_id)` by value; validates id, tree-teardown, free. **Use directly** — GWCA `DestroyUIComponent` resolves NULL on 06-14 (its `FindAssertion` scans old path `\Code\Gw\Ui\Frame\FrApi.cpp`; build renamed to `\Code\Engine\Frame\FrApi.cpp`). Prologue anchor `55 8B EC 51 56 8B 75 08 85 F6 75 19 68 13 04 00 00` |
+| **Anchor-6 pos/size setter** | `0x0062F770` | `__cdecl(id, Coord2f* pos, Coord2f* size)` — the sizing that STICKS on a direct window child (beats layout stretch/reset). Note: distinct from FrameSetPosition `0x0062f7f0` |
+| FrameGetNativeSize (sret) | `0x0062D2A0` | item's own native size; pattern `55 8B EC 8B 45 0C 85 C0 75 20 68 FD 07 00 00` |
+| FrameNewSubclass | `0x0062f150` | `(id, proc, msg)` — layer a proc (two-layer controls: slider wrapper, tabs styled proc) |
+| Styled button `UiCtlBtnProc` | `0x00877e60` | button/checkbox paint; paint gate `FUN_0062fe20(frame,0x40000)`; checkbox face bit `0x8000`; msg 1 pass1 derefs `s_btnCheckImageList` |
+| Flat base `CtlBtnProc` | `0x0060f4f0` | flat rect; null-safe msg `0x57` (checkbox toggle / radio row) |
+| `s_btnCheckImageList` | `0x010819cc` | shared checkbox/button image list; built on msg `0x05`, asserts on double-build |
+| Text button `CtlTextBtnProc` | `0x00616c00` | cyan hyperlink look; **case `0x57` writes through wparam → NOT selectable-list safe** |
+| **Selectable text row `CtlTextSelectable`** | `0x00617df0` | the correct clickable selectable-list row (null-safe `0x57`, notifies parent 8). Prologue `55 8B EC 83 EC 68 A1 ?? ?? ?? ?? 33 C5 89 45 FC 53 8B 5D 08 56 8B 75 10` |
+| Selectable frame-list proc | `0x00613850` | case 9 init (alloc sel-state), `0x69` get / `0x6A` set / `0x67` hittest; `FUN_00613b30` null-derefs → assert `CtlFrameList.cpp:0x3f8` if uninit |
+| Selectable-list native constructor | `FUN_00619b70` | builds page-ctx `{0, selproc thunk 0x00612b90, 0}` + create flags **`0x20128`** + finalize `FUN_0062f5a0` + handler `FUN_00617940` |
+| Outer edit `CCtlEdit` | `0x008852e0` | THE edit proc (case 4 vtable `0x00619c50`, case 9 pushes render subclass `0x00888aa0`, case 100 value table). Flags `0x892e000` |
+| Edit render subclass | `0x00888aa0` | paint/caret only (NO case 4/9) — do NOT register as primary (that was the "empty edit" bug) |
+| ProgressBar proc | `0x008812e0` | percent `0x5B`, value `0x58`, max `0x5A` |
+| Base page `CtlPageProc` | `0x0061a950` | tabs base; no styling slots → flat tab buttons |
+| **Styled `UiCtlPageProc`** | `0x00885590` | textured tabs; msg `0x5e` returns styled config `PTR_FUN_00b96994`; tab-button proc `0x00885340` (case 8 = FrameContentAddImageTemplate). Prologue `55 8B EC 8B 55 08 83 EC 10 8B 4D 0C 8B 42 04 83 F8 04 74 56 83 F8 15` |
+| Slider base `CtlSliderProc` | `0x00615fe0` | value get msg `0x58` (pure read); groove-click `0x24` registers CTimer via `FUN_00630080`; mouse-up `0x2e` frees via `FUN_00630040`; destroy `0xb` does NOT free (→ leak) |
+| Slider wrapper `UiCtlSliderProc` | `0x0087f440` | textured bar/thumb layer |
+| Group header `CGroupHeaderFrame` | `0x0087ddc0` | self-builds checkbox+caption; getIsOpen `0x56`, setIsOpen `0x58`, setText `0x59` |
 
 ---
 

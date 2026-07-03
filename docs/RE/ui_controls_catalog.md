@@ -4,7 +4,41 @@
 > **Project**: UI Elements Universe Discovery (Phases 1–3, 2026-06-04)  
 > **Total FrameProc Types Cataloged**: 39
 
+> ## ⚠️ CORRECTION (2026-06-30) — the core creation model in this catalog is wrong
+>
+> This catalog assumes UI controls are created by passing a single bare FrameProc (e.g. `CtlBtnProc`, `CtlSliderProc`) to `CreateUIComponent`/`FrameCreate`, and that controls "work" if the FrameProc is self-contained. Verification against `Gw.wasm` (tracing real working buttons) shows this is **incorrect** and explains why every cold-creation attempt crashed or failed to render.
+>
+> **Real model:** GW controls are C++ classes instantiated via the `TCtlInstance<T>` template. The registered FrameProc is the class's `TCtlInstance<T>::MsgProc`, which dispatches to member handlers (`OnFrameCreate`, `OnFrameSizeQuery`, `OnFrameNotify`, …) and self-triggers a one-time `OnFrameClassInitialize()`. The bare procs cataloged here (`CtlBtnProc`, `CtlSliderProc`, etc.) are **engine primitives / paint wrappers**, not the class MsgProcs the game actually registers. Real creation uses style flags **`0x300`** (not `0x300`-as-inferred-default vs `0x8000`/`0x20000` "type flags"; the flag is just F_VISIBLE|F_ENABLED) and relies on the class for sizing/paint.
+>
+> The "multi-layer FrameProc cannot be created by CreateUIComponent" conclusion (Slider report) is a **symptom** of this: those controls are `TCtlInstance` classes whose base relationships and `OnFrameClassInitialize` are bypassed when you register a raw primitive proc. The `WASM↔EXE FrameProc address` tables and struct layouts below remain useful; the **creation recipe and component_flags interpretation are superseded**. See `native_button_pipeline.md` (top section) for the verified model.
+
 Comprehensive reference of all known Guild Wars engine UI control types, organized by implementation tier. Covers FrameProc addresses, assertion strings, WASM↔EXE mappings, struct layouts, message protocols, and implementation status.
+
+> ## ✅ RESOLVED (2026-07-01) — the "Tier 2 CRASHED" controls are now IMPLEMENTED
+>
+> The Phase-3 crash narratives below are **historical**. The full control toolkit has since been
+> reverse-engineered and implemented in `include/py_ui.h` with the corrected model, and verified
+> in-client. **`native_button_pipeline.md` is now the authoritative creation reference** (master
+> address/flag/status table + per-control recipes). Current per-control state:
+>
+> | Control | Was | Now | The fix (Ghidra-verified, 06-14) |
+> |---|---|---|---|
+> | button (styled) | crashed/blank | ✅ works | styled `UiCtlBtnProc` item + paint gate `0x40000` + `s_btnCheckImageList` |
+> | checkbox | crashed | fixed→testing | flags **`0x48300`** (gate `0x40000` + face `0x8000`); warm image list |
+> | radio | crashed | fixed→testing | selectable list + **flat-button rows** + select by child KEY `insert_index=i+1` |
+> | text-button / hyperlink | click/hover crash | fixed→testing | rows use **`CtlTextSelectable 0x00617df0`** (null-safe 0x57), not `CtlTextBtnProc` |
+> | edit | empty | fixed→testing | outer **`CCtlEdit 0x008852e0`** + **anchor-6 sizing** (not `FrameSetSize`) |
+> | progress | — | ✅ creates | `SetPercent 0x5B` / `SetValue 0x58` / `SetMax 0x5A` |
+> | tabs | crashed | textured→testing | base `CtlPageProc` + layer styled **`UiCtlPageProc 0x00885590`** before AddTab |
+> | slider | "cannot create multi-layer" (WRONG) | ✅ works | two-layer create OK; width via anchor-6; **release CTimer via mouse-up `0x2e` before destroy** |
+> | group header | crashed | ✅ works | `CGroupHeaderFrame 0x0087ddc0` item in a plain list (self-builds children) |
+> | destroy | never worked | fixed→testing | GWCA `DestroyUIComponent` no-ops (resolver path drift) → call native **`FUN_0062c550`** |
+>
+> Key model corrections vs the tables below: (a) the **selectable frame list** needs create flags
+> `0x20128` (not `0x20000`) for its selection state; (b) **direct-child controls** must be sized with
+> the anchor-6 setter `0x0062F770`, never `FrameSetSize`; (c) **selectable-list rows** must use a
+> NULL-safe row proc; (d) SliderFrame's "conclusive failure" report below is **superseded** — sliders
+> create fine via the two-layer typed path.
 
 ---
 
@@ -59,6 +93,15 @@ These types have fully working GWCA wrappers with both Create and Manipulate fun
 ## Tier 2: Struct Exists, Create Attempted But CRASHED — 7 Types
 
 These had Create functions implemented across the full stack (GWCA C++ structs, Python bindings, stubs, GWUI wrappers) during Phase 3, but **ALL crashed the client**. The addresses, assertion strings, struct layouts, and component_flags are verified correct — the C++ implementation needs rework.
+
+> **⚠️ SUPERSEDED — see the RESOLVED (2026-07-01) banner above.** Every control in this table has since
+> been implemented and no longer crashes (or the crash root cause is fixed and pending in-client
+> confirmation). The addresses here remain correct; the "CRASHED/FAILED" verdicts are historical. In
+> particular the SliderFrame "conclusive failure / CreateUIComponent cannot create multi-layer FrameProc
+> controls" claim is **wrong** — the two-layer typed create (base `CtlSliderProc` + `FrameNewSubclass`
+> wrapper) works. `EditableTextFrame` uses the **outer** `CCtlEdit 0x008852e0`, NOT the render subclass
+> `0x00888aa0`. `TabsFrame` needs the styled `UiCtlPageProc 0x00885590` layered over base
+> `CtlPageProc 0x0061a950`. See `native_button_pipeline.md` for the working recipes.
 
 | Control | EXE FrameProc | Assertion | component_flags | Struct | Status |
 |---------|--------------|-----------|-----------------|--------|--------|

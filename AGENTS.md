@@ -16,6 +16,7 @@
 
 ## RE (Reverse Engineering) — `docs/RE/`
 
+- **WASM-first workflow (do this by default).** Reverse-engineer on `/Gw.wasm` first, then map the confirmed result to `/Gw.exe`. The WASM retains full debug symbols (`CCharAgent::GetConsiderColor`, `FrameCreate`, `CtlTextMl::Markup`, …), so behaviour, control flow, struct fields, and call chains are far faster and less error-prone to read there. The EXE is stripped (`FUN_xxxxxxxx`) — only enter it at the **end**, to resolve the concrete address the injector needs. Reading architecture in the EXE first is slow and mistake-prone. Watch for genuine ABI differences (WASM `call_indirect` table indices vs. x86 real pointers; possible `Color4b`/struct channel-order repacks) — the architecture transfers, but re-confirm low-level calling/ABI details on the EXE. When calling Ghidra MCP tools, always pass the explicit `program` path (the project has multiple same-named `Gw.exe` images; a name-omitted call silently hits the wrong one). See `docs/RE/CPP_WASM_MAPPING.md` for the translation procedure.
 - **Start with `docs/RE/reverse_engineering_reference.md`** — the comprehensive library reference. Covers the three-layer architecture (Python `native_src`, C++ GWCA, Ghidra), key function catalogs with EXE↔WASM↔CPP mappings, bridging techniques, UI message dispatch architecture, and workflows for adding new functions.
 - `docs/RE/CPP_WASM_MAPPING.md` — the full CPP↔WASM↔EXE translation procedure with worked examples and pitfall notes.
 - `docs/RE/rosetta_stone.txt` — GwA2 (AutoIt) to Py4GW function mapping reference.
@@ -23,6 +24,8 @@
 - `docs/RE/native_gw_ui_function_catalog.json` — catalog of native GW UI functions with addresses.
 - `docs/RE/native_gw_window_creation_investigation.md` — window proc creation RE.
 - `docs/RE/native_ui_title_and_encoded_string_reference.md` — UI title and encoding reference.
+- `docs/agent_name_tag_color.md` — **feature/usage guide** for `PyAgentTagColor` (recolor agent name tags natively): Python API, ARGB color format, examples, gotchas. SHIPPED & validated in-client.
+- `docs/RE/name_tag_color_reverse_engineering.md` — the RE behind it: agent/item name-tag color pipeline, the `GetConsiderColor` resolver detour recipe/ABI (hook the resolver `FUN_007f02e0`; the wrapper `FUN_007d9cf0` is only an anchor), allegiance→ARGB table, and item-rarity markup. Native module: `Py4GW/src/py_agent_tag_color.cpp`. In-client test harness: `tests/name_tag_color/name_tag_color_test.py`.
 
 ### RE Tool Locations
 

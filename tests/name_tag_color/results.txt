@@ -1,0 +1,23 @@
+# Name-tag color validation @ 2026-07-01 14:23:08
+# PASS=21 FAIL=0 UNKNOWN=0
+[   PASS] id=1 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=2 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=3 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=4 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=5 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=6 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=7 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=8 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=9 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=10 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=11 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=12 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=13 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=14 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=15 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=16 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=17 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=18 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=19 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=20 '' :: Ally (ally/friendly) expected=0xFF00FF00 actual=0xFF00FF00
+[   PASS] id=36 'Fezzik The Untamed' :: Ally (player: blue/green family) expected=<none> actual=0xFF40FF40
