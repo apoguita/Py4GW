@@ -25216,7 +25216,8 @@ class MerchantRulesWidget:
             | PyImGui.TableFlags.SizingFixedFit
             | PyImGui.TableFlags.NoSavedSettings
         )
-        if PyImGui.begin_table(table_id, 8, table_flags, 1180.0, 0.0):
+        table_width = max(0.0, float(PyImGui.get_content_region_avail()[0]))
+        if PyImGui.begin_table(table_id, 8, table_flags, table_width, 0.0):
             PyImGui.table_setup_column("Source", PyImGui.TableColumnFlags.WidthFixed, 85.0)
             PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 190.0)
             PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthFixed, 285.0)
@@ -25433,7 +25434,7 @@ class MerchantRulesWidget:
                 "merchant_rules_protections_table_child",
                 (0, 260),
                 True,
-                PyImGui.WindowFlags.HorizontalScrollbar,
+                PyImGui.WindowFlags.NoFlag,
             ):
                 protection_type_order = {
                     "Kept Model": 0,
