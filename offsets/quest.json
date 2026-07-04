@@ -1,0 +1,64 @@
+{
+  "namespace": "quest",
+  "patterns": {
+    "request_anchor": {
+      "pattern": "\\x85\\xC0\\x75\\x14\\x68\\x6D\\x10\\x00\\x00",
+      "mask": "xxxxxxxxx",
+      "offset": "0",
+      "range": "0xFF",
+      "section": "text"
+    },
+    "request_data_call": {
+      "pattern": "\\xE8\\x00\\x00\\x00\\x00\\x83\\xC4\\x08",
+      "mask": "x????xxx",
+      "offset": "0",
+      "section": "text"
+    },
+    "abandon_quest_ref": {
+      "pattern": "\\xC7\\x45\\xF8\\x02\\x00\\x00\\x00\\x50\\xC7",
+      "mask": "xxxxxxxxx",
+      "offset": "0x55",
+      "section": "text"
+    },
+    "set_active_quest_sig": {
+      "pattern": "\\x55\\x8B\\xEC",
+      "mask": "xxx",
+      "offset": "0",
+      "section": "text"
+    }
+  },
+  "resolvers": {
+    "request_quest_data_callsite": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "request_anchor", "out": "anchor" },
+        { "name": "scan_callsite", "op": "scan_in_range", "pattern": "request_data_call", "start": "anchor", "end": "anchor", "end_add": "0xFF", "out": "final" }
+      ]
+    },
+    "request_quest_data_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "request_anchor", "out": "anchor" },
+        { "name": "scan_callsite", "op": "scan_in_range", "pattern": "request_data_call", "start": "anchor", "end": "anchor", "end_add": "0xFF", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "request_quest_info_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "request_anchor", "out": "anchor" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "anchor", "scan_range": "0xFF", "out": "final" }
+      ]
+    },
+    "abandon_quest_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "abandon_quest_ref", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "set_active_quest_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "request_anchor", "out": "anchor" },
+        { "name": "scan_callsite", "op": "scan_in_range", "pattern": "request_data_call", "start": "anchor", "end": "anchor", "end_add": "0xFF", "out": "request_data_callsite" },
+        { "name": "scan_function_start", "op": "scan_in_range", "pattern": "set_active_quest_sig", "start": "request_data_callsite", "end": "request_data_callsite", "end_add": "-0xFF", "out": "final" }
+      ]
+    }
+  }
+}

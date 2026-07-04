@@ -1,4 +1,3 @@
-import PyPointers
 from ctypes import Structure, c_uint32, c_int32, c_float, c_void_p, sizeof, cast, POINTER, c_wchar
 from ..internals.types import Vec2f
 from ..internals.gw_array import GW_Array, GW_BaseArray, GW_Array_View, GW_Array_Value_View

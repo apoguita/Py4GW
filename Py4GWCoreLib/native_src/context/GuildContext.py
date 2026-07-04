@@ -1,4 +1,3 @@
-import PyPointers
 from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32, c_void_p
 from typing import List, Optional
 from ..internals.helpers import read_wstr, encoded_wstr_to_str

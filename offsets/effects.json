@@ -1,0 +1,30 @@
+{
+  "namespace": "effects",
+  "patterns": {
+    "post_process_target": {
+      "pattern": "\\xD9\\x5D\\x0C\\xD9\\x45\\x0C\\x8D\\x45\\xF8",
+      "mask": "xxxxxxxxx",
+      "offset": "-0x1C",
+      "section": "text"
+    },
+    "drop_buff_callsite": {
+      "pattern": "\\xF6\\x40\\x04\\x01\\x74\\x10",
+      "mask": "xxxxxx",
+      "offset": "0x9",
+      "section": "text"
+    }
+  },
+  "resolvers": {
+    "post_process_effect_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "post_process_target", "out": "final" }
+      ]
+    },
+    "drop_buff_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "drop_buff_callsite", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    }
+  }
+}

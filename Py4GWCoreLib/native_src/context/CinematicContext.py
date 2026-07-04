@@ -1,4 +1,3 @@
-import PyPointers
 from ctypes import Structure, POINTER,c_uint32, cast
 
 #region CinematicStruct

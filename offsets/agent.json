@@ -1,0 +1,103 @@
+{
+  "namespace": "agent",
+  "patterns": {
+    "change_target_anchor": {
+      "assertion_file": "AvSelect.cpp",
+      "assertion_message": "!(autoAgentId && !ManagerFindAgent(autoAgentId))",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "agent_array_ref": {
+      "pattern": "\\x8b\\x0c\\x90\\x85\\xc9\\x74\\x19",
+      "mask": "xxxxxxx",
+      "offset": "-0x4",
+      "section": "text"
+    },
+    "player_agent_id_ref": {
+      "pattern": "\\x5d\\xe9\\x00\\x00\\x00\\x00\\x55\\x8b\\xec\\x56\\x57\\x8b\\x7d",
+      "mask": "xx????xxxxxxx",
+      "offset": "-0xE",
+      "section": "text"
+    },
+    "send_dialog_callsite": {
+      "pattern": "\\x89\\x4b\\x24\\x8b\\x4b\\x28\\x83\\xe9\\x00",
+      "mask": "xxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "move_to_callsite": {
+      "pattern": "\\x83\\xc4\\x0c\\x85\\xff\\x74\\x0b\\x56\\x6a\\x03",
+      "mask": "xxxxxxxxxx",
+      "offset": "-0x5",
+      "section": "text"
+    },
+    "do_world_action_anchor": {
+      "assertion_file": "GmCoreAction.cpp",
+      "assertion_message": "action < WORLD_ACTIONS",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "call_target_sender": {
+      "pattern": "\\x6A\\x0C\\xC7\\x45\\xF0\\x23\\x00\\x00\\x00",
+      "mask": "xxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    }
+  },
+  "resolvers": {
+    "change_target_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "change_target_anchor", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    },
+    "agent_array_addr": {
+      "steps": [
+        { "name": "scan_ref", "op": "scan", "pattern": "agent_array_ref", "out": "scan" },
+        { "name": "deref_ptr", "op": "dereference", "in": "scan", "out": "candidate" },
+        { "name": "validate_ptr", "op": "validate_section", "in": "candidate", "section": "data", "out": "final" }
+      ]
+    },
+    "player_agent_id_addr": {
+      "steps": [
+        { "name": "scan_ref", "op": "scan", "pattern": "player_agent_id_ref", "out": "scan" },
+        { "name": "deref_ptr", "op": "dereference", "in": "scan", "out": "candidate" },
+        { "name": "validate_ptr", "op": "validate_section", "in": "candidate", "section": "data", "out": "final" }
+      ]
+    },
+    "send_agent_dialog_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "send_dialog_callsite", "out": "scan" },
+        { "name": "callsite_adjust", "op": "add", "in": "scan", "value": "0x15", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "send_gadget_dialog_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "send_dialog_callsite", "out": "scan" },
+        { "name": "callsite_adjust", "op": "add", "in": "scan", "value": "0x25", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "move_to_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "move_to_callsite", "out": "scan" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "scan", "out": "final" }
+      ]
+    },
+    "do_world_action_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "do_world_action_anchor", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    },
+    "call_target_func": {
+      "steps": [
+        { "name": "scan_sender", "op": "scan", "pattern": "call_target_sender", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    }
+  }
+}

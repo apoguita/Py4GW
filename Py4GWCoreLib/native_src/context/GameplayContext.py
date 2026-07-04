@@ -1,5 +1,4 @@
 
-import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, POINTER, cast
 

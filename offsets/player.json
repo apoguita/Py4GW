@@ -1,0 +1,68 @@
+{
+  "namespace": "player",
+  "patterns": {
+    "set_active_title_anchor": {
+      "assertion_file": "AttribTitles.cpp",
+      "assertion_message": "!*hdr.param",
+      "line_number": "0",
+      "offset": "0",
+      "range": "0x3FF",
+      "section": "text"
+    },
+    "set_active_title_call": {
+      "pattern": "\\xFF\\x76\\x08\\xE8",
+      "mask": "xxxx",
+      "offset": "0x3",
+      "section": "text"
+    },
+    "remove_active_title_signature": {
+      "pattern": "\\x55\\x8B\\xEC\\x51",
+      "mask": "xxxx",
+      "offset": "0",
+      "section": "text"
+    },
+    "deposit_faction_callsite": {
+      "pattern": "\\x68\\x88\\x13\\x00\\x00\\xFF\\x76\\x0C\\x6A\\x00",
+      "mask": "xxxxxxxxxx",
+      "offset": "0xA",
+      "section": "text"
+    },
+    "title_data_ref": {
+      "assertion_file": "\\Code\\Gw\\Const\\ConstTitle.cpp",
+      "assertion_message": "index < arrsize(s_titleClientData)",
+      "line_number": "0",
+      "offset": "0x15",
+      "section": "text"
+    }
+  },
+  "resolvers": {
+    "set_active_title_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "set_active_title_anchor", "out": "anchor" },
+        { "name": "scan_callsite", "op": "scan_in_range", "pattern": "set_active_title_call", "start": "anchor", "end": "anchor", "end_add": "0x3FF", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "remove_active_title_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "set_active_title_anchor", "out": "anchor" },
+        { "name": "scan_set_active_title_callsite", "op": "scan_in_range", "pattern": "set_active_title_call", "start": "anchor", "end": "anchor", "end_add": "0x3FF", "out": "set_active_title_callsite" },
+        { "name": "resolve_set_active_title_func", "op": "function_from_near_call", "in": "set_active_title_callsite", "out": "set_active_title_func" },
+        { "name": "scan_remove_active_title", "op": "scan_in_range", "pattern": "remove_active_title_signature", "start": "set_active_title_func", "start_add": "0x10", "end": "set_active_title_func", "end_add": "0xFF", "out": "final" }
+      ]
+    },
+    "deposit_faction_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "deposit_faction_callsite", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "title_data_addr": {
+      "steps": [
+        { "name": "scan_ref", "op": "scan", "pattern": "title_data_ref", "out": "scan" },
+        { "name": "deref_ptr", "op": "dereference", "in": "scan", "out": "candidate" },
+        { "name": "validate_ptr", "op": "validate_section", "in": "candidate", "section": "rdata", "out": "final" }
+      ]
+    }
+  }
+}
