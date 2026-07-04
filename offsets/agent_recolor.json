@@ -1,0 +1,42 @@
+{
+  "namespace": "agent_recolor",
+  "patterns": {
+    "av_char_get_consider_color_assertion": {
+      "assertion_file": "AvApi.cpp",
+      "assertion_message": "agent",
+      "line_number": "0x1e9"
+    }
+  },
+  "resolvers": {
+    "find_char_func": {
+      "log_level": "error",
+      "on_fail": "continue",
+      "attempts": [
+        {
+          "name": "wrapper_call_at_0x07",
+          "steps": [
+            { "name": "scan_assertion", "op": "scan", "pattern": "av_char_get_consider_color_assertion", "out": "assert_addr" },
+            { "name": "to_wrapper_start", "op": "to_function_start", "in": "assert_addr", "scan_range": "0xFFF", "out": "wrapper" },
+            { "name": "find_char_callsite", "op": "add", "in": "wrapper", "value": "0x07", "out": "find_char_callsite" },
+            { "name": "find_char_target", "op": "function_from_near_call", "in": "find_char_callsite", "out": "final" }
+          ]
+        }
+      ]
+    },
+    "consider_color_resolver_func": {
+      "log_level": "error",
+      "on_fail": "continue",
+      "attempts": [
+        {
+          "name": "wrapper_call_at_0x31",
+          "steps": [
+            { "name": "scan_assertion", "op": "scan", "pattern": "av_char_get_consider_color_assertion", "out": "assert_addr" },
+            { "name": "to_wrapper_start", "op": "to_function_start", "in": "assert_addr", "scan_range": "0xFFF", "out": "wrapper" },
+            { "name": "resolver_callsite", "op": "add", "in": "wrapper", "value": "0x31", "out": "resolver_callsite" },
+            { "name": "resolver_target", "op": "function_from_near_call", "in": "resolver_callsite", "out": "final" }
+          ]
+        }
+      ]
+    }
+  }
+}

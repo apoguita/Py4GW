@@ -1,4 +1,3 @@
-import PyPlayer
 from Py4GW import Game
 import math
 from typing import ClassVar, Optional

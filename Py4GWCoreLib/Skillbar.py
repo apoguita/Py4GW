@@ -1,4 +1,3 @@
-from PyAgent import AttributeClass
 import PySkillbar
 
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils

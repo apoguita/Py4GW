@@ -1,0 +1,168 @@
+{
+  "namespace": "party",
+  "patterns": {
+    "tick_button_ui_callback_ref": {
+      "pattern": "\\x05\\xfb\\x0b\\x01\\x00",
+      "mask": "xxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "set_difficulty_callsite": {
+      "pattern": "\\x83\\x3B\\x00\\x0F\\x85\\x00\\x00\\x00\\x00\\xFF\\x70\\x20",
+      "mask": "xxxxx????xxx",
+      "offset": "0x0C",
+      "section": "text"
+    },
+    "party_search_seek_func_ref": {
+      "pattern": "\\x8b\\x78\\x4c\\x8d\\x8f\\x9c\\x00\\x00\\x00",
+      "mask": "xxxxxxxxx",
+      "offset": "-0xc",
+      "section": "text"
+    },
+    "party_search_button_callback_assertion": {
+      "assertion_file": "\\Code\\Gw\\Ui\\Game\\Party\\PtSearch.cpp",
+      "assertion_message": "m_activeList == LIST_HEROES",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "party_window_button_callback_ref": {
+      "pattern": "\\x8D\\x77\\x24\\x56",
+      "mask": "xxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "party_player_member_ui_callback_assertion": {
+      "assertion_file": "\\Code\\Gw\\Ui\\Game\\Party\\PtPlayer.cpp",
+      "assertion_message": "No valid case for switch variable '\"\"'",
+      "line_number": "0",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "set_ready_status_assertion": {
+      "assertion_file": "\\Code\\Gw\\Ui\\Game\\Party\\PtPlayer.cpp",
+      "assertion_message": "No valid case for switch variable '\"\"'",
+      "line_number": "0",
+      "offset": "0x27",
+      "section": "text"
+    },
+    "flag_hero_agent_func_ref": {
+      "pattern": "\\x8d\\x45\\x10\\x50\\x56\\x6a\\x00\\x57",
+      "mask": "xxxxxx?x",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "flag_all_inner_call_ref": {
+      "pattern": "\\x8d\\x4d\\xe0\\x51\\x50\\xe8",
+      "mask": "xxxxxx",
+      "offset": "0x5",
+      "section": "text"
+    },
+    "flag_all_func_inner_call_ref": {
+      "pattern": "\\xc7\\x45\\xdc",
+      "mask": "xxx",
+      "offset": "0x7",
+      "section": "text"
+    },
+    "set_hero_behavior_callsite": {
+      "pattern": "\\x83\\xc4\\x10\\x83\\xff\\x03\\x75\\x17",
+      "mask": "xxxxxxxx",
+      "offset": "0x38",
+      "section": "text"
+    },
+    "command_hotkey_disable_ai_ref": {
+      "pattern": "\\x50\\x6A\\x0C\\xC7\\x45\\xF0\\x19\\x00\\x00\\x00",
+      "mask": "xxxxxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    }
+  },
+  "resolvers": {
+    "tick_button_ui_callback_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "tick_button_ui_callback_ref", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "scan_range": "0xFFF", "out": "final" }
+      ]
+    },
+    "set_difficulty_func": {
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "set_difficulty_callsite", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "party_search_seek_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "party_search_seek_func_ref", "out": "candidate" },
+        { "name": "validate_target", "op": "validate_section", "in": "candidate", "section": "text", "out": "final" }
+      ]
+    },
+    "party_search_button_callback_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "party_search_button_callback_assertion", "out": "anchor" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "anchor", "out": "final" }
+      ]
+    },
+    "party_window_button_callback_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "party_window_button_callback_ref", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    },
+    "party_player_member_ui_callback_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "party_player_member_ui_callback_assertion", "out": "anchor" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "anchor", "scan_range": "0xFFF", "out": "final" }
+      ]
+    },
+    "set_ready_status_func": {
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "set_ready_status_assertion", "out": "anchor" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "anchor", "out": "final" }
+      ]
+    },
+    "flag_hero_agent_func": {
+      "log_level": "warning",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "flag_hero_agent_func_ref", "out": "anchor" },
+        { "name": "scan_hero_callsite", "op": "scan_in_range", "pattern": "flag_all_inner_call_ref", "start": "anchor", "end": "anchor", "end_add": "0x64", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "flag_all_func": {
+      "log_level": "warning",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_anchor", "op": "scan", "pattern": "flag_hero_agent_func_ref", "out": "anchor" },
+        { "name": "scan_hero_callsite", "op": "scan_in_range", "pattern": "flag_all_inner_call_ref", "start": "anchor", "end": "anchor", "end_add": "0x64", "out": "hero_callsite" },
+        { "name": "scan_all_callsite", "op": "scan_in_range", "pattern": "flag_all_func_inner_call_ref", "start": "hero_callsite", "end": "hero_callsite", "end_add": "0x64", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "lock_pet_target_func": {
+      "log_level": "warning",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "set_hero_behavior_callsite", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "set_hero_behavior_func": {
+      "log_level": "warning",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_callsite", "op": "scan", "pattern": "set_hero_behavior_callsite", "out": "base_callsite" },
+        { "name": "adjust_callsite", "op": "add", "in": "base_callsite", "value": "0x7", "out": "callsite" },
+        { "name": "resolve_target", "op": "function_from_near_call", "in": "callsite", "out": "final" }
+      ]
+    },
+    "command_hotkey_disable_ai_func": {
+      "log_level": "warning",
+      "on_fail": "continue",
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "command_hotkey_disable_ai_ref", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    }
+  }
+}

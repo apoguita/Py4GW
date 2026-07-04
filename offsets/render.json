@@ -1,0 +1,68 @@
+{
+  "namespace": "render",
+  "patterns": {
+    "window_handle_ptr": {
+      "pattern": "\\x83\\xC4\\x04\\x83\\x3D\\x00\\x00\\x00\\x00\\x00\\x75\\x31",
+      "mask": "xxxxx????xxx",
+      "offset": "-0xC",
+      "section": "text"
+    },
+    "reset_target": {
+      "pattern": "\\x3B\\x4D\\xB4\\x89",
+      "mask": "xxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "end_scene_target": {
+      "pattern": "\\x75\\x28\\x68\\xC4\\x06\\x00\\x00",
+      "mask": "xxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "get_transform_target": {
+      "pattern": "\\x7C\\x14\\x68\\xDB\\x02\\x00\\x00",
+      "mask": "xxxxxxx",
+      "offset": "0x0",
+      "section": "text"
+    },
+    "screen_capture_target": {
+      "assertion_file": "Dx9Dev.cpp",
+      "assertion_message": "No valid case for switch variable 'mode.Format'",
+      "offset": "0x0",
+      "section": "text"
+    }
+  },
+  "resolvers": {
+    "window_handle_ptr": {
+      "steps": [
+        { "name": "scan_ref", "op": "scan", "pattern": "window_handle_ptr", "out": "scan" },
+        { "name": "deref_ptr", "op": "dereference", "in": "scan", "out": "candidate" },
+        { "name": "validate_ptr", "op": "validate_section", "in": "candidate", "section": "data", "out": "final" }
+      ]
+    },
+    "reset_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "reset_target", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "scan_range": "0xFFF", "out": "final" }
+      ]
+    },
+    "end_scene_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "end_scene_target", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    },
+    "get_transform_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "get_transform_target", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "out": "final" }
+      ]
+    },
+    "screen_capture_func": {
+      "steps": [
+        { "name": "scan_target", "op": "scan", "pattern": "screen_capture_target", "out": "scan" },
+        { "name": "to_function_start", "op": "to_function_start", "in": "scan", "scan_range": "0xFFF", "out": "final" }
+      ]
+    }
+  }
+}
