@@ -908,10 +908,10 @@ class UIManager:
             return
         
         left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
-        p1 = PyOverlay.Vec2f(left, top)
-        p2 = PyOverlay.Vec2f(right, top)
-        p3 = PyOverlay.Vec2f(right, bottom)
-        p4 = PyOverlay.Vec2f(left, bottom)
+        p1 = PyOverlay.Point2D(left, top)
+        p2 = PyOverlay.Point2D(right, top)
+        p3 = PyOverlay.Point2D(right, bottom)
+        p4 = PyOverlay.Point2D(left, bottom)
         UIManager._overlay.BeginDraw()
         UIManager._overlay.DrawQuadFilled(p1,p2,p3,p4, draw_color)
         UIManager._overlay.EndDraw()
@@ -927,10 +927,10 @@ class UIManager:
             return
         
         left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
-        p1 = PyOverlay.Vec2f(left, top)
-        p2 = PyOverlay.Vec2f(right, top)
-        p3 = PyOverlay.Vec2f(right, bottom)
-        p4 = PyOverlay.Vec2f(left, bottom)
+        p1 = PyOverlay.Point2D(left, top)
+        p2 = PyOverlay.Point2D(right, top)
+        p3 = PyOverlay.Point2D(right, bottom)
+        p4 = PyOverlay.Point2D(left, bottom)
         UIManager._overlay.BeginDraw()
         UIManager._overlay.DrawQuad(p1,p2,p3,p4, draw_color, thickness)
         UIManager._overlay.EndDraw()

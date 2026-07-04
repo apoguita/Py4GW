@@ -1,7 +1,7 @@
 """
 CombatEventQueue - raw combat event access plus higher-level combat state APIs.
 
-The low-level queue facade stays close to the C++ `PyAgentEvents` binding.
+The low-level queue facade stays close to the C++ `PyCombatEvents` binding.
 Higher-level combat-state helpers remain segmented under
 `CombatEventQueue_src.helpers`, while this module serves as the single public
 surface for both layers.
@@ -12,22 +12,24 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Tuple
 
 import Py4GW
-import PyAgentEvents
+import PyCombatEvents
 
 from .CombatEventQueue_src import helpers
 from .enums import EventType
 
 
+_queue = None
 _initialized = False
 
 
 def _ensure_init():
-    """Ensure the native agent-event listener is enabled on first use."""
-    global _initialized
+    """Initialize the native combat event queue on first use."""
+    global _queue, _initialized
     if _initialized:
         return
-    if not PyAgentEvents.is_enabled():
-        PyAgentEvents.enable()
+    _queue = PyCombatEvents.GetCombatEventQueue()
+    if not _queue.IsInitialized():
+        _queue.Initialize()
     _initialized = True
 
 #region CombatEventQueue
@@ -40,29 +42,40 @@ class CombatEventQueue:
     """
 
     @staticmethod
+    def GetQueue():
+        _ensure_init()
+        return _queue
+
+    @staticmethod
     def Initialize():
         _ensure_init()
-        if not PyAgentEvents.is_enabled():
-            PyAgentEvents.enable()
+        if _queue and not _queue.IsInitialized():
+            _queue.Initialize()
 
     @staticmethod
     def Terminate():
-        if PyAgentEvents.is_enabled():
-            PyAgentEvents.disable()
+        _ensure_init()
+        if _queue and _queue.IsInitialized():
+            _queue.Terminate()
 
     @staticmethod
     def IsInitialized() -> bool:
-        return bool(PyAgentEvents.is_enabled())
+        _ensure_init()
+        return bool(_queue and _queue.IsInitialized())
 
     @staticmethod
     def GetAndClearEvents():
         _ensure_init()
-        return PyAgentEvents.get_and_clear_events()
+        if not _queue:
+            return []
+        return _queue.GetAndClearEvents()
 
     @staticmethod
     def PeekEvents():
         _ensure_init()
-        return PyAgentEvents.peek_events()
+        if not _queue:
+            return []
+        return _queue.PeekEvents()
 
     @staticmethod
     def GetAndClearEventTuples() -> List[Tuple[int, int, int, int, int, float]]:
@@ -73,15 +86,24 @@ class CombatEventQueue:
         return [event.as_tuple() for event in CombatEventQueue.PeekEvents()]
 
     @staticmethod
+    def SetMaxEvents(count: int):
+        _ensure_init()
+        if _queue:
+            _queue.SetMaxEvents(count)
+
+    @staticmethod
     def GetMaxEvents() -> int:
-        # Reforged native uses a fixed-capacity ring buffer; get_capacity() is the
-        # real cap. Legacy SetMaxEvents had no native equivalent and no callers, so
-        # it was removed rather than kept as an inert vestige (documented deviation).
-        return int(PyAgentEvents.get_capacity())
+        _ensure_init()
+        if not _queue:
+            return 0
+        return _queue.GetMaxEvents()
 
     @staticmethod
     def GetQueueSize() -> int:
-        return int(PyAgentEvents.get_event_count())
+        _ensure_init()
+        if not _queue:
+            return 0
+        return _queue.GetQueueSize()
     
 #region CombatEvents
 class CombatEvents:

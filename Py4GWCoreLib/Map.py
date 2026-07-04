@@ -2162,50 +2162,50 @@ class Map:
             def __init__(self, trapezoid: PathingTrapezoid):
                 self.trapezoid = trapezoid
 
-                self.top_left: PyOverlay.Vec2f = PyOverlay.Vec2f(int(trapezoid.XTL), int(trapezoid.YT))
-                self.top_right: PyOverlay.Vec2f = PyOverlay.Vec2f(int(trapezoid.XTR), int(trapezoid.YT))
-                self.bottom_left: PyOverlay.Vec2f = PyOverlay.Vec2f(int(trapezoid.XBL), int(trapezoid.YB))
-                self.bottom_right: PyOverlay.Vec2f = PyOverlay.Vec2f(int(trapezoid.XBR), int(trapezoid.YB))
+                self.top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))
+                self.top_right: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTR), int(trapezoid.YT))
+                self.bottom_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBL), int(trapezoid.YB))
+                self.bottom_right: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBR), int(trapezoid.YB))
 
                 screen_TL = Map.MissionMap.MapProjection.GameMapToScreen(self.top_left.x, self.top_left.y)
                 screen_TR = Map.MissionMap.MapProjection.GameMapToScreen(self.top_right.x, self.top_right.y)
                 screen_BL = Map.MissionMap.MapProjection.GameMapToScreen(self.bottom_left.x, self.bottom_left.y)
                 screen_BR = Map.MissionMap.MapProjection.GameMapToScreen(self.bottom_right.x, self.bottom_right.y)
 
-                self.screen_top_left: PyOverlay.Vec2f = PyOverlay.Vec2f(int(screen_TL[0]), int(screen_TL[1]))
-                self.screen_top_right: PyOverlay.Vec2f = PyOverlay.Vec2f(int(screen_TR[0]), int(screen_TR[1]))
-                self.screen_bottom_left: PyOverlay.Vec2f = PyOverlay.Vec2f(int(screen_BL[0]), int(screen_BL[1]))
-                self.screen_bottom_right: PyOverlay.Vec2f = PyOverlay.Vec2f(int(screen_BR[0]), int(screen_BR[1]))
+                self.screen_top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TL[0]), int(screen_TL[1]))
+                self.screen_top_right: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TR[0]), int(screen_TR[1]))
+                self.screen_bottom_left: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BL[0]), int(screen_BL[1]))
+                self.screen_bottom_right: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BR[0]), int(screen_BR[1]))
 
-            def GetPoints(self) -> List[PyOverlay.Vec2f]:
+            def GetPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.top_left, self.top_right, self.bottom_left, self.bottom_right]
 
-            def GetScreenPoints(self) -> List[PyOverlay.Vec2f]:
+            def GetScreenPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.screen_top_left, self.screen_top_right, self.screen_bottom_left, self.screen_bottom_right]
 
-            def GetShiftedPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Vec2f]:
+            def GetShiftedPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Point2D]:
                 return [
-                    PyOverlay.Vec2f(int(self.top_left.x - origin_x), int(self.top_left.y - origin_y)),
-                    PyOverlay.Vec2f(int(self.top_right.x - origin_x), int(self.top_right.y - origin_y)),
-                    PyOverlay.Vec2f(int(self.bottom_left.x - origin_x), int(self.bottom_left.y - origin_y)),
-                    PyOverlay.Vec2f(int(self.bottom_right.x - origin_x), int(self.bottom_right.y - origin_y)),
+                    PyOverlay.Point2D(int(self.top_left.x - origin_x), int(self.top_left.y - origin_y)),
+                    PyOverlay.Point2D(int(self.top_right.x - origin_x), int(self.top_right.y - origin_y)),
+                    PyOverlay.Point2D(int(self.bottom_left.x - origin_x), int(self.bottom_left.y - origin_y)),
+                    PyOverlay.Point2D(int(self.bottom_right.x - origin_x), int(self.bottom_right.y - origin_y)),
                 ]
 
-            def GetShiftedScreenPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Vec2f]:
+            def GetShiftedScreenPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Point2D]:
                 shifted = self.GetShiftedPoints(origin_x, origin_y)
                 shifted_tl = Map.MissionMap.MapProjection.GameMapToScreen(shifted[0].x, shifted[0].y)
                 shifted_tr = Map.MissionMap.MapProjection.GameMapToScreen(shifted[1].x, shifted[1].y)
                 shifted_bl = Map.MissionMap.MapProjection.GameMapToScreen(shifted[2].x, shifted[2].y)
                 shifted_br = Map.MissionMap.MapProjection.GameMapToScreen(shifted[3].x, shifted[3].y)
                 return [
-                    PyOverlay.Vec2f(int(shifted_tl[0]), int(shifted_tl[1])),
-                    PyOverlay.Vec2f(int(shifted_tr[0]), int(shifted_tr[1])),
-                    PyOverlay.Vec2f(int(shifted_bl[0]), int(shifted_bl[1])),
-                    PyOverlay.Vec2f(int(shifted_br[0]), int(shifted_br[1])),
+                    PyOverlay.Point2D(int(shifted_tl[0]), int(shifted_tl[1])),
+                    PyOverlay.Point2D(int(shifted_tr[0]), int(shifted_tr[1])),
+                    PyOverlay.Point2D(int(shifted_bl[0]), int(shifted_bl[1])),
+                    PyOverlay.Point2D(int(shifted_br[0]), int(shifted_br[1])),
                 ]
 
         @staticmethod
-        def GetComputedGeometry() -> List[List[PyOverlay.Vec2f]]:
+        def GetComputedGeometry() -> List[List[PyOverlay.Point2D]]:
             pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
@@ -2214,7 +2214,7 @@ class Map:
             return geometry
 
         @staticmethod
-        def GetScreenComputedGeometry() -> List[List[PyOverlay.Vec2f]]:
+        def GetScreenComputedGeometry() -> List[List[PyOverlay.Point2D]]:
             pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
@@ -2223,7 +2223,7 @@ class Map:
             return geometry
 
         @staticmethod
-        def GetShiftedComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Vec2f]]:
+        def GetShiftedComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
             pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
@@ -2233,7 +2233,7 @@ class Map:
             return geometry
 
         @staticmethod
-        def GetshiftedScreenComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Vec2f]]:
+        def GetshiftedScreenComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
             pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
