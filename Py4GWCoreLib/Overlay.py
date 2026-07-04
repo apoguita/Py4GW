@@ -57,77 +57,77 @@ class Overlay:
         self.overlay_instance.EndDraw()
 
     def DrawLine(self, x1, y1, x2, y2, color=0xFFFFFFFF, thickness=1.0):
-        pos1 = PyOverlay.Vec2f(Utils.SafeInt(x1), Utils.SafeInt(y1))
-        pos2 = PyOverlay.Vec2f(Utils.SafeInt(x2), Utils.SafeInt(y2))
+        pos1 = PyOverlay.Point2D(Utils.SafeInt(x1), Utils.SafeInt(y1))
+        pos2 = PyOverlay.Point2D(Utils.SafeInt(x2), Utils.SafeInt(y2))
         self.overlay_instance.DrawLine(pos1, pos2, color, thickness)  # Pass color and thickness
 
     def DrawLine3D(self, x1, y1, z1, x2, y2, z2, color=0xFFFFFFFF, thickness=1.0):
-        pos1 = PyOverlay.Vec3f(x1, y1, z1)
-        pos2 = PyOverlay.Vec3f(x2, y2, z2)
+        pos1 = PyOverlay.Point3D(x1, y1, z1)
+        pos2 = PyOverlay.Point3D(x2, y2, z2)
         self.overlay_instance.DrawLine3D(pos1, pos2, color, thickness)
         
     def DrawTriangle(self, x1, y1, x2, y2, x3, y3, color=0xFFFFFFFF, thickness=1.0):
-        p1 = PyOverlay.Vec2f(Utils.SafeInt(x1), Utils.SafeInt(y1))
-        p2 = PyOverlay.Vec2f(Utils.SafeInt(x2), Utils.SafeInt(y2))
-        p3 = PyOverlay.Vec2f(Utils.SafeInt(x3), Utils.SafeInt(y3))
+        p1 = PyOverlay.Point2D(Utils.SafeInt(x1), Utils.SafeInt(y1))
+        p2 = PyOverlay.Point2D(Utils.SafeInt(x2), Utils.SafeInt(y2))
+        p3 = PyOverlay.Point2D(Utils.SafeInt(x3), Utils.SafeInt(y3))
         self.overlay_instance.DrawTriangle(p1, p2, p3, color, thickness)
         
     def DrawTriangle3D(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, color=0xFFFFFFFF, thickness=1.0):
-        p1 = PyOverlay.Vec3f(x1, y1, z1)
-        p2 = PyOverlay.Vec3f(x2, y2, z2)
-        p3 = PyOverlay.Vec3f(x3, y3, z3)
+        p1 = PyOverlay.Point3D(x1, y1, z1)
+        p2 = PyOverlay.Point3D(x2, y2, z2)
+        p3 = PyOverlay.Point3D(x3, y3, z3)
         self.overlay_instance.DrawTriangle3D(p1, p2, p3, color, thickness)
         
     def DrawTriangleFilled(self, x1, y1, x2, y2, x3, y3, color=0xFFFFFFFF):
-        p1 = PyOverlay.Vec2f(Utils.SafeInt(x1), Utils.SafeInt(y1))
-        p2 = PyOverlay.Vec2f(Utils.SafeInt(x2), Utils.SafeInt(y2))
-        p3 = PyOverlay.Vec2f(Utils.SafeInt(x3), Utils.SafeInt(y3))
+        p1 = PyOverlay.Point2D(Utils.SafeInt(x1), Utils.SafeInt(y1))
+        p2 = PyOverlay.Point2D(Utils.SafeInt(x2), Utils.SafeInt(y2))
+        p3 = PyOverlay.Point2D(Utils.SafeInt(x3), Utils.SafeInt(y3))
         self.overlay_instance.DrawTriangleFilled(p1, p2, p3, color)
         
     def DrawTriangleFilled3D(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, color=0xFFFFFFFF):
-        p1 = PyOverlay.Vec3f(x1, y1, z1)
-        p2 = PyOverlay.Vec3f(x2, y2, z2)
-        p3 = PyOverlay.Vec3f(x3, y3, z3)
+        p1 = PyOverlay.Point3D(x1, y1, z1)
+        p2 = PyOverlay.Point3D(x2, y2, z2)
+        p3 = PyOverlay.Point3D(x3, y3, z3)
         self.overlay_instance.DrawTriangleFilled3D(p1, p2, p3, color)
      
     def DrawQuad(self, x1, y1, x2, y2, x3, y3, x4, y4, color=0xFFFFFFFF, thickness=1.0):
-        p1 = PyOverlay.Vec2f(Utils.SafeInt(x1), Utils.SafeInt(y1))
-        p2 = PyOverlay.Vec2f(Utils.SafeInt(x2), Utils.SafeInt(y2))
-        p3 = PyOverlay.Vec2f(Utils.SafeInt(x3), Utils.SafeInt(y3))
-        p4 = PyOverlay.Vec2f(Utils.SafeInt(x4), Utils.SafeInt(y4))
+        p1 = PyOverlay.Point2D(Utils.SafeInt(x1), Utils.SafeInt(y1))
+        p2 = PyOverlay.Point2D(Utils.SafeInt(x2), Utils.SafeInt(y2))
+        p3 = PyOverlay.Point2D(Utils.SafeInt(x3), Utils.SafeInt(y3))
+        p4 = PyOverlay.Point2D(Utils.SafeInt(x4), Utils.SafeInt(y4))
         self.overlay_instance.DrawQuad(p1, p2, p3, p4, color, thickness)   
     
     def DrawQuad3D(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color=0xFFFFFFFF, thickness=1.0):
-        p1 = PyOverlay.Vec3f(x1, y1, z1)
-        p2 = PyOverlay.Vec3f(x2, y2, z2)
-        p3 = PyOverlay.Vec3f(x3, y3, z3)
-        p4 = PyOverlay.Vec3f(x4, y4, z4)
+        p1 = PyOverlay.Point3D(x1, y1, z1)
+        p2 = PyOverlay.Point3D(x2, y2, z2)
+        p3 = PyOverlay.Point3D(x3, y3, z3)
+        p4 = PyOverlay.Point3D(x4, y4, z4)
         self.overlay_instance.DrawQuad3D(p1, p2, p3, p4, color, thickness)
         
     def DrawQuadFilled(self, x1, y1, x2, y2, x3, y3, x4, y4, color=0xFFFFFFFF):
-        p1 = PyOverlay.Vec2f(Utils.SafeInt(x1), Utils.SafeInt(y1))
-        p2 = PyOverlay.Vec2f(Utils.SafeInt(x2), Utils.SafeInt(y2))
-        p3 = PyOverlay.Vec2f(Utils.SafeInt(x3), Utils.SafeInt(y3))
-        p4 = PyOverlay.Vec2f(Utils.SafeInt(x4), Utils.SafeInt(y4))
+        p1 = PyOverlay.Point2D(Utils.SafeInt(x1), Utils.SafeInt(y1))
+        p2 = PyOverlay.Point2D(Utils.SafeInt(x2), Utils.SafeInt(y2))
+        p3 = PyOverlay.Point2D(Utils.SafeInt(x3), Utils.SafeInt(y3))
+        p4 = PyOverlay.Point2D(Utils.SafeInt(x4), Utils.SafeInt(y4))
         self.overlay_instance.DrawQuadFilled(p1, p2, p3, p4, color)
         
     def DrawQuadFilled3D(self, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color=0xFFFFFFFF):
-        p1 = PyOverlay.Vec3f(x1, y1, z1)
-        p2 = PyOverlay.Vec3f(x2, y2, z2)
-        p3 = PyOverlay.Vec3f(x3, y3, z3)
-        p4 = PyOverlay.Vec3f(x4, y4, z4)
+        p1 = PyOverlay.Point3D(x1, y1, z1)
+        p2 = PyOverlay.Point3D(x2, y2, z2)
+        p3 = PyOverlay.Point3D(x3, y3, z3)
+        p4 = PyOverlay.Point3D(x4, y4, z4)
         self.overlay_instance.DrawQuadFilled3D(p1, p2, p3, p4, color)
 
     def DrawPoly(self, center_x, center_y, radius, color=0xFFFFFFFF, numsegments =32, thickness=1.0):
-        center = PyOverlay.Vec2f(Utils.SafeInt(center_x), Utils.SafeInt(center_y))
+        center = PyOverlay.Point2D(Utils.SafeInt(center_x), Utils.SafeInt(center_y))
         self.overlay_instance.DrawPoly(center, radius, color, numsegments, thickness)
 
     def DrawPoly3D(self, center_x, center_y, center_z, radius, color=0xFFFFFFFF,numsegments =32, thickness=1.0, autoz = True ):
-        center = PyOverlay.Vec3f(center_x, center_y, center_z)
+        center = PyOverlay.Point3D(center_x, center_y, center_z)
         self.overlay_instance.DrawPoly3D(center, radius, color, numsegments, thickness)
         
     def DrawPolyFilled(self, center_x, center_y, radius, color=0xFFFFFFFF, numsegments =32):
-        center = PyOverlay.Vec2f(Utils.SafeInt(center_x), Utils.SafeInt(center_y))
+        center = PyOverlay.Point2D(Utils.SafeInt(center_x), Utils.SafeInt(center_y))
         self.overlay_instance.DrawPolyFilled(center, radius, color, numsegments)
         
     def DrawPolyFilledRelative(self, center_x, center_y, radius, color=0xFFFFFFFF, numsegments=32):
@@ -142,21 +142,21 @@ class Overlay:
         screen_y = win_pos[1] + Utils.SafeInt(center_y)
         
         # 3. Create the Point2D object using Screen Space
-        center = PyOverlay.Vec2f(int(screen_x), int(screen_y))
+        center = PyOverlay.Point2D(int(screen_x), int(screen_y))
         
         # 4. Call the existing C++ bound method
         self.overlay_instance.DrawPolyFilled(center, radius, color, numsegments)
         
     def DrawPolyFilled3D(self, center_x, center_y, center_z, radius, color=0xFFFFFFFF,numsegments =32):
-        center = PyOverlay.Vec3f(center_x, center_y, center_z)
+        center = PyOverlay.Point3D(center_x, center_y, center_z)
         self.overlay_instance.DrawPolyFilled3D(center, radius, color, numsegments)
         
     def DrawCubeOutline(self, x, y, z, size, color=0xFFFFFFFF):
-        center = PyOverlay.Vec3f(x, y, z)
+        center = PyOverlay.Point3D(x, y, z)
         self.overlay_instance.DrawCubeOutline(center, size, color)
         
     def DrawCubeFilled(self, x, y, z, size, color=0xFFFFFFFF):
-        center = PyOverlay.Vec3f(x, y, z)
+        center = PyOverlay.Point3D(x, y, z)
         self.overlay_instance.DrawCubeFilled(center, size, color)
 
     def DrawStarFilled(self, center_x: float, center_y: float, outer_radius: float, inner_radius: float, color=0xFFFFFFFF, points: int = 5, rotation: float = 0.0):
@@ -166,7 +166,7 @@ class Overlay:
         cx = Utils.SafeInt(center_x)
         cy = Utils.SafeInt(center_y)
 
-        center = PyOverlay.Vec2f(cx, cy)
+        center = PyOverlay.Point2D(cx, cy)
 
         vertices = []
         angle_step = math.pi / points
@@ -176,7 +176,7 @@ class Overlay:
             radius = outer_radius if i % 2 == 0 else inner_radius
             x = cx + math.cos(angle) * radius
             y = cy + math.sin(angle) * radius
-            vertices.append(PyOverlay.Vec2f(Utils.SafeInt(x), Utils.SafeInt(y)))
+            vertices.append(PyOverlay.Point2D(Utils.SafeInt(x), Utils.SafeInt(y)))
             angle += angle_step
 
         for i in range(len(vertices)):
@@ -199,7 +199,7 @@ class Overlay:
             radius = outer_radius if i % 2 == 0 else inner_radius
             x = cx + math.cos(angle) * radius
             y = cy + math.sin(angle) * radius
-            vertices.append(PyOverlay.Vec2f(Utils.SafeInt(x), Utils.SafeInt(y)))
+            vertices.append(PyOverlay.Point2D(Utils.SafeInt(x), Utils.SafeInt(y)))
             angle += angle_step
 
         for i in range(len(vertices)):
@@ -209,11 +209,11 @@ class Overlay:
 
 
     def DrawText(self, x, y, text, color=0xFFFFFFFF, centered = True, scale=1.0):
-        pos = PyOverlay.Vec2f(Utils.SafeInt(x), Utils.SafeInt(y))
+        pos = PyOverlay.Point2D(Utils.SafeInt(x), Utils.SafeInt(y))
         self.overlay_instance.DrawText(pos, text, color, centered, scale)
 
     def DrawText3D(self, x, y, z, text, color=0xFFFFFFFF, autoZ= True, centered = True, scale=1.0):
-        pos = PyOverlay.Vec3f(x, y, z)
+        pos = PyOverlay.Point3D(x, y, z)
         self.overlay_instance.DrawText3D(pos, text, color, autoZ, centered,scale)
 
     def GetDisplaySize(self):

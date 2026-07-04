@@ -53,8 +53,8 @@ import PyQuest
 import PyPathing
 import PyUIManager
 import PyCamera
-import PyDXOverlay
-import PyAgentEvents
+import Py2DRenderer
+import PyCombatEvents
 
 from .enums import *
 from .ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
@@ -131,8 +131,8 @@ PyOverlay = PyOverlay
 PyQuest = PyQuest
 PyUIManager = PyUIManager
 PyCamera = PyCamera
-PyDXOverlay = PyDXOverlay
-PyAgentEvents = PyAgentEvents
+Py2DRenderer = Py2DRenderer
+PyCombatEvents = PyCombatEvents
 GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
 IconsFontAwesome5 = IconsFontAwesome5

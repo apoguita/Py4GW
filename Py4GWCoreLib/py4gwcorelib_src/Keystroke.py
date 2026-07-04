@@ -4,10 +4,10 @@ class Keystroke:
     @staticmethod
     def keystroke_instance():
         """
-        Purpose: Get the PyKeyHandler instance for sending keystrokes.
-        Returns: PyKeyHandler
+        Purpose: Get the PyScanCodeKeystroke instance for sending keystrokes.
+        Returns: PyScanCodeKeystroke
         """
-        return PyKeystroke.PyKeyHandler()
+        return PyKeystroke.PyScanCodeKeystroke()
 
 
     @staticmethod

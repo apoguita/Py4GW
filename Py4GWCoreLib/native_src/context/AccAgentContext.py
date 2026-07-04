@@ -1,3 +1,4 @@
+import PyPointers
 from typing import Optional
 
 from ctypes import Structure, POINTER,c_uint32, c_wchar, c_uint8, cast, c_void_p

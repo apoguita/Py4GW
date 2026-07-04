@@ -1,7 +1,7 @@
 """TextParser context — game string subsystem accessed via GameContext+0x18.
 
 Pointer chain (from GWCA + Ghidra RE):
-    GameContext       = SystemShaMemMgr.get_pointers_struct().GameContext
+    GameContext       = PyPointers.GetGameContextPtr()
     TextParser        = *(GameContext + 0x18)
 
 TextParser contains an inline TextCache region starting at +0x30.
@@ -31,6 +31,7 @@ File slot array entries (TextFileSlotStruct, 0x24 bytes each):
 import ctypes
 from ctypes import Structure, POINTER, c_uint32, c_uint8, cast
 
+import PyPointers
 
 from .GameContext import GameContextStruct
 
