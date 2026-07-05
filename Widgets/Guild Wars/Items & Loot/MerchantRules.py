@@ -49,8 +49,12 @@ QUICK_ACTIONS_MENU_ICON_GAP = 4.0
 QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 INVENTORY_SHORTCUTS_MOUSE_LEAVE_GRACE_MS = 220
 INVENTORY_SHORTCUTS_MOUSE_LEAVE_PADDING = 4.0
+INVENTORY_SHORTCUT_LIVE_CONFIRM_TIMEOUT_MS = 10_000
+INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT = "deposit"
+INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY = "destroy"
+INVENTORY_SHORTCUT_LIVE_ACTION_SALVAGE_KIT_PREFIX = "salvage_kit"
 
-PROFILE_VERSION = 33
+PROFILE_VERSION = 35
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -406,6 +410,10 @@ SELL_KIND_TO_MERCHANT_TYPE = {
 
 ECTOPLASM_MODEL_ID = int(ModelID.Glob_Of_Ectoplasm.value)
 SALVAGE_KIT_MODEL_ID = int(ModelID.Salvage_Kit.value)
+ID_KIT_MODEL_IDS: tuple[int, ...] = (
+    int(ModelID.Identification_Kit.value),
+    int(ModelID.Superior_Identification_Kit.value),
+)
 NORMAL_SALVAGE_KIT_MODEL_IDS: tuple[int, ...] = (
     int(ModelID.Salvage_Kit.value),
     int(ModelID.Salvage_Kit_preSearing.value),
@@ -414,6 +422,10 @@ UPGRADE_SALVAGE_KIT_MODEL_IDS: tuple[int, ...] = (
     int(ModelID.Perfect_Salvage_Kit.value),
     int(ModelID.Expert_Salvage_Kit.value),
     int(ModelID.Superior_Salvage_Kit.value),
+)
+SUPPORTED_SALVAGE_KIT_MODEL_IDS: tuple[int, ...] = (
+    *NORMAL_SALVAGE_KIT_MODEL_IDS,
+    *UPGRADE_SALVAGE_KIT_MODEL_IDS,
 )
 SALVAGE_KIT_MODEL_LABELS: dict[int, str] = {
     int(ModelID.Salvage_Kit.value): "Salvage Kit",
@@ -669,6 +681,19 @@ DEPOSIT_FILTER_CONSUMABLES_OTHER = "consumables_other"
 DEPOSIT_FILTER_OTHER_UTILITY = "other_utility"
 DEPOSIT_FILTER_OTHER_TROPHIES = "other_trophies"
 DEPOSIT_FILTER_OTHER_UNKNOWN = "other_unknown"
+CLEANUP_TARGET_SCOPE_EXACT = "exact"
+CLEANUP_TARGET_SCOPE_COMMON_MATERIAL = "common_material"
+CLEANUP_TARGET_SCOPE_RARE_MATERIAL = "rare_material"
+CLEANUP_TARGET_SCOPES: tuple[str, ...] = (
+    CLEANUP_TARGET_SCOPE_EXACT,
+    CLEANUP_TARGET_SCOPE_COMMON_MATERIAL,
+    CLEANUP_TARGET_SCOPE_RARE_MATERIAL,
+)
+CLEANUP_TARGET_SCOPE_LABELS: dict[str, str] = {
+    CLEANUP_TARGET_SCOPE_EXACT: "Exact item",
+    CLEANUP_TARGET_SCOPE_COMMON_MATERIAL: "Common material",
+    CLEANUP_TARGET_SCOPE_RARE_MATERIAL: "Rare material",
+}
 DEPOSIT_FILTER_TOP_OPTIONS: tuple[tuple[str, str], ...] = (
     (DEPOSIT_FILTER_ALL, "All"),
     (DEPOSIT_FILTER_MATERIALS, "Crafting Materials"),
@@ -847,8 +872,13 @@ HELPER_TOOLTIP_TEXTS: dict[str, dict[str, str]] = {
     },
     "inventory_right_click_shortcuts": {
         "short": "Adds Merchant Rules shortcuts to inventory item right-clicks.",
-        "long": "These shortcuts only update Merchant Rules settings and never use or move the clicked item.",
+        "long": "These shortcuts add Merchant Rules entries from the clicked inventory item. Live actions stay off unless enabled separately.",
         "why": "Leave this off if Inventory+ should own the inventory right-click menu.",
+    },
+    "inventory_right_click_live_actions": {
+        "short": "Adds live Deposit This Item and Destroy This Item shortcuts.",
+        "long": "Live shortcuts target only the clicked item or stack. Destroy always asks for a second click, and deposit asks for a second click when the item is kept out of deposits.",
+        "why": "Leave this off unless you want Merchant Rules to perform direct right-click inventory actions.",
     },
     "workspace_overview": {
         "short": "Shows current safety, preview, travel, and automation status.",
@@ -1639,6 +1669,7 @@ class IdentifySettings:
 class CleanupTarget:
     model_id: int = 0
     keep_on_character: int = 0
+    scope: str = ""
 
 
 @dataclass
@@ -1750,6 +1781,8 @@ class InventoryItemInfo:
     is_rare_material: bool
     is_weapon_like: bool
     is_armor_piece: bool
+    is_id_kit: bool = False
+    is_salvage_kit: bool = False
     requirement: int = 0
     requirement_attribute_id: int = 0
     requirement_attribute_name: str = ""
@@ -3388,6 +3421,56 @@ def _is_crafting_material_model(model_id: object) -> bool:
     return max(0, _safe_int(model_id, 0)) in ALL_CRAFTING_MATERIAL_MODEL_IDS
 
 
+def _infer_cleanup_target_scope_from_model_id(model_id: object) -> str:
+    safe_model_id = max(0, _safe_int(model_id, 0))
+    if safe_model_id in COMMON_CRAFTING_MATERIAL_MODEL_IDS:
+        return CLEANUP_TARGET_SCOPE_COMMON_MATERIAL
+    if safe_model_id in RARE_CRAFTING_MATERIAL_MODEL_IDS:
+        return CLEANUP_TARGET_SCOPE_RARE_MATERIAL
+    return CLEANUP_TARGET_SCOPE_EXACT
+
+
+def _normalize_cleanup_target_scope(raw_scope: object, model_id: object = 0) -> str:
+    normalized_scope = str(raw_scope or "").strip().lower().replace("-", "_").replace(" ", "_")
+    scope_aliases = {
+        "common": CLEANUP_TARGET_SCOPE_COMMON_MATERIAL,
+        "commonmaterial": CLEANUP_TARGET_SCOPE_COMMON_MATERIAL,
+        "common_materials": CLEANUP_TARGET_SCOPE_COMMON_MATERIAL,
+        "material": CLEANUP_TARGET_SCOPE_COMMON_MATERIAL,
+        "materials": CLEANUP_TARGET_SCOPE_COMMON_MATERIAL,
+        "rare": CLEANUP_TARGET_SCOPE_RARE_MATERIAL,
+        "rarematerial": CLEANUP_TARGET_SCOPE_RARE_MATERIAL,
+        "rare_materials": CLEANUP_TARGET_SCOPE_RARE_MATERIAL,
+        "equipment": CLEANUP_TARGET_SCOPE_EXACT,
+        "exact_item": CLEANUP_TARGET_SCOPE_EXACT,
+        "exact_equipment": CLEANUP_TARGET_SCOPE_EXACT,
+        "item": CLEANUP_TARGET_SCOPE_EXACT,
+    }
+    if normalized_scope in scope_aliases:
+        return scope_aliases[normalized_scope]
+    if normalized_scope in CLEANUP_TARGET_SCOPES:
+        return normalized_scope
+    return _infer_cleanup_target_scope_from_model_id(model_id)
+
+
+def _cleanup_target_key(target: object) -> tuple[int, str]:
+    model_id = max(0, _safe_int(getattr(target, "model_id", 0), 0))
+    return model_id, _normalize_cleanup_target_scope(getattr(target, "scope", ""), model_id)
+
+
+def _cleanup_target_key_from_values(model_id: object, scope: object = "") -> tuple[int, str]:
+    safe_model_id = max(0, _safe_int(model_id, 0))
+    return safe_model_id, _normalize_cleanup_target_scope(scope, safe_model_id)
+
+
+def _infer_cleanup_target_scope_from_inventory_item(item: object) -> str:
+    if bool(getattr(item, "is_rare_material", False)):
+        return CLEANUP_TARGET_SCOPE_RARE_MATERIAL
+    if bool(getattr(item, "is_material", False)):
+        return CLEANUP_TARGET_SCOPE_COMMON_MATERIAL
+    return CLEANUP_TARGET_SCOPE_EXACT
+
+
 def _is_scroll_trader_stock_model(model_id: object) -> bool:
     return max(0, _safe_int(model_id, 0)) in SCROLL_TRADER_STOCK_MODEL_IDS
 
@@ -3783,7 +3866,7 @@ def _normalize_whitelist_targets(raw_targets: object) -> list[WhitelistTarget]:
 
 def _normalize_cleanup_targets(raw_targets: object) -> list[CleanupTarget]:
     normalized: list[CleanupTarget] = []
-    seen_model_ids: set[int] = set()
+    seen_targets: set[tuple[int, str]] = set()
     if not isinstance(raw_targets, list):
         return normalized
 
@@ -3791,21 +3874,26 @@ def _normalize_cleanup_targets(raw_targets: object) -> list[CleanupTarget]:
         if isinstance(entry, CleanupTarget):
             model_id = entry.model_id
             keep_on_character = entry.keep_on_character
+            scope = getattr(entry, "scope", "")
         elif isinstance(entry, dict):
             model_id = entry.get("model_id", 0)
             keep_on_character = entry.get("keep_on_character", entry.get("keep_count", 0))
+            scope = entry.get("scope", "")
         else:
             continue
 
         safe_model_id = max(0, _safe_int(model_id, 0))
-        if safe_model_id <= 0 or safe_model_id in seen_model_ids:
+        safe_scope = _normalize_cleanup_target_scope(scope, safe_model_id)
+        target_key = (safe_model_id, safe_scope)
+        if safe_model_id <= 0 or target_key in seen_targets:
             continue
 
-        seen_model_ids.add(safe_model_id)
+        seen_targets.add(target_key)
         normalized.append(
             CleanupTarget(
                 model_id=safe_model_id,
                 keep_on_character=max(0, _safe_int(keep_on_character, 0)),
+                scope=safe_scope,
             )
         )
 
@@ -3847,11 +3935,12 @@ def _serialize_whitelist_targets(raw_targets: object) -> list[dict[str, object]]
     ]
 
 
-def _serialize_cleanup_targets(raw_targets: object) -> list[dict[str, int]]:
+def _serialize_cleanup_targets(raw_targets: object) -> list[dict[str, object]]:
     return [
         {
             "model_id": int(target.model_id),
             "keep_on_character": max(0, int(target.keep_on_character)),
+            "scope": _normalize_cleanup_target_scope(getattr(target, "scope", ""), target.model_id),
         }
         for target in _normalize_cleanup_targets(raw_targets)
     ]
@@ -4737,6 +4826,7 @@ class MerchantRulesWidget:
         self.legacy_recovery_artifacts_migrated = False
         self.account_key = ""
         self.config_path = ""
+        self.active_profile_display_name = ""
         self.new_profile_session = False
         self.profile_warning = ""
         self.profile_notice = ""
@@ -4772,6 +4862,7 @@ class MerchantRulesWidget:
         self.auto_sell_any_merchant_materials = False
         self.auto_sell_any_merchant_runes = False
         self.inventory_right_click_shortcuts_enabled = False
+        self.inventory_right_click_live_actions_enabled = False
         self.auto_travel_enabled = False
         self.target_outpost_id = 0
         self.favorite_outpost_ids: list[int] = []
@@ -4928,6 +5019,11 @@ class MerchantRulesWidget:
         self.inventory_shortcuts_popup_visible = False
         self.inventory_shortcuts_popup_opened_at_ms = 0
         self.inventory_shortcuts_popup_last_hovered_at_ms = 0
+        self.inventory_shortcuts_live_confirm_action = ""
+        self.inventory_shortcuts_live_confirm_item_id = 0
+        self.inventory_shortcuts_live_confirm_model_id = 0
+        self.inventory_shortcuts_live_confirm_started_at_ms = 0
+        self.inventory_shortcuts_live_action_running = False
         self.floating_ui_ini_key = ""
         self.floating_ui_ini_loaded = False
         self.floating_button = None
@@ -4948,6 +5044,49 @@ class MerchantRulesWidget:
 
     def _get_config_path_for_account(self, account_key: str) -> str:
         return _get_config_path_for_account_key(account_key)
+
+    def _get_live_profile_display_name(self) -> str:
+        config_path = str(self.config_path or "").strip()
+        if config_path:
+            profile_name = os.path.splitext(os.path.basename(config_path))[0].strip()
+            if profile_name:
+                return profile_name
+        account_key = str(self.account_key or "").strip()
+        return account_key or "default"
+
+    def _get_active_profile_display_name(self) -> str:
+        profile_name = str(self.active_profile_display_name or "").strip()
+        return profile_name or self._get_live_profile_display_name()
+
+    def _get_profile_safety_summary_text(self) -> str:
+        protected_item_count = len(_normalize_protected_item_model_ids(self.protected_item_model_ids))
+        keep_out_count = len(_normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids))
+        live_actions_state = "enabled" if self.inventory_right_click_live_actions_enabled else "disabled"
+        shortcuts_state = "enabled" if self.inventory_right_click_shortcuts_enabled else "disabled"
+        return (
+            f"Protected Items: {protected_item_count}, "
+            f"Keep Out Of Deposits: {keep_out_count}, "
+            f"live right-click actions: {live_actions_state}, "
+            f"inventory right-click shortcuts: {shortcuts_state}"
+        )
+
+    def _get_profile_loaded_summary_message(self) -> str:
+        return (
+            f"Profile loaded: {self._get_active_profile_display_name()}. "
+            f"{self._get_profile_safety_summary_text()}."
+        )
+
+    def _get_debug_enabled_profile_summary_message(self) -> str:
+        return (
+            f"Debug logging enabled. Active profile: {self._get_active_profile_display_name()}. "
+            f"{self._get_profile_safety_summary_text()}."
+        )
+
+    def _log_profile_loaded_summary(self):
+        ConsoleLog(MODULE_NAME, self._get_profile_loaded_summary_message(), Console.MessageType.Info)
+
+    def _log_debug_enabled_profile_summary(self):
+        ConsoleLog(MODULE_NAME, self._get_debug_enabled_profile_summary_message(), Console.MessageType.Info)
 
     def _get_floating_icon_path(self) -> str:
         return os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON)
@@ -5386,18 +5525,58 @@ class MerchantRulesWidget:
             return
 
         now_ms = int(time.time() * 1000)
+        self._prune_inventory_shortcut_live_confirmation(now_ms)
+        if not self._inventory_shortcut_live_confirmation_targets_item(clicked_item):
+            self._clear_inventory_shortcut_live_confirmation()
         self.inventory_shortcuts_selected_item = clicked_item
         self.inventory_shortcuts_selected_header = self._format_inventory_shortcut_menu_header(clicked_item)
         self.inventory_shortcuts_popup_opened_at_ms = now_ms
         self.inventory_shortcuts_popup_last_hovered_at_ms = 0
         PyImGui.open_popup(INVENTORY_SHORTCUTS_POPUP_ID)
 
-    def _close_inventory_shortcuts_popup(self):
+    def _clear_inventory_shortcut_live_confirmation(self):
+        self.inventory_shortcuts_live_confirm_action = ""
+        self.inventory_shortcuts_live_confirm_item_id = 0
+        self.inventory_shortcuts_live_confirm_model_id = 0
+        self.inventory_shortcuts_live_confirm_started_at_ms = 0
+
+    def _set_inventory_shortcut_live_confirmation(self, action: str, item: InventoryItemInfo):
+        self.inventory_shortcuts_live_confirm_action = str(action or "")
+        self.inventory_shortcuts_live_confirm_item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        self.inventory_shortcuts_live_confirm_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        self.inventory_shortcuts_live_confirm_started_at_ms = int(time.time() * 1000)
+
+    def _prune_inventory_shortcut_live_confirmation(self, now_ms: int | None = None):
+        if not self.inventory_shortcuts_live_confirm_action:
+            return
+        started_at_ms = max(0, _safe_int(self.inventory_shortcuts_live_confirm_started_at_ms, 0))
+        if started_at_ms <= 0:
+            self._clear_inventory_shortcut_live_confirmation()
+            return
+        current_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+        if current_ms - started_at_ms > int(INVENTORY_SHORTCUT_LIVE_CONFIRM_TIMEOUT_MS):
+            self._clear_inventory_shortcut_live_confirmation()
+
+    def _inventory_shortcut_live_confirmation_targets_item(self, item: InventoryItemInfo) -> bool:
+        self._prune_inventory_shortcut_live_confirmation()
+        confirm_item_id = max(0, _safe_int(self.inventory_shortcuts_live_confirm_item_id, 0))
+        if confirm_item_id <= 0:
+            return True
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        if confirm_item_id != item_id:
+            return False
+        confirm_model_id = max(0, _safe_int(self.inventory_shortcuts_live_confirm_model_id, 0))
+        item_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        return confirm_model_id <= 0 or item_model_id <= 0 or confirm_model_id == item_model_id
+
+    def _close_inventory_shortcuts_popup(self, *, clear_confirmation: bool = False):
         self.inventory_shortcuts_popup_visible = False
         self.inventory_shortcuts_selected_item = None
         self.inventory_shortcuts_selected_header = ""
         self.inventory_shortcuts_popup_opened_at_ms = 0
         self.inventory_shortcuts_popup_last_hovered_at_ms = 0
+        if clear_confirmation:
+            self._clear_inventory_shortcut_live_confirmation()
         try:
             PyImGui.close_current_popup()
         except Exception:
@@ -5446,9 +5625,19 @@ class MerchantRulesWidget:
             return True
         return bool(now_ms - last_hovered_at_ms >= INVENTORY_SHORTCUTS_MOUSE_LEAVE_GRACE_MS)
 
-    def _finish_inventory_shortcut_config_change(self, message: str):
+    def _log_inventory_shortcut_config_change(self, message: str):
+        safe_message = " ".join(str(message or "").strip().split())
+        if not safe_message:
+            return
+        if not safe_message.endswith("."):
+            safe_message = f"{safe_message}."
+        ConsoleLog(MODULE_NAME, f"Right-click shortcut: {safe_message}", Console.MessageType.Info)
+
+    def _finish_inventory_shortcut_config_change(self, message: str, *, log_message: str = ""):
         if self._save_profile():
             self._mark_preview_dirty(message)
+            if log_message:
+                self._log_inventory_shortcut_config_change(log_message)
         else:
             self.status_message = "Merchant Rules changed this shortcut in memory, but could not save it."
 
@@ -5487,25 +5676,28 @@ class MerchantRulesWidget:
         )
         self.active_protected_items_workspace = PROTECTED_ITEMS_WORKSPACE_EXACT
         self._finish_inventory_shortcut_config_change(
-            f"Protected {item_label}. Preview again before execution."
+            f"Protected {item_label}. Preview again before execution.",
+            log_message=f"added {item_label} to Protected Items.",
         )
 
     def _apply_inventory_shortcut_deposit_target(self, item: InventoryItemInfo):
         model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        target_scope = _infer_cleanup_target_scope_from_inventory_item(item)
         item_label = self._format_inventory_shortcut_item_label(item)
         if model_id <= 0:
             self.status_message = "Could not add this item because Merchant Rules could not read it."
             return
         existing_targets = _normalize_cleanup_targets(self.cleanup_targets)
-        if any(int(target.model_id) == model_id for target in existing_targets):
+        if any(_cleanup_target_key(target) == (model_id, target_scope) for target in existing_targets):
             self.status_message = f"{item_label} is already in Deposit Targets."
             return
-        if not self._add_cleanup_target(model_id, keep_on_character=0):
+        if not self._add_cleanup_target(model_id, keep_on_character=0, scope=target_scope):
             self.status_message = f"Could not add {item_label} to Deposit Targets."
             return
         self._focus_inventory_shortcut_workspace(RULES_WORKSPACE_CLEANUP)
         self._finish_inventory_shortcut_config_change(
-            f"Added {item_label} to Deposit Targets. Preview again before execution."
+            f"Added {item_label} to Deposit Targets. Preview again before execution.",
+            log_message=f"added {item_label} to Deposit Targets.",
         )
 
     def _apply_inventory_shortcut_deposit_keep_out(self, item: InventoryItemInfo):
@@ -5525,7 +5717,8 @@ class MerchantRulesWidget:
             protections_workspace=PROTECTIONS_WORKSPACE_CLEANUP,
         )
         self._finish_inventory_shortcut_config_change(
-            f"Kept {item_label} out of deposits. Preview again before execution."
+            f"Kept {item_label} out of deposits. Preview again before execution.",
+            log_message=f"added {item_label} to Keep Out Of Deposits.",
         )
 
     def _get_exact_sell_rule_model_ids(self, rule: SellRule) -> list[int]:
@@ -5777,63 +5970,688 @@ class MerchantRulesWidget:
         )
         self._finish_inventory_shortcut_config_change(message)
 
-    def _draw_inventory_shortcut_menu_item(self, label: str, item: InventoryItemInfo, action: Callable):
-        if PyImGui.menu_item(label):
+    def _get_inventory_shortcut_live_action_subject(self, item: InventoryItemInfo) -> str:
+        quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
+        return "Stack" if quantity > 1 else "Item"
+
+    def _get_inventory_shortcut_live_item_for_action(
+        self,
+        item_id: int,
+        model_id: int,
+    ) -> tuple[InventoryItemInfo | None, str]:
+        safe_item_id = max(0, _safe_int(item_id, 0))
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_item_id <= 0:
+            return None, "Could not target this item because Merchant Rules could not read it."
+
+        try:
+            inventory_item_ids = {int(candidate_id) for candidate_id in self._get_inventory_item_ids()}
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut live action inventory scan failed: {exc}")
+            return None, "Could not verify that the clicked item is still in your bags."
+
+        if safe_item_id not in inventory_item_ids:
+            return None, "The clicked item is no longer in your bags."
+
+        live_item = self._build_inventory_item_info(safe_item_id)
+        if live_item is None:
+            return None, "Could not read the clicked item before running the shortcut."
+        live_model_id = max(0, _safe_int(getattr(live_item, "model_id", 0), 0))
+        if safe_model_id > 0 and live_model_id != safe_model_id:
+            return None, "The clicked item changed before the shortcut could run."
+        if max(1, _safe_int(getattr(live_item, "quantity", 1), 1)) <= 0:
+            return None, "The clicked item is no longer available."
+        return live_item, ""
+
+    def _inventory_shortcut_live_confirmation_matches(self, action: str, item: InventoryItemInfo) -> bool:
+        self._prune_inventory_shortcut_live_confirmation()
+        return (
+            str(self.inventory_shortcuts_live_confirm_action) == str(action)
+            and max(0, _safe_int(self.inventory_shortcuts_live_confirm_item_id, 0))
+            == max(0, _safe_int(getattr(item, "item_id", 0), 0))
+            and (
+                max(0, _safe_int(self.inventory_shortcuts_live_confirm_model_id, 0)) <= 0
+                or max(0, _safe_int(getattr(item, "model_id", 0), 0)) <= 0
+                or max(0, _safe_int(self.inventory_shortcuts_live_confirm_model_id, 0))
+                == max(0, _safe_int(getattr(item, "model_id", 0), 0))
+            )
+        )
+
+    def _is_inventory_shortcut_deposit_keep_out(self, item: InventoryItemInfo) -> bool:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        return model_id > 0 and model_id in _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+    def _is_inventory_shortcut_protected_item(self, item: InventoryItemInfo) -> bool:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return False
+        try:
+            return self._get_hard_protection_hit(item, self._collect_enabled_sell_rules()) is not None
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut protection check failed: {exc}")
+        return self._is_exact_protected_item_model_id(model_id)
+
+    def _is_inventory_shortcut_id_kit(self, item: InventoryItemInfo) -> bool:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if bool(getattr(item, "is_id_kit", False)) or model_id in ID_KIT_MODEL_IDS:
+            return True
+        try:
+            usage_api = getattr(getattr(GLOBAL_CACHE, "Item", None), "Usage", None)
+            is_id_kit = getattr(usage_api, "IsIDKit", None)
+            return bool(callable(is_id_kit) and is_id_kit(int(item.item_id)))
+        except Exception:
+            return False
+
+    def _is_inventory_shortcut_salvage_kit(self, item: InventoryItemInfo) -> bool:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if bool(getattr(item, "is_salvage_kit", False)) or model_id in SUPPORTED_SALVAGE_KIT_MODEL_IDS:
+            return True
+        try:
+            usage_api = getattr(getattr(GLOBAL_CACHE, "Item", None), "Usage", None)
+            is_salvage_kit = getattr(usage_api, "IsSalvageKit", None)
+            return bool(callable(is_salvage_kit) and is_salvage_kit(int(item.item_id)))
+        except Exception:
+            return False
+
+    def _get_inventory_shortcut_item_uses(self, item_id: int) -> int:
+        try:
+            usage_api = getattr(getattr(GLOBAL_CACHE, "Item", None), "Usage", None)
+            get_uses = getattr(usage_api, "GetUses", None)
+            if callable(get_uses):
+                return max(0, int(get_uses(int(item_id))))
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut kit uses read failed: {exc}")
+        return 0
+
+    def _validate_inventory_shortcut_id_kit(
+        self,
+        kit_id: int,
+        kit_model_id: int = 0,
+    ) -> tuple[int, str]:
+        live_kit, reason = self._get_inventory_shortcut_live_item_for_action(int(kit_id), int(kit_model_id))
+        if live_kit is None:
+            return 0, reason or "The clicked ID kit is no longer available."
+        if not self._is_inventory_shortcut_id_kit(live_kit):
+            return 0, "The clicked item is no longer an ID kit."
+        if self._get_inventory_shortcut_item_uses(int(kit_id)) <= 0:
+            return 0, "The clicked ID kit has no uses left."
+        return int(kit_id), ""
+
+    def _salvage_kit_model_supports_option(self, model_id: int, option: object) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        selected_option = _resolve_salvage_session_option(option)
+        if selected_option in SALVAGE_UPGRADE_OPTIONS or _is_auto_exact_upgrade_salvage_option(option):
+            return safe_model_id in UPGRADE_SALVAGE_KIT_MODEL_IDS
+        return safe_model_id in SUPPORTED_SALVAGE_KIT_MODEL_IDS
+
+    def _validate_inventory_shortcut_salvage_kit(
+        self,
+        kit_id: int,
+        kit_model_id: int = 0,
+        *,
+        option: object | None = SALVAGE_OPTION_MATERIALS,
+    ) -> tuple[int, str]:
+        live_kit, reason = self._get_inventory_shortcut_live_item_for_action(int(kit_id), int(kit_model_id))
+        if live_kit is None:
+            return 0, reason or "The clicked salvage kit is no longer available."
+        if not self._is_inventory_shortcut_salvage_kit(live_kit):
+            return 0, "The clicked item is no longer a salvage kit."
+
+        live_model_id = max(0, _safe_int(getattr(live_kit, "model_id", 0), 0))
+        if live_model_id not in SUPPORTED_SALVAGE_KIT_MODEL_IDS:
+            return 0, "The clicked salvage kit type is not supported by Merchant Rules."
+        if self._get_inventory_shortcut_item_uses(int(kit_id)) <= 0:
+            return 0, "The clicked salvage kit has no uses left."
+        if option is not None and not self._salvage_kit_model_supports_option(live_model_id, option):
+            return 0, (
+                f"The clicked {self._get_salvage_kit_label(int(kit_id))} is not compatible with "
+                f"{_get_salvage_option_label(option)}."
+            )
+        return int(kit_id), ""
+
+    def _get_kit_action_rarity_keys(self, rarity_key: str) -> set[str]:
+        safe_rarity_key = _normalize_rarity_key(rarity_key)
+        if safe_rarity_key:
+            return {safe_rarity_key}
+        return {"white", "blue", "purple", "gold"}
+
+    def _build_explicit_salvage_request_rule(self, rarity_keys: set[str] | None) -> SalvageRule:
+        safe_rarity_keys = {
+            _normalize_rarity_key(str(key or ""))
+            for key in (rarity_keys or set())
+            if _normalize_rarity_key(str(key or ""))
+        }
+        if not safe_rarity_keys:
+            safe_rarity_keys = {"white", "blue", "purple", "gold"}
+        return SalvageRule(
+            enabled=True,
+            rarities={key: key in safe_rarity_keys for key, _label in RARITY_OPTION_ORDER},
+            salvage_option=SALVAGE_OPTION_MATERIALS,
+            name="Right-click salvage",
+        )
+
+    def _get_kit_action_rarity_label(self, rarity_key: str) -> str:
+        safe_rarity_key = _normalize_rarity_key(rarity_key)
+        if not safe_rarity_key:
+            return "All"
+        return next((label for key, label in RARITY_OPTION_ORDER if key == safe_rarity_key), safe_rarity_key.title())
+
+    def _get_inventory_shortcut_salvage_action_key(self, rarity_key: str) -> str:
+        return f"{INVENTORY_SHORTCUT_LIVE_ACTION_SALVAGE_KIT_PREFIX}:{_normalize_rarity_key(rarity_key) or 'all'}"
+
+    def _inventory_shortcut_runtime_block_reason(self) -> str:
+        if (
+            self.execution_running
+            or self.travel_preview_running
+            or self.identify_running
+            or self.instant_destroy_running
+            or self.salvage_running
+            or self.storage_scan_running
+            or self.auto_cleanup_running
+            or self.manual_vendor_running
+            or self.inventory_shortcuts_live_action_running
+        ):
+            return "Merchant Rules is already busy."
+        if not Map.IsMapReady():
+            return "Wait for the current map to finish loading."
+        return ""
+
+    def _queue_inventory_shortcut_live_deposit(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not deposit this item because Merchant Rules could not target it exactly."
+            return False
+
+        item_label = self._format_inventory_shortcut_item_label(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Depositing {item_label}..."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_deposit(item_id, model_id, quantity, item_label)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start depositing {item_label}."
+            ConsoleLog(MODULE_NAME, f"Right-click deposit queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_deposit(
+        self,
+        item_id: int,
+        model_id: int,
+        quantity: int,
+        item_label: str,
+    ):
+        paused_inventory_plus = None
+        try:
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self.status_message = reason or f"Could not deposit {item_label}."
+                return
+
+            live_quantity = max(1, _safe_int(getattr(live_item, "quantity", 1), 1))
+            requested_quantity = max(1, _safe_int(quantity, 1))
+            if live_quantity != requested_quantity:
+                self.status_message = f"Could not deposit {item_label} because its stack count changed."
+                return
+
+            paused_inventory_plus = self._pause_inventory_plus()
+            transfer = PlannedStorageTransfer(
+                direction=STORAGE_TRANSFER_DEPOSIT,
+                key=f"right_click:{int(item_id)}",
+                label=str(item_label or f"Item {int(item_id)}"),
+                item_id=int(item_id),
+                quantity=requested_quantity,
+                model_id=max(0, int(model_id)),
+                reason="Right-click shortcut",
+            )
+            outcome = yield from self._execute_storage_transfers(
+                [transfer],
+                phase_label="Right-click Deposit",
+            )
+            if outcome.completed > 0:
+                if int(outcome.completed) >= requested_quantity:
+                    message = f"Deposited {item_label}. Preview again before execution."
+                else:
+                    message = (
+                        f"Deposited {int(outcome.completed)} of {requested_quantity} from {item_label}. "
+                        "Preview again before execution."
+                    )
+                self._mark_preview_dirty(message)
+                return
+            if outcome.depleted > 0:
+                self.status_message = f"{item_label} was already gone before it could be deposited."
+            else:
+                self.status_message = (
+                    f"Could not deposit {item_label}. It may not be storable, storage may be full, "
+                    "or storage is unavailable."
+                )
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click deposit failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click deposit error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
+    def _queue_inventory_shortcut_live_destroy(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not destroy this item because Merchant Rules could not target it exactly."
+            return False
+
+        item_label = self._format_inventory_shortcut_item_label(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Destroying {item_label}..."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_destroy(item_id, model_id, quantity, item_label)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start destroying {item_label}."
+            ConsoleLog(MODULE_NAME, f"Right-click destroy queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_destroy(
+        self,
+        item_id: int,
+        model_id: int,
+        quantity: int,
+        item_label: str,
+    ):
+        paused_inventory_plus = None
+        try:
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self.status_message = reason or f"Could not destroy {item_label}."
+                return
+
+            live_quantity = max(1, _safe_int(getattr(live_item, "quantity", 1), 1))
+            requested_quantity = max(1, _safe_int(quantity, 1))
+            if live_quantity != requested_quantity:
+                self.status_message = f"Could not destroy {item_label} because its stack count changed."
+                return
+
+            paused_inventory_plus = self._pause_inventory_plus()
+            action = PlannedDestroyAction(
+                item_id=int(item_id),
+                model_id=max(0, int(model_id)),
+                label=str(item_label or f"Item {int(item_id)}"),
+                quantity_to_destroy=requested_quantity,
+                source_quantity=requested_quantity,
+            )
+            outcome = yield from self._execute_destroy_phase([action])
+            if outcome.completed > 0:
+                self._mark_preview_dirty(f"Destroyed {item_label}. Preview again before execution.")
+                return
+            if outcome.depleted > 0:
+                self.status_message = f"{item_label} was already gone before it could be destroyed."
+            else:
+                self.status_message = (
+                    f"Could not confirm destroying {item_label}. The item may have changed or moved."
+                )
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click destroy failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click destroy error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
+    def _handle_inventory_shortcut_live_deposit_click(self, item: InventoryItemInfo) -> bool:
+        if self._is_inventory_shortcut_deposit_keep_out(item) and not self._inventory_shortcut_live_confirmation_matches(
+            INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
+            item,
+        ):
+            self._set_inventory_shortcut_live_confirmation(INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT, item)
+            subject = self._get_inventory_shortcut_live_action_subject(item).lower()
+            self.status_message = f"Click 'Confirm Deposit' to deposit only this {subject}."
+            return False
+        return self._queue_inventory_shortcut_live_deposit(item)
+
+    def _handle_inventory_shortcut_live_destroy_click(self, item: InventoryItemInfo) -> bool:
+        if not self._inventory_shortcut_live_confirmation_matches(INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY, item):
+            self._set_inventory_shortcut_live_confirmation(INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY, item)
+            protected = self._is_inventory_shortcut_protected_item(item)
+            subject = self._get_inventory_shortcut_live_action_subject(item)
+            confirm_label = f"Confirm Destroy Protected {subject}" if protected else "Confirm Destroy"
+            self.status_message = f"Click '{confirm_label}' to destroy only this {subject.lower()}."
+            return False
+        return self._queue_inventory_shortcut_live_destroy(item)
+
+    def _queue_inventory_shortcut_kit_identify(self, item: InventoryItemInfo, rarity_key: str) -> bool:
+        if not bool(self.inventory_right_click_live_actions_enabled):
+            return False
+
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            return False
+
+        kit_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        kit_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        validated_kit_id, reason = self._validate_inventory_shortcut_id_kit(kit_id, kit_model_id)
+        if validated_kit_id <= 0:
+            self.status_message = reason or "Could not use the clicked ID kit."
+            return False
+
+        rarity_label = self._get_kit_action_rarity_label(rarity_key)
+        rarity_keys = self._get_kit_action_rarity_keys(rarity_key)
+        subject = f"ID {rarity_label} Items"
+        self.identify_running = True
+        self.status_message = f"{subject}: queued with clicked ID kit."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_identify_pass(
+                    running_already_marked=True,
+                    mark_preview_dirty=True,
+                    summary_subject=subject,
+                    rarity_keys=rarity_keys,
+                    preferred_id_kit_id=validated_kit_id,
+                    preferred_id_kit_model_id=kit_model_id,
+                )
+            )
+            return True
+        except Exception as exc:
+            self.identify_running = False
+            self.status_message = f"Could not start {subject}."
+            ConsoleLog(MODULE_NAME, f"Right-click ID kit queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _queue_inventory_shortcut_kit_salvage(self, item: InventoryItemInfo, rarity_key: str) -> bool:
+        if not bool(self.inventory_right_click_live_actions_enabled):
+            self.status_message = "Live inventory right-click actions are disabled."
+            ConsoleLog(MODULE_NAME, self.status_message, Console.MessageType.Warning)
+            return False
+
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            ConsoleLog(MODULE_NAME, f"Right-click salvage blocked: {block_reason}", Console.MessageType.Warning)
+            return False
+
+        kit_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        kit_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        validated_kit_id, reason = self._validate_inventory_shortcut_salvage_kit(
+            kit_id,
+            kit_model_id,
+            option=None,
+        )
+        if validated_kit_id <= 0:
+            self.status_message = reason or "Could not use the clicked salvage kit."
+            ConsoleLog(MODULE_NAME, f"Right-click salvage blocked: {self.status_message}", Console.MessageType.Warning)
+            return False
+
+        rarity_label = self._get_kit_action_rarity_label(rarity_key)
+        rarity_keys = self._get_kit_action_rarity_keys(rarity_key)
+        subject = f"Salvage {rarity_label} Items"
+        self.salvage_running = True
+        self.status_message = f"{subject}: queued with clicked salvage kit."
+        ConsoleLog(
+            MODULE_NAME,
+            f"Right-click salvage confirmed: {subject} using clicked "
+            f"{self._get_salvage_kit_label(validated_kit_id)} ({validated_kit_id}).",
+            Console.MessageType.Info,
+        )
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_salvage_pass(
+                    running_already_marked=True,
+                    summary_subject=subject,
+                    rarity_keys=rarity_keys,
+                    preferred_salvage_kit_id=validated_kit_id,
+                    preferred_salvage_kit_model_id=kit_model_id,
+                    explicit_salvage_request=True,
+                )
+            )
+            return True
+        except Exception as exc:
+            self.salvage_running = False
+            self.status_message = f"Could not start {subject}."
+            ConsoleLog(MODULE_NAME, f"Right-click salvage kit queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _handle_inventory_shortcut_kit_salvage_click(self, item: InventoryItemInfo, rarity_key: str) -> bool:
+        action_key = self._get_inventory_shortcut_salvage_action_key(rarity_key)
+        if not self._inventory_shortcut_live_confirmation_matches(action_key, item):
+            self._set_inventory_shortcut_live_confirmation(action_key, item)
+            rarity_label = self._get_kit_action_rarity_label(rarity_key)
+            self.status_message = f"Click 'Confirm Salvage {rarity_label} Items' to run Merchant Rules salvage."
+            ConsoleLog(MODULE_NAME, f"Right-click salvage awaiting confirmation: {self.status_message}", Console.MessageType.Info)
+            return False
+        return self._queue_inventory_shortcut_kit_salvage(item, rarity_key)
+
+    def _draw_inventory_shortcut_menu_item(
+        self,
+        label: str,
+        item: InventoryItemInfo,
+        action: Callable,
+        color: tuple[float, float, float, float] | None = None,
+    ):
+        if color is not None:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
+        try:
+            clicked = bool(PyImGui.menu_item(label))
+        finally:
+            if color is not None:
+                PyImGui.pop_style_color(1)
+        if clicked:
             action(item)
-            self._close_inventory_shortcuts_popup()
+            self._close_inventory_shortcuts_popup(clear_confirmation=True)
+
+    def _draw_inventory_shortcut_live_menu_item(
+        self,
+        label: str,
+        item: InventoryItemInfo,
+        action_key: str,
+        color: tuple[float, float, float, float] | None = None,
+    ) -> bool:
+        flags = getattr(getattr(PyImGui, "SelectableFlags", None), "DontClosePopups", 0)
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        if color is not None:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
+        try:
+            return bool(
+                PyImGui.selectable(
+                    f"{label}##merchant_rules_inventory_live_{action_key}_{item_id}",
+                    False,
+                    flags,
+                    (0, 0),
+                )
+            )
+        finally:
+            if color is not None:
+                PyImGui.pop_style_color(1)
+
+    def _push_inventory_shortcut_popup_row_style(self):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Header, (0.12, 0.13, 0.15, 0.22))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered, (0.10, 0.11, 0.13, 0.86))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive, (0.08, 0.09, 0.11, 0.94))
+
+    def _draw_inventory_shortcut_live_actions(self, item: InventoryItemInfo):
+        subject = self._get_inventory_shortcut_live_action_subject(item)
+        deposit_pending = self._inventory_shortcut_live_confirmation_matches(
+            INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
+            item,
+        )
+        deposit_keep_out = self._is_inventory_shortcut_deposit_keep_out(item)
+        deposit_label = f"Deposit This {subject}"
+        deposit_color = UI_COLOR_TEAL
+        if deposit_pending:
+            deposit_label = "Confirm Deposit"
+            deposit_color = UI_COLOR_WARNING
+        elif deposit_keep_out:
+            deposit_label = "Kept Out Of Deposits - Deposit?"
+            deposit_color = UI_COLOR_WARNING
+        if self._draw_inventory_shortcut_live_menu_item(
+            deposit_label,
+            item,
+            INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
+            deposit_color,
+        ):
+            if self._handle_inventory_shortcut_live_deposit_click(item):
+                self._close_inventory_shortcuts_popup(clear_confirmation=True)
+
+        destroy_pending = self._inventory_shortcut_live_confirmation_matches(
+            INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY,
+            item,
+        )
+        protected = self._is_inventory_shortcut_protected_item(item)
+        destroy_label = f"Destroy This {subject}"
+        destroy_color = UI_COLOR_WARNING_SOFT
+        if destroy_pending:
+            destroy_label = f"Confirm Destroy Protected {subject}" if protected else "Confirm Destroy"
+            destroy_color = UI_COLOR_DANGER if protected else UI_COLOR_WARNING
+        elif protected:
+            destroy_label = f"Protected {subject} - Destroy?"
+            destroy_color = UI_COLOR_DANGER
+        if self._draw_inventory_shortcut_live_menu_item(
+            destroy_label,
+            item,
+            INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY,
+            destroy_color,
+        ):
+            if self._handle_inventory_shortcut_live_destroy_click(item):
+                self._close_inventory_shortcuts_popup(clear_confirmation=True)
+
+    def _draw_inventory_shortcut_id_kit_actions(self, item: InventoryItemInfo) -> bool:
+        if not self._is_inventory_shortcut_id_kit(item):
+            return False
+
+        for rarity_key in ("white", "blue", "purple", "gold", ""):
+            rarity_label = self._get_kit_action_rarity_label(rarity_key)
+            label = "ID All Items" if not rarity_key else f"ID {rarity_label} Items"
+            color = RARITY_TEXT_COLORS.get(rarity_key) if rarity_key else None
+            if self._draw_inventory_shortcut_live_menu_item(
+                label,
+                item,
+                f"id_kit_{rarity_key or 'all'}",
+                color,
+            ):
+                if self._queue_inventory_shortcut_kit_identify(item, rarity_key):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+                return True
+        return True
+
+    def _draw_inventory_shortcut_salvage_kit_actions(self, item: InventoryItemInfo) -> bool:
+        if not self._is_inventory_shortcut_salvage_kit(item):
+            return False
+
+        for rarity_key in ("white", "blue", "purple", "gold", ""):
+            rarity_label = self._get_kit_action_rarity_label(rarity_key)
+            action_key = self._get_inventory_shortcut_salvage_action_key(rarity_key)
+            pending = self._inventory_shortcut_live_confirmation_matches(action_key, item)
+            if pending:
+                label = f"Confirm Salvage {rarity_label} Items"
+                color = UI_COLOR_WARNING
+            else:
+                label = "Salvage All Items" if not rarity_key else f"Salvage {rarity_label} Items"
+                color = RARITY_TEXT_COLORS.get(rarity_key) if rarity_key else None
+
+            if self._draw_inventory_shortcut_live_menu_item(label, item, action_key, color):
+                if self._handle_inventory_shortcut_kit_salvage_click(item, rarity_key):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+                return True
+        return True
+
+    def _draw_inventory_shortcut_kit_live_actions(self, item: InventoryItemInfo) -> bool:
+        if not bool(self.inventory_right_click_live_actions_enabled):
+            return False
+        if self._is_inventory_shortcut_id_kit(item):
+            return self._draw_inventory_shortcut_id_kit_actions(item)
+        if self._is_inventory_shortcut_salvage_kit(item):
+            return self._draw_inventory_shortcut_salvage_kit_actions(item)
+        return False
 
     def _draw_inventory_shortcuts_menu(self):
         if PyImGui.begin_popup(INVENTORY_SHORTCUTS_POPUP_ID):
             self.inventory_shortcuts_popup_visible = True
-            if self._should_close_inventory_shortcuts_popup_for_mouse_leave():
-                self._close_inventory_shortcuts_popup()
+            self._push_inventory_shortcut_popup_row_style()
+            try:
+                if self._should_close_inventory_shortcuts_popup_for_mouse_leave():
+                    self._close_inventory_shortcuts_popup()
+                    return
+                selected_item = self.inventory_shortcuts_selected_item
+                if selected_item is None:
+                    self._draw_secondary_text("No inventory item selected.", wrapped=False)
+                else:
+                    header_text = self.inventory_shortcuts_selected_header or self._format_inventory_shortcut_menu_header(selected_item)
+                    PyImGui.text(header_text)
+                    PyImGui.separator()
+                    if self._draw_inventory_shortcut_kit_live_actions(selected_item):
+                        PyImGui.separator()
+                    self._draw_inventory_shortcut_menu_item(
+                        "Protect This Item",
+                        selected_item,
+                        self._apply_inventory_shortcut_protect,
+                        UI_COLOR_SUCCESS,
+                    )
+                    self._draw_inventory_shortcut_menu_item(
+                        "Add To Deposit Targets",
+                        selected_item,
+                        self._apply_inventory_shortcut_deposit_target,
+                        UI_COLOR_TEAL,
+                    )
+                    self._draw_inventory_shortcut_menu_item(
+                        "Keep Out Of Deposits",
+                        selected_item,
+                        self._apply_inventory_shortcut_deposit_keep_out,
+                        UI_COLOR_WARNING_SOFT,
+                    )
+                    PyImGui.separator()
+                    self._draw_inventory_shortcut_menu_item(
+                        "Add To Sell Rule",
+                        selected_item,
+                        self._apply_inventory_shortcut_sell_rule,
+                    )
+                    self._draw_inventory_shortcut_menu_item(
+                        "Add To Salvage Rule",
+                        selected_item,
+                        self._apply_inventory_shortcut_salvage_rule,
+                        UI_COLOR_WARNING_SOFT,
+                    )
+                    self._draw_inventory_shortcut_menu_item(
+                        "Add To Destroy Rule",
+                        selected_item,
+                        self._apply_inventory_shortcut_destroy_rule,
+                        UI_COLOR_WARNING_SOFT,
+                    )
+                    if bool(self.inventory_right_click_live_actions_enabled):
+                        PyImGui.separator()
+                        self._draw_inventory_shortcut_live_actions(selected_item)
+            finally:
+                PyImGui.pop_style_color(3)
                 PyImGui.end_popup()
-                return
-            selected_item = self.inventory_shortcuts_selected_item
-            if selected_item is None:
-                self._draw_secondary_text("No inventory item selected.", wrapped=False)
-            else:
-                header_text = self.inventory_shortcuts_selected_header or self._format_inventory_shortcut_menu_header(selected_item)
-                PyImGui.text(header_text)
-                PyImGui.separator()
-                self._draw_inventory_shortcut_menu_item(
-                    "Protect This Item",
-                    selected_item,
-                    self._apply_inventory_shortcut_protect,
-                )
-                self._draw_inventory_shortcut_menu_item(
-                    "Add To Deposit Targets",
-                    selected_item,
-                    self._apply_inventory_shortcut_deposit_target,
-                )
-                self._draw_inventory_shortcut_menu_item(
-                    "Keep Out Of Deposits",
-                    selected_item,
-                    self._apply_inventory_shortcut_deposit_keep_out,
-                )
-                PyImGui.separator()
-                self._draw_inventory_shortcut_menu_item(
-                    "Add To Sell Rule",
-                    selected_item,
-                    self._apply_inventory_shortcut_sell_rule,
-                )
-                self._draw_inventory_shortcut_menu_item(
-                    "Add To Salvage Rule",
-                    selected_item,
-                    self._apply_inventory_shortcut_salvage_rule,
-                )
-                self._draw_inventory_shortcut_menu_item(
-                    "Add To Destroy Rule",
-                    selected_item,
-                    self._apply_inventory_shortcut_destroy_rule,
-                )
-            PyImGui.end_popup()
         elif self.inventory_shortcuts_popup_visible:
             self.inventory_shortcuts_popup_visible = False
             self.inventory_shortcuts_selected_item = None
             self.inventory_shortcuts_selected_header = ""
             self.inventory_shortcuts_popup_opened_at_ms = 0
             self.inventory_shortcuts_popup_last_hovered_at_ms = 0
+            self._prune_inventory_shortcut_live_confirmation()
 
     def on_enable(self):
         self._set_main_window_visible(False, expand_on_show=True)
@@ -5921,6 +6739,7 @@ class MerchantRulesWidget:
             "auto_sell_any_merchant_materials": bool(self.auto_sell_any_merchant_materials),
             "auto_sell_any_merchant_runes": bool(self.auto_sell_any_merchant_runes),
             "inventory_right_click_shortcuts_enabled": bool(self.inventory_right_click_shortcuts_enabled),
+            "inventory_right_click_live_actions_enabled": bool(self.inventory_right_click_live_actions_enabled),
             "destroy_auto_enabled": bool(self.destroy_auto_enabled),
             "auto_travel_enabled": bool(self.auto_travel_enabled),
             "target_outpost_id": max(0, int(self.target_outpost_id)),
@@ -6034,7 +6853,7 @@ class MerchantRulesWidget:
                 normalized_buy_rules.append(normalized_buy_rule)
 
         normalized_sell_rules: list[SellRule] = []
-        migrated_cleanup_targets_by_model: dict[int, CleanupTarget] = {}
+        migrated_cleanup_targets_by_key: dict[tuple[int, str], CleanupTarget] = {}
         migrated_cleanup_sources: list[CleanupProtectionSource] = []
         seen_sell_rule_ids: set[str] = set()
         for entry in sell_rules_raw:
@@ -6089,12 +6908,19 @@ class MerchantRulesWidget:
                     safe_model_id = max(0, int(whitelist_target.model_id))
                     if safe_model_id <= 0:
                         continue
-                    existing_target = migrated_cleanup_targets_by_model.get(safe_model_id)
+                    target_scope = (
+                        _infer_cleanup_target_scope_from_model_id(safe_model_id)
+                        if normalized_rule.kind == SELL_KIND_COMMON_MATERIALS
+                        else CLEANUP_TARGET_SCOPE_EXACT
+                    )
+                    target_key = (safe_model_id, target_scope)
+                    existing_target = migrated_cleanup_targets_by_key.get(target_key)
                     keep_on_character = 0
                     if existing_target is None or keep_on_character > existing_target.keep_on_character:
-                        migrated_cleanup_targets_by_model[safe_model_id] = CleanupTarget(
+                        migrated_cleanup_targets_by_key[target_key] = CleanupTarget(
                             model_id=safe_model_id,
                             keep_on_character=keep_on_character,
+                            scope=target_scope,
                         )
 
             if (
@@ -6125,7 +6951,7 @@ class MerchantRulesWidget:
         normalized_cleanup_targets = _normalize_cleanup_targets(cleanup_targets_raw)
         if not cleanup_targets_present:
             normalized_cleanup_targets = _normalize_cleanup_targets(
-                [asdict(target) for target in migrated_cleanup_targets_by_model.values()]
+                [asdict(target) for target in migrated_cleanup_targets_by_key.values()]
             )
 
         normalized_cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(cleanup_blacklist_raw)
@@ -6152,6 +6978,9 @@ class MerchantRulesWidget:
             "auto_sell_any_merchant_runes": bool(raw_payload.get("auto_sell_any_merchant_runes", False)),
             "inventory_right_click_shortcuts_enabled": bool(
                 raw_payload.get("inventory_right_click_shortcuts_enabled", False)
+            ),
+            "inventory_right_click_live_actions_enabled": bool(
+                raw_payload.get("inventory_right_click_live_actions_enabled", False)
             ),
             "destroy_auto_enabled": bool(raw_payload.get("destroy_auto_enabled", False)),
             "auto_travel_enabled": bool(raw_payload.get("auto_travel_enabled", False)),
@@ -6261,6 +7090,9 @@ class MerchantRulesWidget:
         self.auto_sell_any_merchant_runes = bool(payload.get("auto_sell_any_merchant_runes", False))
         self.inventory_right_click_shortcuts_enabled = bool(
             payload.get("inventory_right_click_shortcuts_enabled", False)
+        )
+        self.inventory_right_click_live_actions_enabled = bool(
+            payload.get("inventory_right_click_live_actions_enabled", False)
         )
         self.destroy_auto_enabled = bool(payload.get("destroy_auto_enabled", False))
         self.auto_travel_enabled = bool(payload.get("auto_travel_enabled", False))
@@ -6764,6 +7596,7 @@ class MerchantRulesWidget:
                 ),
                 preserve_window_geometry=True,
                 preserve_workspace_state=True,
+                profile_display_name=selected_profile.display_name,
             )
             self._refresh_shared_profile_entries()
             self._set_selected_shared_profile_path(selected_profile.path)
@@ -7090,7 +7923,10 @@ class MerchantRulesWidget:
             ConsoleLog(MODULE_NAME, f"Failed to open config folder {folder_path}: {exc}", Console.MessageType.Error)
             return False
 
-    def _reset_runtime_after_profile_load(self, *, status_message: str = ""):
+    def _reset_runtime_after_profile_load(self, *, status_message: str = "", profile_display_name: str = ""):
+        safe_profile_display_name = str(profile_display_name or "").strip()
+        if safe_profile_display_name:
+            self.active_profile_display_name = safe_profile_display_name
         self._clear_pending_destructive_button()
         self.preview_plan = PlanResult()
         self.preview_ready = False
@@ -7140,6 +7976,7 @@ class MerchantRulesWidget:
         self._invalidate_supported_context_cache()
         if status_message:
             self.status_message = status_message
+        self._log_profile_loaded_summary()
 
     def reload_profile_from_disk(
         self,
@@ -7147,6 +7984,7 @@ class MerchantRulesWidget:
         status_message: str = "Merchant Rules live config reloaded from disk.",
         preserve_window_geometry: bool = False,
         preserve_workspace_state: bool = False,
+        profile_display_name: str = "",
     ):
         self._ensure_initialized()
         window_geometry_snapshot = self._snapshot_window_geometry_state() if preserve_window_geometry else None
@@ -7161,7 +7999,10 @@ class MerchantRulesWidget:
         if preserve_workspace_state:
             self.active_workspace = workspace_snapshot or self.active_workspace
             self.active_rules_workspace = rules_workspace_snapshot or self.active_rules_workspace
-        self._reset_runtime_after_profile_load(status_message=status_message)
+        self._reset_runtime_after_profile_load(
+            status_message=status_message,
+            profile_display_name=profile_display_name,
+        )
         return True
 
     def _ensure_initialized(self):
@@ -8841,6 +9682,80 @@ class MerchantRulesWidget:
             parts.append(self._get_catalog_entry_filter_text(entry))
         return query in _normalize_catalog_search_text(" ".join(str(part or "") for part in parts))
 
+    def _get_cleanup_target_scope_for_catalog_entry(
+        self,
+        entry: dict[str, object],
+        category: object = DEPOSIT_FILTER_ALL,
+        subcategory: object = DEPOSIT_FILTER_ALL,
+    ) -> str:
+        safe_category = _normalize_deposit_filter_category(category)
+        safe_subcategory = _normalize_deposit_filter_subcategory(safe_category, subcategory)
+        model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
+        material_type = _normalize_catalog_search_text(entry.get("material_type", ""))
+        sub_category = _normalize_catalog_search_text(entry.get("sub_category", ""))
+        if safe_category == DEPOSIT_FILTER_MATERIALS:
+            if safe_subcategory == DEPOSIT_FILTER_MATERIALS_RARE:
+                return CLEANUP_TARGET_SCOPE_RARE_MATERIAL
+            if safe_subcategory == DEPOSIT_FILTER_MATERIALS_COMMON:
+                return CLEANUP_TARGET_SCOPE_COMMON_MATERIAL
+            return _infer_cleanup_target_scope_from_model_id(model_id)
+        if safe_category in (DEPOSIT_FILTER_EQUIPMENT, DEPOSIT_FILTER_UPGRADES):
+            return CLEANUP_TARGET_SCOPE_EXACT
+        if material_type == "rare" or sub_category in {"rarematerial", "rare materials"}:
+            return CLEANUP_TARGET_SCOPE_RARE_MATERIAL
+        if material_type == "common" or sub_category in {"commonmaterial", "common materials"}:
+            return CLEANUP_TARGET_SCOPE_COMMON_MATERIAL
+        return _infer_cleanup_target_scope_from_model_id(model_id)
+
+    def _make_cleanup_target_from_catalog_entry(
+        self,
+        entry: dict[str, object],
+        *,
+        keep_on_character: int = 0,
+        category: object = DEPOSIT_FILTER_ALL,
+        subcategory: object = DEPOSIT_FILTER_ALL,
+    ) -> CleanupTarget | None:
+        model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
+        if model_id <= 0:
+            return None
+        scope = self._get_cleanup_target_scope_for_catalog_entry(entry, category, subcategory)
+        return CleanupTarget(
+            model_id=model_id,
+            keep_on_character=max(0, int(keep_on_character)),
+            scope=scope,
+        )
+
+    def _make_cleanup_target_from_model_filter(
+        self,
+        model_id: object,
+        *,
+        keep_on_character: int = 0,
+        category: object = DEPOSIT_FILTER_ALL,
+        subcategory: object = DEPOSIT_FILTER_ALL,
+    ) -> CleanupTarget | None:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0:
+            return None
+        entry = self.catalog_by_model_id.get(safe_model_id)
+        if not isinstance(entry, dict):
+            entry = {
+                "model_id": safe_model_id,
+                "name": self._get_model_name(safe_model_id) or f"Model {safe_model_id}",
+            }
+        return self._make_cleanup_target_from_catalog_entry(
+            entry,
+            keep_on_character=keep_on_character,
+            category=category,
+            subcategory=subcategory,
+        )
+
+    def _format_cleanup_target_scope_label(self, target: CleanupTarget) -> str:
+        scope = _normalize_cleanup_target_scope(getattr(target, "scope", ""), target.model_id)
+        return CLEANUP_TARGET_SCOPE_LABELS.get(scope, "Exact item")
+
+    def _format_cleanup_target_label_short(self, target: CleanupTarget) -> str:
+        return f"{self._format_model_label_short(target.model_id)} [{self._format_cleanup_target_scope_label(target)}]"
+
     def _cleanup_target_matches_deposit_filter(
         self,
         target: CleanupTarget,
@@ -8850,20 +9765,38 @@ class MerchantRulesWidget:
         safe_model_id = max(0, _safe_int(getattr(target, "model_id", 0), 0))
         if safe_model_id <= 0:
             return False
+        target_scope = _normalize_cleanup_target_scope(getattr(target, "scope", ""), safe_model_id)
+        safe_category = _normalize_deposit_filter_category(category)
+        safe_subcategory = _normalize_deposit_filter_subcategory(safe_category, subcategory)
+        if safe_category == DEPOSIT_FILTER_ALL:
+            return True
+        if target_scope == CLEANUP_TARGET_SCOPE_COMMON_MATERIAL:
+            return safe_category == DEPOSIT_FILTER_MATERIALS and safe_subcategory in (
+                DEPOSIT_FILTER_ALL,
+                DEPOSIT_FILTER_MATERIALS_COMMON,
+            )
+        if target_scope == CLEANUP_TARGET_SCOPE_RARE_MATERIAL:
+            return safe_category == DEPOSIT_FILTER_MATERIALS and safe_subcategory in (
+                DEPOSIT_FILTER_ALL,
+                DEPOSIT_FILTER_MATERIALS_RARE,
+            )
+        if safe_category == DEPOSIT_FILTER_MATERIALS:
+            return False
         entry = self.catalog_by_model_id.get(safe_model_id)
         if not isinstance(entry, dict):
             entry = {
                 "model_id": safe_model_id,
                 "name": self._get_model_name(safe_model_id) or f"Model {safe_model_id}",
             }
-        return self._catalog_entry_matches_cleanup_deposit_filter(entry, category, subcategory)
+        return self._catalog_entry_matches_cleanup_deposit_filter(entry, safe_category, safe_subcategory)
 
-    def _get_cleanup_deposit_filter_model_ids(self, category: object, subcategory: object) -> list[int]:
+    def _get_cleanup_deposit_filter_targets(self, category: object, subcategory: object) -> list[CleanupTarget]:
         safe_category = _normalize_deposit_filter_category(category)
         if safe_category == DEPOSIT_FILTER_ALL:
             return []
         safe_subcategory = _normalize_deposit_filter_subcategory(safe_category, subcategory)
-        model_ids: list[int] = []
+        targets: list[CleanupTarget] = []
+        seen_keys: set[tuple[int, str]] = set()
         for entry in self.catalog_by_model_id.values():
             if not isinstance(entry, dict):
                 continue
@@ -8871,8 +9804,19 @@ class MerchantRulesWidget:
             if model_id <= 0:
                 continue
             if self._catalog_entry_matches_cleanup_deposit_filter(entry, safe_category, safe_subcategory):
-                model_ids.append(model_id)
-        return self._sort_model_ids_for_display(_dedupe_model_ids(model_ids))
+                target = self._make_cleanup_target_from_catalog_entry(
+                    entry,
+                    category=safe_category,
+                    subcategory=safe_subcategory,
+                )
+                if target is None:
+                    continue
+                target_key = _cleanup_target_key(target)
+                if target_key in seen_keys:
+                    continue
+                seen_keys.add(target_key)
+                targets.append(target)
+        return self._sort_targets_by_model_label_for_display(targets)
 
     def _search_protected_item_catalog(
         self,
@@ -8895,17 +9839,17 @@ class MerchantRulesWidget:
             limit=limit,
         )
 
-    def _get_addable_cleanup_deposit_filter_model_ids(
+    def _get_addable_cleanup_deposit_filter_targets(
         self,
         category: object,
         subcategory: object,
         cleanup_targets: list[CleanupTarget],
-    ) -> list[int]:
-        existing_model_ids = {int(target.model_id) for target in _normalize_cleanup_targets(cleanup_targets)}
+    ) -> list[CleanupTarget]:
+        existing_target_keys = {_cleanup_target_key(target) for target in _normalize_cleanup_targets(cleanup_targets)}
         return [
-            model_id
-            for model_id in self._get_cleanup_deposit_filter_model_ids(category, subcategory)
-            if int(model_id) not in existing_model_ids
+            target
+            for target in self._get_cleanup_deposit_filter_targets(category, subcategory)
+            if _cleanup_target_key(target) not in existing_target_keys
         ]
 
     def _search_cleanup_deposit_catalog(
@@ -9444,18 +10388,27 @@ class MerchantRulesWidget:
         self.cleanup_targets = normalized_targets
         return True
 
-    def _add_cleanup_target(self, model_id: int, *, keep_on_character: int = 0) -> bool:
+    def _add_cleanup_target(
+        self,
+        model_id: int,
+        *,
+        keep_on_character: int = 0,
+        scope: str = "",
+    ) -> bool:
         safe_model_id = max(0, _safe_int(model_id, 0))
         if safe_model_id <= 0:
             return False
+        safe_scope = _normalize_cleanup_target_scope(scope, safe_model_id)
+        target_key = (safe_model_id, safe_scope)
         existing_targets = _normalize_cleanup_targets(self.cleanup_targets)
         for target in existing_targets:
-            if int(target.model_id) == safe_model_id:
+            if _cleanup_target_key(target) == target_key:
                 return False
         existing_targets.append(
             CleanupTarget(
                 model_id=safe_model_id,
                 keep_on_character=max(0, _safe_int(keep_on_character, 0)),
+                scope=safe_scope,
             )
         )
         return self._set_cleanup_targets(existing_targets)
@@ -9793,42 +10746,54 @@ class MerchantRulesWidget:
         self,
         child_id: str,
         query: str,
-        existing_model_ids: set[int] | None = None,
-    ) -> tuple[int, list[int]]:
+        existing_target_keys: set[tuple[int, str]] | None = None,
+    ) -> tuple[CleanupTarget | None, list[CleanupTarget]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
-            return 0, []
+            return None, []
 
+        category = _normalize_deposit_filter_category(self.cleanup_item_type_filter_category)
+        subcategory = _normalize_deposit_filter_subcategory(category, self.cleanup_item_type_filter_subcategory)
         results = self._search_cleanup_deposit_catalog(normalized_query)
-        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
-        configured_model_ids = {
-            max(0, _safe_int(model_id, 0))
-            for model_id in (existing_model_ids or set())
-            if max(0, _safe_int(model_id, 0)) > 0
-        }
-        picked_model_id = 0
+        visible_targets: list[CleanupTarget] = []
+        seen_visible_keys: set[tuple[int, str]] = set()
+        for entry in results:
+            target = self._make_cleanup_target_from_catalog_entry(
+                entry,
+                category=category,
+                subcategory=subcategory,
+            )
+            if target is None:
+                continue
+            target_key = _cleanup_target_key(target)
+            if target_key in seen_visible_keys:
+                continue
+            seen_visible_keys.add(target_key)
+            visible_targets.append(target)
+        configured_target_keys = set(existing_target_keys or set())
+        picked_target: CleanupTarget | None = None
         child_height = 110 if len(results) > 4 else 80
         if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
             if not results:
                 PyImGui.text_wrapped("No matching deposit targets found for the current search and item type.")
             else:
-                for entry in results:
-                    model_id = int(entry.get("model_id", 0))
-                    label = self._format_model_label_long(model_id)
-                    if model_id in configured_model_ids:
-                        PyImGui.text_colored(label, self._get_model_text_color(model_id))
+                for target in visible_targets:
+                    target_key = _cleanup_target_key(target)
+                    label = self._format_cleanup_target_label_short(target)
+                    if target_key in configured_target_keys:
+                        PyImGui.text_colored(label, self._get_model_text_color(target.model_id))
                         PyImGui.same_line(0, 8)
                         self._draw_inline_badge("Already configured", UI_COLOR_MUTED)
                         continue
                     if self._draw_colored_selectable(
                         label,
-                        self._get_model_text_color(model_id),
-                        f"{child_id}_{model_id}",
+                        self._get_model_text_color(target.model_id),
+                        f"{child_id}_{target.model_id}_{target.scope}",
                     ):
-                        picked_model_id = model_id
+                        picked_target = target
                         break
         PyImGui.end_child()
-        return picked_model_id, visible_model_ids
+        return picked_target, visible_targets
 
     def _draw_merchant_stock_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
         normalized_query = str(query or "").strip()
@@ -10693,6 +11658,7 @@ class MerchantRulesWidget:
     def _load_profile(self):
         profile_exists = os.path.exists(self.config_path)
         self.new_profile_session = not profile_exists
+        self.active_profile_display_name = self._get_live_profile_display_name()
         self.active_workspace = WORKSPACE_RULES if self.new_profile_session else WORKSPACE_OVERVIEW
         self.active_rules_workspace = RULES_WORKSPACE_BUY
         self.profile_warning = ""
@@ -10708,6 +11674,7 @@ class MerchantRulesWidget:
             "auto_sell_any_merchant_materials": False,
             "auto_sell_any_merchant_runes": False,
             "inventory_right_click_shortcuts_enabled": False,
+            "inventory_right_click_live_actions_enabled": False,
             "destroy_auto_enabled": False,
             "auto_travel_enabled": False,
             "target_outpost_id": 0,
@@ -11344,6 +12311,20 @@ class MerchantRulesWidget:
                 is_rare_material=bool(GLOBAL_CACHE.Item.Type.IsRareMaterial(safe_item_id)),
                 is_weapon_like=is_weapon_like,
                 is_armor_piece=is_armor_piece,
+                is_id_kit=bool(
+                    getattr(
+                        getattr(GLOBAL_CACHE.Item, "Usage", None),
+                        "IsIDKit",
+                        lambda _item_id: model_id in ID_KIT_MODEL_IDS,
+                    )(safe_item_id)
+                ),
+                is_salvage_kit=bool(
+                    getattr(
+                        getattr(GLOBAL_CACHE.Item, "Usage", None),
+                        "IsSalvageKit",
+                        lambda _item_id: model_id in SUPPORTED_SALVAGE_KIT_MODEL_IDS,
+                    )(safe_item_id)
+                ),
                 requirement=int(parsed_modifiers.requirement),
                 requirement_attribute_id=int(parsed_modifiers.requirement_attribute_id),
                 requirement_attribute_name=str(parsed_modifiers.requirement_attribute_name or ""),
@@ -12621,7 +13602,23 @@ class MerchantRulesWidget:
                 return kit_id
         return 0
 
-    def _get_salvage_kit_id_for_option(self, option: object) -> int:
+    def _get_salvage_kit_id_for_option(
+        self,
+        option: object,
+        *,
+        preferred_kit_id: int = 0,
+        preferred_kit_model_id: int = 0,
+    ) -> int:
+        if max(0, _safe_int(preferred_kit_id, 0)) > 0:
+            kit_id, reason = self._validate_inventory_shortcut_salvage_kit(
+                max(0, int(preferred_kit_id)),
+                max(0, int(preferred_kit_model_id)),
+                option=option,
+            )
+            if kit_id <= 0 and reason:
+                self._debug_log(f"MR Salvage clicked kit skipped: {reason}")
+            return kit_id
+
         session_option = _resolve_salvage_session_option(option)
         if session_option in SALVAGE_UPGRADE_OPTIONS or _is_auto_exact_upgrade_salvage_option(option):
             return self._get_upgrade_salvage_kit_id()
@@ -12742,18 +13739,40 @@ class MerchantRulesWidget:
         *,
         require_salvage_kit: bool = False,
         mode: str = "manual",
+        preferred_salvage_kit_id: int = 0,
+        preferred_salvage_kit_model_id: int = 0,
+        include_not_selected_blocks: bool = False,
+        manual_salvage_rule: SalvageRule | None = None,
     ) -> tuple[list[SalvageCandidate], dict[str, int]]:
         candidates: list[SalvageCandidate] = []
         blocked_counts: dict[str, int] = {}
+        explicit_rule = _normalize_salvage_rule(manual_salvage_rule) if manual_salvage_rule is not None else None
         for item in items:
-            rule_match = self._get_matching_salvage_rule(item)
-            salvage_rule = rule_match[1] if rule_match is not None else None
-            selection_reason = rule_match[2] if rule_match is not None else ""
-            salvage_kit_id = (
-                self._get_salvage_kit_id_for_option(getattr(salvage_rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
-                if salvage_rule is not None
-                else 0
-            )
+            rule_index = -1
+            salvage_rule: SalvageRule | None = None
+            selection_reason = ""
+            if explicit_rule is not None:
+                explicit_reason = self._get_salvage_rule_filter_reason(explicit_rule, item)
+                if explicit_reason:
+                    salvage_rule = explicit_rule
+                    selection_reason = f"{explicit_reason}; right-click salvage selection"
+            else:
+                rule_match = self._get_matching_salvage_rule(item)
+                if rule_match is not None:
+                    rule_index = int(rule_match[0])
+                    salvage_rule = rule_match[1]
+                    selection_reason = rule_match[2]
+            salvage_kit_id = 0
+            if salvage_rule is not None:
+                salvage_option = getattr(salvage_rule, "salvage_option", SALVAGE_OPTION_DEFAULT)
+                if max(0, _safe_int(preferred_salvage_kit_id, 0)) > 0:
+                    salvage_kit_id = self._get_salvage_kit_id_for_option(
+                        salvage_option,
+                        preferred_kit_id=preferred_salvage_kit_id,
+                        preferred_kit_model_id=preferred_salvage_kit_model_id,
+                    )
+                else:
+                    salvage_kit_id = self._get_salvage_kit_id_for_option(salvage_option)
             reason = self._get_salvage_candidate_block_reason(
                 item,
                 enabled_sell_rules,
@@ -12764,16 +13783,16 @@ class MerchantRulesWidget:
             )
             if reason:
                 bucket = self._get_salvage_block_bucket(reason)
-                if bucket and bucket != "not selected":
+                if bucket and (include_not_selected_blocks or bucket != "not selected"):
                     blocked_counts[bucket] = blocked_counts.get(bucket, 0) + 1
-                if bucket != "not selected":
+                if bucket not in {"not selected", "unsalvageable"}:
                     item_label = self._format_inventory_item_log_label(item)
                     self._debug_log(f"MR Salvage skipped {item_label} ({item.item_id}): {reason}")
                 continue
             candidates.append(
                 SalvageCandidate(
                     item=item,
-                    rule_index=rule_match[0] if rule_match is not None else -1,
+                    rule_index=rule_index,
                     rule=salvage_rule or SalvageRule(),
                     reason=selection_reason,
                 )
@@ -13632,10 +14651,11 @@ class MerchantRulesWidget:
         self,
         enabled_sell_rules: list[tuple[int, SellRule]] | None = None,
     ) -> list[CleanupTarget]:
-        targets_by_model: dict[int, CleanupTarget] = {
-            int(target.model_id): CleanupTarget(
+        targets_by_key: dict[tuple[int, str], CleanupTarget] = {
+            _cleanup_target_key(target): CleanupTarget(
                 model_id=int(target.model_id),
                 keep_on_character=max(0, int(target.keep_on_character)),
+                scope=_normalize_cleanup_target_scope(getattr(target, "scope", ""), target.model_id),
             )
             for target in _normalize_cleanup_targets(self.cleanup_targets)
         }
@@ -13648,11 +14668,21 @@ class MerchantRulesWidget:
                 if not bool(getattr(whitelist_target, "deposit_to_storage", False)):
                     continue
                 safe_model_id = max(0, int(whitelist_target.model_id))
-                if safe_model_id <= 0 or safe_model_id in targets_by_model:
+                target_scope = (
+                    _infer_cleanup_target_scope_from_model_id(safe_model_id)
+                    if sell_rule.kind == SELL_KIND_COMMON_MATERIALS
+                    else CLEANUP_TARGET_SCOPE_EXACT
+                )
+                target_key = (safe_model_id, target_scope)
+                if safe_model_id <= 0 or target_key in targets_by_key:
                     continue
                 # Sell-rule keep counts already decide what remains after sales; cleanup deposits that remainder.
-                targets_by_model[safe_model_id] = CleanupTarget(model_id=safe_model_id, keep_on_character=0)
-        return _normalize_cleanup_targets([asdict(target) for target in targets_by_model.values()])
+                targets_by_key[target_key] = CleanupTarget(
+                    model_id=safe_model_id,
+                    keep_on_character=0,
+                    scope=target_scope,
+                )
+        return _normalize_cleanup_targets([asdict(target) for target in targets_by_key.values()])
 
     def _get_effective_cleanup_protection_sources(
         self,
@@ -13678,6 +14708,19 @@ class MerchantRulesWidget:
     def _get_cleanup_blacklist_model_id_set(self) -> set[int]:
         return set(_normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids))
 
+    def _cleanup_target_matches_item(self, cleanup_target: CleanupTarget, item: InventoryItemInfo) -> bool:
+        target_model_id = max(0, int(cleanup_target.model_id))
+        if target_model_id <= 0 or int(item.model_id) != target_model_id or int(item.item_id) <= 0:
+            return False
+        target_scope = _normalize_cleanup_target_scope(getattr(cleanup_target, "scope", ""), target_model_id)
+        if target_scope == CLEANUP_TARGET_SCOPE_COMMON_MATERIAL:
+            return bool(item.is_material and not item.is_rare_material)
+        if target_scope == CLEANUP_TARGET_SCOPE_RARE_MATERIAL:
+            return bool(item.is_rare_material)
+        if target_model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS and bool(item.is_material or item.is_rare_material):
+            return False
+        return True
+
     def _plan_cleanup_actions(
         self,
         plan: PlanResult,
@@ -13698,11 +14741,11 @@ class MerchantRulesWidget:
         for cleanup_target in cleanup_targets:
             target_model_id = max(0, int(cleanup_target.model_id))
             keep_on_character = max(0, int(cleanup_target.keep_on_character))
-            target_label = self._format_model_label(target_model_id)
+            target_label = self._format_cleanup_target_label_short(cleanup_target)
             matching_items = [
                 item
                 for item in cleanup_items
-                if int(item.model_id) == target_model_id and int(item.item_id) > 0
+                if self._cleanup_target_matches_item(cleanup_target, item)
             ]
             if not matching_items:
                 plan.entries.append(
@@ -14231,6 +15274,13 @@ class MerchantRulesWidget:
             )
             enabled_sell_rules.append((rule_index, sell_rule))
         return enabled_sell_rules
+
+    def _collect_enabled_manual_salvage_protection_rules(self) -> list[tuple[int, SellRule]]:
+        protection_rules: list[tuple[int, SellRule]] = []
+        for rule_index, sell_rule in self._collect_enabled_sell_rules():
+            if _has_explicit_equippable_hard_protection(sell_rule):
+                protection_rules.append((rule_index, sell_rule))
+        return protection_rules
 
     def _collect_enabled_xunlai_sell_rules(self) -> list[tuple[int, SellRule]]:
         return [
@@ -16620,15 +17670,21 @@ class MerchantRulesWidget:
         if safe_item_id <= 0:
             return False
         safe_model_id = max(0, int(model_id))
+        type_checked = False
         try:
             item_type_api = getattr(GLOBAL_CACHE.Item, "Type", None)
             if item_type_api is not None:
-                is_material = bool(getattr(item_type_api, "IsMaterial", lambda _item_id: False)(safe_item_id))
-                is_rare_material = bool(getattr(item_type_api, "IsRareMaterial", lambda _item_id: False)(safe_item_id))
+                is_material_getter = getattr(item_type_api, "IsMaterial", None)
+                is_rare_material_getter = getattr(item_type_api, "IsRareMaterial", None)
+                is_material = bool(is_material_getter(safe_item_id)) if callable(is_material_getter) else False
+                is_rare_material = bool(is_rare_material_getter(safe_item_id)) if callable(is_rare_material_getter) else False
+                type_checked = callable(is_material_getter) or callable(is_rare_material_getter)
                 if is_material or is_rare_material:
                     return True
         except Exception:
             pass
+        if type_checked:
+            return False
         if safe_model_id <= 0:
             try:
                 safe_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(safe_item_id)))
@@ -20648,7 +21704,14 @@ class MerchantRulesWidget:
                 parts.append(f"Skipped {count} {reason}.")
         return " ".join(parts)
 
-    def _identify_one_item(self, item: InventoryItemInfo):
+    def _identify_one_item(
+        self,
+        item: InventoryItemInfo,
+        *,
+        rarity_keys: set[str] | None = None,
+        preferred_id_kit_id: int = 0,
+        preferred_id_kit_model_id: int = 0,
+    ):
         from Py4GWCoreLib.Inventory import Inventory
 
         live_item = self._build_inventory_item_info(int(item.item_id))
@@ -20657,12 +21720,30 @@ class MerchantRulesWidget:
         if bool(live_item.identified):
             return "identified"
 
-        selection_reason = self._get_identify_selection_reason(live_item)
+        if rarity_keys is None:
+            selection_reason = self._get_identify_selection_reason(live_item)
+        else:
+            live_rarity_key = _normalize_rarity_key(str(live_item.rarity or ""))
+            selection_reason = (
+                f"selected exact rarity {self._get_kit_action_rarity_label(live_rarity_key)}"
+                if live_rarity_key in rarity_keys
+                else ""
+            )
         if not selection_reason:
             self._debug_log(f"MR Identify recheck skipped {live_item.name} ({live_item.item_id}): no longer selected.")
             return "blocked"
 
-        id_kit_id = self._get_id_kit_id()
+        id_kit_id = max(0, int(preferred_id_kit_id))
+        if id_kit_id > 0:
+            id_kit_id, kit_reason = self._validate_inventory_shortcut_id_kit(
+                id_kit_id,
+                max(0, int(preferred_id_kit_model_id)),
+            )
+            if id_kit_id <= 0:
+                self._debug_log(f"MR Identify skipped {live_item.name} ({live_item.item_id}): {kit_reason}")
+                return "no_kit"
+        else:
+            id_kit_id = self._get_id_kit_id()
         if id_kit_id <= 0:
             self._debug_log(f"MR Identify skipped {live_item.name} ({live_item.item_id}): no ID kit found.")
             return "no_kit"
@@ -20702,6 +21783,9 @@ class MerchantRulesWidget:
         running_already_marked: bool = False,
         mark_preview_dirty: bool = True,
         summary_subject: str = "Identify",
+        rarity_keys: set[str] | None = None,
+        preferred_id_kit_id: int = 0,
+        preferred_id_kit_model_id: int = 0,
     ):
         if self.identify_running and not running_already_marked:
             return ExecutionPhaseOutcome(label=summary_subject, measure_label="items")
@@ -20715,7 +21799,7 @@ class MerchantRulesWidget:
             settings = _normalize_identify_settings(self.identify_settings)
             if auto_triggered and not bool(settings.on_inventory_change):
                 return outcome
-            if not self._has_enabled_identify_settings():
+            if rarity_keys is None and not self._has_enabled_identify_settings():
                 blocked_counts["item(s): no rarity selector enabled"] = 1
                 self.last_identify_summary = self._format_identify_summary(
                     outcome,
@@ -20727,7 +21811,17 @@ class MerchantRulesWidget:
 
             items = self._collect_inventory_items()
             self.identify_last_signature = self._get_inventory_signature(items)
-            candidates = self._collect_identify_candidates(items)
+            if rarity_keys is None:
+                candidates = self._collect_identify_candidates(items)
+            else:
+                safe_rarity_keys = {_normalize_rarity_key(key) for key in rarity_keys if _normalize_rarity_key(key)}
+                candidates = [
+                    item
+                    for item in items
+                    if int(item.item_id) > 0
+                    and not bool(item.identified)
+                    and _normalize_rarity_key(str(item.rarity or "")) in safe_rarity_keys
+                ]
             outcome.attempted = len(candidates)
             if not candidates:
                 self.last_identify_summary = self._format_identify_summary(
@@ -20744,7 +21838,12 @@ class MerchantRulesWidget:
                 self._debug_log("MR Identify: paused Inventory Plus.")
 
             for candidate in candidates:
-                status = yield from self._identify_one_item(candidate)
+                status = yield from self._identify_one_item(
+                    candidate,
+                    rarity_keys=rarity_keys,
+                    preferred_id_kit_id=preferred_id_kit_id,
+                    preferred_id_kit_model_id=preferred_id_kit_model_id,
+                )
                 if status == "identified":
                     outcome.completed += 1
                     continue
@@ -20753,7 +21852,12 @@ class MerchantRulesWidget:
                     continue
                 if status == "no_kit":
                     outcome.unavailable += 1
-                    blocked_counts["item(s): no ID kit"] = blocked_counts.get("item(s): no ID kit", 0) + 1
+                    blocked_label = (
+                        "item(s): clicked ID kit unavailable"
+                        if max(0, int(preferred_id_kit_id)) > 0
+                        else "item(s): no ID kit"
+                    )
+                    blocked_counts[blocked_label] = blocked_counts.get(blocked_label, 0) + 1
                     continue
                 if status == "blocked":
                     outcome.unavailable += 1
@@ -20844,8 +21948,9 @@ class MerchantRulesWidget:
         blocked_counts: dict[str, int],
         *,
         auto_triggered: bool = False,
+        subject: str | None = None,
     ) -> str:
-        subject = "Auto Salvage" if auto_triggered else "Salvage"
+        subject = str(subject or ("Auto Salvage" if auto_triggered else "Salvage")).strip() or "Salvage"
         parts: list[str] = []
         if outcome.completed > 0:
             parts.append(f"{subject} processed {outcome.completed} item(s).")
@@ -21255,6 +22360,38 @@ class MerchantRulesWidget:
             waited_ms += 50
         return "not_visible"
 
+    def _handle_material_salvage_choice_dialog(self, item_id: int, *, timeout_ms: int = 1200):
+        try:
+            from Py4GWCoreLib.Inventory import Inventory
+        except Exception:
+            return "not_visible"
+
+        handle_dialog = getattr(Inventory, "HandleSalvageChoiceDialog", None)
+        if not callable(handle_dialog):
+            return "not_visible"
+
+        waited_ms = 0
+        while waited_ms <= max(0, int(timeout_ms)):
+            status = yield from handle_dialog(
+                auto_handle=True,
+                strategy=0,
+                auto_confirm_materials_warning=True,
+                queue_name="SALVAGE",
+                log_module=MODULE_NAME,
+                queue_wait_timeout_ms=5000,
+                poll_ms=50,
+                close_timeout_ms=1500,
+                debug_enabled=bool(self.debug_logging),
+                item_id=int(item_id),
+            )
+            if status != "not_visible":
+                return status
+            if max(0, int(timeout_ms)) <= 0:
+                break
+            yield from Routines.Yield.wait(50)
+            waited_ms += 50
+        return "not_visible"
+
     def _has_salvage_upgrade_removed(self, item_id: int, option: str) -> bool:
         if int(item_id) not in set(self._get_inventory_item_ids()):
             return True
@@ -21283,6 +22420,8 @@ class MerchantRulesWidget:
         enabled_sell_rules: list[tuple[int, SellRule]],
         *,
         auto_triggered: bool = False,
+        preferred_salvage_kit_id: int = 0,
+        preferred_salvage_kit_model_id: int = 0,
     ):
         mode = "auto" if auto_triggered else "manual"
         item = candidate.item
@@ -21300,9 +22439,11 @@ class MerchantRulesWidget:
             mode=mode,
         )
         if preflight_block_reason:
-            self._debug_log(
-                f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): {preflight_block_reason}"
-            )
+            skip_message = f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): {preflight_block_reason}"
+            if max(0, _safe_int(preferred_salvage_kit_id, 0)) > 0:
+                ConsoleLog(MODULE_NAME, skip_message, Console.MessageType.Warning)
+            else:
+                self._debug_log(skip_message)
             return "blocked"
 
         configured_option = _normalize_salvage_option(rule.salvage_option)
@@ -21312,7 +22453,14 @@ class MerchantRulesWidget:
             auto_slot_resolution = self._get_auto_salvage_upgrade_slot_resolution(rule, live_item)
             if auto_slot_resolution.selected_option:
                 selected_option = auto_slot_resolution.selected_option
-        salvage_kit_id = self._get_salvage_kit_id_for_option(selected_option)
+        if max(0, _safe_int(preferred_salvage_kit_id, 0)) > 0:
+            salvage_kit_id = self._get_salvage_kit_id_for_option(
+                selected_option,
+                preferred_kit_id=preferred_salvage_kit_id,
+                preferred_kit_model_id=preferred_salvage_kit_model_id,
+            )
+        else:
+            salvage_kit_id = self._get_salvage_kit_id_for_option(selected_option)
         block_reason = self._get_salvage_candidate_block_reason(
             live_item,
             enabled_sell_rules,
@@ -21322,7 +22470,11 @@ class MerchantRulesWidget:
             mode=mode,
         )
         if block_reason:
-            self._debug_log(f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): {block_reason}")
+            skip_message = f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): {block_reason}"
+            if max(0, _safe_int(preferred_salvage_kit_id, 0)) > 0:
+                ConsoleLog(MODULE_NAME, skip_message, Console.MessageType.Warning)
+            else:
+                self._debug_log(skip_message)
             return "blocked"
 
         item_id = int(live_item.item_id)
@@ -21332,10 +22484,14 @@ class MerchantRulesWidget:
         option_label = _get_salvage_option_label(configured_option)
         if _is_auto_exact_upgrade_salvage_option(configured_option):
             if selected_option not in SALVAGE_UPGRADE_OPTIONS:
-                self._debug_log(
+                skip_message = (
                     f"MR Salvage recheck skipped {live_item_label} ({live_item.item_id}): "
                     "specific upgrade salvage did not resolve to an upgrade slot"
                 )
+                if max(0, _safe_int(preferred_salvage_kit_id, 0)) > 0:
+                    ConsoleLog(MODULE_NAME, skip_message, Console.MessageType.Warning)
+                else:
+                    self._debug_log(skip_message)
                 return "blocked"
             inferred_label = _get_salvage_option_label(selected_option)
             matched_label_text = self._format_compact_list(auto_slot_resolution.matched_labels, limit=3)
@@ -21380,7 +22536,19 @@ class MerchantRulesWidget:
             started = yield from self._queue_salvage_start(item_id, int(salvage_kit_id), 1)
             if not started:
                 return "failed"
-            if rarity_key in {"purple", "gold"}:
+            choice_dialog_status = "not_visible"
+            if self._get_salvage_kit_model_id(int(salvage_kit_id)) in UPGRADE_SALVAGE_KIT_MODEL_IDS:
+                choice_dialog_status = yield from self._handle_material_salvage_choice_dialog(item_id)
+                if choice_dialog_status not in {"handled", "not_visible"}:
+                    ConsoleLog(
+                        MODULE_NAME,
+                        f"MR Salvage could not select materials for item {item_id}: {choice_dialog_status}.",
+                        Console.MessageType.Warning,
+                    )
+                    return "failed"
+            if choice_dialog_status == "handled":
+                materials_confirm_status = "handled"
+            elif rarity_key in {"purple", "gold"}:
                 materials_confirm_status = yield from self._wait_and_confirm_materials_popup(
                     item_id,
                     int(salvage_kit_id),
@@ -21432,7 +22600,17 @@ class MerchantRulesWidget:
         ConsoleLog(MODULE_NAME, f"MR Salvage timed out waiting for result on item {item_id}.", Console.MessageType.Warning)
         return "failed"
 
-    def _run_salvage_pass(self, *, auto_triggered: bool = False, running_already_marked: bool = False):
+    def _run_salvage_pass(
+        self,
+        *,
+        auto_triggered: bool = False,
+        running_already_marked: bool = False,
+        summary_subject: str | None = None,
+        rarity_keys: set[str] | None = None,
+        preferred_salvage_kit_id: int = 0,
+        preferred_salvage_kit_model_id: int = 0,
+        explicit_salvage_request: bool = False,
+    ):
         if self.salvage_running and not running_already_marked:
             return
         self.salvage_running = True
@@ -21441,9 +22619,13 @@ class MerchantRulesWidget:
         paused_inventory_plus = None
         try:
             mode = "auto" if auto_triggered else "manual"
-            if auto_triggered and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change):
+            if (
+                auto_triggered
+                and rarity_keys is None
+                and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change)
+            ):
                 return
-            if not self._has_enabled_salvage_settings():
+            if not bool(explicit_salvage_request) and not self._has_enabled_salvage_settings():
                 self.last_salvage_summary = (
                     "Auto Salvage is enabled, but no salvage rules are active."
                     if auto_triggered
@@ -21454,21 +22636,46 @@ class MerchantRulesWidget:
 
             items = self._collect_inventory_items()
             self.salvage_last_signature = self._get_inventory_signature(items)
-            enabled_sell_rules = self._collect_enabled_sell_rules()
+            safe_rarity_keys: set[str] = set()
+            if rarity_keys is not None:
+                safe_rarity_keys = {_normalize_rarity_key(key) for key in rarity_keys if _normalize_rarity_key(key)}
+                items = [
+                    item
+                    for item in items
+                    if _normalize_rarity_key(str(item.rarity or "")) in safe_rarity_keys
+                ]
+            enabled_sell_rules = (
+                self._collect_enabled_manual_salvage_protection_rules()
+                if bool(explicit_salvage_request)
+                else self._collect_enabled_sell_rules()
+            )
+            manual_salvage_rule = (
+                self._build_explicit_salvage_request_rule(safe_rarity_keys)
+                if bool(explicit_salvage_request)
+                else None
+            )
             candidates, blocked_counts = self._collect_salvage_candidates(
                 items,
                 enabled_sell_rules,
                 require_salvage_kit=True,
                 mode=mode,
+                preferred_salvage_kit_id=preferred_salvage_kit_id,
+                preferred_salvage_kit_model_id=preferred_salvage_kit_model_id,
+                include_not_selected_blocks=bool(explicit_salvage_request),
+                manual_salvage_rule=manual_salvage_rule,
             )
             if not candidates:
                 self.last_salvage_summary = self._format_salvage_summary(
                     ExecutionPhaseOutcome(label="MR Salvage", measure_label="items"),
                     blocked_counts,
                     auto_triggered=auto_triggered,
+                    subject=summary_subject,
                 )
                 self.status_message = self.last_salvage_summary
-                self._debug_log(self.last_salvage_summary)
+                if bool(explicit_salvage_request):
+                    ConsoleLog(MODULE_NAME, self.last_salvage_summary, Console.MessageType.Info)
+                else:
+                    self._debug_log(self.last_salvage_summary)
                 return
 
             paused_inventory_plus = self._pause_inventory_plus()
@@ -21481,6 +22688,8 @@ class MerchantRulesWidget:
                     candidate,
                     enabled_sell_rules,
                     auto_triggered=auto_triggered,
+                    preferred_salvage_kit_id=preferred_salvage_kit_id,
+                    preferred_salvage_kit_model_id=preferred_salvage_kit_model_id,
                 )
                 if status in {"salvaged", "processed"}:
                     outcome.completed += 1
@@ -21497,6 +22706,7 @@ class MerchantRulesWidget:
                 outcome,
                 blocked_counts,
                 auto_triggered=auto_triggered,
+                subject=summary_subject,
             )
             self.status_message = self.last_salvage_summary
             ConsoleLog(MODULE_NAME, self.last_salvage_summary, Console.MessageType.Info)
@@ -24474,6 +25684,7 @@ class MerchantRulesWidget:
                 self.debug_logging = debug_logging
                 self._save_profile()
                 if self.debug_logging:
+                    self._log_debug_enabled_profile_summary()
                     self._log_catalog_summary("Debug logging enabled")
             PyImGui.same_line(0, 8)
             if PyImGui.small_button("Reload Catalog##merchant_rules_reload_catalog"):
@@ -29632,6 +30843,7 @@ class MerchantRulesWidget:
             CleanupTarget(
                 model_id=int(target.model_id),
                 keep_on_character=max(0, int(target.keep_on_character)),
+                scope=_normalize_cleanup_target_scope(getattr(target, "scope", ""), target.model_id),
             )
             for target in cleanup_targets
         ]
@@ -29652,7 +30864,7 @@ class MerchantRulesWidget:
                 for target in display_targets
                 if self._model_id_matches_item_search_text(target.model_id, self.cleanup_target_list_search_text)
             ]
-        removed_cleanup_model_id = 0
+        removed_cleanup_target_key: tuple[int, str] | None = None
         if display_targets:
             child_height = min(220, 58 + (32 * len(display_targets)))
             if PyImGui.begin_child("merchant_rules_cleanup_targets", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
@@ -29670,17 +30882,19 @@ class MerchantRulesWidget:
                     PyImGui.text("Remove")
 
                     for target in display_targets:
+                        target_key = _cleanup_target_key(target)
+                        target_widget_key = f"{target_key[0]}_{target_key[1]}"
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text_colored(
-                            self._format_model_label_short(target.model_id),
+                            self._format_cleanup_target_label_short(target),
                             self._get_model_text_color(target.model_id),
                         )
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.push_item_width(140)
                         next_keep_count = PyImGui.input_int(
-                            f"##merchant_rules_cleanup_keep_{target.model_id}",
+                            f"##merchant_rules_cleanup_keep_{target_widget_key}",
                             int(target.keep_on_character),
                         )
                         self._draw_helper_tooltip("cleanup_keep_on_character")
@@ -29688,8 +30902,8 @@ class MerchantRulesWidget:
                         target.keep_on_character = max(0, int(next_keep_count))
 
                         PyImGui.table_set_column_index(2)
-                        if PyImGui.small_button(f"X##merchant_rules_cleanup_remove_{target.model_id}"):
-                            removed_cleanup_model_id = int(target.model_id)
+                        if PyImGui.small_button(f"X##merchant_rules_cleanup_remove_{target_widget_key}"):
+                            removed_cleanup_target_key = target_key
                             break
                     PyImGui.end_table()
             PyImGui.end_child()
@@ -29704,8 +30918,12 @@ class MerchantRulesWidget:
         else:
             PyImGui.text_colored("No deposit targets yet.", UI_COLOR_MUTED)
 
-        if removed_cleanup_model_id > 0:
-            updated_targets = [target for target in updated_targets if int(target.model_id) != removed_cleanup_model_id]
+        if removed_cleanup_target_key is not None:
+            updated_targets = [
+                target
+                for target in updated_targets
+                if _cleanup_target_key(target) != removed_cleanup_target_key
+            ]
         if updated_targets != cleanup_targets:
             if self._set_cleanup_targets(updated_targets):
                 cleanup_changed = True
@@ -29731,19 +30949,18 @@ class MerchantRulesWidget:
 
         PyImGui.separator()
         self._draw_subsection_heading("Add Deposit Items")
-        addable_filtered_model_ids = self._get_addable_cleanup_deposit_filter_model_ids(
+        addable_filtered_targets = self._get_addable_cleanup_deposit_filter_targets(
             active_deposit_filter_category,
             active_deposit_filter_subcategory,
             cleanup_targets,
         )
         if self._draw_add_filtered_targets_button(
             "merchant_rules_cleanup_add_filtered_targets",
-            len(addable_filtered_model_ids),
+            len(addable_filtered_targets),
             enabled=deposit_filter_active,
         ):
             next_targets = list(cleanup_targets)
-            for model_id in addable_filtered_model_ids:
-                next_targets.append(CleanupTarget(model_id=int(model_id), keep_on_character=0))
+            next_targets.extend(addable_filtered_targets)
             if self._set_cleanup_targets(next_targets):
                 cleanup_changed = True
                 cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
@@ -29755,34 +30972,39 @@ class MerchantRulesWidget:
         if updated_cleanup_search != self.cleanup_model_search_text:
             self.cleanup_model_search_text = updated_cleanup_search
 
-        existing_cleanup_model_ids = {int(target.model_id) for target in cleanup_targets}
-        picked_cleanup_model_id, visible_cleanup_model_ids = self._draw_cleanup_deposit_search_results(
+        existing_cleanup_target_keys = {_cleanup_target_key(target) for target in cleanup_targets}
+        picked_cleanup_target, visible_cleanup_targets = self._draw_cleanup_deposit_search_results(
             "merchant_rules_cleanup_search_results",
             self.cleanup_model_search_text,
-            existing_cleanup_model_ids,
+            existing_cleanup_target_keys,
         )
-        addable_cleanup_model_ids = [
-            int(model_id)
-            for model_id in visible_cleanup_model_ids
-            if int(model_id) not in existing_cleanup_model_ids
+        addable_cleanup_targets = [
+            target
+            for target in visible_cleanup_targets
+            if _cleanup_target_key(target) not in existing_cleanup_target_keys
         ]
         if self._draw_add_all_matches_button(
             "merchant_rules_cleanup_add_all_matches",
-            len(visible_cleanup_model_ids),
-            len(addable_cleanup_model_ids),
+            len(visible_cleanup_targets),
+            len(addable_cleanup_targets),
         ):
             next_targets = list(cleanup_targets)
-            for model_id in addable_cleanup_model_ids:
-                next_targets.append(CleanupTarget(model_id=int(model_id), keep_on_character=0))
+            next_targets.extend(addable_cleanup_targets)
             if self._set_cleanup_targets(next_targets):
                 cleanup_changed = True
                 cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
 
-        if picked_cleanup_model_id > 0:
-            if self._add_cleanup_target(picked_cleanup_model_id):
+        if picked_cleanup_target is not None:
+            if self._add_cleanup_target(
+                picked_cleanup_target.model_id,
+                scope=picked_cleanup_target.scope,
+            ):
                 cleanup_changed = True
                 cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
-            self.cleanup_model_search_text = self._get_model_name(picked_cleanup_model_id) or str(picked_cleanup_model_id)
+            self.cleanup_model_search_text = (
+                self._get_model_name(picked_cleanup_target.model_id)
+                or str(picked_cleanup_target.model_id)
+            )
 
         PyImGui.separator()
         self._draw_section_heading("Deposit Safety")
@@ -30622,7 +31844,25 @@ class MerchantRulesWidget:
                 else "Inventory right-click shortcuts disabled."
             )
         self._draw_secondary_text(
-            "Shortcuts only update Merchant Rules settings. They do not use or move inventory items.",
+            "Configuration shortcuts update Merchant Rules settings without moving items.",
+            wrapped=False,
+        )
+
+        live_enabled = PyImGui.checkbox(
+            "Enable live right-click actions##merchant_rules_inventory_right_click_live_actions",
+            bool(self.inventory_right_click_live_actions_enabled),
+        )
+        self._draw_helper_tooltip("inventory_right_click_live_actions")
+        if live_enabled != bool(self.inventory_right_click_live_actions_enabled):
+            self.inventory_right_click_live_actions_enabled = bool(live_enabled)
+            self._save_profile()
+            self.status_message = (
+                "Live inventory right-click actions enabled."
+                if self.inventory_right_click_live_actions_enabled
+                else "Live inventory right-click actions disabled."
+            )
+        self._draw_secondary_text(
+            "Live actions target only the clicked item or stack. Destroy always requires a second click.",
             wrapped=False,
         )
 
