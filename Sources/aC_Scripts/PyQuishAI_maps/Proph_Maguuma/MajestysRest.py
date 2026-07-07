@@ -107,7 +107,7 @@ MajestysRest_transit_path2 = [
     (-20190,3714),
 ]
 
-CursedLands_ids = {
+MajestysRest_ids = {
     "outpost_id": 138,
     "map_id": 60,
     "transit_id": 18,
