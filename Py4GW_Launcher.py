@@ -14,6 +14,10 @@ from typing import Optional
 
 import threading
 import time
+import shutil
+import socket
+import subprocess
+from pathlib import Path
 import win32gui
 import win32process
 import psutil
@@ -28,6 +32,7 @@ import hashlib
 import hmac
 import secrets
 import struct
+import mmap
 
 class IniHandler:
     def __init__(self, filename: str):
@@ -134,10 +139,46 @@ gwtoolbox_dll_name = ini_handler.read_key("settings", "gwtoolbox_dll_name", "GWT
 gmod_dll_name = ini_handler.read_key("settings", "gmod_dll_name", "gMod.dll")
 py4gw_gwtoolbox_delay_seconds = ini_handler.read_float("settings", "py4gw_gwtoolbox_delay_seconds", 0.0)
 
-log_history = []
+class TimestampedLogHistory(list):
+    def _has_timestamp(self, value):
+        try:
+            text_value = str(value)
+            return (
+                len(text_value) >= 11
+                and text_value[0] == "["
+                and text_value[3] == ":"
+                and text_value[6] == ":"
+                and text_value[9] == "]"
+                and text_value[10] == " "
+            )
+        except Exception:
+            return False
+
+    def _stamp(self, value):
+        text_value = str(value)
+        if self._has_timestamp(text_value):
+            return text_value
+        return f"[{time.strftime('%H:%M:%S')}] {text_value}"
+
+    def append(self, value):
+        super().append(self._stamp(value))
+
+    def extend(self, values):
+        super().extend(self._stamp(value) for value in values)
+
+    def insert(self, index, value):
+        super().insert(index, self._stamp(value))
+
+    def __setitem__(self, key, value):
+        if isinstance(key, slice):
+            super().__setitem__(key, [self._stamp(item) for item in value])
+        else:
+            super().__setitem__(key, self._stamp(value))
+
+log_history = TimestampedLogHistory()
 log_history.append("Welcome To Py4GW!")
 
-APP_VERSION = "v2.37"
+APP_VERSION = "1.0.1"
 
 
 THEME_DARK = "dark"
@@ -231,6 +272,9 @@ PROCESS_VM_WRITE = 0x0020
 PROCESS_QUERY_INFORMATION = 0x0400
 MAX_PATH = 260
 TH32CS_SNAPPROCESS = 0x00000002
+TH32CS_SNAPMODULE = 0x00000008
+TH32CS_SNAPMODULE32 = 0x00000010
+INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
 SWP_NOZORDER = 0x0004
@@ -292,6 +336,18 @@ class PROCESSENTRY32(ctypes.Structure):
                 ("dwFlags", ctypes.c_ulong),
                 ("szExeFile", ctypes.c_char * MAX_PATH)]
 
+class MODULEENTRY32(ctypes.Structure):
+    _fields_ = [("dwSize", wintypes.DWORD),
+                ("th32ModuleID", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD),
+                ("GlblcntUsage", wintypes.DWORD),
+                ("ProccntUsage", wintypes.DWORD),
+                ("modBaseAddr", ctypes.POINTER(ctypes.c_byte)),
+                ("modBaseSize", wintypes.DWORD),
+                ("hModule", wintypes.HMODULE),
+                ("szModule", wintypes.WCHAR * 256),
+                ("szExePath", wintypes.WCHAR * MAX_PATH)]
+
 CREATE_SUSPENDED = 0x00000004
 
 class STARTUPINFO(ctypes.Structure):
@@ -322,6 +378,18 @@ class PROCESS_INFORMATION(ctypes.Structure):
 
 kernel32 = ctypes.windll.kernel32
 ntdll = ctypes.windll.ntdll
+
+try:
+    kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    kernel32.Module32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MODULEENTRY32)]
+    kernel32.Module32FirstW.restype = wintypes.BOOL
+    kernel32.Module32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MODULEENTRY32)]
+    kernel32.Module32NextW.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+except Exception:
+    pass
 
 class Account:
     def __init__(self, character_name, email, password, gw_client_name, gw_path, extra_args, run_as_admin,
@@ -1302,6 +1370,7 @@ class GWLauncher:
                     if account.inject_py4gw:
                         ini_handler.write_key("settings", "autoexec_script", account.script_path)
                         py4gw_injected = self.attempt_dll_injection(pid, delay=0, dll_type="Py4GW")
+                        set_account_dll_loaded_cache(account, pid, "Py4GW", py4gw_injected)
                         if py4gw_injected:
                             log_history.append("Py4GW DLL injection successful")
                         else:
@@ -1318,7 +1387,9 @@ class GWLauncher:
                                     time.sleep(delay_seconds)
 
                             gwtoolbox_path = str(getattr(account, "gwtoolbox_path", "") or "")
-                            if self.attempt_dll_injection(pid, delay=0, dll_type="GWToolbox", dll_path=gwtoolbox_path):
+                            gwtoolbox_injected = self.attempt_dll_injection(pid, delay=0, dll_type="GWToolbox", dll_path=gwtoolbox_path)
+                            set_account_dll_loaded_cache(account, pid, "GWToolbox", gwtoolbox_injected)
+                            if gwtoolbox_injected:
                                 log_history.append("GWToolbox DLL injection successful")
                             else:
                                 log_history.append("GWToolbox DLL injection failed")
@@ -2225,6 +2296,32 @@ grid_saved_layout_target_monitor_index = 0
 grid_saved_layout_delete_confirm_name = ""
 grid_saved_layout_delete_confirm_requested_at = 0.0
 grid_custom_capacity_warning_message = ""
+gw_exe_update_enabled = ini_handler.read_bool(LAYOUT_CONFIG_SECTION, "gw_exe_update_enabled", False)
+gw_exe_update_status_by_path = {}
+gw_exe_update_latest_version_id = None
+gw_exe_update_check_thread = None
+gw_exe_update_thread = None
+gw_exe_update_lock = threading.Lock()
+gw_exe_update_confirm_path = ""
+gw_exe_update_confirm_requested_at = 0.0
+gw_exe_update_last_auto_check = 0.0
+gw_exe_update_locked_delay_last_log = 0.0
+gw_exe_cached_version_selected = ini_handler.read_int(LAYOUT_CONFIG_SECTION, "gw_exe_cached_version_selected", 0)
+gw_exe_cached_install_target_index = max(0, ini_handler.read_int(LAYOUT_CONFIG_SECTION, "gw_exe_cached_install_target_index", 0))
+gw_exe_install_cached_confirm_version = 0
+gw_exe_install_cached_confirm_requested_at = 0.0
+gw_exe_install_cached_confirm_paths = []
+gw_exe_redownload_folder = ini_handler.read_key(LAYOUT_CONFIG_SECTION, "gw_exe_redownload_folder", "")
+gw_exe_redownload_run_image = ini_handler.read_bool(LAYOUT_CONFIG_SECTION, "gw_exe_redownload_run_image", True)
+gw_exe_redownload_confirm_requested_at = 0.0
+gw_exe_redownload_status = ""
+gw_exe_cache_verify_results = {}
+gw_exe_cache_verify_thread = None
+gw_exe_cache_redownload_latest_confirm_requested_at = 0.0
+gw_exe_cache_redownload_latest_status = ""
+perf_debug_enabled = ini_handler.read_bool(LAYOUT_CONFIG_SECTION, "perf_debug_enabled", False)
+perf_debug_metrics = {}
+perf_debug_lock = threading.Lock()
 
 
 def _parse_int_csv(value: str, default_values=None):
@@ -2245,6 +2342,57 @@ def _parse_int_csv(value: str, default_values=None):
 
 def _format_int_csv(values) -> str:
     return ",".join(str(int(value)) for value in values)
+
+
+def perf_debug_record_elapsed(name, start_time, detail=""):
+    if not perf_debug_enabled:
+        return
+    try:
+        elapsed_ms = (time.perf_counter() - float(start_time)) * 1000.0
+        key = str(name or "unknown")
+        with perf_debug_lock:
+            current = dict(perf_debug_metrics.get(key, {}))
+            count = int(current.get("count", 0)) + 1
+            total_ms = float(current.get("total_ms", 0.0)) + elapsed_ms
+            max_ms = max(float(current.get("max_ms", 0.0)), elapsed_ms)
+            current["count"] = count
+            current["total_ms"] = total_ms
+            current["avg_ms"] = total_ms / max(1, count)
+            current["last_ms"] = elapsed_ms
+            current["max_ms"] = max_ms
+            current["last_at"] = time.time()
+            current["detail"] = str(detail or "")[:160]
+            perf_debug_metrics[key] = current
+    except Exception:
+        pass
+
+
+def perf_debug_call(name, func, *args, **kwargs):
+    if not perf_debug_enabled:
+        return func(*args, **kwargs)
+    start_time = time.perf_counter()
+    try:
+        return func(*args, **kwargs)
+    finally:
+        perf_debug_record_elapsed(name, start_time)
+
+
+def perf_debug_reset_metrics():
+    try:
+        with perf_debug_lock:
+            perf_debug_metrics.clear()
+    except Exception:
+        pass
+
+
+def perf_debug_get_rows():
+    try:
+        with perf_debug_lock:
+            rows = [(name, dict(values)) for name, values in perf_debug_metrics.items()]
+        rows.sort(key=lambda item: float(item[1].get("total_ms", 0.0)), reverse=True)
+        return rows
+    except Exception:
+        return []
 
 
 grid_selected_monitor_index = max(0, ini_handler.read_int(LAYOUT_CONFIG_SECTION, "grid_monitor_index", 0))
@@ -5143,10 +5291,124 @@ def apply_grid_layout_to_running_clients(launch_plan):
     threading.Thread(target=apply_worker, daemon=True).start()
 
 
+def set_gw_exe_update_enabled(enabled: bool):
+    global gw_exe_update_enabled, gw_exe_update_last_auto_check, gw_exe_update_status_by_path
+
+    gw_exe_update_enabled = bool(enabled)
+    write_launcher_layout_value_if_changed("gw_exe_update_enabled", "true" if gw_exe_update_enabled else "false")
+    if gw_exe_update_enabled:
+        gw_exe_update_last_auto_check = 0.0
+        log_history.append("GW.exe Update - Version check enabled. Startup check uses cache and slow background scans.")
+        start_gw_exe_update_status_check(force=False)
+    else:
+        with gw_exe_update_lock:
+            gw_exe_update_status_by_path = {}
+        gw_exe_update_last_auto_check = 0.0
+        log_history.append("GW.exe Update - Version check disabled.")
+
+
+def render_performance_debug_panel():
+    global perf_debug_enabled
+
+    ui_section_header("Performance Debug", "local timing profiler")
+    changed_perf, enabled_perf = imgui.checkbox(
+        "Enable performance debug##perf_debug_enabled",
+        bool(perf_debug_enabled),
+    )
+    if changed_perf:
+        perf_debug_enabled = bool(enabled_perf)
+        write_launcher_layout_value_if_changed("perf_debug_enabled", "true" if perf_debug_enabled else "false")
+        if not perf_debug_enabled:
+            perf_debug_reset_metrics()
+
+    imgui.same_line()
+    if themed_button("Reset Metrics##perf_debug_reset", "secondary", imgui.ImVec2(112, 0)):
+        perf_debug_reset_metrics()
+
+    ui_text_muted("Running/Stopped account status rescan is back at 1 second; heavy full process scans stay out of the render path.")
+    ui_text_muted("Update/cache validation now uses fast mmap pattern search and yields between files in background workers.")
+    ui_text_muted("Cache-hit metrics are sampled to avoid the profiler itself creating measurable overhead.")
+
+    if not perf_debug_enabled:
+        ui_text_muted("Enable this, reproduce the lag for 20-30 seconds, then check Total/Max columns.")
+        return
+
+    rows = perf_debug_get_rows()
+    if not rows:
+        ui_text_muted("No timing data yet.")
+        return
+
+    try:
+        imgui.columns(6, "perf_debug_columns", True)
+        imgui.text("Query")
+        imgui.next_column()
+        imgui.text("Count")
+        imgui.next_column()
+        imgui.text("Last ms")
+        imgui.next_column()
+        imgui.text("Avg ms")
+        imgui.next_column()
+        imgui.text("Max ms")
+        imgui.next_column()
+        imgui.text("Detail")
+        imgui.next_column()
+        imgui.separator()
+
+        for name, values in rows[:28]:
+            max_ms = float(values.get("max_ms", 0.0))
+            color = "danger" if max_ms >= 50.0 else "warning" if max_ms >= 15.0 else "success"
+            imgui.text(str(name))
+            imgui.next_column()
+            imgui.text(str(int(values.get("count", 0))))
+            imgui.next_column()
+            imgui.text(f"{float(values.get('last_ms', 0.0)):.2f}")
+            imgui.next_column()
+            imgui.text(f"{float(values.get('avg_ms', 0.0)):.2f}")
+            imgui.next_column()
+            render_colored_text(f"{max_ms:.2f}", color)
+            imgui.next_column()
+            ui_text_muted(str(values.get("detail", "")))
+            imgui.next_column()
+
+        imgui.columns(1)
+    except Exception:
+        for name, values in rows[:28]:
+            imgui.text(f"{name}: count={int(values.get('count', 0))}, last={float(values.get('last_ms', 0.0)):.2f} ms, avg={float(values.get('avg_ms', 0.0)):.2f} ms, max={float(values.get('max_ms', 0.0)):.2f} ms")
+
+
+def show_launcher_settings_content():
+    global gw_exe_update_enabled
+
+    ensure_team_data_loaded()
+
+    ui_section_header("Launcher Settings", "Experimental options")
+    render_performance_debug_panel()
+    imgui.spacing()
+    ui_section_header("GW.exe Update", "version check and local cache")
+
+    changed_update, enabled_update = imgui.checkbox(
+        "Enable GW.exe update check##gw_exe_update_enabled",
+        bool(gw_exe_update_enabled),
+    )
+    if changed_update:
+        set_gw_exe_update_enabled(bool(enabled_update))
+
+    ui_text_muted("Default is off. Enable this only if you want to test the integrated Gw.exe version check and updater.")
+    ui_text_muted("Startup check uses cached file versions and scans changed files slowly in the background.")
+    ui_text_muted("Use Check Now for a forced refresh.")
+
+    if not gw_exe_update_enabled:
+        imgui.spacing()
+        render_colored_text("GW.exe update check is disabled.", "warning")
+    else:
+        imgui.spacing()
+        render_gw_exe_update_panel()
+
+
 def render_launcher_config_tabs():
     global launcher_config_tab
 
-    if launcher_config_tab not in ("account", "launch", "grid"):
+    if launcher_config_tab not in ("account", "launch", "grid", "settings"):
         launcher_config_tab = "account"
 
     if credentials_are_locked():
@@ -5176,12 +5438,22 @@ def render_launcher_config_tabs():
         launcher_config_tab = "grid"
         write_launcher_layout_value_if_changed("advanced_config_tab", launcher_config_tab)
 
+    imgui.same_line()
+    if themed_button(
+        "Launcher Settings##advanced_launcher_settings_tab",
+        "primary" if launcher_config_tab == "settings" else "secondary",
+    ):
+        launcher_config_tab = "settings"
+        write_launcher_layout_value_if_changed("advanced_config_tab", launcher_config_tab)
+
     imgui.separator()
 
     if launcher_config_tab == "launch":
         show_account_content()
     elif launcher_config_tab == "grid":
         show_grid_start_content()
+    elif launcher_config_tab == "settings":
+        show_launcher_settings_content()
     else:
         show_configuration_content()
 
@@ -5515,6 +5787,19 @@ def is_pid_alive(pid) -> bool:
 
 MANAGED_CLIENTS_STATE_FILE = os.path.join(current_directory, "Py4GW_Launcher_managed_clients.json")
 launcher_managed_clients = {}
+guildwars_process_scan_cache = {
+    "checked_at": 0.0,
+    "processes": [],
+}
+guildwars_window_scan_cache = {
+    "checked_at": 0.0,
+    "windows": {},
+}
+guildwars_process_path_cache = {}
+GUILDWARS_PROCESS_SCAN_REFRESH_SECONDS = 10.0
+GUILDWARS_WINDOW_SCAN_REFRESH_SECONDS = 1.0
+GUILDWARS_PROCESS_PATH_CACHE_SECONDS = 30.0
+RUNNING_STATUS_CACHE_HIT_SAMPLE_RATE = 100
 
 
 def ensure_launcher_account_uid(account):
@@ -5604,6 +5889,243 @@ def remove_launcher_managed_client(account=None, pid=None):
             save_launcher_managed_clients()
     except Exception:
         pass
+
+
+def normalize_executable_path_for_compare(path):
+    try:
+        clean_path = str(path or "").strip().strip('"')
+        if not clean_path:
+            return ""
+        if os.path.isdir(clean_path):
+            clean_path = os.path.join(clean_path, "Gw.exe")
+        return os.path.normcase(os.path.abspath(clean_path))
+    except Exception:
+        return os.path.normcase(str(path or "").strip().strip('"'))
+
+
+def get_process_executable_path(process):
+    try:
+        exe_path = str(process.exe() or "").strip()
+        if exe_path:
+            return exe_path
+    except Exception:
+        pass
+
+    try:
+        cmdline = process.cmdline()
+        if cmdline:
+            first_arg = str(cmdline[0] or "").strip().strip('"')
+            if first_arg:
+                return first_arg
+    except Exception:
+        pass
+
+    return ""
+
+
+def get_process_executable_path_for_pid(pid, force=False):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    try:
+        pid = int(pid)
+        now = time.time()
+        if not force:
+            cached = guildwars_process_path_cache.get(pid)
+            if cached and (now - float(cached.get("checked_at", 0.0) or 0.0)) < GUILDWARS_PROCESS_PATH_CACHE_SECONDS:
+                perf_debug_record_elapsed("process_path.cache_hit", start_time, f"PID={pid}")
+                return str(cached.get("path", "") or "")
+
+        path = normalize_executable_path_for_compare(get_process_executable_path(psutil.Process(pid)))
+        guildwars_process_path_cache[pid] = {
+            "checked_at": now,
+            "path": path,
+        }
+        perf_debug_record_elapsed("process_path.read", start_time, f"PID={pid}")
+        return path
+    except Exception:
+        perf_debug_record_elapsed("process_path.failed", start_time, f"PID={pid}")
+        return ""
+
+
+def get_visible_arena_net_windows(force=False):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    now = time.time()
+    try:
+        if not force and (now - float(guildwars_window_scan_cache.get("checked_at", 0.0) or 0.0)) < GUILDWARS_WINDOW_SCAN_REFRESH_SECONDS:
+            result = dict(guildwars_window_scan_cache.get("windows", {}) or {})
+            perf_debug_record_elapsed("window_scan.cache_hit", start_time, f"{len(result)} pid(s)")
+            return result
+    except Exception:
+        pass
+
+    windows = {}
+
+    def enum_windows_callback(hwnd, _):
+        try:
+            if not win32gui.IsWindowVisible(hwnd):
+                return True
+            class_name = win32gui.GetClassName(hwnd)
+            if "ArenaNet" not in class_name:
+                return True
+            _, window_pid = win32process.GetWindowThreadProcessId(hwnd)
+            pid = int(window_pid)
+            title = win32gui.GetWindowText(hwnd).strip()
+            entry = {
+                "hwnd": hwnd,
+                "title": title,
+                "class_name": class_name,
+            }
+            windows.setdefault(pid, []).append(entry)
+        except Exception:
+            pass
+        return True
+
+    try:
+        win32gui.EnumWindows(enum_windows_callback, None)
+    except Exception as e:
+        log_history.append(f"Guild Wars Window Scan - Failed: {str(e)}")
+
+    guildwars_window_scan_cache["checked_at"] = now
+    guildwars_window_scan_cache["windows"] = dict(windows)
+    result = dict(windows)
+    perf_debug_record_elapsed("window_scan.full", start_time, f"{len(result)} pid(s)")
+    return result
+
+
+def process_info_is_guildwars(process_info):
+    try:
+        name = str(process_info.get("name", "") or "").lower()
+        exe_path = str(process_info.get("exe", "") or "")
+        exe_name = os.path.basename(exe_path).lower()
+        return name == "gw.exe" or exe_name == "gw.exe"
+    except Exception:
+        return False
+
+
+def get_live_guildwars_processes(force=False):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    now = time.time()
+    try:
+        if not force and (now - float(guildwars_process_scan_cache.get("checked_at", 0.0) or 0.0)) < GUILDWARS_PROCESS_SCAN_REFRESH_SECONDS:
+            result = list(guildwars_process_scan_cache.get("processes", []) or [])
+            perf_debug_record_elapsed("process_scan.cache_hit", start_time, f"{len(result)} gw.exe")
+            return result
+    except Exception:
+        pass
+
+    windows_by_pid = get_visible_arena_net_windows(force=force)
+    processes = []
+    scanned_count = 0
+    try:
+        for process in psutil.process_iter(["pid", "name", "status"]):
+            scanned_count += 1
+            try:
+                pid = int(process.info.get("pid") or process.pid)
+                status = process.info.get("status")
+                if status in (getattr(psutil, "STATUS_ZOMBIE", None), getattr(psutil, "STATUS_DEAD", None)):
+                    continue
+                name = str(process.info.get("name", "") or "")
+                if name.lower() != "gw.exe":
+                    continue
+                if not is_pid_alive(pid):
+                    continue
+                exe_path = get_process_executable_path_for_pid(pid)
+                info = {
+                    "pid": pid,
+                    "name": name,
+                    "exe": normalize_executable_path_for_compare(exe_path),
+                }
+                window_entries = list(windows_by_pid.get(pid, []) or [])
+                if window_entries:
+                    info["windows"] = window_entries
+                    info["window_title"] = str(window_entries[0].get("title", "") or "")
+                    info["window_hwnd"] = window_entries[0].get("hwnd")
+                processes.append(info)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+            except Exception:
+                continue
+    except Exception as e:
+        log_history.append(f"Guild Wars Process Scan - Failed: {str(e)}")
+
+    guildwars_process_scan_cache["checked_at"] = now
+    guildwars_process_scan_cache["processes"] = list(processes)
+    perf_debug_record_elapsed("process_scan.full", start_time, f"{len(processes)} gw.exe / {scanned_count} process(es)")
+    return processes
+
+
+def guildwars_process_matches_account(process_info, account):
+    try:
+        expected_path = normalize_executable_path_for_compare(str(getattr(account, "gw_path", "") or ""))
+        process_path = normalize_executable_path_for_compare(str(process_info.get("exe", "") or ""))
+        if expected_path and process_path and expected_path != process_path:
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def get_arena_net_window_info_for_pid(pid):
+    try:
+        pid = int(pid)
+        windows_by_pid = get_visible_arena_net_windows()
+        entries = list(windows_by_pid.get(pid, []) or [])
+        if entries:
+            return dict(entries[0])
+    except Exception:
+        pass
+
+    hwnd = find_visible_gw_window_for_pid(pid)
+    if not hwnd:
+        return None
+    try:
+        return {
+            "hwnd": hwnd,
+            "title": win32gui.GetWindowText(hwnd).strip(),
+            "class_name": win32gui.GetClassName(hwnd),
+        }
+    except Exception:
+        return {
+            "hwnd": hwnd,
+            "title": "",
+            "class_name": "",
+        }
+
+
+def find_external_guildwars_process_for_account(account):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    target_title = get_account_client_title(account).strip()
+    expected_path = normalize_executable_path_for_compare(str(getattr(account, "gw_path", "") or ""))
+    candidates = []
+
+    try:
+        windows_by_pid = get_visible_arena_net_windows()
+        for pid, windows in dict(windows_by_pid or {}).items():
+            pid = int(pid)
+            if not is_pid_alive(pid):
+                continue
+            for window_info in list(windows or []):
+                title = str(window_info.get("title", "") or "").strip()
+                if target_title and target_title != "Guild Wars" and title == target_title:
+                    perf_debug_record_elapsed("external_attach.window_title", start_time, target_title)
+                    return pid
+                candidates.append((pid, title))
+
+        if expected_path:
+            path_candidates = []
+            for pid, title in candidates:
+                process_path = get_process_executable_path_for_pid(pid)
+                if process_path and process_path == expected_path:
+                    path_candidates.append((pid, title))
+
+            if len(path_candidates) == 1:
+                perf_debug_record_elapsed("external_attach.path_unique", start_time, expected_path)
+                return int(path_candidates[0][0])
+
+        perf_debug_record_elapsed("external_attach.not_found", start_time, target_title)
+        return None
+    except Exception:
+        perf_debug_record_elapsed("external_attach.failed", start_time, target_title)
+        return None
 
 
 def find_visible_gw_window_for_pid(pid, expected_title=None):
@@ -5795,6 +6317,17 @@ def find_gw_window_for_account(account):
             return True, validated_pid
 
     target_title = get_account_client_title(account).strip()
+
+    external_pid = find_external_guildwars_process_for_account(account)
+    if external_pid:
+        try:
+            if not any(tracked_account is account and int(tracked_pid) == int(external_pid) for tracked_account, tracked_pid in list(launch_gw.active_pids)):
+                launch_gw.active_pids.append((account, int(external_pid)))
+            register_launcher_managed_client(account, int(external_pid))
+        except Exception:
+            pass
+        return True, int(external_pid)
+
     if not target_title or target_title == "Guild Wars":
         return False, None
 
@@ -5834,20 +6367,45 @@ def find_gw_window_for_account(account):
     return found_pid is not None, found_pid
 
 def get_account_running_status(account):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
     cache_key = id(account)
     now = time.time()
     cached = account_running_status_cache.get(cache_key)
 
     if cached and (now - cached.get("checked_at", 0.0)) < ACCOUNT_STATUS_REFRESH_SECONDS:
+        if perf_debug_enabled:
+            try:
+                hit_count = int(cached.get("perf_cache_hits", 0)) + 1
+                cached["perf_cache_hits"] = hit_count
+                if hit_count == 1 or hit_count % RUNNING_STATUS_CACHE_HIT_SAMPLE_RATE == 0:
+                    perf_debug_record_elapsed("running_status.cache_hit_sampled", start_time, get_account_display_name(account))
+            except Exception:
+                pass
         return cached.get("running", False), cached.get("pid")
 
-    running, pid = find_gw_window_for_account(account)
+    running, pid = perf_debug_call("find_gw_window_for_account", find_gw_window_for_account, account)
     account_running_status_cache[cache_key] = {
         "checked_at": now,
         "running": running,
         "pid": pid,
+        "perf_cache_hits": 0,
     }
+    perf_debug_record_elapsed("running_status.rescan", start_time, get_account_display_name(account))
     return running, pid
+
+
+def set_account_dll_loaded_cache(account, pid, dll_kind, loaded, unknown=False, message=""):
+    try:
+        cache = account_py4gw_status_cache if str(dll_kind).lower() == "py4gw" else account_toolbox_status_cache
+        cache[id(account)] = {
+            "checked_at": time.time(),
+            "pid": int(pid) if pid else None,
+            "loaded": None if unknown else bool(loaded),
+            "unknown": bool(unknown),
+            "message": str(message or ""),
+        }
+    except Exception:
+        pass
 
 
 def invalidate_account_running_status(account=None):
@@ -5864,7 +6422,50 @@ def invalidate_account_running_status(account=None):
         pass
 
 
-def check_module_loaded_for_pid(pid, module_path: str) -> bool:
+def is_invalid_snapshot_handle(snapshot):
+    try:
+        value = int(snapshot)
+    except Exception:
+        try:
+            value = int(snapshot.value)
+        except Exception:
+            return True
+    return value == 0 or value == -1 or value == int(INVALID_HANDLE_VALUE)
+
+
+def enumerate_loaded_modules_for_pid(pid):
+    pid = int(pid)
+    snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, wintypes.DWORD(pid))
+    if is_invalid_snapshot_handle(snapshot):
+        raise ctypes.WinError()
+
+    modules = []
+    try:
+        entry = MODULEENTRY32()
+        entry.dwSize = ctypes.sizeof(MODULEENTRY32)
+        if not kernel32.Module32FirstW(snapshot, ctypes.byref(entry)):
+            raise ctypes.WinError()
+
+        while True:
+            modules.append({
+                "name": str(entry.szModule or ""),
+                "path": str(entry.szExePath or ""),
+            })
+            if not kernel32.Module32NextW(snapshot, ctypes.byref(entry)):
+                break
+    finally:
+        try:
+            if not is_invalid_snapshot_handle(snapshot):
+                kernel32.CloseHandle(snapshot)
+        except Exception:
+            pass
+
+    return modules
+
+
+def check_module_loaded_for_pid(pid, module_path: str):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    module_name = os.path.basename(str(module_path or "")) or "unknown"
     try:
         if not pid or not psutil.pid_exists(int(pid)):
             return False
@@ -5876,19 +6477,10 @@ def check_module_loaded_for_pid(pid, module_path: str) -> bool:
         if not module_name:
             return False
 
-        process = psutil.Process(int(pid))
-        try:
-            maps = process.memory_maps(grouped=False)
-        except TypeError:
-            maps = process.memory_maps()
-
-        for memory_map in maps:
-            loaded_path = str(getattr(memory_map, "path", "") or "")
-            if not loaded_path:
-                continue
-
-            loaded_name = os.path.basename(loaded_path).lower()
-            loaded_abs = os.path.normcase(os.path.abspath(loaded_path))
+        for module in perf_debug_call("dll_module_enumerate", enumerate_loaded_modules_for_pid, pid):
+            loaded_path = str(module.get("path", "") or "")
+            loaded_name = os.path.basename(str(module.get("name", "") or loaded_path)).lower()
+            loaded_abs = os.path.normcase(os.path.abspath(loaded_path)) if loaded_path else ""
 
             if module_abs and loaded_abs == module_abs:
                 return True
@@ -5898,16 +6490,25 @@ def check_module_loaded_for_pid(pid, module_path: str) -> bool:
         return False
     except Exception as e:
         try:
+            winerror = int(getattr(e, "winerror", 0) or 0)
+        except Exception:
+            winerror = 0
+
+        if winerror == 5:
+            return None
+
+        try:
             now = time.time()
-            module_name = os.path.basename(str(module_path or "")) or "unknown"
-            key = (int(pid) if pid else 0, module_name, str(type(e).__name__))
+            key = (int(pid) if pid else 0, module_name, str(type(e).__name__), str(winerror))
             last_logged = float(dll_status_error_log_cache.get(key, 0.0) or 0.0)
             if (now - last_logged) >= DLL_STATUS_ERROR_LOG_SECONDS:
                 dll_status_error_log_cache[key] = now
                 log_history.append(f"DLL Status - Module check failed for PID={pid}, DLL={module_name}: {str(e)}")
         except Exception:
             pass
-        return False
+        return None
+    finally:
+        perf_debug_record_elapsed("dll_module_check", start_time, f"PID={pid}, DLL={module_name}")
 
 
 def check_py4gw_loaded_for_pid(pid) -> bool:
@@ -5934,14 +6535,16 @@ def get_account_py4gw_loaded_status(account, running=None, pid=None):
         and cached.get("pid") == pid
         and (now - cached.get("checked_at", 0.0)) < PY4GW_STATUS_REFRESH_SECONDS
     ):
-        return bool(cached.get("loaded", False))
+        return cached.get("loaded", False)
 
     loaded = check_py4gw_loaded_for_pid(pid)
-    account_py4gw_status_cache[cache_key] = {
-        "checked_at": now,
-        "pid": pid,
-        "loaded": bool(loaded),
-    }
+    if loaded is None:
+        if cached and cached.get("pid") == pid:
+            return cached.get("loaded", None)
+        set_account_dll_loaded_cache(account, pid, "Py4GW", False, unknown=True, message="Access denied while checking loaded modules")
+        return None
+
+    set_account_dll_loaded_cache(account, pid, "Py4GW", bool(loaded))
     return bool(loaded)
 
 
@@ -5960,14 +6563,16 @@ def get_account_toolbox_loaded_status(account, running=None, pid=None):
         and cached.get("pid") == pid
         and (now - cached.get("checked_at", 0.0)) < TOOLBOX_STATUS_REFRESH_SECONDS
     ):
-        return bool(cached.get("loaded", False))
+        return cached.get("loaded", False)
 
     loaded = check_gwtoolbox_loaded_for_pid(pid, account)
-    account_toolbox_status_cache[cache_key] = {
-        "checked_at": now,
-        "pid": pid,
-        "loaded": bool(loaded),
-    }
+    if loaded is None:
+        if cached and cached.get("pid") == pid:
+            return cached.get("loaded", None)
+        set_account_dll_loaded_cache(account, pid, "GWToolbox", False, unknown=True, message="Access denied while checking loaded modules")
+        return None
+
+    set_account_dll_loaded_cache(account, pid, "GWToolbox", bool(loaded))
     return bool(loaded)
 
 
@@ -5976,6 +6581,8 @@ def render_status_badge(label: str, kind: str, id_suffix: str = ""):
 
     if kind in ("success", "selected", "active", "active_monitor"):
         badge_color = ui_color("success")
+    elif kind in ("warning", "outdated"):
+        badge_color = ui_color("warning")
     elif kind in ("danger", "delete", "destructive"):
         badge_color = ui_color("danger")
     else:
@@ -5999,8 +6606,9 @@ def render_status_badge(label: str, kind: str, id_suffix: str = ""):
         pushed_vars += _push_style_var_safe("frame_padding", imgui.ImVec2(4.0, 1.0))
         pushed_vars += _push_style_var_safe("item_spacing", imgui.ImVec2(4.0, 4.0))
 
+        badge_width = max(30.0, 14.0 + (len(str(label or "")) * 8.0))
         try:
-            imgui.button(f"{label}##status_badge_{id_suffix}", imgui.ImVec2(24.0, 19.0))
+            imgui.button(f"{label}##status_badge_{id_suffix}", imgui.ImVec2(badge_width, 19.0))
         except TypeError:
             imgui.button(f"{label}##status_badge_{id_suffix}")
     finally:
@@ -6016,6 +6624,1490 @@ def render_status_badge(label: str, kind: str, id_suffix: str = ""):
                 pass
 
 
+
+GW_HUFFMAN_TABLE1 = [(2684354560, 2), (1610612736, 6), (1073741824, 10), (536870912, 18), (301989888, 25), (201326592, 31), (117440512, 41), (50331648, 57), (23068672, 70), (15728640, 77), (12582912, 83), (11534336, 87), (10485760, 95), (0, 255)]
+GW_HUFFMAN_TABLE2 = [8, 9, 10, 0, 7, 11, 12, 6, 41, 42, 224, 4, 5, 32, 40, 43, 44, 64, 74, 3, 13, 37, 38, 39, 72, 73, 36, 71, 75, 76, 105, 106, 35, 70, 96, 99, 103, 104, 136, 137, 160, 232, 1, 2, 45, 67, 68, 69, 101, 102, 128, 135, 138, 168, 169, 192, 201, 233, 14, 77, 100, 107, 108, 132, 133, 139, 164, 165, 170, 200, 229, 131, 134, 166, 167, 199, 202, 231, 34, 46, 140, 196, 228, 230, 78, 109, 198, 236, 15, 16, 17, 141, 171, 172, 204, 234, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 33, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 65, 66, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97, 98, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 129, 130, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 161, 162, 163, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 193, 194, 195, 197, 203, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 225, 226, 227, 235, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]
+GW_HUFFMAN_TABLE3 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 255, 0, 0, 0]
+GW_HUFFMAN_EXTRA_BITS_LENGTH = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0]
+GW_HUFFMAN_EXTRA_BITS_DISTANCE = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14]
+GW_HUFFMAN_BACKTRACK_TABLE = [0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 256, 770, 1284, 1798, 2568, 3596, 5136, 7192, 10272, 14384, 20544, 28768, 41088, 57536, 255, 0]
+
+
+class GWBitStream:
+    def __init__(self, data):
+        self.data = bytes(data or b"")
+        if len(self.data) < 8:
+            raise ValueError("Input length must be at least 8")
+        self.buf1 = int.from_bytes(self.data[0:4], "little")
+        self.buf2 = int.from_bytes(self.data[4:8], "little")
+        self.idx = 8
+        self.avail = 32
+
+    def peek(self, count):
+        count = int(count)
+        if count <= 0:
+            return 0
+        if count > 32:
+            raise ValueError("Count must be less than or equal to 32")
+        return (self.buf1 >> (32 - count)) & 0xFFFFFFFF
+
+    def read(self, count):
+        result = self.peek(count)
+        self.consume(count)
+        return result
+
+    def consume(self, count):
+        count = int(count)
+        if count <= 0:
+            return
+        self.buf1 = ((self.buf2 >> (32 - count)) | ((self.buf1 << count) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        if self.avail < count:
+            if self.idx >= len(self.data):
+                self.avail = 0
+                self.buf2 = 0
+            else:
+                block = self.data[self.idx:self.idx + 4]
+                if len(block) < 4:
+                    block = block + b"\x00" * (4 - len(block))
+                self.buf2 = int.from_bytes(block, "little")
+                self.idx += 4
+                new_avail = self.avail + 32 - count
+                self.buf1 = (self.buf1 + (self.buf2 >> new_avail)) & 0xFFFFFFFF
+                self.buf2 = (self.buf2 << (count - self.avail)) & 0xFFFFFFFF
+                self.avail = new_avail
+        else:
+            self.avail -= count
+            self.buf2 = (self.buf2 << count) & 0xFFFFFFFF
+
+
+class GWHuffmanTable:
+    def __init__(self, nodes, large_symbol_count):
+        self.nodes = list(nodes)
+        self.large_symbol_translation = [(0, 0, 0) for _ in range(24)]
+        self.large_symbol_values = []
+
+    def get_next_code(self, stream):
+        bits = stream.peek(8)
+        enc_len, enc_val = self.nodes[bits]
+        if enc_len == 0xFFFFFFFF:
+            buf1 = stream.peek(32)
+            selected = None
+            for item in self.large_symbol_translation:
+                if item[0] <= buf1:
+                    selected = item
+                    break
+            if selected is None:
+                raise RuntimeError("Failed to get next Huffman code")
+            first_encoding, last_index, enc_length = selected
+            enc_len = int(enc_length)
+            group_index = (buf1 - first_encoding) >> (32 - enc_length)
+            large_enc_index = last_index - int(group_index)
+            if large_enc_index < 0 or large_enc_index >= len(self.large_symbol_values):
+                raise RuntimeError("Failed to get next Huffman code")
+            enc_val = self.large_symbol_values[large_enc_index]
+        stream.consume(int(enc_len))
+        return int(enc_val)
+
+    @staticmethod
+    def build(stream):
+        symbol_follow_table_root = [0xFFFFFFFF for _ in range(32)]
+        symbol_count = int(stream.read(16))
+        symbol_follow_table = [0 for _ in range(symbol_count)]
+        total_symbol_count = 0
+        symbol_idx = symbol_count - 1
+        while symbol_idx != -1:
+            buf1 = stream.peek(32)
+            idx = 0
+            while idx < len(GW_HUFFMAN_TABLE1):
+                if GW_HUFFMAN_TABLE1[idx][0] <= buf1:
+                    break
+                idx += 1
+            if idx == len(GW_HUFFMAN_TABLE1):
+                raise RuntimeError("Failed to build Huffman table")
+            bit_count = idx + 3
+            offset = int((buf1 - GW_HUFFMAN_TABLE1[idx][0]) >> (32 - bit_count))
+            stream.consume(bit_count)
+            temp = GW_HUFFMAN_TABLE2[GW_HUFFMAN_TABLE1[idx][1] - offset]
+            number_of_symbol = temp >> 5
+            symbol_len = temp & 0x1F
+            if symbol_len != 0 or symbol_count < 2:
+                number_of_symbol += 1
+                total_symbol_count += int(number_of_symbol)
+                for _i in range(int(number_of_symbol)):
+                    symbol_follow_table[symbol_idx] = int(symbol_follow_table_root[symbol_len])
+                    symbol_follow_table_root[symbol_len] = int(symbol_idx)
+                    symbol_idx -= 1
+            else:
+                symbol_idx -= int(number_of_symbol + 1)
+
+        if total_symbol_count == 0:
+            symbol_follow_table[symbol_count - 1] = int(symbol_follow_table_root[0])
+            symbol_follow_table_root[0] = int(symbol_count - 1)
+            total_symbol_count = 1
+
+        next_bits_encoding = 1
+        symbol_in_huffman_table = 0
+        nodes = [(0, 0) for _ in range(256)]
+
+        for enc_len in range(1, 9):
+            current_symbol = symbol_follow_table_root[enc_len]
+            while current_symbol != 0xFFFFFFFF:
+                if current_symbol >= symbol_count:
+                    raise RuntimeError("Failed to build Huffman table")
+                if next_bits_encoding >= (1 << enc_len):
+                    raise RuntimeError("Failed to build Huffman table")
+                first_symbol = next_bits_encoding << (8 - enc_len)
+                iter_count = 1 << (8 - enc_len)
+                for idx in range(first_symbol, first_symbol + iter_count):
+                    nodes[idx] = (int(enc_len), int(current_symbol))
+                current_symbol = symbol_follow_table[int(current_symbol)]
+                symbol_in_huffman_table += 1
+                next_bits_encoding -= 1
+            next_bits_encoding = (next_bits_encoding << 1) + 1
+
+        large_symbol_count = total_symbol_count - symbol_in_huffman_table
+        huffman = GWHuffmanTable(nodes, large_symbol_count)
+        if symbol_in_huffman_table == total_symbol_count:
+            return huffman
+
+        for enc_len in range(9, 32):
+            current_symbol = symbol_follow_table_root[enc_len]
+            while current_symbol != 0xFFFFFFFF:
+                if current_symbol >= symbol_count:
+                    raise RuntimeError("Failed to build Huffman table")
+                if next_bits_encoding >= (1 << enc_len):
+                    raise RuntimeError("Failed to build Huffman table")
+                partial_encoding = next_bits_encoding >> (enc_len - 8)
+                huffman.nodes[partial_encoding] = (0xFFFFFFFF, 0)
+                huffman.large_symbol_values.append(int(current_symbol))
+                current_symbol = symbol_follow_table[int(current_symbol)]
+                next_bits_encoding -= 1
+            first_encoding = ((next_bits_encoding + 1) << (32 - enc_len)) & 0xFFFFFFFF
+            last_index = len(huffman.large_symbol_values) - 1
+            huffman.large_symbol_translation[enc_len - 9] = (first_encoding, last_index, enc_len)
+            next_bits_encoding = (next_bits_encoding << 1) + 1
+
+        return huffman
+
+
+def gw_u32(value):
+    return int(value) & 0xFFFFFFFF
+
+
+def read_exact_socket(sock, size):
+    chunks = []
+    remaining = int(size)
+    while remaining > 0:
+        chunk = sock.recv(remaining)
+        if not chunk:
+            raise RuntimeError("Socket closed while receiving data")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def connect_guildwars_file_server():
+    last_error = None
+    for server_index in range(1, 13):
+        host = f"file{server_index}.arenanetworks.com"
+        sock = None
+        try:
+            sock = socket.create_connection((host, 6112), timeout=5.0)
+            sock.settimeout(5.0)
+            sock.sendall(struct.pack("<BIHHIII", 1, 0, 0xF1, 0x10, 1, 0, 0))
+            manifest_bytes = read_exact_socket(sock, 32)
+            manifest = struct.unpack("<hhiiiiiii", manifest_bytes)
+            return sock, {
+                "host": host,
+                "manifest": manifest[3],
+                "backup_exe": manifest[4],
+                "latest_exe": manifest[8],
+            }
+        except Exception as e:
+            last_error = e
+            try:
+                if sock:
+                    sock.close()
+            except Exception:
+                pass
+    raise RuntimeError(f"Failed to connect to ArenaNet file servers: {last_error}")
+
+
+def get_latest_guildwars_exe_version():
+    sock = None
+    try:
+        sock, manifest = connect_guildwars_file_server()
+        return int(manifest.get("latest_exe", 0) or 0)
+    finally:
+        try:
+            if sock:
+                sock.close()
+        except Exception:
+            pass
+
+
+def pe_read_sections(data):
+    if len(data) < 0x40 or data[:2] != b"MZ":
+        raise RuntimeError("Invalid PE file")
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    if data[pe_offset:pe_offset + 4] != b"PE\x00\x00":
+        raise RuntimeError("Invalid PE signature")
+    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_header_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    section_offset = pe_offset + 24 + optional_header_size
+    sections = []
+    for index in range(section_count):
+        offset = section_offset + index * 40
+        name = data[offset:offset + 8].split(b"\x00", 1)[0].decode("ascii", errors="ignore")
+        virtual_size, virtual_address, raw_size, raw_pointer = struct.unpack_from("<IIII", data, offset + 8)
+        sections.append({
+            "name": name,
+            "virtual_size": int(virtual_size),
+            "virtual_address": int(virtual_address),
+            "raw_size": int(raw_size),
+            "raw_pointer": int(raw_pointer),
+        })
+    return sections
+
+
+def pe_rva_to_offset(sections, rva):
+    rva = int(rva)
+    for section in sections:
+        start = int(section.get("virtual_address", 0))
+        size = max(int(section.get("virtual_size", 0)), int(section.get("raw_size", 0)))
+        end = start + size
+        if start <= rva < end:
+            return int(section.get("raw_pointer", 0)) + (rva - start)
+    raise RuntimeError("Could not map RVA to file offset")
+
+
+def find_pattern_with_wildcards(buffer, pattern):
+    length = len(pattern)
+    fixed_runs = []
+    run_start = None
+    run_bytes = []
+    for index, value in enumerate(pattern):
+        if value is None:
+            if run_start is not None and run_bytes:
+                fixed_runs.append((run_start, bytes(run_bytes)))
+            run_start = None
+            run_bytes = []
+            continue
+        if run_start is None:
+            run_start = index
+            run_bytes = []
+        run_bytes.append(int(value))
+    if run_start is not None and run_bytes:
+        fixed_runs.append((run_start, bytes(run_bytes)))
+
+    if fixed_runs:
+        anchor_start, anchor = max(fixed_runs, key=lambda item: len(item[1]))
+        search_from = 0
+        while True:
+            anchor_offset = buffer.find(anchor, search_from)
+            if anchor_offset < 0:
+                break
+            candidate = anchor_offset - anchor_start
+            if candidate >= 0 and candidate + length <= len(buffer):
+                matched = True
+                for index, value in enumerate(pattern):
+                    if value is not None and buffer[candidate + index] != value:
+                        matched = False
+                        break
+                if matched:
+                    return candidate
+            search_from = anchor_offset + 1
+
+    for offset in range(0, len(buffer) - length + 1):
+        matched = True
+        for index, value in enumerate(pattern):
+            if value is not None and buffer[offset + index] != value:
+                matched = False
+                break
+        if matched:
+            return offset
+    raise RuntimeError("Pattern not found")
+
+
+def find_pattern_with_wildcards_in_file_range(data, pattern, start, end):
+    length = len(pattern)
+    fixed_runs = []
+    run_start = None
+    run_bytes = []
+    for index, value in enumerate(pattern):
+        if value is None:
+            if run_start is not None and run_bytes:
+                fixed_runs.append((run_start, bytes(run_bytes)))
+            run_start = None
+            run_bytes = []
+            continue
+        if run_start is None:
+            run_start = index
+            run_bytes = []
+        run_bytes.append(int(value))
+    if run_start is not None and run_bytes:
+        fixed_runs.append((run_start, bytes(run_bytes)))
+
+    if not fixed_runs:
+        relative = find_pattern_with_wildcards(data[start:end], pattern)
+        return int(start) + int(relative)
+
+    anchor_start, anchor = max(fixed_runs, key=lambda item: len(item[1]))
+    search_from = int(start)
+    search_end = max(int(start), int(end) - len(anchor) + 1)
+    while search_from < search_end:
+        anchor_offset = data.find(anchor, search_from, int(end))
+        if anchor_offset < 0:
+            break
+        candidate = anchor_offset - anchor_start
+        if candidate >= start and candidate + length <= end:
+            matched = True
+            for index, value in enumerate(pattern):
+                if value is not None and data[candidate + index] != value:
+                    matched = False
+                    break
+            if matched:
+                return candidate - int(start)
+        search_from = anchor_offset + 1
+
+    raise RuntimeError("Pattern not found")
+
+
+def follow_pe_call(data, sections, call_rva):
+    file_offset = pe_rva_to_offset(sections, call_rva)
+    op = data[file_offset]
+    if op not in (0xE8, 0xE9):
+        raise RuntimeError("Unsupported call opcode")
+    rel = struct.unpack_from("<i", data, file_offset + 1)[0]
+    return int(call_rva) + rel + 5
+
+
+def read_pe_u32(data, sections, rva):
+    file_offset = pe_rva_to_offset(sections, rva)
+    return struct.unpack_from("<I", data, file_offset)[0]
+
+
+def get_guildwars_exe_version_id(executable_path):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    try:
+        with open(executable_path, "rb") as file:
+            with mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as data:
+                sections = pe_read_sections(data)
+                text_section = None
+                for section in sections:
+                    if section.get("name") == ".text":
+                        text_section = section
+                        break
+                if not text_section:
+                    raise RuntimeError("PE .text section not found")
+
+                raw_start = int(text_section.get("raw_pointer", 0))
+                raw_size = int(text_section.get("raw_size", 0))
+                raw_end = raw_start + raw_size
+                text_rva = int(text_section.get("virtual_address", 0))
+
+                try:
+                    file_id_pattern = [0x55, 0x8B, 0xEC, 0x83, 0xEC, None, 0xE8, None, None, None, None, 0x83, 0x3D, None, None, None, None, 0x00]
+                    pattern_offset = find_pattern_with_wildcards_in_file_range(data, file_id_pattern, raw_start, raw_end)
+                    function_rva = text_rva + pattern_offset
+                    for scan_offset in range(0, 0x80):
+                        rva = function_rva + scan_offset
+                        file_offset = pe_rva_to_offset(sections, rva)
+                        if data[file_offset] != 0xE8:
+                            continue
+                        target_rva = rva + struct.unpack_from("<i", data, file_offset + 1)[0] + 5
+                        target_offset = pe_rva_to_offset(sections, target_rva)
+                        if data[target_offset] == 0xB8 and data[target_offset + 5] == 0xC3:
+                            return int(read_pe_u32(data, sections, target_rva + 1))
+                except Exception:
+                    pass
+
+                legacy_pattern = bytes([0x8B, 0xC8, 0x33, 0xDB, 0x39, 0x8D, 0xC0, 0xFD, 0xFF, 0xFF, 0x0F, 0x95, 0xC3])
+                legacy_offset = data.find(legacy_pattern, raw_start, raw_end)
+                if legacy_offset < 0:
+                    raise RuntimeError("Guild Wars executable version pattern not found")
+                legacy_offset -= raw_start
+                legacy_rva = text_rva + legacy_offset
+                function_rva = follow_pe_call(data, sections, legacy_rva - 5)
+                return int(read_pe_u32(data, sections, function_rva + 1))
+    except Exception as e:
+        raise RuntimeError(f"Failed to read Gw.exe version: {str(e)}")
+    finally:
+        perf_debug_record_elapsed("gw_exe_version_read", start_time, os.path.basename(str(executable_path or "")))
+
+
+def download_compressed_guildwars_exe(file_id, progress_callback=None):
+    sock = None
+    try:
+        sock, manifest = connect_guildwars_file_server()
+        sock.sendall(struct.pack("<HHii", 0x3F2, 0xC, int(file_id), 0))
+        metadata = struct.unpack("<HH", read_exact_socket(sock, 4))
+        if metadata[0] == 0x4F2:
+            raise RuntimeError("ArenaNet file server could not find the requested executable")
+        if metadata[0] != 0x5F2:
+            raise RuntimeError(f"Unexpected file metadata response: 0x{metadata[0]:X}")
+        file_response = struct.unpack("<iiii", read_exact_socket(sock, 16))
+        response_file_id, size_decompressed, size_compressed, crc = file_response
+        if int(response_file_id) != int(file_id):
+            log_history.append(f"GW.exe Update - ArenaNet file server returned executable id {response_file_id} for requested id {file_id}. Continuing with final version verification.")
+
+        result = bytearray()
+        chunk_size = 0
+        while len(result) < int(size_compressed):
+            if chunk_size > 0:
+                sock.sendall(struct.pack("<HHI", 0x7F3, 0x8, int(chunk_size)))
+            header = struct.unpack("<HH", read_exact_socket(sock, 4))
+            if header[0] not in (0x6F2, 0x6F3):
+                raise RuntimeError(f"Unexpected download chunk header: 0x{header[0]:X}")
+            chunk_size = int(header[1]) - 4
+            if chunk_size <= 0:
+                raise RuntimeError("Invalid download chunk size")
+            chunk = read_exact_socket(sock, chunk_size)
+            result.extend(chunk)
+            if progress_callback:
+                progress_callback("download", min(1.0, len(result) / max(1, int(size_compressed))))
+
+        return bytes(result), int(size_decompressed), int(size_compressed), int(crc)
+    finally:
+        try:
+            if sock:
+                sock.close()
+        except Exception:
+            pass
+
+
+def decompress_guildwars_exe(compressed_data, expected_final_size, progress_callback=None):
+    stream = GWBitStream(compressed_data)
+    stream.consume(4)
+    first4_bits = int(stream.read(4))
+    output = bytearray()
+    expected_final_size = int(expected_final_size)
+
+    while len(output) < expected_final_size:
+        if progress_callback:
+            progress_callback("unpack", min(1.0, len(output) / max(1, expected_final_size)))
+        lit_huffman = GWHuffmanTable.build(stream)
+        dist_huffman = GWHuffmanTable.build(stream)
+        block_size = (int(stream.read(4)) + 1) * 4096
+        for _i in range(block_size):
+            if len(output) == expected_final_size:
+                break
+            code = int(lit_huffman.get_next_code(stream))
+            if code < 0x100:
+                output.append(code & 0xFF)
+            else:
+                blen = GW_HUFFMAN_EXTRA_BITS_LENGTH[code - 256]
+                code_value = GW_HUFFMAN_TABLE3[code - 256]
+                if blen > 0:
+                    code_value |= int(stream.read(int(blen)))
+                backtrack_count = first4_bits + int(code_value) + 1
+                dist_code = int(dist_huffman.get_next_code(stream))
+                dist_blen = GW_HUFFMAN_EXTRA_BITS_DISTANCE[dist_code]
+                backtrack = GW_HUFFMAN_BACKTRACK_TABLE[dist_code]
+                if dist_blen > 0:
+                    backtrack |= int(stream.read(int(dist_blen)))
+                if backtrack >= len(output):
+                    raise RuntimeError("Failed to decompress executable")
+                src = len(output) - (int(backtrack) + 1)
+                for j in range(src, src + int(backtrack_count)):
+                    output.append(output[j])
+                    if len(output) == expected_final_size:
+                        break
+
+    if progress_callback:
+        progress_callback("unpack", 1.0)
+    return bytes(output)
+
+
+def get_gw_exe_cache_dir():
+    cache_dir = os.path.join(current_directory, "GuildWarsCache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
+
+
+def get_cached_gw_exe_path(version):
+    return os.path.join(get_gw_exe_cache_dir(), f"Gw.{int(version)}.exe")
+
+
+def get_file_sha256(path):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as file:
+            while True:
+                chunk = file.read(1024 * 1024)
+                if not chunk:
+                    break
+                h.update(chunk)
+        return h.hexdigest()
+    finally:
+        perf_debug_record_elapsed("sha256_file", start_time, os.path.basename(str(path or "")))
+
+
+def get_cached_gw_exe_sha_key(version):
+    return f"gw_exe_sha256_{int(version)}"
+
+
+def get_cached_gw_exe_sha_signature_key(version):
+    return f"gw_exe_sha256_signature_{int(version)}"
+
+
+def read_cached_gw_exe_sha(version):
+    return str(ini_handler.read_key(LAYOUT_CONFIG_SECTION, get_cached_gw_exe_sha_key(version), "") or "").strip().lower()
+
+
+def read_cached_gw_exe_sha_signature(version):
+    return str(ini_handler.read_key(LAYOUT_CONFIG_SECTION, get_cached_gw_exe_sha_signature_key(version), "") or "").strip()
+
+
+def write_cached_gw_exe_sha(version, sha256_value):
+    write_launcher_layout_value_if_changed(get_cached_gw_exe_sha_key(version), str(sha256_value or "").strip().lower())
+
+
+def write_cached_gw_exe_sha_signature(version, signature):
+    write_launcher_layout_value_if_changed(get_cached_gw_exe_sha_signature_key(version), str(signature or "").strip())
+
+
+def verify_cached_gw_exe_file(version, path=None, force_full=False):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    version = int(version)
+    cache_path = path or get_cached_gw_exe_path(version)
+    if not os.path.exists(cache_path):
+        raise RuntimeError(f"Cached Gw.exe version not found: {version}")
+
+    signature = get_gw_exe_file_signature(cache_path)
+    stored_sha = read_cached_gw_exe_sha(version)
+    stored_signature = read_cached_gw_exe_sha_signature(version)
+
+    if stored_sha and stored_signature and stored_signature == signature and not force_full:
+        perf_debug_record_elapsed("cached_exe_verify.fast_signature", start_time, str(version))
+        return stored_sha
+
+    parsed_version = get_guildwars_exe_version_id(cache_path)
+    if int(parsed_version) != version:
+        raise RuntimeError(f"Cached Gw.exe version mismatch: {parsed_version} != {version}")
+    current_sha = get_file_sha256(cache_path)
+    if stored_sha and stored_sha != current_sha:
+        raise RuntimeError(f"Cached Gw.exe SHA256 mismatch for version {version}")
+    write_cached_gw_exe_sha(version, current_sha)
+    write_cached_gw_exe_sha_signature(version, signature)
+    perf_debug_record_elapsed("cached_exe_verify.full", start_time, str(version))
+    return current_sha
+
+
+def set_gw_exe_cache_verify_result(version, state, message="", sha256_value=""):
+    global gw_exe_cache_verify_results
+    with gw_exe_update_lock:
+        gw_exe_cache_verify_results[int(version)] = {
+            "state": str(state or "unknown"),
+            "message": str(message or ""),
+            "sha256": str(sha256_value or ""),
+            "checked_at": time.time(),
+        }
+
+
+def get_gw_exe_cache_verify_result(version):
+    with gw_exe_update_lock:
+        return dict(gw_exe_cache_verify_results.get(int(version), {}))
+
+
+def get_gw_exe_cache_version_state_label(version):
+    result = get_gw_exe_cache_verify_result(version)
+    state = str(result.get("state", "unchecked"))
+    if state == "ok":
+        return f"{int(version)} - OK"
+    if state == "corrupt":
+        return f"{int(version)} - CORRUPT"
+    if state == "checking":
+        return f"{int(version)} - CHECKING"
+    return f"{int(version)} - UNCHECKED"
+
+
+def verify_cached_gw_exe_versions_worker():
+    versions = get_cached_gw_exe_versions()
+    if not versions:
+        log_history.append("GW.exe Cache Verify - No cached versions found.")
+        return
+    for version in versions:
+        try:
+            set_gw_exe_cache_verify_result(version, "checking", "Checking cached Gw.exe version...")
+            sha256_value = verify_cached_gw_exe_file(version, force_full=True)
+            set_gw_exe_cache_verify_result(version, "ok", f"Version {version} OK", sha256_value)
+            time.sleep(0.03)
+        except Exception as e:
+            set_gw_exe_cache_verify_result(version, "corrupt", str(e), "")
+            log_history.append(f"GW.exe Cache Verify - Version {version} corrupt: {str(e)}")
+    log_history.append(f"GW.exe Cache Verify - Finished checking {len(versions)} cached version(s).")
+
+
+def start_verify_cached_gw_exe_versions():
+    global gw_exe_cache_verify_thread
+    try:
+        if gw_exe_cache_verify_thread and gw_exe_cache_verify_thread.is_alive():
+            log_history.append("GW.exe Cache Verify - Verification is already running.")
+            return
+    except Exception:
+        pass
+    gw_exe_cache_verify_thread = threading.Thread(target=verify_cached_gw_exe_versions_worker, daemon=True)
+    gw_exe_cache_verify_thread.start()
+
+
+def redownload_latest_gw_exe_cache_worker():
+    global gw_exe_cache_redownload_latest_status
+    try:
+        def progress_callback(stage, value):
+            global gw_exe_cache_redownload_latest_status
+            label = "Downloading latest Gw.exe to local cache..." if str(stage) == "download" else "Unpacking latest Gw.exe to local cache..."
+            gw_exe_cache_redownload_latest_status = f"{label} {int(float(value) * 100)}%"
+
+        gw_exe_cache_redownload_latest_status = "Redownloading latest Gw.exe cache..."
+        cache_path, latest_version = fetch_latest_guildwars_exe(progress_callback, force=True)
+        sha256_value = verify_cached_gw_exe_file(latest_version, cache_path, force_full=True)
+        set_gw_exe_cache_verify_result(latest_version, "ok", f"Latest version {latest_version} redownloaded and verified", sha256_value)
+        gw_exe_cache_redownload_latest_status = f"Latest cache redownloaded and verified. Version {latest_version}"
+        log_history.append(f"GW.exe Cache - Redownloaded latest cache version {latest_version}: {cache_path}")
+    except Exception as e:
+        gw_exe_cache_redownload_latest_status = f"Redownload latest cache failed: {str(e)}"
+        log_history.append(f"GW.exe Cache - Redownload latest failed: {str(e)}")
+
+
+def start_redownload_latest_gw_exe_cache():
+    global gw_exe_update_thread
+    try:
+        if gw_exe_update_thread and gw_exe_update_thread.is_alive():
+            log_history.append("GW.exe Cache - Another update/install is already running.")
+            return
+    except Exception:
+        pass
+    gw_exe_update_thread = threading.Thread(target=redownload_latest_gw_exe_cache_worker, daemon=True)
+    gw_exe_update_thread.start()
+
+
+def get_cached_gw_exe_versions():
+    versions = []
+    try:
+        cache_dir = get_gw_exe_cache_dir()
+        for entry in os.listdir(cache_dir):
+            match = re.fullmatch(r"Gw\.(\d+)\.exe", str(entry or ""))
+            if not match:
+                continue
+            path = os.path.join(cache_dir, entry)
+            if os.path.isfile(path):
+                versions.append(int(match.group(1)))
+    except Exception:
+        pass
+    return sorted(set(versions), reverse=True)
+
+
+def ensure_selected_cached_gw_exe_version():
+    global gw_exe_cached_version_selected
+    versions = get_cached_gw_exe_versions()
+    if not versions:
+        gw_exe_cached_version_selected = 0
+        return 0, []
+    if gw_exe_cached_version_selected not in versions:
+        gw_exe_cached_version_selected = versions[0]
+        write_launcher_layout_value_if_changed("gw_exe_cached_version_selected", str(gw_exe_cached_version_selected))
+    return gw_exe_cached_version_selected, versions
+
+
+def cache_existing_guildwars_executable(path, version=None):
+    path = normalize_gw_exe_path(path)
+    if not os.path.exists(path):
+        raise RuntimeError("Gw.exe not found")
+    current_version = int(version if version is not None else get_guildwars_exe_version_id(path))
+    cache_path = get_cached_gw_exe_path(current_version)
+    if os.path.exists(cache_path):
+        try:
+            verify_cached_gw_exe_file(current_version, cache_path)
+            return cache_path, current_version
+        except Exception as e:
+            log_history.append(f"GW.exe Cache - Existing cached version {current_version} failed validation and will be replaced: {str(e)}")
+            try:
+                os.remove(cache_path)
+            except Exception:
+                pass
+    temp_path = os.path.join(get_gw_exe_cache_dir(), f"Gw.{current_version}.cache_tmp")
+    shutil.copy2(path, temp_path)
+    parsed_version = get_guildwars_exe_version_id(temp_path)
+    if parsed_version != current_version:
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+        raise RuntimeError(f"Cached original Gw.exe version mismatch: {parsed_version} != {current_version}")
+    os.replace(temp_path, cache_path)
+    write_cached_gw_exe_sha(current_version, get_file_sha256(cache_path))
+    write_cached_gw_exe_sha_signature(current_version, get_gw_exe_file_signature(cache_path))
+    log_history.append(f"GW.exe Cache - Stored local version {current_version}: {cache_path}")
+    return cache_path, current_version
+
+
+def fetch_latest_guildwars_exe(progress_callback=None, force=False):
+    latest_version = get_latest_guildwars_exe_version()
+    if latest_version <= 0:
+        raise RuntimeError("Latest Guild Wars executable version is invalid")
+    cache_path = os.path.join(get_gw_exe_cache_dir(), f"Gw.{latest_version}.exe")
+    if os.path.exists(cache_path) and not force:
+        try:
+            verify_cached_gw_exe_file(latest_version, cache_path)
+            return cache_path, latest_version
+        except Exception as e:
+            set_gw_exe_cache_verify_result(latest_version, "corrupt", str(e), "")
+            log_history.append(f"GW.exe Cache - Existing downloaded version {latest_version} failed validation and will be replaced: {str(e)}")
+            try:
+                os.remove(cache_path)
+            except Exception:
+                pass
+    elif os.path.exists(cache_path) and force:
+        try:
+            os.remove(cache_path)
+        except Exception:
+            pass
+    compressed_data, expected_size, _compressed_size, _crc = download_compressed_guildwars_exe(latest_version, progress_callback)
+    executable_data = decompress_guildwars_exe(compressed_data, expected_size, progress_callback)
+    temp_path = os.path.join(get_gw_exe_cache_dir(), f"Gw.{latest_version}.download")
+    Path(temp_path).write_bytes(executable_data)
+    parsed_version = get_guildwars_exe_version_id(temp_path)
+    if parsed_version != latest_version:
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+        raise RuntimeError(f"Downloaded Gw.exe version mismatch: {parsed_version} != {latest_version}")
+    os.replace(temp_path, cache_path)
+    sha256_value = get_file_sha256(cache_path)
+    write_cached_gw_exe_sha(latest_version, sha256_value)
+    write_cached_gw_exe_sha_signature(latest_version, get_gw_exe_file_signature(cache_path))
+    set_gw_exe_cache_verify_result(latest_version, "ok", f"Version {latest_version} OK", sha256_value)
+    return cache_path, latest_version
+
+
+def normalize_gw_exe_path(path):
+    clean_path = str(path or "").strip().strip('"')
+    if not clean_path:
+        return ""
+    if os.path.isdir(clean_path):
+        clean_path = os.path.join(clean_path, "Gw.exe")
+    return os.path.abspath(clean_path)
+
+
+def get_all_configured_gw_exe_paths():
+    paths = []
+    try:
+        for team in list(team_manager.teams.values()):
+            for account in list(getattr(team, "accounts", []) or []):
+                path = normalize_gw_exe_path(getattr(account, "gw_path", ""))
+                if path and path not in paths:
+                    paths.append(path)
+    except Exception:
+        pass
+    return paths
+
+
+def get_gw_exe_file_signature(path):
+    try:
+        stat_value = os.stat(path)
+        mtime_ns = getattr(stat_value, "st_mtime_ns", int(float(stat_value.st_mtime) * 1000000000))
+        return f"{int(stat_value.st_size)}|{int(mtime_ns)}"
+    except Exception:
+        return ""
+
+
+def get_gw_exe_cache_key(path):
+    clean_path = normalize_gw_exe_path(path).lower()
+    digest = hashlib.sha256(clean_path.encode("utf-8", errors="ignore")).hexdigest()[:24]
+    return f"gw_exe_version_cache_{digest}"
+
+
+def read_cached_gw_exe_version(path):
+    signature = get_gw_exe_file_signature(path)
+    if not signature:
+        return None
+    value = ini_handler.read_key(LAYOUT_CONFIG_SECTION, get_gw_exe_cache_key(path), "")
+    parts = str(value or "").split("|")
+    if len(parts) != 3:
+        return None
+    if f"{parts[0]}|{parts[1]}" != signature:
+        return None
+    try:
+        return int(parts[2])
+    except Exception:
+        return None
+
+
+def write_cached_gw_exe_version(path, version):
+    signature = get_gw_exe_file_signature(path)
+    if not signature:
+        return
+    write_launcher_layout_value_if_changed(get_gw_exe_cache_key(path), f"{signature}|{int(version)}")
+
+
+def get_known_or_read_gw_exe_version(path):
+    cached = read_cached_gw_exe_version(path)
+    if cached is not None:
+        return int(cached)
+
+    try:
+        status = get_gw_exe_update_status(path)
+        current_version = status.get("current_version", None)
+        if current_version is not None:
+            return int(current_version)
+    except Exception:
+        pass
+
+    return int(get_guildwars_exe_version_id(path))
+
+
+def apply_gw_exe_version_status(path, current, latest, prefix=""):
+    if int(current) == int(latest):
+        set_gw_exe_update_status(path, "current", f"{prefix}Gw.exe is up to date. Version {current}", current, latest)
+    else:
+        set_gw_exe_update_status(path, "outdated", f"{prefix}Gw.exe update available. Current {current}, latest {latest}", current, latest)
+
+
+def set_gw_exe_update_status(path, state, message="", current_version=None, latest_version=None, progress=None):
+    global gw_exe_update_status_by_path
+    path = normalize_gw_exe_path(path)
+    with gw_exe_update_lock:
+        current = dict(gw_exe_update_status_by_path.get(path, {}))
+        current["state"] = str(state or "unknown")
+        current["message"] = str(message or "")
+        if current_version is not None:
+            current["current_version"] = current_version
+        if latest_version is not None:
+            current["latest_version"] = latest_version
+        if progress is not None:
+            current["progress"] = float(progress)
+        current["checked_at"] = time.time()
+        gw_exe_update_status_by_path[path] = current
+
+
+def get_gw_exe_update_status(path):
+    path = normalize_gw_exe_path(path)
+    with gw_exe_update_lock:
+        return dict(gw_exe_update_status_by_path.get(path, {"state": "pending", "message": "Pending check"}))
+
+
+def get_running_guildwars_exe_paths(force=False):
+    start_time = time.perf_counter() if perf_debug_enabled else 0.0
+    paths = set()
+    try:
+        windows_by_pid = get_visible_arena_net_windows(force=force)
+        for pid in dict(windows_by_pid or {}).keys():
+            try:
+                exe_path = normalize_gw_exe_path(get_process_executable_path_for_pid(int(pid), force=False))
+                if exe_path and os.path.basename(exe_path).lower() == "gw.exe":
+                    paths.add(os.path.normcase(os.path.abspath(exe_path)))
+            except Exception:
+                continue
+    except Exception:
+        pass
+    perf_debug_record_elapsed("running_paths.window_only", start_time, f"{len(paths)} path(s)")
+    return paths
+
+
+def is_gw_exe_path_running(path, force=False):
+    clean_path = normalize_gw_exe_path(path)
+    if not clean_path:
+        return False
+    try:
+        return os.path.normcase(os.path.abspath(clean_path)) in get_running_guildwars_exe_paths(force=force)
+    except Exception:
+        return False
+
+
+def any_guildwars_clients_running():
+    try:
+        return len(get_running_guildwars_exe_paths(force=True)) > 0
+    except Exception:
+        try:
+            for team in list(team_manager.teams.values()):
+                for account in list(getattr(team, "accounts", []) or []):
+                    running, _pid = get_account_running_status(account)
+                    if running:
+                        return True
+        except Exception:
+            pass
+    return False
+
+
+def gw_exe_status_check_worker(paths, use_cache=True, stagger_delay=0.75):
+    global gw_exe_update_latest_version_id
+    scanned_count = 0
+    try:
+        for path in list(paths or []):
+            set_gw_exe_update_status(path, "checking", "Checking ArenaNet latest version...")
+        latest = get_latest_guildwars_exe_version()
+        gw_exe_update_latest_version_id = latest
+        for path in list(paths or []):
+            if not os.path.exists(path):
+                set_gw_exe_update_status(path, "error", "Gw.exe not found", latest_version=latest)
+                continue
+
+            cached = read_cached_gw_exe_version(path) if use_cache else None
+            if cached is not None:
+                apply_gw_exe_version_status(path, cached, latest, "Cached: ")
+                continue
+
+            try:
+                set_gw_exe_update_status(path, "checking", "Reading local Gw.exe version...")
+                current = get_guildwars_exe_version_id(path)
+                write_cached_gw_exe_version(path, current)
+                apply_gw_exe_version_status(path, current, latest)
+                scanned_count += 1
+                time.sleep(0.03)
+                if stagger_delay and scanned_count > 0:
+                    time.sleep(float(stagger_delay))
+            except Exception as e:
+                set_gw_exe_update_status(path, "error", str(e), latest_version=latest)
+        problem_count = 0
+        try:
+            for path in list(paths or []):
+                state = str(get_gw_exe_update_status(path).get("state", "") or "")
+                if state in ("outdated", "error"):
+                    problem_count += 1
+        except Exception:
+            pass
+        if not use_cache or problem_count > 0:
+            log_history.append(f"GW.exe Update - Version check finished. Cached check: {bool(use_cache)}. Problems: {problem_count}.")
+    except Exception as e:
+        for path in list(paths or []):
+            set_gw_exe_update_status(path, "error", f"Update check failed: {str(e)}")
+        log_history.append(f"GW.exe Update - Version check failed: {str(e)}")
+
+
+def start_gw_exe_update_status_check(force=False):
+    global gw_exe_update_check_thread, gw_exe_update_last_auto_check, gw_exe_update_locked_delay_last_log
+    if not gw_exe_update_enabled:
+        return
+    if credentials_are_locked():
+        now = time.time()
+        if force or not gw_exe_update_locked_delay_last_log or (now - gw_exe_update_locked_delay_last_log) >= 60:
+            gw_exe_update_locked_delay_last_log = now
+            log_history.append("GW.exe Update - Version check delayed until credentials are unlocked.")
+        return
+    paths = get_all_configured_gw_exe_paths()
+    if not paths:
+        return
+    now = time.time()
+    if not force and gw_exe_update_last_auto_check and (now - gw_exe_update_last_auto_check) < 600:
+        return
+    try:
+        if gw_exe_update_check_thread and gw_exe_update_check_thread.is_alive():
+            return
+    except Exception:
+        pass
+    gw_exe_update_last_auto_check = now
+    use_cache = not bool(force)
+    stagger_delay = 0.75 if use_cache else 0.25
+    gw_exe_update_check_thread = threading.Thread(target=gw_exe_status_check_worker, args=(paths, use_cache, stagger_delay), daemon=True)
+    gw_exe_update_check_thread.start()
+
+
+def replace_guildwars_executable_from_cache(path, cache_path, latest_version):
+    path = normalize_gw_exe_path(path)
+    if not os.path.exists(path):
+        set_gw_exe_update_status(path, "error", "Gw.exe not found", progress=0.0)
+        return False
+    set_gw_exe_update_status(path, "updating", "Saving current Gw.exe version to local cache...", latest_version=latest_version, progress=1.0)
+    old_version = get_known_or_read_gw_exe_version(path)
+    cache_existing_guildwars_executable(path, old_version)
+    set_gw_exe_update_status(path, "updating", "Replacing Gw.exe from local cache...", latest_version=latest_version, progress=1.0)
+    shutil.copy2(cache_path, path)
+    current = int(latest_version)
+    write_cached_gw_exe_version(path, current)
+    set_gw_exe_update_status(path, "current", f"Gw.exe updated successfully from local cache. Version {current}", current, latest_version, 1.0)
+    log_history.append(f"GW.exe Update - Updated {path} from local cache. Previous version {old_version} was stored centrally.")
+    return True
+
+
+def get_gw_exe_update_all_targets():
+    targets = []
+    try:
+        for path in get_all_configured_gw_exe_paths():
+            status = get_gw_exe_update_status(path)
+            state = str(status.get("state", "pending"))
+            message = str(status.get("message", ""))
+            current_version = status.get("current_version", None)
+            latest_version = status.get("latest_version", None)
+            is_failed_update = state == "error" and message.startswith("Update failed") and current_version is not None and latest_version is not None and current_version != latest_version
+            if state == "outdated" or is_failed_update:
+                targets.append(path)
+    except Exception:
+        pass
+    return targets
+
+
+def gw_exe_update_worker(path):
+    try:
+        path = normalize_gw_exe_path(path)
+        set_gw_exe_update_status(path, "updating", "Preparing update...", progress=0.0)
+        if is_gw_exe_path_running(path, force=True):
+            set_gw_exe_update_status(path, "outdated", "Update blocked. Close Guild Wars Client first.", progress=0.0)
+            return
+
+        def progress_callback(stage, value):
+            label = "Downloading Gw.exe to local cache..." if str(stage) == "download" else "Unpacking Gw.exe to local cache..."
+            set_gw_exe_update_status(path, "updating", f"{label} {int(float(value) * 100)}%", progress=float(value))
+
+        cache_path, latest_version = fetch_latest_guildwars_exe(progress_callback)
+        set_gw_exe_update_status(path, "updating", f"Using local cache: {cache_path}", latest_version=latest_version, progress=1.0)
+        replace_guildwars_executable_from_cache(path, cache_path, latest_version)
+    except Exception as e:
+        set_gw_exe_update_status(path, "error", f"Update failed: {str(e)}")
+        log_history.append(f"GW.exe Update - Failed for {path}: {str(e)}")
+
+
+def gw_exe_update_all_worker(paths):
+    paths = [normalize_gw_exe_path(path) for path in list(paths or []) if normalize_gw_exe_path(path)]
+    try:
+        if not paths:
+            log_history.append("GW.exe Update All - No outdated Gw.exe paths selected.")
+            return
+
+        running_paths = get_running_guildwars_exe_paths(force=True)
+        update_paths = []
+        for path in paths:
+            path_key = os.path.normcase(os.path.abspath(normalize_gw_exe_path(path)))
+            if path_key in running_paths:
+                set_gw_exe_update_status(path, "outdated", "Update skipped. Close Guild Wars Client first.", progress=0.0)
+            else:
+                update_paths.append(path)
+
+        if not update_paths:
+            log_history.append("GW.exe Update All - All selected Gw.exe files are currently running. Close the shown Guild Wars Client(s) first.")
+            return
+
+        for path in update_paths:
+            set_gw_exe_update_status(path, "updating", "Preparing Update All...", progress=0.0)
+
+        def progress_callback(stage, value):
+            label = "Downloading Gw.exe once to local cache..." if str(stage) == "download" else "Unpacking Gw.exe once to local cache..."
+            for path in update_paths:
+                set_gw_exe_update_status(path, "updating", f"{label} {int(float(value) * 100)}%", progress=float(value))
+
+        cache_path, latest_version = fetch_latest_guildwars_exe(progress_callback)
+        log_history.append(f"GW.exe Update All - Using local cached Gw.exe: {cache_path}")
+
+        success_count = 0
+        for index, path in enumerate(update_paths, start=1):
+            try:
+                set_gw_exe_update_status(path, "updating", f"Updating {index}/{len(update_paths)} from local cache...", latest_version=latest_version, progress=1.0)
+                if replace_guildwars_executable_from_cache(path, cache_path, latest_version):
+                    success_count += 1
+            except Exception as e:
+                set_gw_exe_update_status(path, "error", f"Update failed: {str(e)}")
+                log_history.append(f"GW.exe Update All - Failed for {path}: {str(e)}")
+        log_history.append(f"GW.exe Update All - Finished. Updated {success_count}/{len(update_paths)} eligible Gw.exe files. Skipped {len(paths) - len(update_paths)} running file(s).")
+    except Exception as e:
+        for path in paths:
+            set_gw_exe_update_status(path, "error", f"Update failed: {str(e)}")
+        log_history.append(f"GW.exe Update All - Failed: {str(e)}")
+
+
+def start_gw_exe_update(path):
+    global gw_exe_update_thread
+    try:
+        if gw_exe_update_thread and gw_exe_update_thread.is_alive():
+            log_history.append("GW.exe Update - Another update is already running.")
+            return
+    except Exception:
+        pass
+    gw_exe_update_thread = threading.Thread(target=gw_exe_update_worker, args=(normalize_gw_exe_path(path),), daemon=True)
+    gw_exe_update_thread.start()
+
+
+def start_gw_exe_update_all(paths=None):
+    global gw_exe_update_thread
+    try:
+        if gw_exe_update_thread and gw_exe_update_thread.is_alive():
+            log_history.append("GW.exe Update All - Another update is already running.")
+            return
+    except Exception:
+        pass
+    selected_paths = list(paths or get_gw_exe_update_all_targets())
+    gw_exe_update_thread = threading.Thread(target=gw_exe_update_all_worker, args=(selected_paths,), daemon=True)
+    gw_exe_update_thread.start()
+
+
+
+def install_cached_gw_exe_version_worker(version, paths):
+    version = int(version)
+    paths = [normalize_gw_exe_path(path) for path in list(paths or []) if normalize_gw_exe_path(path)]
+    try:
+        if not paths:
+            log_history.append("GW.exe Cache Install - No configured Gw.exe paths found.")
+            return
+
+        running_paths = get_running_guildwars_exe_paths(force=True)
+        install_paths = []
+        for path in paths:
+            path_key = os.path.normcase(os.path.abspath(normalize_gw_exe_path(path)))
+            if path_key in running_paths:
+                set_gw_exe_update_status(path, "error", "Install cached version skipped. Close Guild Wars Client first.")
+            else:
+                install_paths.append(path)
+
+        if not install_paths:
+            log_history.append("GW.exe Cache Install - All selected Gw.exe files are currently running. Close the shown Guild Wars Client(s) first.")
+            return
+
+        cache_path = get_cached_gw_exe_path(version)
+        sha256_value = verify_cached_gw_exe_file(version, cache_path)
+        set_gw_exe_cache_verify_result(version, "ok", f"Version {version} OK", sha256_value)
+        try:
+            latest_version = int(gw_exe_update_latest_version_id or get_latest_guildwars_exe_version())
+        except Exception:
+            latest_version = version
+
+        success_count = 0
+        for index, path in enumerate(install_paths, start=1):
+            try:
+                set_gw_exe_update_status(path, "updating", f"Installing cached version {version} {index}/{len(install_paths)}...", latest_version=latest_version, progress=1.0)
+                if not os.path.exists(path):
+                    set_gw_exe_update_status(path, "error", "Gw.exe not found")
+                    continue
+                old_version = get_known_or_read_gw_exe_version(path)
+                cache_existing_guildwars_executable(path, old_version)
+                shutil.copy2(cache_path, path)
+                current = int(version)
+                write_cached_gw_exe_version(path, current)
+                if current == latest_version:
+                    set_gw_exe_update_status(path, "current", f"Cached version installed. Version {current}", current, latest_version, 1.0)
+                else:
+                    set_gw_exe_update_status(path, "outdated", f"Cached version installed. Current {current}, latest {latest_version}", current, latest_version, 1.0)
+                success_count += 1
+            except Exception as e:
+                set_gw_exe_update_status(path, "error", f"Install cached version failed: {str(e)}")
+                log_history.append(f"GW.exe Cache Install - Failed for {path}: {str(e)}")
+        log_history.append(f"GW.exe Cache Install - Installed version {version} on {success_count}/{len(install_paths)} eligible Gw.exe files. Skipped {len(paths) - len(install_paths)} running file(s).")
+    except Exception as e:
+        for path in paths:
+            set_gw_exe_update_status(path, "error", f"Install cached version failed: {str(e)}")
+        log_history.append(f"GW.exe Cache Install - Failed: {str(e)}")
+
+
+def start_install_cached_gw_exe_version(version, paths=None):
+    global gw_exe_update_thread
+    try:
+        if gw_exe_update_thread and gw_exe_update_thread.is_alive():
+            log_history.append("GW.exe Cache Install - Another update/install is already running.")
+            return
+    except Exception:
+        pass
+    selected_paths = list(paths or get_all_configured_gw_exe_paths())
+    gw_exe_update_thread = threading.Thread(target=install_cached_gw_exe_version_worker, args=(int(version), selected_paths), daemon=True)
+    gw_exe_update_thread.start()
+
+
+def render_gw_exe_cached_versions_panel(paths):
+    global gw_exe_cached_version_selected, gw_exe_cached_install_target_index
+    global gw_exe_install_cached_confirm_version, gw_exe_install_cached_confirm_requested_at, gw_exe_install_cached_confirm_paths
+    global gw_exe_cache_redownload_latest_confirm_requested_at
+
+    selected_version, versions = ensure_selected_cached_gw_exe_version()
+    ui_section_header("Cached Gw.exe Versions", "local version store")
+    ui_text_muted(f"Cache folder: {get_gw_exe_cache_dir()}")
+
+    if themed_button("Verify Cached Versions##gw_exe_verify_cached_versions", "secondary", imgui.ImVec2(158, 0)):
+        start_verify_cached_gw_exe_versions()
+
+    imgui.same_line()
+    if themed_button("Redownload Latest Cache##gw_exe_redownload_latest_cache", "danger", imgui.ImVec2(184, 0)):
+        gw_exe_cache_redownload_latest_confirm_requested_at = time.time()
+
+    if gw_exe_cache_redownload_latest_confirm_requested_at:
+        render_colored_text("This will redownload the latest Gw.exe into the local cache and replace the cached latest file.", "warning")
+        if themed_button("Cancel##gw_exe_redownload_latest_cancel", "secondary", imgui.ImVec2(72, 0)):
+            gw_exe_cache_redownload_latest_confirm_requested_at = 0.0
+        imgui.same_line()
+        if themed_button("Confirm Redownload Latest##gw_exe_redownload_latest_confirm", "danger", imgui.ImVec2(206, 0)):
+            if time.time() - float(gw_exe_cache_redownload_latest_confirm_requested_at or 0.0) >= 0.35:
+                gw_exe_cache_redownload_latest_confirm_requested_at = 0.0
+                start_redownload_latest_gw_exe_cache()
+
+    if gw_exe_cache_redownload_latest_status:
+        ui_text_muted(gw_exe_cache_redownload_latest_status)
+
+    if not versions:
+        ui_text_muted("No cached Gw.exe versions yet. Updating once will store the downloaded version and the replaced old version here.")
+        return
+
+    labels = [get_gw_exe_cache_version_state_label(version) for version in versions]
+    selected_index = versions.index(selected_version) if selected_version in versions else 0
+    imgui.set_next_item_width(190)
+    changed_version, selected_index = imgui.combo("##gw_exe_cached_version_select", selected_index, labels)
+    if changed_version and 0 <= selected_index < len(versions):
+        gw_exe_cached_version_selected = versions[selected_index]
+        write_launcher_layout_value_if_changed("gw_exe_cached_version_selected", str(gw_exe_cached_version_selected))
+        gw_exe_install_cached_confirm_version = 0
+        gw_exe_install_cached_confirm_requested_at = 0.0
+        gw_exe_install_cached_confirm_paths = []
+
+    selected_result = get_gw_exe_cache_verify_result(gw_exe_cached_version_selected)
+    selected_state = str(selected_result.get("state", "unchecked"))
+    selected_message = str(selected_result.get("message", ""))
+    if selected_state == "ok":
+        render_colored_text(f"Selected cached version {gw_exe_cached_version_selected}: OK", "success")
+    elif selected_state == "corrupt":
+        render_colored_text(f"Selected cached version {gw_exe_cached_version_selected}: CORRUPT", "danger")
+        ui_text_muted(selected_message or "Local cached file is corrupt and cannot be restored automatically unless it is the latest version and can be redownloaded.")
+    elif selected_state == "checking":
+        ui_text_muted(f"Selected cached version {gw_exe_cached_version_selected}: checking...")
+    else:
+        ui_text_muted(f"Selected cached version {gw_exe_cached_version_selected}: unchecked")
+
+    target_options = ["All"] + [normalize_gw_exe_path(path) for path in list(paths or [])]
+    if gw_exe_cached_install_target_index >= len(target_options):
+        gw_exe_cached_install_target_index = 0
+    imgui.same_line()
+    imgui.set_next_item_width(260)
+    changed_target, gw_exe_cached_install_target_index = imgui.combo("##gw_exe_cached_install_target", gw_exe_cached_install_target_index, target_options)
+    if changed_target:
+        write_launcher_layout_value_if_changed("gw_exe_cached_install_target_index", str(gw_exe_cached_install_target_index))
+        gw_exe_install_cached_confirm_version = 0
+        gw_exe_install_cached_confirm_requested_at = 0.0
+        gw_exe_install_cached_confirm_paths = []
+
+    selected_paths = list(paths or []) if gw_exe_cached_install_target_index == 0 else [target_options[gw_exe_cached_install_target_index]]
+    button_label = f"Install Version All##gw_exe_install_cached_all_{gw_exe_cached_version_selected}" if gw_exe_cached_install_target_index == 0 else f"Install Version Target##gw_exe_install_cached_target_{gw_exe_cached_version_selected}"
+    imgui.same_line()
+    if selected_state == "corrupt":
+        ui_text_muted("Install blocked for corrupt cached file.")
+    elif themed_button(button_label, "danger", imgui.ImVec2(156, 0)):
+        gw_exe_install_cached_confirm_version = int(gw_exe_cached_version_selected)
+        gw_exe_install_cached_confirm_requested_at = time.time()
+        gw_exe_install_cached_confirm_paths = list(selected_paths)
+
+    if gw_exe_install_cached_confirm_version:
+        target_text = "all configured Guild Wars folders" if len(gw_exe_install_cached_confirm_paths) != 1 else gw_exe_install_cached_confirm_paths[0]
+        render_colored_text(f"Install cached Gw.exe version {gw_exe_install_cached_confirm_version} to {target_text}?", "warning")
+        ui_text_muted("Close the affected Guild Wars Client first. Inactive clients can still be updated.")
+        if themed_button("Cancel##gw_exe_install_cached_cancel", "secondary", imgui.ImVec2(72, 0)):
+            gw_exe_install_cached_confirm_version = 0
+            gw_exe_install_cached_confirm_requested_at = 0.0
+            gw_exe_install_cached_confirm_paths = []
+        imgui.same_line()
+        if themed_button(f"Confirm Install Version {gw_exe_install_cached_confirm_version}##gw_exe_install_cached_confirm", "danger", imgui.ImVec2(210, 0)):
+            if time.time() - float(gw_exe_install_cached_confirm_requested_at or 0.0) >= 0.35:
+                version_to_install = int(gw_exe_install_cached_confirm_version)
+                paths_to_install = list(gw_exe_install_cached_confirm_paths or selected_paths)
+                gw_exe_install_cached_confirm_version = 0
+                gw_exe_install_cached_confirm_requested_at = 0.0
+                gw_exe_install_cached_confirm_paths = []
+                start_install_cached_gw_exe_version(version_to_install, paths_to_install)
+
+
+def redownload_guildwars_client_worker(destination_folder, run_image):
+    global gw_exe_redownload_status, gw_exe_redownload_folder
+    try:
+        destination_folder = os.path.abspath(str(destination_folder or "").strip().strip('"'))
+        if not destination_folder:
+            gw_exe_redownload_status = "Destination folder is empty."
+            return
+        os.makedirs(destination_folder, exist_ok=True)
+        target_exe = os.path.join(destination_folder, "Gw.exe")
+        if is_gw_exe_path_running(target_exe, force=True):
+            gw_exe_redownload_status = "Blocked. Close Guild Wars Client first."
+            return
+
+        def progress_callback(stage, value):
+            global gw_exe_redownload_status
+            label = "Downloading latest Gw.exe to local cache..." if str(stage) == "download" else "Unpacking latest Gw.exe to local cache..."
+            gw_exe_redownload_status = f"{label} {int(float(value) * 100)}%"
+
+        gw_exe_redownload_status = "Fetching latest Gw.exe..."
+        cache_path, latest_version = fetch_latest_guildwars_exe(progress_callback)
+        verify_cached_gw_exe_file(latest_version, cache_path)
+
+        if os.path.exists(target_exe):
+            gw_exe_redownload_status = "Saving existing Gw.exe version to local cache..."
+            cache_existing_guildwars_executable(target_exe)
+
+        shutil.copy2(cache_path, target_exe)
+        current = get_guildwars_exe_version_id(target_exe)
+        if current != latest_version:
+            raise RuntimeError(f"Installed Gw.exe version mismatch: {current} != {latest_version}")
+
+        write_cached_gw_exe_version(target_exe, current)
+        gw_exe_redownload_folder = destination_folder
+        write_launcher_layout_value_if_changed("gw_exe_redownload_folder", gw_exe_redownload_folder)
+        gw_exe_redownload_status = f"Latest Gw.exe installed. Version {current}"
+
+        if run_image:
+            gw_exe_redownload_status = f"Starting Gw.exe -image for full client redownload. Version {current}"
+            subprocess.Popen([target_exe, "-image"], cwd=destination_folder)
+        log_history.append(f"GW.exe Client Redownload - Installed latest Gw.exe to {target_exe}. Run image: {bool(run_image)}")
+    except Exception as e:
+        gw_exe_redownload_status = f"Client redownload failed: {str(e)}"
+        log_history.append(f"GW.exe Client Redownload - Failed: {str(e)}")
+
+
+def start_redownload_guildwars_client(destination_folder, run_image):
+    global gw_exe_update_thread
+    try:
+        if gw_exe_update_thread and gw_exe_update_thread.is_alive():
+            log_history.append("GW.exe Client Redownload - Another update/install is already running.")
+            return
+    except Exception:
+        pass
+    gw_exe_update_thread = threading.Thread(target=redownload_guildwars_client_worker, args=(destination_folder, bool(run_image)), daemon=True)
+    gw_exe_update_thread.start()
+
+
+def render_gw_exe_redownload_panel():
+    global gw_exe_redownload_folder, gw_exe_redownload_run_image, gw_exe_redownload_confirm_requested_at
+
+    ui_section_header("Client Redownload", "fresh Gw.exe and optional -image")
+    ui_text_muted("Downloads the latest Gw.exe into the local cache, copies it to the selected folder, and can start Gw.exe -image to redownload the client data.")
+
+    input_width = ui_responsive_input_width(max_width=460.0, min_width=180.0, reserve_width=190.0)
+    imgui.set_next_item_width(input_width)
+    changed_folder, gw_exe_redownload_folder = imgui.input_text("##gw_exe_redownload_folder", gw_exe_redownload_folder, 512)
+    if changed_folder:
+        write_launcher_layout_value_if_changed("gw_exe_redownload_folder", gw_exe_redownload_folder)
+
+    imgui.same_line()
+    if themed_button("Browse##gw_exe_redownload_browse", "secondary", imgui.ImVec2(76, 0)):
+        selected_folder = filedialog.askdirectory()
+        if selected_folder:
+            gw_exe_redownload_folder = selected_folder
+            write_launcher_layout_value_if_changed("gw_exe_redownload_folder", gw_exe_redownload_folder)
+
+    changed_image, gw_exe_redownload_run_image = imgui.checkbox("Run Gw.exe -image after install##gw_exe_redownload_run_image", bool(gw_exe_redownload_run_image))
+    if changed_image:
+        write_launcher_layout_value_if_changed("gw_exe_redownload_run_image", "true" if gw_exe_redownload_run_image else "false")
+
+    if themed_button("Redownload Client##gw_exe_redownload_client", "danger", imgui.ImVec2(138, 0)):
+        gw_exe_redownload_confirm_requested_at = time.time()
+
+    if gw_exe_redownload_confirm_requested_at:
+        render_colored_text("This will copy the latest Gw.exe into the selected folder. Existing Gw.exe is stored centrally first.", "warning")
+        if gw_exe_redownload_run_image:
+            ui_text_muted("After that, Gw.exe -image will be started. This can download the full client data and may take a long time.")
+        if themed_button("Cancel##gw_exe_redownload_cancel", "secondary", imgui.ImVec2(72, 0)):
+            gw_exe_redownload_confirm_requested_at = 0.0
+        imgui.same_line()
+        if themed_button("Confirm Redownload##gw_exe_redownload_confirm", "danger", imgui.ImVec2(156, 0)):
+            if time.time() - float(gw_exe_redownload_confirm_requested_at or 0.0) >= 0.35:
+                gw_exe_redownload_confirm_requested_at = 0.0
+                start_redownload_guildwars_client(gw_exe_redownload_folder, gw_exe_redownload_run_image)
+
+    if gw_exe_redownload_status:
+        ui_text_muted(gw_exe_redownload_status)
+
+
+def render_colored_text(text_value, color_name):
+    imgui.push_style_color(imgui.Col_.text, ui_color(color_name))
+    imgui.text(str(text_value))
+    imgui.pop_style_color()
+
+
+def render_gw_exe_update_panel():
+    global gw_exe_update_confirm_path, gw_exe_update_confirm_requested_at
+
+    if credentials_are_locked():
+        return
+
+    paths = get_all_configured_gw_exe_paths()
+    if not paths:
+        ui_text_muted("No configured Gw.exe paths found.")
+        return
+
+    ui_section_header("Guild Wars Executable", "Version check")
+    if themed_button("Check Now##gw_exe_update_refresh", "secondary", imgui.ImVec2(96, 0)):
+        start_gw_exe_update_status_check(force=True)
+    update_all_targets = get_gw_exe_update_all_targets()
+    if update_all_targets:
+        imgui.same_line()
+        if themed_button(f"Update All ({len(update_all_targets)})##gw_exe_update_all", "danger", imgui.ImVec2(112, 0)):
+            gw_exe_update_confirm_path = "__all__"
+            gw_exe_update_confirm_requested_at = time.time()
+    imgui.same_line()
+    ui_text_muted("Automatic startup check is lightweight; Check Now forces a full local scan.")
+
+    if gw_exe_update_confirm_path == "__all__":
+        render_colored_text("Close affected Guild Wars Client(s) before updating them.", "warning")
+        ui_text_muted("The latest Gw.exe is downloaded once into the local Py4GW cache and then copied to each selected Guild Wars folder.")
+        if themed_button("Cancel##gw_exe_update_all_cancel", "secondary", imgui.ImVec2(72, 0)):
+            gw_exe_update_confirm_path = ""
+            gw_exe_update_confirm_requested_at = 0.0
+        imgui.same_line()
+        if themed_button(f"Confirm Update All ({len(update_all_targets)})##gw_exe_update_all_confirm", "danger", imgui.ImVec2(168, 0)):
+            if time.time() - float(gw_exe_update_confirm_requested_at or 0.0) >= 0.35:
+                targets = list(update_all_targets)
+                gw_exe_update_confirm_path = ""
+                gw_exe_update_confirm_requested_at = 0.0
+                start_gw_exe_update_all(targets)
+
+    imgui.spacing()
+    render_gw_exe_cached_versions_panel(paths)
+
+    imgui.spacing()
+    render_gw_exe_redownload_panel()
+
+    for path in paths:
+        status = get_gw_exe_update_status(path)
+        state = str(status.get("state", "pending"))
+        message = str(status.get("message", ""))
+
+        imgui.spacing()
+        if state == "current":
+            render_colored_text(message or "Gw.exe is up to date.", "success")
+        elif state == "outdated":
+            render_colored_text(message or "Gw.exe update available.", "warning")
+            imgui.same_line()
+            if themed_button(f"Update##gw_exe_update_{path}", "danger", imgui.ImVec2(72, 0)):
+                gw_exe_update_confirm_path = path
+                gw_exe_update_confirm_requested_at = time.time()
+        elif state == "updating":
+            render_colored_text(message or "Updating Gw.exe...", "warning")
+        elif state == "checking" or state == "pending":
+            ui_text_muted(message or "Checking Gw.exe version...")
+        else:
+            render_colored_text(message or "Gw.exe update check failed.", "danger")
+            if str(message or "").startswith("Update failed"):
+                imgui.same_line()
+                if themed_button(f"Restart Update##gw_exe_update_restart_{path}", "danger", imgui.ImVec2(122, 0)):
+                    start_gw_exe_update(path)
+
+        ui_text_muted(path)
+
+        if gw_exe_update_confirm_path == path:
+            render_colored_text("Close Guild Wars Client before updating this Gw.exe.", "warning")
+            if themed_button(f"Cancel##gw_exe_update_cancel_{path}", "secondary", imgui.ImVec2(72, 0)):
+                gw_exe_update_confirm_path = ""
+                gw_exe_update_confirm_requested_at = 0.0
+            imgui.same_line()
+            if themed_button(f"Confirm Update##gw_exe_update_confirm_{path}", "danger", imgui.ImVec2(132, 0)):
+                if time.time() - float(gw_exe_update_confirm_requested_at or 0.0) >= 0.35:
+                    gw_exe_update_confirm_path = ""
+                    gw_exe_update_confirm_requested_at = 0.0
+                    start_gw_exe_update(path)
+
+def render_gw_exe_version_badge(account):
+    if not gw_exe_update_enabled:
+        return
+
+    imgui.same_line()
+    path = normalize_gw_exe_path(str(getattr(account, "gw_path", "") or ""))
+    if not path:
+        render_status_badge("GW", "secondary", f"{id(account)}_gw_no_path")
+        return
+
+    status = get_gw_exe_update_status(path)
+    state = str(status.get("state", "pending") or "pending").lower()
+    if state == "current":
+        render_status_badge("GW", "success", f"{id(account)}_gw_current")
+    elif state == "outdated":
+        render_status_badge("GW", "warning", f"{id(account)}_gw_outdated")
+    elif state == "error":
+        render_status_badge("GW", "danger", f"{id(account)}_gw_error")
+    else:
+        render_status_badge("GW", "secondary", f"{id(account)}_gw_pending")
+
+
 def render_py4gw_badge(account, running, pid):
     if not getattr(account, "inject_py4gw", False):
         return
@@ -6027,6 +8119,10 @@ def render_py4gw_badge(account, running, pid):
         render_status_badge("PY", "secondary", f"{id(account)}_py_stopped")
         return
 
+    if loaded is None:
+        render_status_badge("PY?", "secondary", f"{id(account)}_py_unknown")
+        return
+
     render_status_badge("PY", "success" if loaded else "danger", f"{id(account)}_py_{'loaded' if loaded else 'missing'}")
 
     if not loaded:
@@ -6034,10 +8130,10 @@ def render_py4gw_badge(account, running, pid):
         if themed_button(f"Inject PY##inject_py4gw_{id(account)}", "primary"):
             ini_handler.write_key("settings", "autoexec_script", account.script_path)
             if launch_gw.attempt_dll_injection(pid, delay=0, dll_type="Py4GW"):
-                account_py4gw_status_cache.pop(id(account), None)
+                set_account_dll_loaded_cache(account, pid, "Py4GW", True)
                 log_history.append(f"Py4GW - Re-injected for: {account.character_name}")
             else:
-                account_py4gw_status_cache.pop(id(account), None)
+                set_account_dll_loaded_cache(account, pid, "Py4GW", False)
                 log_history.append(f"Py4GW - Re-injection failed for: {account.character_name}")
 
 
@@ -6052,6 +8148,10 @@ def render_toolbox_badge(account, running, pid):
         render_status_badge("TB", "secondary", f"{id(account)}_stopped")
         return
 
+    if loaded is None:
+        render_status_badge("TB?", "secondary", f"{id(account)}_toolbox_unknown")
+        return
+
     render_status_badge("TB", "success" if loaded else "danger", f"{id(account)}_{'loaded' if loaded else 'missing'}")
 
     if not loaded:
@@ -6061,10 +8161,10 @@ def render_toolbox_badge(account, running, pid):
             if not toolbox_path or not os.path.exists(toolbox_path):
                 log_history.append(f"GWToolbox - DLL path missing for: {account.character_name}")
             elif launch_gw.attempt_dll_injection(pid, delay=0, dll_type="GWToolbox", dll_path=toolbox_path):
-                account_toolbox_status_cache.pop(id(account), None)
+                set_account_dll_loaded_cache(account, pid, "GWToolbox", True)
                 log_history.append(f"GWToolbox - Re-injected for: {account.character_name}")
             else:
-                account_toolbox_status_cache.pop(id(account), None)
+                set_account_dll_loaded_cache(account, pid, "GWToolbox", False)
                 log_history.append(f"GWToolbox - Re-injection failed for: {account.character_name}")
 
 
@@ -6337,6 +8437,7 @@ def show_team_view():
                     launch_gw.launch_gw(account)
 
                 running, pid = get_account_running_status(account)
+                render_gw_exe_version_badge(account)
                 imgui.same_line()
                 imgui.push_style_color(imgui.Col_.text, ui_color("success") if running else ui_color("danger"))
                 imgui.text(account_display_name)
@@ -6539,9 +8640,9 @@ account_py4gw_status_cache = {}
 dll_status_error_log_cache = {}
 pending_rename_client_names = {}
 ACCOUNT_STATUS_REFRESH_SECONDS = 1.0
-TOOLBOX_STATUS_REFRESH_SECONDS = 5.0
-PY4GW_STATUS_REFRESH_SECONDS = 5.0
-DLL_STATUS_ERROR_LOG_SECONDS = 30.0
+TOOLBOX_STATUS_REFRESH_SECONDS = 12.0
+PY4GW_STATUS_REFRESH_SECONDS = 12.0
+DLL_STATUS_ERROR_LOG_SECONDS = 60.0
 data_loaded = False
 account_password_visibility = {}
 new_account_show_password = False
@@ -7042,6 +9143,8 @@ def unlock_credentials_with_master_password(master_password: str) -> bool:
                 entered_team_name = first_team.name
                 sync_team_editor_fields(force=True)
         log_history.append("Credential Security - Credentials unlocked.")
+        if gw_exe_update_enabled:
+            start_gw_exe_update_status_check(force=False)
         return True
     except Exception as e:
         credentials_unlocked = False
@@ -8702,6 +10805,8 @@ def main() -> None:
 
 
         ensure_team_data_loaded()
+        if gw_exe_update_enabled:
+            start_gw_exe_update_status_check(force=False)
 
         def update_gui():
             global visible_windows, modern_style_applied, applied_ui_theme_mode
@@ -8718,6 +10823,9 @@ def main() -> None:
                     launcher_icon_attempts += 1
                     if apply_launcher_window_icon():
                         launcher_icon_applied = True
+
+                if gw_exe_update_enabled:
+                    start_gw_exe_update_status_check(force=False)
 
                 runner_params.docking_params.dockable_windows = create_dockable_windows()
             except Exception as e:
