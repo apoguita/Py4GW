@@ -52,6 +52,10 @@ INVENTORY_SHORTCUTS_MOUSE_LEAVE_PADDING = 4.0
 INVENTORY_SHORTCUT_LIVE_CONFIRM_TIMEOUT_MS = 10_000
 INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT = "deposit"
 INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY = "destroy"
+INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_XUNLAI_PANES = "withdraw_xunlai_panes"
+INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_MATERIAL_STORAGE = "withdraw_material_storage"
+INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_BOTH = "withdraw_both"
+INVENTORY_SHORTCUT_LIVE_ACTION_REFRESH_MATERIAL_STORAGE_COUNT = "refresh_material_storage_count"
 INVENTORY_SHORTCUT_LIVE_ACTION_SALVAGE_KIT_PREFIX = "salvage_kit"
 
 PROFILE_VERSION = 35
@@ -139,6 +143,7 @@ SALVAGE_POLL_MS = 400
 IDENTIFY_POLL_MS = 400
 IDENTIFY_CONFIRM_TIMEOUT_MS = 5000
 STACKABLE_DESTROY_MAX_STACK_SIZE = 250
+CRAFTING_MATERIAL_MAX_STACK_SIZE = 250
 INVENTORY_BAG_IDS: tuple[int, ...] = (1, 2, 3, 4)
 PROFILE_WINDOW_GEOMETRY_KEYS: tuple[str, ...] = (
     "window_x",
@@ -5024,6 +5029,12 @@ class MerchantRulesWidget:
         self.inventory_shortcuts_live_confirm_model_id = 0
         self.inventory_shortcuts_live_confirm_started_at_ms = 0
         self.inventory_shortcuts_live_action_running = False
+        self.inventory_shortcuts_material_storage_count_cache: dict[int, int] = {}
+        self.inventory_shortcuts_material_storage_count_cache_account_key = ""
+        self.inventory_shortcuts_material_storage_count_cache_profile_key = ""
+        self.inventory_shortcuts_material_storage_count_cache_map_id = 0
+        self.inventory_shortcuts_material_storage_count_cache_instance_uptime_ms = 0
+        self.inventory_shortcuts_material_storage_count_cache_captured_at_ms = 0
         self.floating_ui_ini_key = ""
         self.floating_ui_ini_loaded = False
         self.floating_button = None
@@ -5418,6 +5429,26 @@ class MerchantRulesWidget:
             item_name = "Selected item"
         return item_name
 
+    def _format_inventory_shortcut_base_item_name(self, item: InventoryItemInfo | None) -> str:
+        if item is None:
+            return "Selected item"
+        safe_model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if safe_model_id > 0:
+            catalog_name = _strip_item_display_markup(self._get_model_name(safe_model_id))
+            if catalog_name:
+                return catalog_name
+            for enum_name, enum_model_id in _iter_model_id_enum_members():
+                if int(enum_model_id) != safe_model_id:
+                    continue
+                enum_label = _humanize_model_id_enum_name(enum_name)
+                if enum_label:
+                    return enum_label
+        item_name = _strip_item_display_markup(getattr(item, "name", ""))
+        quantity = max(0, _safe_int(getattr(item, "quantity", 0), 0))
+        if item_name and quantity > 1:
+            item_name = re.sub(rf"^\s*{re.escape(str(quantity))}\s+", "", item_name).strip()
+        return item_name or "Selected item"
+
     def _count_inventory_shortcut_matching_quantity(
         self,
         item: InventoryItemInfo,
@@ -5432,10 +5463,39 @@ class MerchantRulesWidget:
             if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) == model_id
         )
 
+    def _is_inventory_shortcut_material_withdraw_candidate(self, item: InventoryItemInfo | None) -> bool:
+        if item is None:
+            return False
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0 or model_id not in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+            return False
+        if bool(getattr(item, "is_weapon_like", False)) or bool(getattr(item, "is_armor_piece", False)):
+            return False
+        return bool(getattr(item, "is_material", False) or getattr(item, "is_rare_material", False))
+
+    def _count_inventory_shortcut_matching_material_quantity(
+        self,
+        item: InventoryItemInfo,
+        items: list[InventoryItemInfo],
+    ) -> int:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return 0
+        return sum(
+            max(0, _safe_int(getattr(candidate, "quantity", 0), 0))
+            for candidate in items
+            if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) == model_id
+            and self._is_inventory_shortcut_material_withdraw_candidate(candidate)
+        )
+
     def _get_inventory_shortcut_bag_quantity(self, item: InventoryItemInfo) -> int:
         fallback_quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
         try:
-            bag_quantity = self._count_inventory_shortcut_matching_quantity(item, self._collect_inventory_items())
+            inventory_items = self._collect_inventory_items()
+            if self._is_inventory_shortcut_material_withdraw_candidate(item):
+                bag_quantity = self._count_inventory_shortcut_matching_material_quantity(item, inventory_items)
+            else:
+                bag_quantity = self._count_inventory_shortcut_matching_quantity(item, inventory_items)
         except Exception as exc:
             self._debug_log(f"Inventory shortcut bag count failed: {exc}")
             return fallback_quantity
@@ -5445,25 +5505,279 @@ class MerchantRulesWidget:
         if not self._is_storage_open():
             return None
         try:
-            return self._count_inventory_shortcut_matching_quantity(item, self._collect_storage_items())
+            storage_items = self._collect_storage_items()
+            if self._is_inventory_shortcut_material_withdraw_candidate(item):
+                return self._count_inventory_shortcut_matching_material_quantity(item, storage_items)
+            return self._count_inventory_shortcut_matching_quantity(item, storage_items)
         except Exception as exc:
             self._debug_log(f"Inventory shortcut vault count failed: {exc}")
             return None
 
-    def _get_inventory_shortcut_material_storage_quantity(self, item: InventoryItemInfo) -> int | None:
-        if not bool(getattr(item, "is_material", False)):
-            return None
+    def _get_inventory_shortcut_material_storage_cache_context(self) -> tuple[str, str, int, int]:
+        return (
+            str(self.account_key or "").strip(),
+            str(self.config_path or "").strip(),
+            max(0, _safe_int(self.map_snapshot, 0)),
+            max(0, _safe_int(self.map_instance_uptime_snapshot_ms, 0)),
+        )
+
+    def _clear_inventory_shortcut_material_storage_count_cache(self, reason: str = ""):
+        had_cache = bool(
+            self.inventory_shortcuts_material_storage_count_cache
+            or self.inventory_shortcuts_material_storage_count_cache_captured_at_ms > 0
+        )
+        self.inventory_shortcuts_material_storage_count_cache = {}
+        self.inventory_shortcuts_material_storage_count_cache_account_key = ""
+        self.inventory_shortcuts_material_storage_count_cache_profile_key = ""
+        self.inventory_shortcuts_material_storage_count_cache_map_id = 0
+        self.inventory_shortcuts_material_storage_count_cache_instance_uptime_ms = 0
+        self.inventory_shortcuts_material_storage_count_cache_captured_at_ms = 0
+        if had_cache and reason:
+            self._debug_log(f"Inventory shortcut Material Storage count cache cleared: {reason}")
+
+    def _store_inventory_shortcut_material_storage_count_cache(self, counts_by_model_id: dict[int, int]):
+        account_key, profile_key, map_id, instance_uptime_ms = self._get_inventory_shortcut_material_storage_cache_context()
+        self.inventory_shortcuts_material_storage_count_cache = {
+            max(0, int(model_id)): max(0, int(quantity))
+            for model_id, quantity in dict(counts_by_model_id or {}).items()
+            if max(0, int(model_id)) > 0
+        }
+        self.inventory_shortcuts_material_storage_count_cache_account_key = account_key
+        self.inventory_shortcuts_material_storage_count_cache_profile_key = profile_key
+        self.inventory_shortcuts_material_storage_count_cache_map_id = map_id
+        self.inventory_shortcuts_material_storage_count_cache_instance_uptime_ms = instance_uptime_ms
+        self.inventory_shortcuts_material_storage_count_cache_captured_at_ms = int(time.time() * 1000)
+
+    def _is_inventory_shortcut_material_storage_count_cache_valid(self) -> bool:
+        if self.inventory_shortcuts_material_storage_count_cache_captured_at_ms <= 0:
+            return False
         if not self._is_storage_open():
+            self._clear_inventory_shortcut_material_storage_count_cache("storage closed")
+            return False
+        account_key, profile_key, map_id, instance_uptime_ms = self._get_inventory_shortcut_material_storage_cache_context()
+        cached_account_key = str(self.inventory_shortcuts_material_storage_count_cache_account_key or "")
+        cached_profile_key = str(self.inventory_shortcuts_material_storage_count_cache_profile_key or "")
+        cached_map_id = max(0, int(self.inventory_shortcuts_material_storage_count_cache_map_id))
+        cached_instance_uptime_ms = max(
+            0,
+            int(self.inventory_shortcuts_material_storage_count_cache_instance_uptime_ms),
+        )
+        if cached_account_key != account_key:
+            self._clear_inventory_shortcut_material_storage_count_cache("context account changed")
+            return False
+        if cached_profile_key != profile_key:
+            self._clear_inventory_shortcut_material_storage_count_cache("context profile changed")
+            return False
+        if cached_map_id != map_id:
+            self._clear_inventory_shortcut_material_storage_count_cache(
+                f"context map changed cached={cached_map_id} current={map_id}"
+            )
+            return False
+        if cached_instance_uptime_ms > 0 and instance_uptime_ms > 0 and instance_uptime_ms < cached_instance_uptime_ms:
+            self._clear_inventory_shortcut_material_storage_count_cache(
+                f"context session reset cached_uptime_ms={cached_instance_uptime_ms} "
+                f"current_uptime_ms={instance_uptime_ms}"
+            )
+            return False
+        return True
+
+    def _build_inventory_shortcut_material_storage_count_cache(
+        self,
+        material_storage_items: list[InventoryItemInfo],
+    ) -> dict[int, int]:
+        counts_by_model_id: dict[int, int] = {}
+        for item in material_storage_items:
+            if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+                continue
+            model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+            quantity = max(0, _safe_int(getattr(item, "quantity", 0), 0))
+            if model_id <= 0 or quantity <= 0:
+                continue
+            counts_by_model_id[model_id] = counts_by_model_id.get(model_id, 0) + quantity
+        return counts_by_model_id
+
+    def _get_inventory_shortcut_material_storage_quantity(self, item: InventoryItemInfo) -> int | None:
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return None
+        if not self._is_inventory_shortcut_material_storage_count_cache_valid():
+            return None
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return None
+        return max(0, int(self.inventory_shortcuts_material_storage_count_cache.get(model_id, 0)))
+
+    def _get_inventory_shortcut_material_withdraw_capacity(self, item: InventoryItemInfo) -> int | None:
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
             return None
         model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
         if model_id <= 0:
             return None
         try:
-            quantity, _slot, _bag_size = self._get_material_storage_quantity_and_slot(model_id)
-            return max(0, int(quantity))
+            inventory_items = self._collect_inventory_items()
         except Exception as exc:
-            self._debug_log(f"Inventory shortcut material storage count failed: {exc}")
+            self._debug_log(f"Inventory shortcut withdraw capacity inventory scan failed: {exc}")
             return None
+        try:
+            free_slots = self._get_inventory_free_slot_count()
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut withdraw free slot count failed: {exc}")
+            return None
+        if free_slots < 0:
+            return None
+        partial_stack_capacity = 0
+        for candidate in inventory_items:
+            if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) != model_id:
+                continue
+            if not self._is_inventory_shortcut_material_withdraw_candidate(candidate):
+                continue
+            quantity = max(0, _safe_int(getattr(candidate, "quantity", 0), 0))
+            if quantity <= 0:
+                continue
+            partial_stack_capacity += max(0, CRAFTING_MATERIAL_MAX_STACK_SIZE - quantity)
+        return max(0, partial_stack_capacity + (max(0, int(free_slots)) * CRAFTING_MATERIAL_MAX_STACK_SIZE))
+
+    def _get_inventory_shortcut_xunlai_pane_material_sources(
+        self,
+        item: InventoryItemInfo,
+    ) -> list[InventoryItemInfo] | None:
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return []
+        if not self._is_storage_open():
+            return None
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return []
+        try:
+            storage_items = self._collect_storage_items()
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut Xunlai pane scan failed: {exc}")
+            return None
+        return [
+            candidate
+            for candidate in storage_items
+            if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) == model_id
+            and self._is_inventory_shortcut_material_withdraw_candidate(candidate)
+            and max(0, _safe_int(getattr(candidate, "item_id", 0), 0)) > 0
+            and max(0, _safe_int(getattr(candidate, "quantity", 0), 0)) > 0
+        ]
+
+    def _get_inventory_shortcut_xunlai_pane_material_quantity(self, item: InventoryItemInfo) -> int | None:
+        sources = self._get_inventory_shortcut_xunlai_pane_material_sources(item)
+        if sources is None:
+            return None
+        return sum(max(0, _safe_int(getattr(source, "quantity", 0), 0)) for source in sources)
+
+    def _get_inventory_shortcut_xunlai_withdraw_label_state(
+        self,
+        item: InventoryItemInfo,
+    ) -> tuple[str, bool, int | None, int | None]:
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        base_label = f"Withdraw {item_name} From Xunlai Panes"
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return base_label, False, None, None
+        if not self._is_storage_open():
+            return f"{base_label} (Xunlai unavailable)", False, None, None
+        available_quantity = self._get_inventory_shortcut_xunlai_pane_material_quantity(item)
+        if available_quantity is None:
+            return f"{base_label} (Xunlai unreadable)", False, None, None
+        if available_quantity <= 0:
+            return f"No {item_name} in Xunlai Panes", False, available_quantity, None
+        capacity = self._get_inventory_shortcut_material_withdraw_capacity(item)
+        if capacity is None:
+            return f"{base_label} ({available_quantity} available / capacity unavailable)", False, available_quantity, None
+        if capacity <= 0:
+            return f"{base_label} ({available_quantity} available / 0 fits)", False, available_quantity, capacity
+        if capacity >= available_quantity:
+            return f"{base_label} ({available_quantity} available)", True, available_quantity, capacity
+        return f"{base_label} ({available_quantity} available / {capacity} fits)", True, available_quantity, capacity
+
+    def _format_inventory_shortcut_xunlai_withdraw_label(self, item: InventoryItemInfo) -> tuple[str, bool]:
+        label, enabled, _available_quantity, _capacity = self._get_inventory_shortcut_xunlai_withdraw_label_state(item)
+        return label, enabled
+
+    def _get_inventory_shortcut_material_storage_withdraw_label_state(
+        self,
+        item: InventoryItemInfo,
+    ) -> tuple[str, bool, int | None]:
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        base_label = f"Withdraw {item_name} From Material Storage"
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return base_label, False, None
+        if not self._is_storage_open():
+            return f"{base_label} (Xunlai unavailable)", False, None
+        material_storage_quantity = self._get_inventory_shortcut_material_storage_quantity(item)
+        if material_storage_quantity is not None:
+            return f"{base_label} ({material_storage_quantity} last seen)", True, material_storage_quantity
+        return base_label, True, None
+
+    def _format_inventory_shortcut_material_storage_withdraw_label(
+        self,
+        item: InventoryItemInfo,
+    ) -> tuple[str, bool]:
+        label, enabled, _material_storage_quantity = self._get_inventory_shortcut_material_storage_withdraw_label_state(
+            item
+        )
+        return label, enabled
+
+    def _format_inventory_shortcut_both_withdraw_label_from_phase3_state(
+        self,
+        item: InventoryItemInfo,
+        *,
+        pane_quantity: int | None,
+        capacity: int | None,
+        material_storage_quantity: int | None,
+    ) -> tuple[str, bool]:
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return "", False
+        if pane_quantity is None or pane_quantity <= 0:
+            return "", False
+
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        material_storage_label = (
+            f"{int(material_storage_quantity)} last seen"
+            if material_storage_quantity is not None
+            else "not checked"
+        )
+        label = f"Withdraw {item_name} From Both (Vault: {int(pane_quantity)} / Material Storage: {material_storage_label})"
+        if capacity is None or capacity <= 0:
+            return label, False
+        return label, True
+
+    def _format_inventory_shortcut_material_storage_count_refresh_label(
+        self,
+        item: InventoryItemInfo,
+    ) -> tuple[str, bool]:
+        base_label = "Refresh Material Storage Count"
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return base_label, False
+        if not self._is_storage_open():
+            return f"{base_label} (Xunlai unavailable)", False
+        return base_label, True
+
+    def _get_inventory_shortcut_material_storage_material_sources(
+        self,
+        item: InventoryItemInfo,
+    ) -> list[InventoryItemInfo] | None:
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return []
+        if not self._is_storage_open():
+            return None
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return []
+        try:
+            material_storage_items = self._collect_material_storage_items()
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut Material Storage scan failed: {exc}")
+            return None
+        return [
+            candidate
+            for candidate in material_storage_items
+            if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) == model_id
+            and self._is_inventory_shortcut_material_withdraw_candidate(candidate)
+            and max(0, _safe_int(getattr(candidate, "item_id", 0), 0)) > 0
+            and max(0, _safe_int(getattr(candidate, "quantity", 0), 0)) > 0
+        ]
 
     def _format_inventory_shortcut_menu_header(self, item: InventoryItemInfo | None) -> str:
         item_name = self._format_inventory_shortcut_item_name(item)
@@ -5477,13 +5791,9 @@ class MerchantRulesWidget:
             if vault_quantity is not None
             else "Vault: unavailable"
         )
-        if bool(getattr(item, "is_material", False)):
-            material_storage_quantity = self._get_inventory_shortcut_material_storage_quantity(item)
-            parts.append(
-                f"Material Storage: {material_storage_quantity}"
-                if material_storage_quantity is not None
-                else "Material Storage: unavailable"
-            )
+        material_storage_quantity = self._get_inventory_shortcut_material_storage_quantity(item)
+        if material_storage_quantity is not None:
+            parts.append(f"Material Storage: {material_storage_quantity} last seen")
         return f"{item_name} - {', '.join(parts)}"
 
     def _get_hovered_inventory_shortcut_item(self) -> InventoryItemInfo | None:
@@ -6244,6 +6554,621 @@ class MerchantRulesWidget:
             self.inventory_shortcuts_live_action_running = False
             yield
 
+    def _build_inventory_shortcut_material_withdraw_transfers(
+        self,
+        source_items: list[InventoryItemInfo],
+        *,
+        model_id: int,
+        item_name: str,
+        capacity: int,
+        key_prefix: str,
+        reason: str,
+    ) -> list[PlannedStorageTransfer]:
+        remaining_capacity = max(0, int(capacity))
+        transfers: list[PlannedStorageTransfer] = []
+        for source_item in source_items:
+            if remaining_capacity <= 0:
+                break
+            source_item_id = max(0, _safe_int(getattr(source_item, "item_id", 0), 0))
+            source_quantity = max(0, _safe_int(getattr(source_item, "quantity", 0), 0))
+            if source_item_id <= 0 or source_quantity <= 0:
+                continue
+            move_quantity = min(source_quantity, remaining_capacity)
+            if move_quantity <= 0:
+                continue
+            transfers.append(
+                PlannedStorageTransfer(
+                    direction=STORAGE_TRANSFER_WITHDRAW,
+                    key=f"right_click:{key_prefix}:model:{int(model_id)}",
+                    label=str(item_name or f"Model {int(model_id)}"),
+                    item_id=int(source_item_id),
+                    quantity=int(move_quantity),
+                    model_id=max(0, int(model_id)),
+                    reason=str(reason or "Right-click material withdraw."),
+                )
+            )
+            remaining_capacity -= int(move_quantity)
+        return transfers
+
+    def _queue_inventory_shortcut_live_xunlai_pane_withdraw(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            return False
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            self.status_message = "Xunlai pane withdraw is only available for crafting materials."
+            return False
+
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not withdraw this material because Merchant Rules could not target it exactly."
+            return False
+
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Withdrawing {item_name} from Xunlai panes..."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_xunlai_pane_withdraw(item_id, model_id, item_name)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start withdrawing {item_name}."
+            ConsoleLog(MODULE_NAME, f"Right-click Xunlai pane withdraw queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_xunlai_pane_withdraw(
+        self,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+    ):
+        paused_inventory_plus = None
+        try:
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self.status_message = reason or f"Could not withdraw {item_name}."
+                return
+            if not self._is_inventory_shortcut_material_withdraw_candidate(live_item):
+                self.status_message = (
+                    f"Could not withdraw {item_name} because the clicked item is no longer a crafting material."
+                )
+                return
+            if not self._is_storage_open():
+                self.status_message = "Open Xunlai before using right-click pane withdraw."
+                return
+
+            capacity = self._get_inventory_shortcut_material_withdraw_capacity(live_item)
+            if capacity is None:
+                self.status_message = f"Could not withdraw {item_name} because inventory space could not be verified."
+                return
+            if capacity <= 0:
+                self.status_message = "Inventory full. Free space before withdrawing from Xunlai panes."
+                return
+
+            source_items = self._get_inventory_shortcut_xunlai_pane_material_sources(live_item)
+            if source_items is None:
+                self.status_message = f"Could not read Xunlai panes for {item_name}."
+                return
+            if not source_items:
+                self.status_message = f"No matching {item_name} stacks were found in Xunlai panes."
+                return
+
+            remaining_capacity = max(0, int(capacity))
+            transfers: list[PlannedStorageTransfer] = []
+            for source_item in source_items:
+                if remaining_capacity <= 0:
+                    break
+                source_item_id = max(0, _safe_int(getattr(source_item, "item_id", 0), 0))
+                source_quantity = max(0, _safe_int(getattr(source_item, "quantity", 0), 0))
+                if source_item_id <= 0 or source_quantity <= 0:
+                    continue
+                move_quantity = min(source_quantity, remaining_capacity)
+                if move_quantity <= 0:
+                    continue
+                transfers.append(
+                    PlannedStorageTransfer(
+                        direction=STORAGE_TRANSFER_WITHDRAW,
+                        key=f"right_click:xunlai_panes:model:{int(model_id)}",
+                        label=str(item_name or f"Model {int(model_id)}"),
+                        item_id=int(source_item_id),
+                        quantity=int(move_quantity),
+                        model_id=max(0, int(model_id)),
+                        reason="Right-click Xunlai pane withdraw.",
+                    )
+                )
+                remaining_capacity -= int(move_quantity)
+
+            if not transfers:
+                self.status_message = f"No withdrawable {item_name} stacks were found in Xunlai panes."
+                return
+
+            requested_quantity = sum(max(0, int(transfer.quantity)) for transfer in transfers)
+            paused_inventory_plus = self._pause_inventory_plus()
+            outcome = yield from self._execute_storage_transfers(
+                transfers,
+                phase_label="Right-click Xunlai Withdraw",
+            )
+            if outcome.completed > 0:
+                if int(outcome.completed) >= requested_quantity:
+                    message = (
+                        f"Withdrew {int(outcome.completed)} {item_name} from Xunlai panes. "
+                        "Preview again before execution."
+                    )
+                else:
+                    message = (
+                        f"Withdrew {int(outcome.completed)} of {requested_quantity} {item_name} from Xunlai panes. "
+                        "Preview again before execution."
+                    )
+                self._mark_preview_dirty(message)
+                return
+
+            if outcome.depleted > 0:
+                self.status_message = f"{item_name} was already gone from Xunlai panes before it could be withdrawn."
+            elif outcome.timeout_failures > 0:
+                self.status_message = f"Could not confirm withdrawing {item_name} from Xunlai panes."
+            else:
+                self.status_message = f"Could not withdraw {item_name} from Xunlai panes."
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click Xunlai pane withdraw failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click Xunlai pane withdraw error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
+    def _queue_inventory_shortcut_live_material_storage_withdraw(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            return False
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            self.status_message = "Material Storage withdraw is only available for crafting materials."
+            return False
+
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not withdraw this material because Merchant Rules could not target it exactly."
+            return False
+
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Withdrawing {item_name} from Material Storage..."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_material_storage_withdraw(item_id, model_id, item_name)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start withdrawing {item_name} from Material Storage."
+            ConsoleLog(MODULE_NAME, f"Right-click Material Storage withdraw queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_material_storage_withdraw(
+        self,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+    ):
+        paused_inventory_plus = None
+        try:
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self.status_message = reason or f"Could not withdraw {item_name} from Material Storage."
+                return
+            if not self._is_inventory_shortcut_material_withdraw_candidate(live_item):
+                self.status_message = (
+                    f"Could not withdraw {item_name} from Material Storage because the clicked item is no longer "
+                    "a crafting material."
+                )
+                return
+            if not self._is_storage_open():
+                self.status_message = "Open Xunlai before using right-click Material Storage withdraw."
+                return
+
+            capacity = self._get_inventory_shortcut_material_withdraw_capacity(live_item)
+            if capacity is None:
+                self.status_message = (
+                    f"Could not withdraw {item_name} from Material Storage because inventory space could not be verified."
+                )
+                return
+            if capacity <= 0:
+                self.status_message = "Inventory full. Free space before withdrawing from Material Storage."
+                return
+
+            source_items = self._get_inventory_shortcut_material_storage_material_sources(live_item)
+            if source_items is None:
+                self._clear_inventory_shortcut_material_storage_count_cache("Material Storage withdraw scan failed")
+                self.status_message = f"Could not read Material Storage for {item_name}."
+                return
+            if not source_items:
+                self._clear_inventory_shortcut_material_storage_count_cache("Material Storage withdraw found no matching sources")
+                self.status_message = f"No matching {item_name} stacks were found in Material Storage."
+                return
+
+            remaining_capacity = max(0, int(capacity))
+            transfers: list[PlannedStorageTransfer] = []
+            for source_item in source_items:
+                if remaining_capacity <= 0:
+                    break
+                source_item_id = max(0, _safe_int(getattr(source_item, "item_id", 0), 0))
+                source_quantity = max(0, _safe_int(getattr(source_item, "quantity", 0), 0))
+                if source_item_id <= 0 or source_quantity <= 0:
+                    continue
+                move_quantity = min(source_quantity, remaining_capacity)
+                if move_quantity <= 0:
+                    continue
+                transfers.append(
+                    PlannedStorageTransfer(
+                        direction=STORAGE_TRANSFER_WITHDRAW,
+                        key=f"right_click:material_storage:model:{int(model_id)}",
+                        label=str(item_name or f"Model {int(model_id)}"),
+                        item_id=int(source_item_id),
+                        quantity=int(move_quantity),
+                        model_id=max(0, int(model_id)),
+                        reason="Right-click Material Storage withdraw.",
+                    )
+                )
+                remaining_capacity -= int(move_quantity)
+
+            if not transfers:
+                self.status_message = f"No withdrawable {item_name} stacks were found in Material Storage."
+                return
+
+            requested_quantity = sum(max(0, int(transfer.quantity)) for transfer in transfers)
+            paused_inventory_plus = self._pause_inventory_plus()
+            outcome = yield from self._execute_storage_transfers(
+                transfers,
+                phase_label="Right-click Material Storage Withdraw",
+            )
+            if outcome.completed > 0:
+                if int(outcome.completed) >= requested_quantity:
+                    message = (
+                        f"Withdrew {int(outcome.completed)} {item_name} from Material Storage. "
+                        "Preview again before execution."
+                    )
+                else:
+                    message = (
+                        f"Withdrew {int(outcome.completed)} of {requested_quantity} {item_name} from Material Storage. "
+                        "Preview again before execution."
+                    )
+                self._mark_preview_dirty(message)
+                return
+
+            if outcome.depleted > 0:
+                self.status_message = f"{item_name} was already gone from Material Storage before it could be withdrawn."
+            elif outcome.timeout_failures > 0:
+                self.status_message = f"Could not confirm withdrawing {item_name} from Material Storage."
+            else:
+                self.status_message = f"Could not withdraw {item_name} from Material Storage."
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click Material Storage withdraw failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click Material Storage withdraw error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
+    def _queue_inventory_shortcut_live_both_withdraw(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            return False
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            self.status_message = "Combined Xunlai and Material Storage withdraw is only available for crafting materials."
+            return False
+
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not withdraw this material because Merchant Rules could not target it exactly."
+            return False
+
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Withdrawing {item_name} from Xunlai panes and Material Storage..."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_both_withdraw(item_id, model_id, item_name)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start withdrawing {item_name} from both storage sources."
+            ConsoleLog(MODULE_NAME, f"Right-click combined withdraw queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_both_withdraw(
+        self,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+    ):
+        paused_inventory_plus = None
+        try:
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self.status_message = reason or f"Could not withdraw {item_name} from both storage sources."
+                return
+            if not self._is_inventory_shortcut_material_withdraw_candidate(live_item):
+                self.status_message = (
+                    f"Could not withdraw {item_name} from both storage sources because the clicked item is no longer "
+                    "a crafting material."
+                )
+                return
+            if not self._is_storage_open():
+                self.status_message = "Open Xunlai before using right-click combined withdraw."
+                return
+
+            capacity = self._get_inventory_shortcut_material_withdraw_capacity(live_item)
+            if capacity is None:
+                self.status_message = f"Could not withdraw {item_name} because inventory space could not be verified."
+                return
+            if capacity <= 0:
+                self.status_message = "Inventory full. Free space before withdrawing from storage."
+                return
+
+            pane_source_items = self._get_inventory_shortcut_xunlai_pane_material_sources(live_item)
+            if pane_source_items is None:
+                self.status_message = f"Could not read Xunlai panes for {item_name}."
+                return
+            if not pane_source_items:
+                self.status_message = f"No matching {item_name} stacks were found in Xunlai panes."
+                return
+
+            pane_transfers = self._build_inventory_shortcut_material_withdraw_transfers(
+                pane_source_items,
+                model_id=model_id,
+                item_name=item_name,
+                capacity=max(0, int(capacity)),
+                key_prefix="both_xunlai_panes",
+                reason="Right-click combined withdraw from Xunlai panes.",
+            )
+            if not pane_transfers:
+                self.status_message = f"No withdrawable {item_name} stacks were found in Xunlai panes."
+                return
+
+            pane_requested = sum(max(0, int(transfer.quantity)) for transfer in pane_transfers)
+            paused_inventory_plus = self._pause_inventory_plus()
+            pane_outcome = yield from self._execute_storage_transfers(
+                pane_transfers,
+                phase_label="Right-click Combined Withdraw: Xunlai Panes",
+            )
+            pane_completed = max(0, int(pane_outcome.completed))
+            if pane_completed <= 0:
+                if pane_outcome.depleted > 0:
+                    self.status_message = (
+                        f"{item_name} was already gone from Xunlai panes before it could be withdrawn. "
+                        "Material Storage was not touched."
+                    )
+                elif pane_outcome.timeout_failures > 0:
+                    self.status_message = (
+                        f"Could not confirm withdrawing {item_name} from Xunlai panes. "
+                        "Material Storage was not touched."
+                    )
+                else:
+                    self.status_message = f"Could not withdraw {item_name} from Xunlai panes. Material Storage was not touched."
+                return
+
+            pane_uncertain = (
+                int(pane_outcome.timeout_failures) > 0
+                or int(pane_outcome.depleted) > 0
+                or pane_completed < pane_requested
+            )
+            if pane_uncertain:
+                self._mark_preview_dirty(
+                    f"Withdrew {pane_completed} of {pane_requested} {item_name} from Xunlai panes; "
+                    "Material Storage was not touched. Preview again before execution."
+                )
+                return
+
+            remaining_capacity = self._get_inventory_shortcut_material_withdraw_capacity(live_item)
+            if remaining_capacity is None:
+                self._mark_preview_dirty(
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes, but remaining inventory space "
+                    "could not be verified. Material Storage was not touched. Preview again before execution."
+                )
+                return
+            if remaining_capacity <= 0:
+                self._mark_preview_dirty(
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes. Inventory is full, so Material Storage "
+                    "was not touched. Preview again before execution."
+                )
+                return
+
+            material_storage_source_items = self._get_inventory_shortcut_material_storage_material_sources(live_item)
+            if material_storage_source_items is None:
+                self._mark_preview_dirty(
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes, but Material Storage could not be read. "
+                    "Preview again before execution."
+                )
+                return
+            if not material_storage_source_items:
+                self._mark_preview_dirty(
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes. No matching stacks were found in "
+                    "Material Storage. Preview again before execution."
+                )
+                return
+
+            material_storage_transfers = self._build_inventory_shortcut_material_withdraw_transfers(
+                material_storage_source_items,
+                model_id=model_id,
+                item_name=item_name,
+                capacity=max(0, int(remaining_capacity)),
+                key_prefix="both_material_storage",
+                reason="Right-click combined withdraw from Material Storage.",
+            )
+            if not material_storage_transfers:
+                self._mark_preview_dirty(
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes. No withdrawable Material Storage stacks "
+                    "fit in the remaining inventory space. Preview again before execution."
+                )
+                return
+
+            material_storage_requested = sum(max(0, int(transfer.quantity)) for transfer in material_storage_transfers)
+            material_storage_outcome = yield from self._execute_storage_transfers(
+                material_storage_transfers,
+                phase_label="Right-click Combined Withdraw: Material Storage",
+            )
+            material_storage_completed = max(0, int(material_storage_outcome.completed))
+            if material_storage_completed > 0:
+                if (
+                    material_storage_completed >= material_storage_requested
+                    and int(material_storage_outcome.timeout_failures) <= 0
+                    and int(material_storage_outcome.depleted) <= 0
+                ):
+                    message = (
+                        f"Withdrew {pane_completed} {item_name} from Xunlai panes and "
+                        f"{material_storage_completed} from Material Storage. Preview again before execution."
+                    )
+                else:
+                    message = (
+                        f"Withdrew {pane_completed} {item_name} from Xunlai panes and "
+                        f"{material_storage_completed} of {material_storage_requested} from Material Storage. "
+                        "Preview again before execution."
+                    )
+                self._mark_preview_dirty(message)
+                return
+
+            if material_storage_outcome.depleted > 0:
+                message = (
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes, but the matching Material Storage stacks "
+                    "were already gone. Preview again before execution."
+                )
+            elif material_storage_outcome.timeout_failures > 0:
+                message = (
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes, but Material Storage withdrawal could "
+                    "not be confirmed. Preview again before execution."
+                )
+            else:
+                message = (
+                    f"Withdrew {pane_completed} {item_name} from Xunlai panes, but Material Storage withdrawal failed. "
+                    "Preview again before execution."
+                )
+            self._mark_preview_dirty(message)
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click combined withdraw failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click combined withdraw error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
+    def _queue_inventory_shortcut_live_material_storage_count_refresh(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            return False
+        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+            self.status_message = "Material Storage count refresh is only available for crafting materials."
+            return False
+
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not refresh this material count because Merchant Rules could not target it exactly."
+            return False
+
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Refreshing Material Storage count for {item_name}..."
+        self._debug_log(
+            f"Inventory shortcut Material Storage count refresh queued: model_id={model_id} name={item_name}"
+        )
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_material_storage_count_refresh(item_id, model_id, item_name)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start refreshing Material Storage count for {item_name}."
+            ConsoleLog(MODULE_NAME, f"Right-click Material Storage count refresh queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_material_storage_count_refresh(
+        self,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+    ):
+        try:
+            self._debug_log(
+                f"Inventory shortcut Material Storage count refresh started: model_id={model_id} name={item_name}"
+            )
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self._clear_inventory_shortcut_material_storage_count_cache("Material Storage count refresh target stale")
+                self.status_message = reason or f"Could not refresh Material Storage count for {item_name}."
+                return
+            if not self._is_inventory_shortcut_material_withdraw_candidate(live_item):
+                self._clear_inventory_shortcut_material_storage_count_cache("Material Storage count refresh target unsafe")
+                self.status_message = (
+                    f"Could not refresh Material Storage count for {item_name} because the clicked item is no longer "
+                    "a crafting material."
+                )
+                return
+            if not self._is_storage_open():
+                self._clear_inventory_shortcut_material_storage_count_cache("Material Storage count refresh storage closed")
+                self.status_message = "Open Xunlai before refreshing Material Storage counts."
+                return
+
+            try:
+                material_storage_items = self._collect_material_storage_items()
+            except Exception as exc:
+                self._clear_inventory_shortcut_material_storage_count_cache("Material Storage count refresh scan failed")
+                self._debug_log(f"Inventory shortcut Material Storage count refresh failed: {exc}")
+                self.status_message = f"Could not read Material Storage for {item_name}."
+                return
+
+            counts_by_model_id = self._build_inventory_shortcut_material_storage_count_cache(material_storage_items)
+            self._store_inventory_shortcut_material_storage_count_cache(counts_by_model_id)
+            clicked_quantity = max(0, int(counts_by_model_id.get(max(0, int(model_id)), 0)))
+            self._debug_log(
+                "Inventory shortcut Material Storage count refresh scan succeeded: "
+                f"model_id={model_id} name={item_name} source_entries={len(material_storage_items)} "
+                f"cached_models={len(counts_by_model_id)} clicked_count={clicked_quantity}"
+            )
+            self.status_message = f"Material Storage count refreshed for {item_name}: {clicked_quantity} last seen."
+        except Exception as exc:
+            self._clear_inventory_shortcut_material_storage_count_cache("Material Storage count refresh error")
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click Material Storage count refresh failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click Material Storage count refresh error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
     def _queue_inventory_shortcut_live_destroy(self, item: InventoryItemInfo) -> bool:
         if self.inventory_shortcuts_live_action_running:
             self.status_message = "A right-click inventory action is already running."
@@ -6320,9 +7245,12 @@ class MerchantRulesWidget:
             yield
 
     def _handle_inventory_shortcut_live_deposit_click(self, item: InventoryItemInfo) -> bool:
-        if self._is_inventory_shortcut_deposit_keep_out(item) and not self._inventory_shortcut_live_confirmation_matches(
-            INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
-            item,
+        if (
+            self._is_inventory_shortcut_deposit_keep_out(item)
+            and not self._inventory_shortcut_live_confirmation_matches(
+                INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
+                item,
+            )
         ):
             self._set_inventory_shortcut_live_confirmation(INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT, item)
             subject = self._get_inventory_shortcut_live_action_subject(item).lower()
@@ -6339,6 +7267,18 @@ class MerchantRulesWidget:
             self.status_message = f"Click '{confirm_label}' to destroy only this {subject.lower()}."
             return False
         return self._queue_inventory_shortcut_live_destroy(item)
+
+    def _handle_inventory_shortcut_live_xunlai_pane_withdraw_click(self, item: InventoryItemInfo) -> bool:
+        return self._queue_inventory_shortcut_live_xunlai_pane_withdraw(item)
+
+    def _handle_inventory_shortcut_live_material_storage_withdraw_click(self, item: InventoryItemInfo) -> bool:
+        return self._queue_inventory_shortcut_live_material_storage_withdraw(item)
+
+    def _handle_inventory_shortcut_live_both_withdraw_click(self, item: InventoryItemInfo) -> bool:
+        return self._queue_inventory_shortcut_live_both_withdraw(item)
+
+    def _handle_inventory_shortcut_live_material_storage_count_refresh_click(self, item: InventoryItemInfo) -> bool:
+        return self._queue_inventory_shortcut_live_material_storage_count_refresh(item)
 
     def _queue_inventory_shortcut_kit_identify(self, item: InventoryItemInfo, rarity_key: str) -> bool:
         if not bool(self.inventory_right_click_live_actions_enabled):
@@ -6440,7 +7380,11 @@ class MerchantRulesWidget:
             self._set_inventory_shortcut_live_confirmation(action_key, item)
             rarity_label = self._get_kit_action_rarity_label(rarity_key)
             self.status_message = f"Click 'Confirm Salvage {rarity_label} Items' to run Merchant Rules salvage."
-            ConsoleLog(MODULE_NAME, f"Right-click salvage awaiting confirmation: {self.status_message}", Console.MessageType.Info)
+            ConsoleLog(
+                MODULE_NAME,
+                f"Right-click salvage awaiting confirmation: {self.status_message}",
+                Console.MessageType.Info,
+            )
             return False
         return self._queue_inventory_shortcut_kit_salvage(item, rarity_key)
 
@@ -6468,20 +7412,28 @@ class MerchantRulesWidget:
         item: InventoryItemInfo,
         action_key: str,
         color: tuple[float, float, float, float] | None = None,
+        enabled: bool = True,
     ) -> bool:
         flags = getattr(getattr(PyImGui, "SelectableFlags", None), "DontClosePopups", 0)
         item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
         if color is not None:
             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
         try:
-            return bool(
-                PyImGui.selectable(
-                    f"{label}##merchant_rules_inventory_live_{action_key}_{item_id}",
-                    False,
-                    flags,
-                    (0, 0),
+            if not bool(enabled):
+                PyImGui.begin_disabled(True)
+            try:
+                clicked = bool(
+                    PyImGui.selectable(
+                        f"{label}##merchant_rules_inventory_live_{action_key}_{item_id}",
+                        False,
+                        flags,
+                        (0, 0),
+                    )
                 )
-            )
+            finally:
+                if not bool(enabled):
+                    PyImGui.end_disabled()
+            return bool(clicked and enabled)
         finally:
             if color is not None:
                 PyImGui.pop_style_color(1)
@@ -6493,6 +7445,57 @@ class MerchantRulesWidget:
 
     def _draw_inventory_shortcut_live_actions(self, item: InventoryItemInfo):
         subject = self._get_inventory_shortcut_live_action_subject(item)
+        if self._is_inventory_shortcut_material_withdraw_candidate(item):
+            withdraw_label, withdraw_enabled, pane_quantity, pane_capacity = (
+                self._get_inventory_shortcut_xunlai_withdraw_label_state(item)
+            )
+            if self._draw_inventory_shortcut_live_menu_item(
+                withdraw_label,
+                item,
+                INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_XUNLAI_PANES,
+                UI_COLOR_INFO,
+                enabled=withdraw_enabled,
+            ):
+                if self._handle_inventory_shortcut_live_xunlai_pane_withdraw_click(item):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+            material_storage_label, material_storage_enabled, material_storage_quantity = (
+                self._get_inventory_shortcut_material_storage_withdraw_label_state(item)
+            )
+            if self._draw_inventory_shortcut_live_menu_item(
+                material_storage_label,
+                item,
+                INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_MATERIAL_STORAGE,
+                UI_COLOR_INFO,
+                enabled=material_storage_enabled,
+            ):
+                if self._handle_inventory_shortcut_live_material_storage_withdraw_click(item):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+            both_label, both_enabled = self._format_inventory_shortcut_both_withdraw_label_from_phase3_state(
+                item,
+                pane_quantity=pane_quantity,
+                capacity=pane_capacity,
+                material_storage_quantity=material_storage_quantity,
+            )
+            if both_label and self._draw_inventory_shortcut_live_menu_item(
+                both_label,
+                item,
+                INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_BOTH,
+                UI_COLOR_INFO,
+                enabled=both_enabled,
+            ):
+                if self._handle_inventory_shortcut_live_both_withdraw_click(item):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+            refresh_label, refresh_enabled = self._format_inventory_shortcut_material_storage_count_refresh_label(item)
+            if self._draw_inventory_shortcut_live_menu_item(
+                refresh_label,
+                item,
+                INVENTORY_SHORTCUT_LIVE_ACTION_REFRESH_MATERIAL_STORAGE_COUNT,
+                UI_COLOR_TEAL,
+                enabled=refresh_enabled,
+            ):
+                if self._handle_inventory_shortcut_live_material_storage_count_refresh_click(item):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+
         deposit_pending = self._inventory_shortcut_live_confirmation_matches(
             INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
             item,
@@ -6658,6 +7661,8 @@ class MerchantRulesWidget:
 
     def _tick_runtime(self):
         self._ensure_initialized()
+        if self.inventory_shortcuts_material_storage_count_cache_captured_at_ms > 0 and not self._is_storage_open():
+            self._clear_inventory_shortcut_material_storage_count_cache("storage closed")
         self._advance_multibox_batch()
         self._update_manual_vendor_runtime()
         self._update_identify_runtime()
@@ -7969,6 +8974,7 @@ class MerchantRulesWidget:
         self.manual_vendor_handled_signature = ""
         self.manual_vendor_cooldown_until_ms = 0
         self._clear_sell_protection_jump("runtime reset after profile load")
+        self._clear_inventory_shortcut_material_storage_count_cache("runtime reset after profile load")
         self._clear_preview_inventory_diff()
         self.map_ready_snapshot = bool(Map.IsMapReady())
         self.map_snapshot = int(Map.GetMapID() or 0) if self.map_ready_snapshot else 0
@@ -8042,10 +9048,13 @@ class MerchantRulesWidget:
             self.map_snapshot = current_map_id
             self.preview_ready = False
             self.preview_plan = PlanResult()
+            self._clear_inventory_shortcut_material_storage_count_cache("map changed")
             self._clear_preview_projection_state()
             self._clear_preview_inventory_diff()
 
         if map_changed or map_ready_changed or instance_changed:
+            if not map_changed:
+                self._clear_inventory_shortcut_material_storage_count_cache("map/session state changed")
             self._invalidate_supported_context_cache()
             self.auto_cleanup_zone_attempted = False
             self.auto_cleanup_zone_token = (
@@ -18861,6 +19870,12 @@ class MerchantRulesWidget:
         )
         if not normalized_transfers:
             return outcome
+
+        if any(
+            max(0, int(getattr(transfer, "model_id", 0))) in ALL_CRAFTING_MATERIAL_MODEL_IDS
+            for transfer in normalized_transfers
+        ):
+            self._clear_inventory_shortcut_material_storage_count_cache("material storage transfer planned")
 
         self._debug_log(
             f"{phase_label}: transfers={len(normalized_transfers)} "
