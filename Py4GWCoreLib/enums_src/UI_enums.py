@@ -1,6 +1,9 @@
 from enum import Enum
 from enum import IntEnum
 
+INVENTORY_EQUIPMENT_FRAME_LABEL = "Inventory-Equipment"
+INVENTORY_SET_AGENT_FRAME_MESSAGE = 0x56
+
 
 #region ImguiFonts
 class ImguiFonts(IntEnum):

@@ -169,6 +169,55 @@ def is_weapon_type_literal(item_type: ItemType) -> TypeIs[WeaponType]:
 ArmorType: TypeAlias = Literal[ItemType.Headpiece, ItemType.Chestpiece, ItemType.Gloves, ItemType.Leggings, ItemType.Boots, ItemType.Salvage]
 ARMOR_TYPES = frozenset(cast(tuple[ItemType, ...], get_args(ArmorType)))
 
+RUNE_MOD_ITEM_TYPE = ItemType.Rune_Mod.value
+
+ARMOR_RUNE_UPGRADE_SLOT = 1
+ARMOR_INSIGNIA_UPGRADE_SLOT = 7
+ARMOR_UPGRADE_SLOTS = frozenset((ARMOR_RUNE_UPGRADE_SLOT, ARMOR_INSIGNIA_UPGRADE_SLOT))
+ARMOR_EQUIPMENT_SLOTS = (
+    ("Chest", 2),
+    ("Leggings", 3),
+    ("Head", 4),
+    ("Boots", 5),
+    ("Gloves", 6),
+)
+
+EQUIPPED_WEAPON_SLOTS = (
+    ("main hand", 0),
+    ("offhand", 1),
+)
+
+WEAPON_UPGRADE_CLASSIFICATION_SLOT = 6
+WEAPON_PREFIX_REQUEST_SLOT = 0
+WEAPON_SUFFIX_REQUEST_SLOT = 1
+WEAPON_INSCRIPTION_REQUEST_SLOT = 2
+WEAPON_UPGRADE_REQUEST_SLOTS = {
+    "prefix": WEAPON_PREFIX_REQUEST_SLOT,
+    "suffix": WEAPON_SUFFIX_REQUEST_SLOT,
+    "inscription": WEAPON_INSCRIPTION_REQUEST_SLOT,
+}
+
+WEAPON_PREFIX_NAME_MARKERS = (
+    "axe haft",
+    "bowstring",
+    "bow string",
+    "dagger tang",
+    "hammer haft",
+    "scythe snathe",
+    "spearhead",
+    "spear head",
+    "staff head",
+    "sword hilt",
+)
+
+WEAPON_SUFFIX_NAME_MARKERS = (
+    "focus core",
+    "grip",
+    "handle",
+    "pommel",
+    "wrapping",
+)
+
 ITEM_TYPE_META_TYPES: dict[ItemType, list[ItemType]] = {
     ItemType.Weapon: [
         ItemType.Axe,

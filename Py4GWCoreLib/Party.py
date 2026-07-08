@@ -488,6 +488,24 @@ class Party:
             return Party.party_instance().GetHeroAgentID(hero_position)
 
         @staticmethod
+        def GetInventorySelectedAgentID():
+            """
+            Retrieve the agent ID currently selected in the inventory equipment panel.
+            Args: None
+            Returns: int
+            """
+            return Party.party_instance().GetInventorySelectedAgentID()
+
+        @staticmethod
+        def GetInventoryEquipmentFrameID():
+            """
+            Retrieve the native frame ID for the inventory equipment panel.
+            Args: None
+            Returns: int
+            """
+            return Party.party_instance().GetInventoryEquipmentFrameID()
+
+        @staticmethod
         @frame_cache(category="Party.Heroes", source_lib="GetHeroAgentIDByHeroID")
         def GetHeroIDByAgentID(agent_id):
             """

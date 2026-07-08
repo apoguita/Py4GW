@@ -2,7 +2,9 @@ import Py4GW
 import PyInventory
 from typing import TypedDict, cast
 
-from Py4GWCoreLib.enums_src.Item_enums import Bags
+from Py4GWCoreLib.enums_src.Item_enums import (
+    Bags,
+)
 
 from .Item import Item
 from .ItemArray import ItemArray
@@ -316,6 +318,106 @@ class Inventory:
         """
         inventory = PyInventory.PyInventory()
         inventory.IdentifyItem(id_kit_id, item_id)
+
+    @staticmethod
+    def GetInventoryIDFromAgent(agent_id: int) -> int:
+        """
+        Purpose: Resolve the native inventory ID used by the equipment panel for a player or hero agent.
+        Args:
+            agent_id (int): Agent ID of the player or hero.
+        Returns: int: Native inventory ID, or 0 if unavailable.
+        """
+        return int(Inventory.inventory_instance().GetInventoryIDFromAgent(agent_id))
+
+    @staticmethod
+    def IsInventoryIDValid(inventory_id: int) -> bool:
+        """
+        Purpose: Check whether a native inventory ID exists in the client's inventory table.
+        Args:
+            inventory_id (int): Native inventory ID.
+        Returns: bool: True if the inventory ID can be used by native inventory calls.
+        """
+        return bool(Inventory.inventory_instance().IsInventoryIDValid(inventory_id))
+
+    @staticmethod
+    def GetEquippedItemID(inventory_id: int, equip_slot: int) -> int:
+        """
+        Purpose: Return the item ID equipped in a native equipment slot.
+        Args:
+            inventory_id (int): Native inventory ID.
+            equip_slot (int): Native equipment slot.
+        Returns: int: Equipped item ID, or 0 if unavailable.
+        """
+        return int(Inventory.inventory_instance().GetEquippedItemID(inventory_id, equip_slot))
+
+    @staticmethod
+    def GetUpgradeSlot(upgrade_item_id: int) -> int:
+        """
+        Purpose: Return the native upgrade slot encoded by an upgrade item's interaction flags.
+        Args:
+            upgrade_item_id (int): Rune/upgrade item ID.
+        Returns: int: Native upgrade slot, or 0 if the item is not a supported upgrade.
+        """
+        return int(Inventory.inventory_instance().GetUpgradeSlot(upgrade_item_id))
+
+    @staticmethod
+    def ValidateUpgrade(target_item_id: int, upgrade_item_id: int) -> bool:
+        """
+        Purpose: Ask the native client whether an upgrade item can be applied to a target item.
+        Args:
+            target_item_id (int): Target armor/weapon item ID.
+            upgrade_item_id (int): Rune/upgrade item ID.
+        Returns: bool: True if the native validation accepts the pair.
+        """
+        return bool(Inventory.inventory_instance().ValidateUpgrade(target_item_id, upgrade_item_id))
+
+    @staticmethod
+    def ApplyUpgrade(
+        inventory_id: int,
+        target_item_id: int,
+        upgrade_item_id: int,
+        upgrade_slot: int | None = None,
+        target_agent_id: int = 0,
+    ) -> bool:
+        """
+        Purpose: Request the native UI upgrade flow for a target item.
+        Args:
+            inventory_id (int): Native inventory ID containing the target item.
+            target_item_id (int): Target armor/weapon item ID.
+            upgrade_item_id (int): Rune/upgrade item ID.
+            upgrade_slot (int | None, optional): Native upgrade slot. None lets this helper derive it;
+                explicit 0 is forwarded for native insignia upgrade orders.
+            target_agent_id (int, optional): Agent ID that owns the target inventory.
+        Returns: bool: True if the native UI order request was sent.
+        """
+        try:
+            inventory_id = int(inventory_id or 0)
+            target_item_id = int(target_item_id or 0)
+            upgrade_item_id = int(upgrade_item_id or 0)
+            derive_upgrade_slot = upgrade_slot is None
+            upgrade_slot = 0 if derive_upgrade_slot else int(upgrade_slot or 0)
+            target_agent_id = int(target_agent_id or 0)
+        except Exception:
+            return False
+
+        if not (inventory_id and target_item_id and upgrade_item_id and target_agent_id):
+            return False
+        if target_item_id == upgrade_item_id:
+            return False
+        if not Inventory.IsInventoryIDValid(inventory_id):
+            return False
+        if derive_upgrade_slot:
+            upgrade_slot = Inventory.GetUpgradeSlot(upgrade_item_id)
+            if not upgrade_slot:
+                return False
+        if not Inventory.ValidateUpgrade(target_item_id, upgrade_item_id):
+            return False
+        return bool(Inventory.inventory_instance().ApplyUpgrade(
+            inventory_id,
+            target_item_id,
+            upgrade_item_id,
+            upgrade_slot,
+        ))
 
     @staticmethod
     def IdentifyFirst():
@@ -1590,9 +1692,3 @@ class Inventory:
                     return True
 
         return moved_any
-
-
-
-
-
-
