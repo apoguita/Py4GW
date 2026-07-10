@@ -1448,7 +1448,7 @@ class WindowFrame():
     CharacterFinalDeleteButtonFrame = FrameInfo(
         WindowName="FinalDeleteCharacterButton",
         ParentFrameHash=140452905,
-        ChildOffsets=[5,1,15,2]
+        ChildOffsets=[5,1,16,2]
     )
 
     CreateCharacterButtonFrame1 = FrameInfo(
