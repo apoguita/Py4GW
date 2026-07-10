@@ -51,11 +51,13 @@ INVENTORY_SHORTCUTS_MOUSE_LEAVE_GRACE_MS = 220
 INVENTORY_SHORTCUTS_MOUSE_LEAVE_PADDING = 4.0
 INVENTORY_SHORTCUT_LIVE_CONFIRM_TIMEOUT_MS = 10_000
 INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT = "deposit"
+INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT_ALL_MATCHING = "deposit_all_matching"
 INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY = "destroy"
 INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_XUNLAI_PANES = "withdraw_xunlai_panes"
 INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_MATERIAL_STORAGE = "withdraw_material_storage"
 INVENTORY_SHORTCUT_LIVE_ACTION_WITHDRAW_BOTH = "withdraw_both"
 INVENTORY_SHORTCUT_LIVE_ACTION_REFRESH_MATERIAL_STORAGE_COUNT = "refresh_material_storage_count"
+INVENTORY_SHORTCUT_LIVE_ACTION_OPEN_XUNLAI = "open_xunlai_storage"
 INVENTORY_SHORTCUT_LIVE_ACTION_SALVAGE_KIT_PREFIX = "salvage_kit"
 
 PROFILE_VERSION = 35
@@ -661,6 +663,134 @@ SCROLL_TRADER_STOCK_MODEL_IDS: frozenset[int] = frozenset({
     int(ModelID.Scroll_Of_Berserkers_Insight.value),
     int(ModelID.Scroll_of_Slayers_Insight.value),
 })
+XUNLAI_WITHDRAW_DP_REMOVER_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Elixir_Of_Valor.value),
+    int(ModelID.Four_Leaf_Clover.value),
+    int(ModelID.Oath_Of_Purity.value),
+    int(ModelID.Powerstone_Of_Courage.value),
+    int(ModelID.Pumpkin_Cookie.value),
+    int(ModelID.Refined_Jelly.value),
+    int(ModelID.Seal_Of_The_Dragon_Empire.value),
+    int(ModelID.Shining_Blade_Ration.value),
+})
+XUNLAI_WITHDRAW_ALCOHOL_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Aged_Dwarven_Ale.value),
+    int(ModelID.Aged_Hunters_Ale.value),
+    int(ModelID.Battle_Isle_Iced_Tea.value),
+    int(ModelID.Bottle_Of_Grog.value),
+    int(ModelID.Bottle_Of_Juniberry_Gin.value),
+    int(ModelID.Bottle_Of_Rice_Wine.value),
+    int(ModelID.Bottle_Of_Vabbian_Wine.value),
+    int(ModelID.Dwarven_Ale.value),
+    int(ModelID.Eggnog.value),
+    int(ModelID.Flask_Of_Firewater.value),
+    int(ModelID.Hard_Apple_Cider.value),
+    int(ModelID.Hunters_Ale.value),
+    int(ModelID.Keg_Of_Aged_Hunters_Ale.value),
+    int(ModelID.Krytan_Brandy.value),
+    int(ModelID.Shamrock_Ale.value),
+    int(ModelID.Spiked_Eggnog.value),
+    int(ModelID.Vial_Of_Absinthe.value),
+    int(ModelID.Witchs_Brew.value),
+    int(ModelID.Zehtukas_Jug.value),
+})
+XUNLAI_WITHDRAW_SWEET_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Birthday_Cupcake.value),
+    int(ModelID.Blue_Rock_Candy.value),
+    int(ModelID.Candy_Apple.value),
+    int(ModelID.Candy_Corn.value),
+    int(ModelID.Chocolate_Bunny.value),
+    int(ModelID.Creme_Brulee.value),
+    int(ModelID.Delicious_Cake.value),
+    int(ModelID.Fruitcake.value),
+    int(ModelID.Golden_Egg.value),
+    int(ModelID.Green_Rock_Candy.value),
+    int(ModelID.Honeycomb.value),
+    int(ModelID.Jar_Of_Honey.value),
+    int(ModelID.Krytan_Lokum.value),
+    int(ModelID.Mandragor_Root_Cake.value),
+    int(ModelID.Minitreat_Of_Purity.value),
+    int(ModelID.Peppermint_Candy_Cane.value),
+    int(ModelID.Rainbow_Candy_Cane.value),
+    int(ModelID.Red_Bean_Cake.value),
+    int(ModelID.Red_Rock_Candy.value),
+    int(ModelID.Slice_Of_Pumpkin_Pie.value),
+    int(ModelID.Sugary_Blue_Drink.value),
+    int(ModelID.Wintergreen_Candy_Cane.value),
+})
+XUNLAI_WITHDRAW_PARTY_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Bottle_Rocket.value),
+    int(ModelID.Champagne_Popper.value),
+    int(ModelID.Ghost_In_The_Box.value),
+    int(ModelID.Party_Beacon.value),
+    int(ModelID.Snowman_Summoner.value),
+    int(ModelID.Sparkler.value),
+    int(ModelID.Squash_Serum.value),
+})
+XUNLAI_WITHDRAW_NON_EVERLASTING_TONIC_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Abominable_Tonic.value),
+    int(ModelID.Abyssal_Tonic.value),
+    int(ModelID.Automatonic_Tonic.value),
+    int(ModelID.Beetle_Juice_Tonic.value),
+    int(ModelID.Boreal_Tonic.value),
+    int(ModelID.Cerebral_Tonic.value),
+    int(ModelID.Cottontail_Tonic.value),
+    int(ModelID.Frosty_Tonic.value),
+    int(ModelID.Gelatinous_Tonic.value),
+    int(ModelID.Macabre_Tonic.value),
+    int(ModelID.Minutely_Mad_King_Tonic.value),
+    int(ModelID.Mischievious_Tonic.value),
+    int(ModelID.Mysterious_Tonic.value),
+    int(ModelID.Phantasmal_Tonic.value),
+    int(ModelID.Searing_Tonic.value),
+    int(ModelID.Sinister_Automatonic_Tonic.value),
+    int(ModelID.Skeletonic_Tonic.value),
+    int(ModelID.Spooky_Tonic.value),
+    int(ModelID.Transmogrifier_Tonic.value),
+    int(ModelID.Trapdoor_Tonic.value),
+    int(ModelID.Unseen_Tonic.value),
+    int(ModelID.Yuletide_Tonic.value),
+    int(ModelID.Zaishen_Tonic.value),
+})
+MERCANTILE_SUMMONING_STONE_MODEL_ID = 31154
+XUNLAI_WITHDRAW_SUMMONING_STONE_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Amber_Summon.value),
+    int(ModelID.Arctic_Summon.value),
+    int(ModelID.Automaton_Summon.value),
+    int(ModelID.Celestial_Summon.value),
+    int(ModelID.Chitinous_Summon.value),
+    int(ModelID.Demonic_Summon.value),
+    int(ModelID.Fossilized_Summon.value),
+    int(ModelID.Frosty_Summon.value),
+    int(ModelID.Gelatinous_Summon.value),
+    int(ModelID.Ghastly_Summon.value),
+    int(ModelID.Igneous_Summoning_Stone.value),
+    int(ModelID.Imperial_Guard_Summon.value),
+    int(ModelID.Jadeite_Summon.value),
+    int(ModelID.Legionnaire_Summoning_Crystal.value),
+    int(ModelID.Mischievous_Summon.value),
+    int(ModelID.Mysterious_Summon.value),
+    int(ModelID.Mystical_Summon.value),
+    int(ModelID.Shining_Blade_Summon.value),
+    int(ModelID.Tengu_Summon.value),
+    int(ModelID.Zaishen_Summon.value),
+    MERCANTILE_SUMMONING_STONE_MODEL_ID,
+})
+XUNLAI_WITHDRAW_EVENT_CONSUMABLE_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Bowl_Of_Skalefin_Soup.value),
+    int(ModelID.Drake_Kabob.value),
+    int(ModelID.Pahnai_Salad.value),
+    int(ModelID.War_Supplies.value),
+})
+XUNLAI_WITHDRAW_USABLE_EXACT_MODEL_IDS: frozenset[int] = frozenset(
+    XUNLAI_WITHDRAW_DP_REMOVER_MODEL_IDS
+    | XUNLAI_WITHDRAW_ALCOHOL_MODEL_IDS
+    | XUNLAI_WITHDRAW_SWEET_MODEL_IDS
+    | XUNLAI_WITHDRAW_PARTY_MODEL_IDS
+    | XUNLAI_WITHDRAW_NON_EVERLASTING_TONIC_MODEL_IDS
+    | XUNLAI_WITHDRAW_SUMMONING_STONE_MODEL_IDS
+    | XUNLAI_WITHDRAW_EVENT_CONSUMABLE_MODEL_IDS
+)
 DEPOSIT_FILTER_ALL = "all"
 DEPOSIT_FILTER_MATERIALS = "materials"
 DEPOSIT_FILTER_UPGRADES = "upgrades"
@@ -831,6 +961,7 @@ ACTION_TYPE_LABELS = {
     "buy": "Buy",
     "identify": "Identify",
     "sell": "Sell",
+    "salvage": "Salvage",
     "destroy": "Destroy",
     "travel": "Travel",
     "withdraw": "Withdraw",
@@ -1788,6 +1919,8 @@ class InventoryItemInfo:
     is_armor_piece: bool
     is_id_kit: bool = False
     is_salvage_kit: bool = False
+    is_stackable: bool = False
+    is_tome: bool = False
     requirement: int = 0
     requirement_attribute_id: int = 0
     requirement_attribute_name: str = ""
@@ -2322,6 +2455,7 @@ class PlanResult:
     cleanup_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
     identify_claimed_item_ids: list[int] = field(default_factory=list)
     identify_item_ids: list[int] = field(default_factory=list)
+    salvage_item_ids: list[int] = field(default_factory=list)
     destroy_actions: list[PlannedDestroyAction] = field(default_factory=list)
     destroy_item_ids: list[int] = field(default_factory=list)
     merchant_sell_item_ids: list[int] = field(default_factory=list)
@@ -5473,6 +5607,150 @@ class MerchantRulesWidget:
             return False
         return bool(getattr(item, "is_material", False) or getattr(item, "is_rare_material", False))
 
+    def _get_inventory_shortcut_item_type_enum(self, item: InventoryItemInfo | None) -> ItemType:
+        item_type_id = max(0, _safe_int(getattr(item, "item_type_id", 0), 0))
+        for item_type in ItemType:
+            if int(item_type.value) == item_type_id:
+                return item_type
+        return ItemType.Unknown
+
+    def _is_inventory_shortcut_stackable_item(self, item: InventoryItemInfo | None) -> bool:
+        if item is None:
+            return False
+        return bool(getattr(item, "is_stackable", False))
+
+    def _is_inventory_shortcut_unsafe_stackable_xunlai_type(self, item: InventoryItemInfo | None) -> bool:
+        if item is None:
+            return True
+        if bool(getattr(item, "is_material", False)) or bool(getattr(item, "is_rare_material", False)):
+            return True
+        if bool(getattr(item, "is_weapon_like", False)) or bool(getattr(item, "is_armor_piece", False)):
+            return True
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if (
+            bool(getattr(item, "is_id_kit", False))
+            or bool(getattr(item, "is_salvage_kit", False))
+            or model_id in ID_KIT_MODEL_IDS
+            or model_id in SUPPORTED_SALVAGE_KIT_MODEL_IDS
+        ):
+            return True
+        if str(getattr(item, "standalone_kind", "") or "") in {RUNE_STANDALONE_KIND, WEAPON_MOD_STANDALONE_KIND}:
+            return True
+        item_type = self._get_inventory_shortcut_item_type_enum(item)
+        blocked_item_types = {
+            ItemType.Bag,
+            ItemType.Bundle,
+            ItemType.CC_Shards,
+            ItemType.Costume,
+            ItemType.Costume_Headpiece,
+            ItemType.Dye,
+            ItemType.EquippableItem,
+            ItemType.Gold_Coin,
+            ItemType.Kit,
+            ItemType.Materials_Zcoins,
+            ItemType.Minipet,
+            ItemType.MartialWeapon,
+            ItemType.OffhandOrShield,
+            ItemType.Present,
+            ItemType.Quest_Item,
+            ItemType.Rune_Mod,
+            ItemType.Salvage,
+            ItemType.SpellcastingWeapon,
+            ItemType.Storybook,
+            ItemType.Weapon,
+        }
+        return bool(item_type in blocked_item_types or item_type in WEAPON_LIKE_ITEM_TYPES or item_type in ARMOR_PIECE_TYPES)
+
+    def _is_inventory_shortcut_consumable_crafter_withdraw_candidate(
+        self,
+        item: InventoryItemInfo | None,
+        item_type: ItemType | None = None,
+    ) -> bool:
+        if item is None:
+            return False
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0 or model_id not in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL:
+            return False
+        if (item_type or self._get_inventory_shortcut_item_type_enum(item)) == ItemType.Kit:
+            return False
+        if (
+            bool(getattr(item, "is_salvage_kit", False))
+            or model_id in SUPPORTED_SALVAGE_KIT_MODEL_IDS
+            or bool(getattr(item, "is_id_kit", False))
+            or model_id in ID_KIT_MODEL_IDS
+        ):
+            return False
+        return True
+
+    def _is_inventory_shortcut_tome_withdraw_candidate(
+        self,
+        item: InventoryItemInfo | None,
+        item_type: ItemType | None = None,
+    ) -> bool:
+        if item is None:
+            return False
+        if (item_type or self._get_inventory_shortcut_item_type_enum(item)) != ItemType.Usable:
+            return False
+        return bool(getattr(item, "is_tome", False))
+
+    def _get_inventory_shortcut_stackable_xunlai_withdraw_category_key(
+        self,
+        item: InventoryItemInfo | None,
+    ) -> str:
+        if item is None:
+            return ""
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return ""
+        item_type = self._get_inventory_shortcut_item_type_enum(item)
+        if model_id in XUNLAI_WITHDRAW_USABLE_EXACT_MODEL_IDS and item_type != ItemType.Usable:
+            return ""
+        if item_type == ItemType.Trophy:
+            return "type:trophy"
+        if item_type == ItemType.Key:
+            return "type:key"
+        if item_type == ItemType.Scroll:
+            return "type:scroll"
+        if self._is_inventory_shortcut_consumable_crafter_withdraw_candidate(item, item_type):
+            return "model:consumable_crafter"
+        if item_type != ItemType.Usable:
+            return ""
+        if self._is_inventory_shortcut_tome_withdraw_candidate(item, item_type):
+            return "usable:tome"
+        exact_model_categories: tuple[tuple[str, frozenset[int]], ...] = (
+            ("model:dp_remover", XUNLAI_WITHDRAW_DP_REMOVER_MODEL_IDS),
+            ("model:alcohol", XUNLAI_WITHDRAW_ALCOHOL_MODEL_IDS),
+            ("model:sweet", XUNLAI_WITHDRAW_SWEET_MODEL_IDS),
+            ("model:party", XUNLAI_WITHDRAW_PARTY_MODEL_IDS),
+            ("model:non_everlasting_tonic", XUNLAI_WITHDRAW_NON_EVERLASTING_TONIC_MODEL_IDS),
+            ("model:summoning_stone", XUNLAI_WITHDRAW_SUMMONING_STONE_MODEL_IDS),
+            ("model:event_consumable", XUNLAI_WITHDRAW_EVENT_CONSUMABLE_MODEL_IDS),
+        )
+        for category_key, model_ids in exact_model_categories:
+            if model_id in model_ids:
+                return category_key
+        return ""
+
+    def _is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(
+        self,
+        item: InventoryItemInfo | None,
+    ) -> bool:
+        if item is None:
+            return False
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        quantity = max(0, _safe_int(getattr(item, "quantity", 0), 0))
+        if model_id <= 0 or quantity <= 0 or not self._is_inventory_shortcut_stackable_item(item):
+            return False
+        if self._is_inventory_shortcut_unsafe_stackable_xunlai_type(item):
+            return False
+        return bool(self._get_inventory_shortcut_stackable_xunlai_withdraw_category_key(item))
+
+    def _is_inventory_shortcut_xunlai_pane_withdraw_candidate(self, item: InventoryItemInfo | None) -> bool:
+        return bool(
+            self._is_inventory_shortcut_material_withdraw_candidate(item)
+            or self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item)
+        )
+
     def _count_inventory_shortcut_matching_material_quantity(
         self,
         item: InventoryItemInfo,
@@ -5488,12 +5766,44 @@ class MerchantRulesWidget:
             and self._is_inventory_shortcut_material_withdraw_candidate(candidate)
         )
 
+    def _is_inventory_shortcut_stackable_xunlai_source_match(
+        self,
+        item: InventoryItemInfo,
+        candidate: InventoryItemInfo,
+    ) -> bool:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        item_type_id = max(0, _safe_int(getattr(item, "item_type_id", 0), 0))
+        category_key = self._get_inventory_shortcut_stackable_xunlai_withdraw_category_key(item)
+        if model_id <= 0:
+            return False
+        return bool(
+            max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) == model_id
+            and max(0, _safe_int(getattr(candidate, "item_type_id", 0), 0)) == item_type_id
+            and self._get_inventory_shortcut_stackable_xunlai_withdraw_category_key(candidate) == category_key
+            and self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(candidate)
+        )
+
+    def _count_inventory_shortcut_matching_stackable_xunlai_quantity(
+        self,
+        item: InventoryItemInfo,
+        items: list[InventoryItemInfo],
+    ) -> int:
+        if not self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+            return 0
+        return sum(
+            max(0, _safe_int(getattr(candidate, "quantity", 0), 0))
+            for candidate in items
+            if self._is_inventory_shortcut_stackable_xunlai_source_match(item, candidate)
+        )
+
     def _get_inventory_shortcut_bag_quantity(self, item: InventoryItemInfo) -> int:
         fallback_quantity = max(1, _safe_int(getattr(item, "quantity", 1), 1))
         try:
             inventory_items = self._collect_inventory_items()
             if self._is_inventory_shortcut_material_withdraw_candidate(item):
                 bag_quantity = self._count_inventory_shortcut_matching_material_quantity(item, inventory_items)
+            elif self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+                bag_quantity = self._count_inventory_shortcut_matching_stackable_xunlai_quantity(item, inventory_items)
             else:
                 bag_quantity = self._count_inventory_shortcut_matching_quantity(item, inventory_items)
         except Exception as exc:
@@ -5508,6 +5818,8 @@ class MerchantRulesWidget:
             storage_items = self._collect_storage_items()
             if self._is_inventory_shortcut_material_withdraw_candidate(item):
                 return self._count_inventory_shortcut_matching_material_quantity(item, storage_items)
+            if self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+                return self._count_inventory_shortcut_matching_stackable_xunlai_quantity(item, storage_items)
             return self._count_inventory_shortcut_matching_quantity(item, storage_items)
         except Exception as exc:
             self._debug_log(f"Inventory shortcut vault count failed: {exc}")
@@ -5636,6 +5948,38 @@ class MerchantRulesWidget:
             partial_stack_capacity += max(0, CRAFTING_MATERIAL_MAX_STACK_SIZE - quantity)
         return max(0, partial_stack_capacity + (max(0, int(free_slots)) * CRAFTING_MATERIAL_MAX_STACK_SIZE))
 
+    def _get_inventory_shortcut_stackable_withdraw_capacity(self, item: InventoryItemInfo) -> int | None:
+        if not self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+            return None
+        try:
+            inventory_items = self._collect_inventory_items()
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut stackable withdraw capacity inventory scan failed: {exc}")
+            return None
+        try:
+            free_slots = self._get_inventory_free_slot_count()
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut stackable withdraw free slot count failed: {exc}")
+            return None
+        if free_slots < 0:
+            return None
+        partial_stack_capacity = 0
+        for candidate in inventory_items:
+            if not self._is_inventory_shortcut_stackable_xunlai_source_match(item, candidate):
+                continue
+            quantity = max(0, _safe_int(getattr(candidate, "quantity", 0), 0))
+            if quantity <= 0:
+                continue
+            partial_stack_capacity += max(0, STACKABLE_DESTROY_MAX_STACK_SIZE - quantity)
+        return max(0, partial_stack_capacity + (max(0, int(free_slots)) * STACKABLE_DESTROY_MAX_STACK_SIZE))
+
+    def _get_inventory_shortcut_xunlai_pane_withdraw_capacity(self, item: InventoryItemInfo) -> int | None:
+        if self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return self._get_inventory_shortcut_material_withdraw_capacity(item)
+        if self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+            return self._get_inventory_shortcut_stackable_withdraw_capacity(item)
+        return None
+
     def _get_inventory_shortcut_xunlai_pane_material_sources(
         self,
         item: InventoryItemInfo,
@@ -5667,22 +6011,51 @@ class MerchantRulesWidget:
             return None
         return sum(max(0, _safe_int(getattr(source, "quantity", 0), 0)) for source in sources)
 
+    def _get_inventory_shortcut_xunlai_pane_withdraw_sources(
+        self,
+        item: InventoryItemInfo,
+    ) -> list[InventoryItemInfo] | None:
+        if self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return self._get_inventory_shortcut_xunlai_pane_material_sources(item)
+        if not self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+            return []
+        if not self._is_storage_open():
+            return None
+        try:
+            storage_items = self._collect_storage_items()
+        except Exception as exc:
+            self._debug_log(f"Inventory shortcut Xunlai pane stackable scan failed: {exc}")
+            return None
+        return [
+            candidate
+            for candidate in storage_items
+            if self._is_inventory_shortcut_stackable_xunlai_source_match(item, candidate)
+            and max(0, _safe_int(getattr(candidate, "item_id", 0), 0)) > 0
+            and max(0, _safe_int(getattr(candidate, "quantity", 0), 0)) > 0
+        ]
+
+    def _get_inventory_shortcut_xunlai_pane_withdraw_quantity(self, item: InventoryItemInfo) -> int | None:
+        sources = self._get_inventory_shortcut_xunlai_pane_withdraw_sources(item)
+        if sources is None:
+            return None
+        return sum(max(0, _safe_int(getattr(source, "quantity", 0), 0)) for source in sources)
+
     def _get_inventory_shortcut_xunlai_withdraw_label_state(
         self,
         item: InventoryItemInfo,
     ) -> tuple[str, bool, int | None, int | None]:
         item_name = self._format_inventory_shortcut_base_item_name(item)
         base_label = f"Withdraw {item_name} From Xunlai Panes"
-        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
+        if not self._is_inventory_shortcut_xunlai_pane_withdraw_candidate(item):
             return base_label, False, None, None
         if not self._is_storage_open():
             return f"{base_label} (Xunlai unavailable)", False, None, None
-        available_quantity = self._get_inventory_shortcut_xunlai_pane_material_quantity(item)
+        available_quantity = self._get_inventory_shortcut_xunlai_pane_withdraw_quantity(item)
         if available_quantity is None:
             return f"{base_label} (Xunlai unreadable)", False, None, None
         if available_quantity <= 0:
             return f"No {item_name} in Xunlai Panes", False, available_quantity, None
-        capacity = self._get_inventory_shortcut_material_withdraw_capacity(item)
+        capacity = self._get_inventory_shortcut_xunlai_pane_withdraw_capacity(item)
         if capacity is None:
             return f"{base_label} ({available_quantity} available / capacity unavailable)", False, available_quantity, None
         if capacity <= 0:
@@ -5752,6 +6125,16 @@ class MerchantRulesWidget:
             return base_label, False
         if not self._is_storage_open():
             return f"{base_label} (Xunlai unavailable)", False
+        return base_label, True
+
+    def _format_inventory_shortcut_open_xunlai_label(self) -> tuple[str, bool]:
+        base_label = "Open Xunlai Storage"
+        if self.icon_xunlai_open_running:
+            return f"{base_label} (opening)", False
+        if self._is_storage_open():
+            return f"{base_label} (already open)", False
+        if not Map.IsMapReady():
+            return f"{base_label} (map loading)", False
         return base_label, True
 
     def _get_inventory_shortcut_material_storage_material_sources(
@@ -6341,6 +6724,45 @@ class MerchantRulesWidget:
             self._debug_log(f"Inventory shortcut protection check failed: {exc}")
         return self._is_exact_protected_item_model_id(model_id)
 
+    def _is_inventory_shortcut_all_matching_deposit_candidate(self, item: InventoryItemInfo | None) -> bool:
+        if item is None:
+            return False
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        quantity = max(0, _safe_int(getattr(item, "quantity", 0), 0))
+        if model_id <= 0 or quantity <= 0:
+            return False
+        if not self._is_inventory_shortcut_stackable_item(item):
+            return False
+        return bool(
+            self._is_inventory_shortcut_material_withdraw_candidate(item)
+            or self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item)
+        )
+
+    def _is_inventory_shortcut_all_matching_deposit_source_match(
+        self,
+        item: InventoryItemInfo,
+        candidate: InventoryItemInfo,
+    ) -> bool:
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if model_id <= 0:
+            return False
+        if max(0, _safe_int(getattr(candidate, "model_id", 0), 0)) != model_id:
+            return False
+        if max(0, _safe_int(getattr(candidate, "item_id", 0), 0)) <= 0:
+            return False
+        if max(0, _safe_int(getattr(candidate, "quantity", 0), 0)) <= 0:
+            return False
+        if not self._is_inventory_shortcut_stackable_item(candidate):
+            return False
+        if self._is_inventory_shortcut_material_withdraw_candidate(item):
+            return self._is_inventory_shortcut_material_withdraw_candidate(candidate)
+        if self._is_inventory_shortcut_stackable_xunlai_pane_withdraw_candidate(item):
+            return self._is_inventory_shortcut_stackable_xunlai_source_match(item, candidate)
+        return False
+
+    def _format_inventory_shortcut_deposit_all_matching_label(self, item: InventoryItemInfo) -> str:
+        return f"Deposit All {self._format_inventory_shortcut_base_item_name(item)}"
+
     def _is_inventory_shortcut_id_kit(self, item: InventoryItemInfo) -> bool:
         model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
         if bool(getattr(item, "is_id_kit", False)) or model_id in ID_KIT_MODEL_IDS:
@@ -6554,6 +6976,129 @@ class MerchantRulesWidget:
             self.inventory_shortcuts_live_action_running = False
             yield
 
+    def _queue_inventory_shortcut_live_deposit_all_matching(self, item: InventoryItemInfo) -> bool:
+        if self.inventory_shortcuts_live_action_running:
+            self.status_message = "A right-click inventory action is already running."
+            return False
+        block_reason = self._inventory_shortcut_runtime_block_reason()
+        if block_reason:
+            self.status_message = block_reason
+            return False
+        if not self._is_inventory_shortcut_all_matching_deposit_candidate(item):
+            self.status_message = "Deposit All Matching is only available for safe stackable items."
+            return False
+
+        item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
+        model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
+        if item_id <= 0 or model_id <= 0:
+            self.status_message = "Could not deposit matching items because Merchant Rules could not target this item exactly."
+            return False
+
+        item_name = self._format_inventory_shortcut_base_item_name(item)
+        self.inventory_shortcuts_live_action_running = True
+        self.status_message = f"Depositing all matching {item_name} stacks..."
+        try:
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_shortcut_live_deposit_all_matching(item_id, model_id, item_name)
+            )
+            return True
+        except Exception as exc:
+            self.inventory_shortcuts_live_action_running = False
+            self.status_message = f"Could not start depositing matching {item_name} stacks."
+            ConsoleLog(MODULE_NAME, f"Right-click Deposit All Matching queue error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return False
+
+    def _run_inventory_shortcut_live_deposit_all_matching(
+        self,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+    ):
+        paused_inventory_plus = None
+        try:
+            live_item, reason = self._get_inventory_shortcut_live_item_for_action(item_id, model_id)
+            if live_item is None:
+                self.status_message = reason or f"Could not deposit matching {item_name} stacks."
+                return
+            if not self._is_inventory_shortcut_all_matching_deposit_candidate(live_item):
+                self.status_message = (
+                    f"Could not deposit all matching {item_name} stacks because the clicked item is no longer safe."
+                )
+                return
+
+            try:
+                inventory_items = self._collect_inventory_items()
+            except Exception as exc:
+                self._debug_log(f"Right-click Deposit All Matching inventory scan failed: {exc}")
+                self.status_message = f"Could not read inventory stacks for {item_name}."
+                return
+
+            source_items = [
+                candidate
+                for candidate in inventory_items
+                if self._is_inventory_shortcut_all_matching_deposit_source_match(live_item, candidate)
+            ]
+            if not source_items:
+                self.status_message = f"No safe matching {item_name} stacks were found in your bags."
+                return
+
+            transfers: list[PlannedStorageTransfer] = []
+            for source_item in source_items:
+                source_item_id = max(0, _safe_int(getattr(source_item, "item_id", 0), 0))
+                source_quantity = max(0, _safe_int(getattr(source_item, "quantity", 0), 0))
+                if source_item_id <= 0 or source_quantity <= 0:
+                    continue
+                transfers.append(
+                    PlannedStorageTransfer(
+                        direction=STORAGE_TRANSFER_DEPOSIT,
+                        key=f"right_click:deposit_all_matching:{int(source_item_id)}",
+                        label=str(item_name or f"Model {int(model_id)}"),
+                        item_id=int(source_item_id),
+                        quantity=int(source_quantity),
+                        model_id=max(0, int(model_id)),
+                        reason="Right-click Deposit All Matching shortcut",
+                    )
+                )
+
+            if not transfers:
+                self.status_message = f"No depositable matching {item_name} stacks were found in your bags."
+                return
+
+            requested_quantity = sum(max(0, int(transfer.quantity)) for transfer in transfers)
+            paused_inventory_plus = self._pause_inventory_plus()
+            outcome = yield from self._execute_storage_transfers(
+                transfers,
+                phase_label="Right-click Deposit All Matching",
+            )
+            if outcome.completed > 0:
+                if int(outcome.completed) >= requested_quantity:
+                    message = f"Deposited all matching {item_name} stacks. Preview again before execution."
+                else:
+                    message = (
+                        f"Deposited {int(outcome.completed)} of {requested_quantity} matching {item_name}. "
+                        "Preview again before execution."
+                    )
+                self._mark_preview_dirty(message)
+                return
+            if outcome.depleted > 0:
+                self.status_message = f"Matching {item_name} stacks were already gone before they could be deposited."
+            else:
+                self.status_message = (
+                    f"Could not deposit matching {item_name} stacks. They may not be storable, storage may be full, "
+                    "or storage is unavailable."
+                )
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Right-click Deposit All Matching failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Right-click Deposit All Matching error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            self.inventory_shortcuts_live_action_running = False
+            yield
+
     def _build_inventory_shortcut_material_withdraw_transfers(
         self,
         source_items: list[InventoryItemInfo],
@@ -6598,14 +7143,14 @@ class MerchantRulesWidget:
         if block_reason:
             self.status_message = block_reason
             return False
-        if not self._is_inventory_shortcut_material_withdraw_candidate(item):
-            self.status_message = "Xunlai pane withdraw is only available for crafting materials."
+        if not self._is_inventory_shortcut_xunlai_pane_withdraw_candidate(item):
+            self.status_message = "Xunlai pane withdraw is only available for safe stackable items."
             return False
 
         item_id = max(0, _safe_int(getattr(item, "item_id", 0), 0))
         model_id = max(0, _safe_int(getattr(item, "model_id", 0), 0))
         if item_id <= 0 or model_id <= 0:
-            self.status_message = "Could not withdraw this material because Merchant Rules could not target it exactly."
+            self.status_message = "Could not withdraw this item because Merchant Rules could not target it exactly."
             return False
 
         item_name = self._format_inventory_shortcut_base_item_name(item)
@@ -6635,16 +7180,14 @@ class MerchantRulesWidget:
             if live_item is None:
                 self.status_message = reason or f"Could not withdraw {item_name}."
                 return
-            if not self._is_inventory_shortcut_material_withdraw_candidate(live_item):
-                self.status_message = (
-                    f"Could not withdraw {item_name} because the clicked item is no longer a crafting material."
-                )
+            if not self._is_inventory_shortcut_xunlai_pane_withdraw_candidate(live_item):
+                self.status_message = f"Could not withdraw {item_name} because the clicked item is no longer safe."
                 return
             if not self._is_storage_open():
                 self.status_message = "Open Xunlai before using right-click pane withdraw."
                 return
 
-            capacity = self._get_inventory_shortcut_material_withdraw_capacity(live_item)
+            capacity = self._get_inventory_shortcut_xunlai_pane_withdraw_capacity(live_item)
             if capacity is None:
                 self.status_message = f"Could not withdraw {item_name} because inventory space could not be verified."
                 return
@@ -6652,7 +7195,7 @@ class MerchantRulesWidget:
                 self.status_message = "Inventory full. Free space before withdrawing from Xunlai panes."
                 return
 
-            source_items = self._get_inventory_shortcut_xunlai_pane_material_sources(live_item)
+            source_items = self._get_inventory_shortcut_xunlai_pane_withdraw_sources(live_item)
             if source_items is None:
                 self.status_message = f"Could not read Xunlai panes for {item_name}."
                 return
@@ -6660,31 +7203,14 @@ class MerchantRulesWidget:
                 self.status_message = f"No matching {item_name} stacks were found in Xunlai panes."
                 return
 
-            remaining_capacity = max(0, int(capacity))
-            transfers: list[PlannedStorageTransfer] = []
-            for source_item in source_items:
-                if remaining_capacity <= 0:
-                    break
-                source_item_id = max(0, _safe_int(getattr(source_item, "item_id", 0), 0))
-                source_quantity = max(0, _safe_int(getattr(source_item, "quantity", 0), 0))
-                if source_item_id <= 0 or source_quantity <= 0:
-                    continue
-                move_quantity = min(source_quantity, remaining_capacity)
-                if move_quantity <= 0:
-                    continue
-                transfers.append(
-                    PlannedStorageTransfer(
-                        direction=STORAGE_TRANSFER_WITHDRAW,
-                        key=f"right_click:xunlai_panes:model:{int(model_id)}",
-                        label=str(item_name or f"Model {int(model_id)}"),
-                        item_id=int(source_item_id),
-                        quantity=int(move_quantity),
-                        model_id=max(0, int(model_id)),
-                        reason="Right-click Xunlai pane withdraw.",
-                    )
-                )
-                remaining_capacity -= int(move_quantity)
-
+            transfers = self._build_inventory_shortcut_material_withdraw_transfers(
+                source_items,
+                model_id=model_id,
+                item_name=item_name,
+                capacity=int(capacity),
+                key_prefix="xunlai_panes",
+                reason="Right-click Xunlai pane withdraw.",
+            )
             if not transfers:
                 self.status_message = f"No withdrawable {item_name} stacks were found in Xunlai panes."
                 return
@@ -7258,6 +7784,9 @@ class MerchantRulesWidget:
             return False
         return self._queue_inventory_shortcut_live_deposit(item)
 
+    def _handle_inventory_shortcut_live_deposit_all_matching_click(self, item: InventoryItemInfo) -> bool:
+        return self._queue_inventory_shortcut_live_deposit_all_matching(item)
+
     def _handle_inventory_shortcut_live_destroy_click(self, item: InventoryItemInfo) -> bool:
         if not self._inventory_shortcut_live_confirmation_matches(INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY, item):
             self._set_inventory_shortcut_live_confirmation(INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY, item)
@@ -7445,10 +7974,24 @@ class MerchantRulesWidget:
 
     def _draw_inventory_shortcut_live_actions(self, item: InventoryItemInfo):
         subject = self._get_inventory_shortcut_live_action_subject(item)
-        if self._is_inventory_shortcut_material_withdraw_candidate(item):
+        open_xunlai_label, open_xunlai_enabled = self._format_inventory_shortcut_open_xunlai_label()
+        if self._draw_inventory_shortcut_live_menu_item(
+            open_xunlai_label,
+            item,
+            INVENTORY_SHORTCUT_LIVE_ACTION_OPEN_XUNLAI,
+            UI_COLOR_TEAL,
+            enabled=open_xunlai_enabled,
+        ):
+            self._request_open_xunlai_from_icon()
+
+        pane_quantity = None
+        pane_capacity = None
+        pane_state_captured = False
+        if self._is_inventory_shortcut_xunlai_pane_withdraw_candidate(item):
             withdraw_label, withdraw_enabled, pane_quantity, pane_capacity = (
                 self._get_inventory_shortcut_xunlai_withdraw_label_state(item)
             )
+            pane_state_captured = True
             if self._draw_inventory_shortcut_live_menu_item(
                 withdraw_label,
                 item,
@@ -7458,6 +8001,11 @@ class MerchantRulesWidget:
             ):
                 if self._handle_inventory_shortcut_live_xunlai_pane_withdraw_click(item):
                     self._close_inventory_shortcuts_popup(clear_confirmation=True)
+        if self._is_inventory_shortcut_material_withdraw_candidate(item):
+            if not pane_state_captured:
+                _pane_label, _pane_enabled, pane_quantity, pane_capacity = (
+                    self._get_inventory_shortcut_xunlai_withdraw_label_state(item)
+                )
             material_storage_label, material_storage_enabled, material_storage_quantity = (
                 self._get_inventory_shortcut_material_storage_withdraw_label_state(item)
             )
@@ -7493,8 +8041,7 @@ class MerchantRulesWidget:
                 UI_COLOR_TEAL,
                 enabled=refresh_enabled,
             ):
-                if self._handle_inventory_shortcut_live_material_storage_count_refresh_click(item):
-                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
+                self._handle_inventory_shortcut_live_material_storage_count_refresh_click(item)
 
         deposit_pending = self._inventory_shortcut_live_confirmation_matches(
             INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT,
@@ -7517,6 +8064,16 @@ class MerchantRulesWidget:
         ):
             if self._handle_inventory_shortcut_live_deposit_click(item):
                 self._close_inventory_shortcuts_popup(clear_confirmation=True)
+
+        if self._is_inventory_shortcut_all_matching_deposit_candidate(item):
+            if self._draw_inventory_shortcut_live_menu_item(
+                self._format_inventory_shortcut_deposit_all_matching_label(item),
+                item,
+                INVENTORY_SHORTCUT_LIVE_ACTION_DEPOSIT_ALL_MATCHING,
+                UI_COLOR_TEAL,
+            ):
+                if self._handle_inventory_shortcut_live_deposit_all_matching_click(item):
+                    self._close_inventory_shortcuts_popup(clear_confirmation=True)
 
         destroy_pending = self._inventory_shortcut_live_confirmation_matches(
             INVENTORY_SHORTCUT_LIVE_ACTION_DESTROY,
@@ -9292,6 +9849,7 @@ class MerchantRulesWidget:
             f"{prefix}: supported={plan.supported_map} has_actions={plan.has_actions} "
             f"entries={len(plan.entries)} travel={plan.travel_to_outpost_id} "
             f"identify={len(plan.identify_item_ids)} "
+            f"salvage={len(plan.salvage_item_ids)} "
             f"destroy={len(plan.destroy_actions) if plan.destroy_actions else len(plan.destroy_item_ids)} "
             f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} "
             f"rune_buys={len(plan.rune_trader_buys)} scroll_buys={len(plan.scroll_trader_buys)} "
@@ -9396,7 +9954,18 @@ class MerchantRulesWidget:
             self.status_message = self.preview_inventory_diff_summary or "Run Preview before executing merchant actions here."
             return
         if self.preview_inventory_diff_rows:
-            self.status_message = "Inventory changed since preview. Re-Preview or confirm Execute Anyway."
+            self.status_message = "Inventory changed since Preview. Re-Preview before Execute Here."
+            diff_detail = "; ".join(self.preview_inventory_diff_rows)
+            if diff_detail:
+                self._debug_log(
+                    "Execute Here paused before salvage. Inventory changed since Preview. "
+                    f"{self.preview_inventory_diff_summary} Changes: {diff_detail}"
+                )
+            else:
+                self._debug_log(
+                    "Execute Here paused before salvage. Inventory changed since Preview. "
+                    f"{self.preview_inventory_diff_summary or 'Inventory drift detected.'}"
+                )
             return
         self._queue_execute_here()
 
@@ -13116,6 +13685,7 @@ class MerchantRulesWidget:
             cleanup_transfers=list(destination_plan.cleanup_transfers),
             identify_claimed_item_ids=list(destination_plan.identify_claimed_item_ids),
             identify_item_ids=list(destination_plan.identify_item_ids),
+            salvage_item_ids=list(destination_plan.salvage_item_ids),
             destroy_actions=list(destination_plan.destroy_actions),
             destroy_item_ids=list(destination_plan.destroy_item_ids),
             merchant_sell_item_ids=list(destination_plan.merchant_sell_item_ids),
@@ -13332,6 +13902,20 @@ class MerchantRulesWidget:
                         getattr(GLOBAL_CACHE.Item, "Usage", None),
                         "IsSalvageKit",
                         lambda _item_id: model_id in SUPPORTED_SALVAGE_KIT_MODEL_IDS,
+                    )(safe_item_id)
+                ),
+                is_stackable=bool(
+                    getattr(
+                        getattr(GLOBAL_CACHE.Item, "Customization", None),
+                        "IsStackable",
+                        lambda _item_id: quantity > 1,
+                    )(safe_item_id)
+                ),
+                is_tome=bool(
+                    getattr(
+                        getattr(GLOBAL_CACHE.Item, "Type", None),
+                        "IsTome",
+                        lambda _item_id: False,
                     )(safe_item_id)
                 ),
                 requirement=int(parsed_modifiers.requirement),
@@ -15515,6 +16099,7 @@ class MerchantRulesWidget:
                 for rule in self.buy_rules
             )
             or any(bool(rule.enabled) for rule in self.sell_rules)
+            or self._has_enabled_salvage_settings()
             or any(bool(rule.enabled) for rule in self.destroy_rules)
             or self._has_cleanup_sources()
         )
@@ -15541,6 +16126,7 @@ class MerchantRulesWidget:
             for item_id in [*plan.identify_claimed_item_ids, *plan.identify_item_ids]
             if int(item_id) > 0
         }
+        salvage_item_ids = {int(item_id) for item_id in plan.salvage_item_ids if int(item_id) > 0}
         merchant_sell_item_ids = {int(item_id) for item_id in plan.merchant_sell_item_ids if int(item_id) > 0}
         rune_sale_item_ids = {
             int(trader_sale.item_id)
@@ -15581,7 +16167,12 @@ class MerchantRulesWidget:
             safe_item_id = int(item.item_id)
             remaining_quantity -= max(0, int(destroy_quantities_by_item_id.get(safe_item_id, 0)))
             remaining_quantity -= max(0, int(material_sale_quantities_by_item_id.get(safe_item_id, 0)))
-            if safe_item_id in identify_item_ids or safe_item_id in merchant_sell_item_ids or safe_item_id in rune_sale_item_ids:
+            if (
+                safe_item_id in identify_item_ids
+                or safe_item_id in salvage_item_ids
+                or safe_item_id in merchant_sell_item_ids
+                or safe_item_id in rune_sale_item_ids
+            ):
                 remaining_quantity = 0
             if remaining_quantity <= 0:
                 continue
@@ -16032,6 +16623,7 @@ class MerchantRulesWidget:
             self._should_identify_before_execute()
             or any(bool(rule.enabled) for rule in self.buy_rules)
             or any(bool(rule.enabled) for rule in self.sell_rules)
+            or self._has_enabled_salvage_settings()
             or any(bool(rule.enabled) for rule in self.destroy_rules)
             or self._has_cleanup_sources()
         )
@@ -16747,6 +17339,68 @@ class MerchantRulesWidget:
                 enabled_sell_rules,
             )
 
+    def _plan_salvage_actions(
+        self,
+        plan: PlanResult,
+        items: list[InventoryItemInfo],
+        enabled_sell_rules: list[tuple[int, SellRule]],
+        claimed_item_ids: set[int],
+    ) -> None:
+        if not self._has_enabled_salvage_settings():
+            return
+
+        candidates, blocked_counts = self._collect_salvage_candidates(
+            items,
+            enabled_sell_rules,
+            require_salvage_kit=True,
+            mode="manual",
+        )
+        for candidate in candidates:
+            item = candidate.item
+            item_id = max(0, int(item.item_id))
+            if item_id <= 0:
+                continue
+            rule = _normalize_salvage_rule(candidate.rule) or SalvageRule()
+            rule_reference = (
+                self._format_salvage_rule_reference(int(candidate.rule_index), rule)
+                if int(candidate.rule_index) >= 0
+                else "salvage selection"
+            )
+            reason = str(candidate.reason or "").strip()
+            if not reason:
+                reason = "Selected for salvage"
+            reason = f"{reason}; {_get_salvage_option_label(rule.salvage_option)} via {rule_reference}."
+            if self._salvage_candidate_allows_stack_drain(candidate):
+                reason = f"{reason} Stackable item will continue until the stack is gone or no longer qualifies."
+            plan.salvage_item_ids.append(item_id)
+            claimed_item_ids.add(item_id)
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "salvage",
+                    MERCHANT_TYPE_INVENTORY,
+                    item.name,
+                    item.quantity,
+                    PLAN_STATE_WILL_EXECUTE,
+                    reason,
+                    model_id=item.model_id,
+                )
+            )
+
+        for reason, count in sorted(blocked_counts.items()):
+            safe_count = max(0, int(count))
+            if safe_count <= 0:
+                continue
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "salvage",
+                    MERCHANT_TYPE_INVENTORY,
+                    "Salvage",
+                    safe_count,
+                    PLAN_STATE_SKIPPED,
+                    f"Skipped {safe_count} {reason}.",
+                )
+            )
+
     def _build_simulated_model_counts(self, items: list[InventoryItemInfo], plan: PlanResult) -> dict[int, int]:
         simulated_counts = self._get_inventory_model_counts(items)
         item_by_id = {
@@ -16764,6 +17418,11 @@ class MerchantRulesWidget:
                 simulated_counts.pop(model_id, None)
 
         material_sale_quantities_by_item_id: dict[int, int] = {}
+
+        for item_id in plan.salvage_item_ids:
+            item = item_by_id.get(int(item_id))
+            if item is not None:
+                subtract_model_quantity(item.model_id, item.quantity)
 
         if plan.destroy_actions:
             for destroy_action in plan.destroy_actions:
@@ -17736,7 +18395,7 @@ class MerchantRulesWidget:
         else:
             has_enabled_rules = self._has_enabled_rules()
         if not has_enabled_rules:
-            self._debug_log("Plan build skipped inventory snapshot because no buy, sell, destroy, or cleanup rules are enabled.")
+            self._debug_log("Plan build skipped inventory snapshot because no buy, sell, salvage, destroy, or cleanup rules are enabled.")
             self._log_plan_summary("Plan built", plan)
             self.last_plan_build_duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
             return plan
@@ -17782,6 +18441,8 @@ class MerchantRulesWidget:
             self._plan_identify_actions(plan, items, claimed_item_ids)
         if not consumable_crafter_only:
             self._plan_destroy_actions(plan, items, enabled_destroy_rules, enabled_sell_rules, claimed_item_ids)
+        if not cleanup_only and not consumable_crafter_only:
+            self._plan_salvage_actions(plan, items, enabled_sell_rules, claimed_item_ids)
         material_quantities = {
             item.item_id: item.quantity
             for item in items
@@ -18339,6 +19000,7 @@ class MerchantRulesWidget:
             self._apply_projected_preview_post_processing(plan, projected_target_outpost_name)
         plan.has_actions = bool(
             plan.identify_item_ids
+            or plan.salvage_item_ids
             or plan.destroy_actions
             or plan.destroy_item_ids
             or plan.merchant_stock_buys
@@ -22127,46 +22789,14 @@ class MerchantRulesWidget:
                     self._clear_preview_projection_state()
                     self._log_plan_summary("Execution post-identify plan", plan)
             if not plan.supported_map:
-                if (
-                    not self._plan_has_local_identify_actions(plan)
-                    and not self._plan_has_local_destroy_actions(plan)
-                    and not self._plan_has_local_storage_actions(plan)
-                ):
+                local_action_labels = self._get_plan_local_action_labels(plan)
+                if not local_action_labels:
                     self.status_message = plan.supported_reason
                     self._debug_log(f"Execution aborted: unsupported map. {plan.supported_reason}")
                     return
-                if (
-                    self._plan_has_local_identify_actions(plan)
-                    and self._plan_has_local_destroy_actions(plan)
-                    and self._plan_has_local_storage_actions(plan)
-                ):
-                    self._debug_log(
-                        f"Execution continuing with local identify, local destroy actions, and Xunlai deposits on unsupported map. {plan.supported_reason}"
-                    )
-                elif self._plan_has_local_identify_actions(plan) and self._plan_has_local_destroy_actions(plan):
-                    self._debug_log(
-                        f"Execution continuing with local identify and destroy actions on unsupported map. {plan.supported_reason}"
-                    )
-                elif self._plan_has_local_identify_actions(plan) and self._plan_has_local_storage_actions(plan):
-                    self._debug_log(
-                        f"Execution continuing with local identify and Xunlai deposits on unsupported map. {plan.supported_reason}"
-                    )
-                elif self._plan_has_local_destroy_actions(plan) and self._plan_has_local_storage_actions(plan):
-                    self._debug_log(
-                        f"Execution continuing with local destroy actions and Xunlai deposits on unsupported map. {plan.supported_reason}"
-                    )
-                elif self._plan_has_local_identify_actions(plan):
-                    self._debug_log(
-                        f"Execution continuing with local identify actions on unsupported map. {plan.supported_reason}"
-                    )
-                elif self._plan_has_local_destroy_actions(plan):
-                    self._debug_log(
-                        f"Execution continuing with local destroy actions on unsupported map. {plan.supported_reason}"
-                    )
-                else:
-                    self._debug_log(
-                        f"Execution continuing with Xunlai deposits on unsupported map. {plan.supported_reason}"
-                    )
+                self._debug_log(
+                    f"Execution continuing with {', '.join(local_action_labels)} on unsupported map. {plan.supported_reason}"
+                )
             storage_scan_failed = False
             storage_available_here = bool(local_availability.get(MERCHANT_TYPE_STORAGE, False))
             if self._plan_needs_exact_storage_scan(plan):
@@ -22203,7 +22833,8 @@ class MerchantRulesWidget:
                         Console.MessageType.Warning,
                     )
                     has_other_runnable_actions = bool(
-                        plan.destroy_actions
+                        plan.salvage_item_ids
+                        or plan.destroy_actions
                         or plan.destroy_item_ids
                         or plan.merchant_stock_buys
                         or plan.material_buys
@@ -22223,6 +22854,75 @@ class MerchantRulesWidget:
                     self.status_message = "Nothing to execute for the current rules and inventory state."
                 self._debug_log("Execution aborted: no actionable work in the current plan.")
                 return
+
+            if plan.salvage_item_ids:
+                self.status_message = "Salvaging selected items before merchant handling."
+                salvage_actionable_here_count = actionable_here_count
+                salvage_skipped_here_count = skipped_here_count
+                salvage_started_at = time.perf_counter()
+                salvage_outcome = yield from self._run_salvage_pass(
+                    summary_subject="Salvage during Execute",
+                    planned_salvage_item_ids=set(plan.salvage_item_ids),
+                )
+                self.last_execution_phase_durations_ms["salvage"] = max(0.0, (time.perf_counter() - salvage_started_at) * 1000.0)
+                salvage_summary = self.last_salvage_summary or self._format_salvage_summary(
+                    salvage_outcome,
+                    {},
+                    subject="Salvage during Execute",
+                )
+                if salvage_summary:
+                    phase_summaries.append(salvage_summary)
+                if salvage_outcome.timeout_failures > 0:
+                    if local_only:
+                        phase_summaries.insert(
+                            0,
+                            f"Execute Here: {salvage_actionable_here_count} local action(s) | {salvage_skipped_here_count} skipped / unavailable.",
+                        )
+                    self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+                    self.status_message = "Salvage during Execute did not finish safely; merchant actions were not run."
+                    if salvage_outcome.completed > 0 or salvage_outcome.depleted > 0:
+                        self.preview_ready = False
+                    self._debug_log("Execution aborted: Salvage during Execute had timeout/failure results.")
+                    return
+                if (
+                    salvage_outcome.attempted > 0
+                    or salvage_outcome.completed > 0
+                    or salvage_outcome.depleted > 0
+                    or salvage_outcome.unavailable > 0
+                ):
+                    yield from Routines.Yield.wait(150)
+                    self._invalidate_supported_context_cache()
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
+                    self.preview_plan = plan
+                    local_availability = self._get_preview_here_availability()
+                    actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
+                        plan,
+                        availability_here=local_availability,
+                    )
+                    storage_available_here = bool(local_availability.get(MERCHANT_TYPE_STORAGE, False))
+                    self._clear_preview_projection_state()
+                    self._log_plan_summary("Execution post-salvage plan", plan)
+                    if not plan.has_actions:
+                        if local_only:
+                            phase_summaries.insert(
+                                0,
+                                f"Execute Here: {salvage_actionable_here_count} local action(s) | {salvage_skipped_here_count} skipped / unavailable.",
+                            )
+                        self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+                        if not self.last_execution_summary:
+                            self.last_execution_summary = "Execution finished, but no merchant actions reported a completed or attempted outcome."
+                        self.status_message = (
+                            "Execute Here finished. Preview again to refresh the post-run state."
+                            if local_only
+                            else "Travel + Execute finished. Preview again to refresh the post-run state."
+                        )
+                        self.preview_ready = False
+                        self._debug_log(self.last_execution_summary)
+                        return
 
             paused_inventory_plus = self._pause_inventory_plus()
             if paused_inventory_plus is not None:
@@ -23552,7 +24252,9 @@ class MerchantRulesWidget:
             if not started:
                 return "failed"
             choice_dialog_status = "not_visible"
-            if self._get_salvage_kit_model_id(int(salvage_kit_id)) in UPGRADE_SALVAGE_KIT_MODEL_IDS:
+            salvage_kit_model_id = self._get_salvage_kit_model_id(int(salvage_kit_id))
+            uses_upgrade_kit_choice = int(salvage_kit_model_id) in UPGRADE_SALVAGE_KIT_MODEL_IDS
+            if uses_upgrade_kit_choice:
                 choice_dialog_status = yield from self._handle_material_salvage_choice_dialog(item_id)
                 if choice_dialog_status not in {"handled", "not_visible"}:
                     ConsoleLog(
@@ -23573,10 +24275,18 @@ class MerchantRulesWidget:
                     ConsoleLog(MODULE_NAME, f"MR Salvage did not find the materials confirmation for item {item_id}.", Console.MessageType.Warning)
                     return "failed"
             else:
+                popup_timeout_ms = 700
+                if (
+                    rarity_key in {"white", "common"}
+                    and bool(getattr(live_item, "is_stackable", False))
+                    and selected_option == SALVAGE_OPTION_MATERIALS
+                    and not uses_upgrade_kit_choice
+                ):
+                    popup_timeout_ms = 50
                 materials_confirm_status = yield from self._wait_and_confirm_materials_popup(
                     item_id,
                     int(salvage_kit_id),
-                    timeout_ms=700,
+                    timeout_ms=popup_timeout_ms,
                 )
                 if materials_confirm_status not in {"handled", "not_visible"}:
                     ConsoleLog(
@@ -23592,7 +24302,7 @@ class MerchantRulesWidget:
             waited_ms += 50
             if item_id not in set(self._get_inventory_item_ids()):
                 self._debug_log(f"MR Salvage completed {live_item_label} ({item_id}); item left inventory.")
-                return "salvaged"
+                return "salvaged_item_gone"
             try:
                 current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
             except Exception:
@@ -23615,6 +24325,164 @@ class MerchantRulesWidget:
         ConsoleLog(MODULE_NAME, f"MR Salvage timed out waiting for result on item {item_id}.", Console.MessageType.Warning)
         return "failed"
 
+    def _salvage_candidate_allows_stack_drain(self, candidate: SalvageCandidate) -> bool:
+        item = getattr(candidate, "item", None)
+        if not bool(getattr(item, "is_stackable", False)):
+            return False
+        rule = _normalize_salvage_rule(getattr(candidate, "rule", None))
+        if rule is None:
+            return False
+        configured_option = _normalize_salvage_option(getattr(rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
+        if _is_auto_exact_upgrade_salvage_option(configured_option):
+            return False
+        return _resolve_salvage_session_option(configured_option) not in SALVAGE_UPGRADE_OPTIONS
+
+    def _add_salvage_status_to_outcome(self, outcome: ExecutionPhaseOutcome, status: str) -> None:
+        safe_status = str(status or "")
+        if safe_status in {"salvaged", "salvaged_item_gone", "processed"}:
+            outcome.completed += 1
+        elif safe_status == "missing_item":
+            outcome.depleted += 1
+        elif safe_status == "blocked":
+            outcome.unavailable += 1
+        else:
+            outcome.timeout_failures += 1
+
+    def _get_salvage_stack_drain_stop_reason(
+        self,
+        live_item: InventoryItemInfo | None,
+        candidate: SalvageCandidate,
+        enabled_sell_rules: list[tuple[int, SellRule]],
+        *,
+        mode: str,
+        original_model_id: int,
+        preferred_salvage_kit_id: int = 0,
+        preferred_salvage_kit_model_id: int = 0,
+    ) -> str:
+        if live_item is None:
+            return "stack is gone"
+        if int(live_item.model_id) != int(original_model_id):
+            return "item changed"
+        rule = _normalize_salvage_rule(candidate.rule) or SalvageRule()
+        selected_option = _resolve_salvage_session_option(getattr(rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
+        if max(0, _safe_int(preferred_salvage_kit_id, 0)) > 0:
+            salvage_kit_id = self._get_salvage_kit_id_for_option(
+                selected_option,
+                preferred_kit_id=preferred_salvage_kit_id,
+                preferred_kit_model_id=preferred_salvage_kit_model_id,
+            )
+        else:
+            salvage_kit_id = self._get_salvage_kit_id_for_option(selected_option)
+        return self._get_salvage_candidate_block_reason(
+            live_item,
+            enabled_sell_rules,
+            salvage_rule=rule,
+            require_salvage_kit=True,
+            salvage_kit_id=salvage_kit_id,
+            mode=mode,
+        )
+
+    def _salvage_candidate_with_stack_drain(
+        self,
+        candidate: SalvageCandidate,
+        enabled_sell_rules: list[tuple[int, SellRule]],
+        *,
+        auto_triggered: bool = False,
+        preferred_salvage_kit_id: int = 0,
+        preferred_salvage_kit_model_id: int = 0,
+    ):
+        outcome = ExecutionPhaseOutcome(label="MR Salvage", measure_label="items")
+        mode = "auto" if auto_triggered else "manual"
+        original_item_id = max(0, _safe_int(getattr(candidate.item, "item_id", 0), 0))
+        original_model_id = max(0, _safe_int(getattr(candidate.item, "model_id", 0), 0))
+        drain_stack = self._salvage_candidate_allows_stack_drain(candidate)
+        max_attempts = max(1, int(getattr(candidate.item, "quantity", 1))) if drain_stack else 1
+        rule = _normalize_salvage_rule(candidate.rule) or SalvageRule()
+
+        for _attempt_index in range(max_attempts):
+            live_item = self._build_inventory_item_info(original_item_id)
+            if live_item is None:
+                if outcome.completed <= 0:
+                    outcome.depleted += 1
+                else:
+                    self._debug_log(f"MR Salvage stack drain stopped for item {original_item_id}: stack is gone.")
+                break
+            if int(live_item.model_id) != int(original_model_id):
+                if outcome.completed <= 0:
+                    outcome.unavailable += 1
+                self._debug_log(
+                    f"MR Salvage stack drain stopped for item {original_item_id}: "
+                    f"model changed from {original_model_id} to {int(live_item.model_id)}."
+                )
+                break
+
+            before_quantity = max(1, int(live_item.quantity))
+            live_candidate = SalvageCandidate(
+                item=live_item,
+                rule_index=int(candidate.rule_index),
+                rule=rule,
+                reason=str(candidate.reason or ""),
+            )
+            status = yield from self._salvage_one_item_with_rule(
+                live_candidate,
+                enabled_sell_rules,
+                auto_triggered=auto_triggered,
+                preferred_salvage_kit_id=preferred_salvage_kit_id,
+                preferred_salvage_kit_model_id=preferred_salvage_kit_model_id,
+            )
+            if not drain_stack:
+                self._add_salvage_status_to_outcome(outcome, status)
+                break
+            if status != "salvaged":
+                if status == "salvaged_item_gone":
+                    outcome.completed += 1
+                    break
+                self._add_salvage_status_to_outcome(outcome, status)
+                break
+
+            live_after = self._build_inventory_item_info(original_item_id)
+            if live_after is None:
+                outcome.completed += 1
+                break
+            if int(live_after.model_id) != int(original_model_id):
+                outcome.completed += 1
+                self._debug_log(
+                    f"MR Salvage stack drain stopped for item {original_item_id}: "
+                    f"model changed from {original_model_id} to {int(live_after.model_id)}."
+                )
+                break
+
+            after_quantity = max(0, int(live_after.quantity))
+            if after_quantity >= before_quantity:
+                outcome.timeout_failures += 1
+                self._debug_log(
+                    f"MR Salvage stack drain stopped for item {original_item_id}: "
+                    f"quantity did not decrease ({before_quantity} -> {after_quantity})."
+                )
+                break
+
+            outcome.completed += 1
+            if after_quantity <= 0:
+                break
+
+            stop_reason = self._get_salvage_stack_drain_stop_reason(
+                live_after,
+                live_candidate,
+                enabled_sell_rules,
+                mode=mode,
+                original_model_id=original_model_id,
+                preferred_salvage_kit_id=preferred_salvage_kit_id,
+                preferred_salvage_kit_model_id=preferred_salvage_kit_model_id,
+            )
+            if stop_reason:
+                outcome.unavailable += 1
+                self._debug_log(
+                    f"MR Salvage stack drain stopped for item {original_item_id}: {stop_reason}."
+                )
+                break
+
+        return outcome
+
     def _run_salvage_pass(
         self,
         *,
@@ -23625,9 +24493,10 @@ class MerchantRulesWidget:
         preferred_salvage_kit_id: int = 0,
         preferred_salvage_kit_model_id: int = 0,
         explicit_salvage_request: bool = False,
+        planned_salvage_item_ids: set[int] | list[int] | tuple[int, ...] | None = None,
     ):
         if self.salvage_running and not running_already_marked:
-            return
+            return ExecutionPhaseOutcome(label="MR Salvage", measure_label="items")
         self.salvage_running = True
         self.last_error = ""
         self.last_salvage_summary = ""
@@ -23639,7 +24508,7 @@ class MerchantRulesWidget:
                 and rarity_keys is None
                 and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change)
             ):
-                return
+                return ExecutionPhaseOutcome(label="MR Salvage", measure_label="items")
             if not bool(explicit_salvage_request) and not self._has_enabled_salvage_settings():
                 self.last_salvage_summary = (
                     "Auto Salvage is enabled, but no salvage rules are active."
@@ -23647,10 +24516,28 @@ class MerchantRulesWidget:
                     else "Salvage has no active rules."
                 )
                 self.status_message = self.last_salvage_summary
-                return
+                return ExecutionPhaseOutcome(label="MR Salvage", measure_label="items")
 
             items = self._collect_inventory_items()
             self.salvage_last_signature = self._get_inventory_signature(items)
+            scoped_item_ids = {
+                int(item_id)
+                for item_id in (planned_salvage_item_ids or [])
+                if max(0, _safe_int(item_id, 0)) > 0
+            }
+            missing_scoped_item_count = 0
+            if scoped_item_ids:
+                live_scoped_item_ids = {
+                    int(item.item_id)
+                    for item in items
+                    if int(item.item_id) in scoped_item_ids
+                }
+                missing_scoped_item_count = len(scoped_item_ids - live_scoped_item_ids)
+                items = [
+                    item
+                    for item in items
+                    if int(item.item_id) in scoped_item_ids
+                ]
             safe_rarity_keys: set[str] = set()
             if rarity_keys is not None:
                 safe_rarity_keys = {_normalize_rarity_key(key) for key in rarity_keys if _normalize_rarity_key(key)}
@@ -23680,8 +24567,14 @@ class MerchantRulesWidget:
                 manual_salvage_rule=manual_salvage_rule,
             )
             if not candidates:
+                outcome = ExecutionPhaseOutcome(
+                    label="MR Salvage",
+                    measure_label="items",
+                    unavailable=sum(max(0, int(count)) for count in blocked_counts.values()) if scoped_item_ids else 0,
+                    depleted=missing_scoped_item_count,
+                )
                 self.last_salvage_summary = self._format_salvage_summary(
-                    ExecutionPhaseOutcome(label="MR Salvage", measure_label="items"),
+                    outcome,
                     blocked_counts,
                     auto_triggered=auto_triggered,
                     subject=summary_subject,
@@ -23691,31 +24584,30 @@ class MerchantRulesWidget:
                     ConsoleLog(MODULE_NAME, self.last_salvage_summary, Console.MessageType.Info)
                 else:
                     self._debug_log(self.last_salvage_summary)
-                return
+                return outcome
 
             paused_inventory_plus = self._pause_inventory_plus()
             if paused_inventory_plus is not None:
                 self._debug_log("MR Salvage: paused Inventory Plus.")
 
-            outcome = ExecutionPhaseOutcome(label="MR Salvage", measure_label="items", attempted=len(candidates))
+            outcome = ExecutionPhaseOutcome(
+                label="MR Salvage",
+                measure_label="items",
+                attempted=len(candidates),
+                depleted=missing_scoped_item_count,
+            )
             for candidate in candidates:
-                status = yield from self._salvage_one_item_with_rule(
+                candidate_outcome = yield from self._salvage_candidate_with_stack_drain(
                     candidate,
                     enabled_sell_rules,
                     auto_triggered=auto_triggered,
                     preferred_salvage_kit_id=preferred_salvage_kit_id,
                     preferred_salvage_kit_model_id=preferred_salvage_kit_model_id,
                 )
-                if status in {"salvaged", "processed"}:
-                    outcome.completed += 1
-                    continue
-                if status == "missing_item":
-                    outcome.depleted += 1
-                    continue
-                if status == "blocked":
-                    outcome.unavailable += 1
-                    continue
-                outcome.timeout_failures += 1
+                outcome.completed += max(0, int(candidate_outcome.completed))
+                outcome.depleted += max(0, int(candidate_outcome.depleted))
+                outcome.unavailable += max(0, int(candidate_outcome.unavailable))
+                outcome.timeout_failures += max(0, int(candidate_outcome.timeout_failures))
 
             self.last_salvage_summary = self._format_salvage_summary(
                 outcome,
@@ -23727,12 +24619,14 @@ class MerchantRulesWidget:
             ConsoleLog(MODULE_NAME, self.last_salvage_summary, Console.MessageType.Info)
             if outcome.completed > 0:
                 self._mark_preview_dirty("Inventory changed due to MR Salvage. Preview again before execution.")
+            return outcome
         except Exception as exc:
             self.last_error = f"{exc}"
             self.last_salvage_summary = "MR Salvage failed. See the console log for details."
             self.status_message = self.last_salvage_summary
             ConsoleLog(MODULE_NAME, f"MR Salvage error: {exc}", Console.MessageType.Error)
             ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            return ExecutionPhaseOutcome(label="MR Salvage", measure_label="items", timeout_failures=1)
         finally:
             if paused_inventory_plus is not None:
                 paused_inventory_plus.resume()
@@ -24407,11 +25301,26 @@ class MerchantRulesWidget:
     def _plan_has_local_identify_actions(self, plan: PlanResult) -> bool:
         return bool(plan.identify_item_ids)
 
+    def _plan_has_local_salvage_actions(self, plan: PlanResult) -> bool:
+        return bool(plan.salvage_item_ids)
+
     def _plan_has_local_storage_actions(self, plan: PlanResult) -> bool:
         return bool(
             plan.cleanup_transfers
             or any(str(transfer.direction) == STORAGE_TRANSFER_DEPOSIT for transfer in plan.storage_transfers)
         )
+
+    def _get_plan_local_action_labels(self, plan: PlanResult) -> list[str]:
+        labels: list[str] = []
+        if self._plan_has_local_identify_actions(plan):
+            labels.append("local identify")
+        if self._plan_has_local_salvage_actions(plan):
+            labels.append("local salvage")
+        if self._plan_has_local_destroy_actions(plan):
+            labels.append("local destroy actions")
+        if self._plan_has_local_storage_actions(plan):
+            labels.append("Xunlai deposits")
+        return labels
 
     def _plan_has_conditional_storage_actions(self, plan: PlanResult) -> bool:
         return any(
@@ -25147,6 +26056,7 @@ class MerchantRulesWidget:
                 self.preview_plan.travel_to_outpost_id <= 0
                 and not self.preview_plan.supported_map
                 and not self._plan_has_local_identify_actions(self.preview_plan)
+                and not self._plan_has_local_salvage_actions(self.preview_plan)
                 and not self._plan_has_local_destroy_actions(self.preview_plan)
                 and not self._plan_has_local_storage_actions(self.preview_plan)
             ):
@@ -26089,15 +26999,27 @@ class MerchantRulesWidget:
         self._ensure_initialized()
         direct_count, conditional_count, skipped_count = self._get_preview_entry_counts(self.preview_plan.entries)
         actionable_count = direct_count + conditional_count
+        local_identify_ready = self._plan_has_local_identify_actions(self.preview_plan)
         local_destroy_ready = self._plan_has_local_destroy_actions(self.preview_plan)
+        local_salvage_ready = self._plan_has_local_salvage_actions(self.preview_plan)
         local_storage_ready = self._plan_has_local_storage_actions(self.preview_plan)
+        local_action_labels = self._get_plan_local_action_labels(self.preview_plan)
+        local_non_storage_ready = bool(local_identify_ready or local_salvage_ready or local_destroy_ready)
         conditional_cleanup_ready = self._plan_has_conditional_cleanup_actions(self.preview_plan)
         projected_preview = self._preview_has_execute_travel_pending()
         if actionable_count > 0:
             if projected_preview:
                 status_label = "Projected"
-            elif not self.preview_plan.supported_map and local_destroy_ready and not local_storage_ready:
+            elif (
+                not self.preview_plan.supported_map
+                and local_destroy_ready
+                and not local_identify_ready
+                and not local_salvage_ready
+                and not local_storage_ready
+            ):
                 status_label = "Destroy Ready"
+            elif not self.preview_plan.supported_map and local_non_storage_ready:
+                status_label = "Local Ready"
             else:
                 status_label = "Conditional" if direct_count <= 0 and conditional_count > 0 else "Ready"
             summary_parts = [f"{actionable_count} can run", f"{skipped_count} blocked"]
@@ -26144,14 +27066,15 @@ class MerchantRulesWidget:
             elif conditional_count > 0:
                 detail_parts.append("Conditional entries remain estimated until the destination context is confirmed.")
             detail = " ".join(detail_parts).strip()
-        elif actionable_count > 0 and not self.preview_plan.supported_map and local_destroy_ready and local_storage_ready:
-            detail = (
-                "Merchant NPCs are unavailable here, but local destroy actions and Xunlai cleanup work are still ready."
-                if not conditional_cleanup_ready
-                else "Merchant NPCs are unavailable here, but planned Xunlai cleanup work will run if storage can be opened."
-            )
-        elif actionable_count > 0 and not self.preview_plan.supported_map and local_destroy_ready:
-            detail = "Merchant NPCs are unavailable here, but local destroy actions are still ready."
+        elif actionable_count > 0 and not self.preview_plan.supported_map and local_non_storage_ready:
+            non_storage_labels = [
+                label
+                for label in local_action_labels
+                if label != "Xunlai deposits"
+            ]
+            detail = f"Merchant NPCs are unavailable here, but {', '.join(non_storage_labels or local_action_labels)} can still run."
+            if conditional_cleanup_ready:
+                detail = f"{detail} Planned Xunlai cleanup work will run if storage can be opened."
         elif actionable_count > 0 and not self.preview_plan.supported_map and local_storage_ready:
             detail = (
                 "Merchant NPCs are unavailable here, but Xunlai cleanup work is still ready."
@@ -26552,12 +27475,12 @@ class MerchantRulesWidget:
             self._draw_secondary_text("Xunlai is open, so storage-aware planning is using exact inventory + storage counts where needed.")
         elif self.preview_ready and self._plan_has_conditional_cleanup_actions(self.preview_plan):
             self._draw_secondary_text("Planned Xunlai deposits will wait until storage can be opened during Execute.")
-        if self.preview_ready and not supported_map and self._plan_has_local_destroy_actions(self.preview_plan) and self._plan_has_local_storage_actions(self.preview_plan):
-            self._draw_warning_text("Merchant NPC support is unavailable here, but local destroy actions and Xunlai deposits can still execute.")
-        elif self.preview_ready and not supported_map and self._plan_has_local_destroy_actions(self.preview_plan):
-            self._draw_warning_text("Local destroy actions are still executable here even though merchant NPC support is unavailable.")
-        elif self.preview_ready and not supported_map and self._plan_has_local_storage_actions(self.preview_plan):
-            self._draw_warning_text("Merchant NPC support is unavailable here, but Xunlai deposits can still execute.")
+        if self.preview_ready and not supported_map:
+            local_action_labels = self._get_plan_local_action_labels(self.preview_plan)
+            if local_action_labels:
+                self._draw_warning_text(
+                    f"Merchant NPC support is unavailable here, but {', '.join(local_action_labels)} can still execute."
+                )
         if self.execute_drift_requires_confirmation and self.preview_inventory_diff_summary:
             self._draw_warning_text(self.preview_inventory_diff_summary)
 
