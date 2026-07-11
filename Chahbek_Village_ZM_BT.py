@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import random
 from typing import Callable
+from Py4GWCoreLib.enums_src.GameData_enums import Range
+from Py4GWCoreLib.enums_src.Player_enums import PlayerStatus
 from Py4GWCoreLib.routines_src.behaviourtrees_src.items import BTItems
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.IniManager import IniManager
@@ -18,7 +20,6 @@ INI_FILENAME = "Chahbek_Village_ZM_Redux.ini"
 # Maps
 CHAHBEK_VILLAGE_OUTPOST = 544
 CHAHBEK_VILLAGE_MISSION = 456
-EMBARK_BEACH = 857
 GREAT_TEMPLE_OF_BALTHAZAR = 248
 
 
@@ -109,11 +110,12 @@ def InitializeBot() -> BehaviorTree:
                 auto_loot=True,
                 resurrection_scroll=False,
             ),
+            BT.SetPlayerStatus(PlayerStatus.Offline, log=True),
             BT.StoreRerollContext(
                 campaign_name="Nightfall",
                 fallback_profession="Warrior",
             ),
-            BT.SpawnBonusItems(log=True),
+            
         ],
     )
 
@@ -141,6 +143,8 @@ def ConfigureFirstBattle() -> BehaviorTree:
         name="Battle Setup",
         children=[
             BT.Wait(1_000),
+            BT.SetPlayerStatus(PlayerStatus.Offline, log=True),
+            BT.SpawnBonusItems(log=True),
             EquipStarterWeaponByProfession(),
             BT.CreateParty(
                 hero_ids=[6],
@@ -175,17 +179,12 @@ def TakeZaishenMission() -> BehaviorTree:
     return BT.Sequence(
         name="Take Zaishen Mission",
         children=[
-            BT.MoveAndAutoDialog(
-                Vec2f(4626, -9617),
-                buttons=0,
-                log=True,
-            ),
-            BT.WaitForMapLoad(
-                map_id=EMBARK_BEACH,
-                timeout_ms=15_000,
+            RandomTravelToRegion(
+                GREAT_TEMPLE_OF_BALTHAZAR,
+                name="Random Travel - Reward",
             ),
             BT.MoveAndAutoDialog(
-                Vec2f(-277.00, -3561.00),
+                Vec2f(-5065.00, -5211.00),
                 buttons=0,
                 log=True,
             ),
@@ -228,7 +227,7 @@ def EnterChahbekMission() -> BehaviorTree:
                     Vec2f(-2435.07, -6440.10),
                     Vec2f(-4212.00, -6730.00),
                 ],
-                clear_area_radius=600,
+                clear_area_radius=Range.Nearby.value,
                 pause_on_combat=True,
             ),
 
@@ -267,7 +266,90 @@ def EnterChahbekMission() -> BehaviorTree:
                 steps=[
                     Vec2f(-1891.88, 575.85),
                 ],
-                clear_area_radius=600,
+                clear_area_radius=Range.Nearby.value,
+                pause_on_combat=True,
+            ),
+
+            BT.WaitForMapLoad(
+                map_id=CHAHBEK_VILLAGE_MISSION,
+                timeout_ms=120_000,
+            ),
+        ],
+    )
+
+def EnterChahbekMission2() -> BehaviorTree:
+    return BT.Sequence(
+        name="Chahbek Village Mission",
+        children=[
+            RandomTravelToRegion(
+                CHAHBEK_VILLAGE_OUTPOST,
+                name="Random Travel - Chahbek Village"
+            ),
+            BT.SpawnBonusItems(log=True),
+            BT.CreateParty(
+                hero_ids=[6],
+                henchman_ids=[1, 2],
+                multibox_invite=False,
+                log=True,
+            ),
+            BT.MoveAndAutoDialog(
+                Vec2f(3485, -5246),
+                buttons=[1, 0],
+                log=True,
+            ),
+            BT.Wait(2_000),
+            BT.WaitUntilOnExplorable(timeout_ms=30_000),
+            BTItems.UseConsumable(ModelID.Igneous_Summoning_Stone.value),
+            BT.VanquishNode(
+                name="Clear Chahbek First Path",
+                steps=[
+                    Vec2f(227, -5658),
+                    Vec2f(-1144, -4378),
+                    Vec2f(-2058, -3494),
+                    Vec2f(-1725, -2551),
+                    Vec2f(-2422.75, -5909.13),
+                    Vec2f(-4212.00, -6730.00),
+                ],
+                clear_area_radius=Range.Nearby.value,
+                pause_on_combat=True,
+            ),
+
+            BT.MoveAndInteractWithGadget(
+                Vec2f(-4725, -1830),
+                pause_on_combat=True,
+                log=True,
+            ),
+            BT.FlagAllHeroes(-1891.88, 575.85),
+            BT.Wait(2_000),
+
+            BT.MoveAndInteractWithGadget(
+                Vec2f(-1725, -2550),
+                pause_on_combat=True,
+                log=True,
+            ),
+            BT.Wait(1_500),
+            BT.InteractWithGadgetAtXY(Vec2f(-1725, -2550)),
+
+            BT.MoveAndInteractWithGadget(
+                Vec2f(-4725, -1830),
+                pause_on_combat=True,
+                log=True,
+            ),
+            BT.MoveAndInteractWithGadget(
+                Vec2f(-1731, -4138),
+                pause_on_combat=True,
+                log=True,
+            ),
+            BT.UnflagAllHeroes(),
+            BT.Wait(2_000),
+            BT.InteractWithGadgetAtXY(Vec2f(-1731, -4138)),
+
+            BT.VanquishNode(
+                name="Clear Chahbek Final Path",
+                steps=[
+                    Vec2f(-1891.88, 575.85),
+                ],
+                clear_area_radius=Range.Nearby.value,
                 pause_on_combat=True,
             ),
 
@@ -279,18 +361,16 @@ def EnterChahbekMission() -> BehaviorTree:
     )
 
 
-
-
 def TakeReward() -> BehaviorTree:
     return BT.Sequence(
         name="Take Reward",
         children=[
             RandomTravelToRegion(
-                EMBARK_BEACH,
+                GREAT_TEMPLE_OF_BALTHAZAR,
                 name="Random Travel - Reward",
             ),
             BT.MoveAndAutoDialog(
-                Vec2f(-749.00, -3262.00),
+                Vec2f(-5019.00, -5496.00),
                 buttons=0,
                 log=True,
             ),
@@ -303,7 +383,7 @@ def UnlockXunlai() -> BehaviorTree:
         name="Unlock Xunlai Storage",
         children=[
             BT.Move(
-                [Vec2f(220.88, -3018.91)],
+                [Vec2f(-7118.00, -6415.00)],
                 pause_on_combat=False,
             ),
             BT.MoveAndAutoDialogByModelID(
@@ -362,32 +442,31 @@ def RerollCharacter() -> BehaviorTree:
     )
 
 
-def RunChahbek() -> BehaviorTree:
+def RunChahbekPre() -> BehaviorTree:
     return BT.Sequence(
         name="Run Chahbek Village ZM",
         children=[
-            MeetingFirstSpearJahdugar(),
             ConfigureFirstBattle(),
             EnterChahbekMission(),
-            TakeReward(),
-            UnlockXunlai(),
-            DepositRewards(),
+                    ],)
+
+def RunChahbekZMission() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Chahbek Village ZM",
+        children=[
+            TakeZaishenMission(),
+            EnterChahbekMission2(),
         ],
     )
-
 
 def PrepareChahbek() -> BehaviorTree:
     return BT.Sequence(
         name="Prepare Chahbek Village ZM",
         children=[
             SkipTutorialDialog(),
-            TakeZaishenMission(),
             MeetingFirstSpearJahdugar(),
-            ConfigureFirstBattle(),
-            EnterChahbekMission(),
-            TakeReward(),
-            UnlockXunlai(),
-            DepositRewards(),
+
+
         ],
     )
 
@@ -406,7 +485,8 @@ def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     return [
         ("Initialize Bot", InitializeBot),
         ("Prepare Chahbek", PrepareChahbek),
-        ("Run Chahbek", RunChahbek),
+        ("Run Chahbek Pre", RunChahbekPre),
+        ("Run Chahbek ZMission", RunChahbekZMission),
         ("Reward Chahbek", RewardChahbek),
         ("Reroll Character", RerollCharacter)
     ]

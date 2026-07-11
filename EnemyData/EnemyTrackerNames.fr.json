@@ -1,0 +1,235 @@
+{
+  "language": "fr",
+  "names": {
+    "enc:\\\\x0BCE\\\\xEA5E\\\\xA733\\\\x49BD": [
+      "Ma\u00eetre[s] de la survie"
+    ],
+    "enc:\\\\x0BCF\\\\x8FBE\\\\xAE3E\\\\x4796": [
+      "Ma\u00eetre[s] de la foudre"
+    ],
+    "enc:\\\\x0BD1\\\\xFDC1\\\\xE5BB\\\\x5299": [
+      "Ma\u00eetre[s] des mal\u00e9fices"
+    ],
+    "enc:\\\\x0BD4\\\\x8E71\\\\xF6DB\\\\x0BAB": [
+      "Ma\u00eetresse[s] de la gu\u00e9rison"
+    ],
+    "enc:\\\\x0BD5\\\\x9BA4\\\\xB464\\\\x2118": [
+      "Ma\u00eetre[s] de la suppression d'\u00e9nergie"
+    ],
+    "enc:\\\\x0BD7\\\\x82CB\\\\x0528": [
+      "Armure 100"
+    ],
+    "enc:\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292": [
+      "Armure 60"
+    ],
+    "enc:\\\\x0BD9\\\\xE564\\\\x5BF4": [
+      "Armure 80"
+    ],
+    "enc:\\\\x0D7F\\\\xB5A9\\\\x3373": [
+      "Adjacent"
+    ],
+    "enc:\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39": [
+      "Dans la zone"
+    ],
+    "enc:\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A": [
+      "A proximit\u00e9"
+    ],
+    "enc:\\\\x0EAE\\\\xBC3B\\\\x8EFB\\\\x28FE": [
+      "Sheg Zamn Mada"
+    ],
+    "enc:\\\\x0EB9\\\\xD544\\\\xA3E3\\\\x4FC5": [
+      "Vook Foomble"
+    ],
+    "enc:\\\\x0EBA\\\\xED0B\\\\xC6F8\\\\x3F19": [
+      "Jonk Shuffle"
+    ],
+    "enc:\\\\x0F98\\\\x84F2\\\\xC816\\\\x298E": [
+      "Esprit de Z\u00e9phyr v\u00e9loce"
+    ],
+    "enc:\\\\x1087\\\\xA180\\\\x9A3F\\\\x1B2B": [
+      "Fr\u00e8re-Temp\u00eate"
+    ],
+    "enc:\\\\x108F\\\\x8B1B\\\\x98F2\\\\x6BF7": [
+      "Pierreux d\u00e9voreur"
+    ],
+    "enc:\\\\x1091\\\\x8A80\\\\xAEDC\\\\x0D6A": [
+      "Scarab\u00e9e[s] carnassier[s]"
+    ],
+    "enc:\\\\x1092\\\\xC21D\\\\xE9EB\\\\x1E99": [
+      "Scarab\u00e9e[s] ouvrier[s]"
+    ],
+    "enc:\\\\x10A7\\\\xD693\\\\xFE51\\\\x23FC": [
+      "Hydre"
+    ],
+    "enc:\\\\x10A9\\\\x86E5\\\\x8C6F\\\\x35A0": [
+      "Minotaure[s]"
+    ],
+    "enc:\\\\x10AC\\\\xA751\\\\x9CA3\\\\x1642": [
+      "Scarab\u00e9e de jade"
+    ],
+    "enc:\\\\x1230\\\\x9354\\\\x94B4\\\\x654F": [
+      "Horreur[s] squelettique[s]"
+    ],
+    "enc:\\\\x1231\\\\xFA22\\\\xB883\\\\x6EC7": [
+      "D\u00e9mon[s] squelette[s]"
+    ],
+    "enc:\\\\x1232\\\\xF535\\\\x05E0": [
+      "Serviteur[s] squelette[s]"
+    ],
+    "enc:\\\\x4161\\\\xA291\\\\xB856\\\\x0259": [
+      "Esprit[s] de famine"
+    ],
+    "enc:\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72": [
+      "Ma\u00eetre[s] des d\u00e9g\u00e2ts"
+    ],
+    "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": [
+      "Griffon[s] skree[s]"
+    ],
+    "enc:\\\\x8101\\\\x0F41\\\\xEFCB\\\\xE7FF\\\\x254E": [
+      "Ma\u00eetre[s] des Esprits"
+    ],
+    "enc:\\\\x8101\\\\x1F3E\\\\x82DD\\\\x981E\\\\x48E0": [
+      "Titan[s] de la Furie"
+    ],
+    "enc:\\\\x8101\\\\x1F3F\\\\xFACD\\\\xEE60\\\\x334D": [
+      "Titan[s] de l'Angoisse"
+    ],
+    "enc:\\\\x8101\\\\x204A\\\\xEC57\\\\xE6ED\\\\x10FB": [
+      "Titan[s] du D\u00e9sespoir"
+    ],
+    "enc:\\\\x8101\\\\x32EF\\\\x8707\\\\x9391\\\\x2FD0": [
+      "Corsaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x32F0\\\\xC153\\\\xC6DE\\\\x6052": [
+      "Corsaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x3705\\\\xD5FA\\\\x1B14": [
+      "Lancier[s] du Soleil volontaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x370A\\\\x8C0D\\\\xEC56\\\\x42C3": [
+      "Lancier[s] du Soleil volontaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x3ACA\\\\xFD7E\\\\xC32B\\\\x229A": [
+      "Drider[s] Tyrachnide[s]"
+    ],
+    "enc:\\\\x8101\\\\x3ADF\\\\x872C\\\\xA61D\\\\x7047": [
+      "Grand[s] Chevaucheur[s] des r\u00eaves"
+    ],
+    "enc:\\\\x8101\\\\x3AE4\\\\xFC44\\\\x9790\\\\x5620": [
+      "Titan[s] de rage"
+    ],
+    "enc:\\\\x8101\\\\x3AE5\\\\xA9E6\\\\x7668": [
+      "Titan[s] du D\u00e9sespoir"
+    ],
+    "enc:\\\\x8101\\\\x3AE6\\\\xB58A\\\\x9A74\\\\x759B": [
+      "Titan[s] de la D\u00e9mence"
+    ],
+    "enc:\\\\x8101\\\\x4656\\\\xAF22\\\\xAF35\\\\x72C1": [
+      "Iboga[s] \u00e0 crocs"
+    ],
+    "enc:\\\\x8101\\\\x4665\\\\x9E79\\\\xADAB\\\\x0128": [
+      "Armure 15"
+    ],
+    "enc:\\\\x8101\\\\x4666\\\\x883A\\\\xFD69\\\\x1A36": [
+      "Armure 35"
+    ],
+    "enc:\\\\x8101\\\\x4667\\\\x8894\\\\xF1DF\\\\x1DB7": [
+      "Armure 55"
+    ],
+    "enc:\\\\x8101\\\\x46CC\\\\xFF84\\\\xE7D6\\\\x4273": [
+      "Aspirant Bennis"
+    ],
+    "enc:\\\\x8101\\\\x46D0\\\\xEC0A\\\\x942A\\\\x041A": [
+      "Mage[s] corsaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x46D3\\\\xC879\\\\xBD02\\\\x7FCA": [
+      "Gu\u00e9risseur[s] corsaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x46D5\\\\xFD6E\\\\x90AC\\\\x034E": [
+      "Boucanier[s] corsaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x46D8\\\\xD6CB\\\\xF813\\\\x43DB": [
+      "Guetteur[s] corsaire[s]"
+    ],
+    "enc:\\\\x8101\\\\x4735\\\\xAEF1\\\\x9C2E\\\\x28EF": [
+      "Horreur[s] d\u00e9chiquet\u00e9e[s]"
+    ],
+    "enc:\\\\x8101\\\\x4736\\\\xF036\\\\x9959\\\\x0190": [
+      "Animation[s] d'horreur[s] d\u00e9chiquet\u00e9e[s]"
+    ],
+    "enc:\\\\x8101\\\\x49EB\\\\xA26F\\\\x9E48\\\\x5FB3": [
+      "N\u00e9phile[s] traqueuse[s]"
+    ],
+    "enc:\\\\x8101\\\\x57E2\\\\xD745\\\\xE116\\\\x306B": [
+      "Margonite[s] Anur Kaya"
+    ],
+    "enc:\\\\x8101\\\\x57E4\\\\x8C28\\\\xE4D0\\\\x2D36": [
+      "Margonite[s] Anur Su"
+    ],
+    "enc:\\\\x8101\\\\x57E5\\\\xAF06\\\\xAB4C\\\\x55BF": [
+      "Margonite[s] Anur Ki"
+    ],
+    "enc:\\\\x8101\\\\x57E6\\\\xEC50\\\\x0131": [
+      "Margonite[s] Anur Vu"
+    ],
+    "enc:\\\\x8101\\\\x57E7\\\\x8EDB\\\\xD612\\\\x63B6": [
+      "Margonite[s] Anur Tuk"
+    ],
+    "enc:\\\\x8101\\\\x57E8\\\\xF9DF\\\\x8A02\\\\x0113": [
+      "Margonite[s] Anur Ruk"
+    ],
+    "enc:\\\\x8101\\\\x57E9\\\\x97F0\\\\x825A\\\\x1463": [
+      "Margonite[s] Anur Rund"
+    ],
+    "enc:\\\\x8101\\\\x57EA\\\\xA309\\\\xBC47\\\\x2003": [
+      "Faim[s] des t\u00e9n\u00e8bres"
+    ],
+    "enc:\\\\x8101\\\\x57EB\\\\xA8F9\\\\x92C8\\\\x3BEE": [
+      "Brute[s] des t\u00e9n\u00e8bres"
+    ],
+    "enc:\\\\x8101\\\\x57EC\\\\xF656\\\\xD6E9\\\\x0F17": [
+      "Golem[s] des t\u00e9n\u00e8bres"
+    ],
+    "enc:\\\\x8101\\\\x57ED\\\\xC630\\\\x34CF": [
+      "Horreur[s] des t\u00e9n\u00e8bres"
+    ],
+    "enc:\\\\x8101\\\\x57EE\\\\xE99A\\\\x8BFB\\\\x15B5": [
+      "D\u00e9mon[s] des t\u00e9n\u00e8bres"
+    ],
+    "enc:\\\\x8101\\\\x57EF\\\\xCC41\\\\xA331\\\\x105A": [
+      "Titan[s] de la mis\u00e8re"
+    ],
+    "enc:\\\\x8101\\\\x57F0\\\\xD610\\\\xC6CF\\\\x323F": [
+      "Titan[s] de rage"
+    ],
+    "enc:\\\\x8101\\\\x57F1\\\\xCF01\\\\xC618\\\\x6766": [
+      "Titan[s] de la D\u00e9mence"
+    ],
+    "enc:\\\\x8101\\\\x57F2\\\\xE073\\\\x9910\\\\x4584": [
+      "Tourmenteur[s] d'esprit"
+    ],
+    "enc:\\\\x8101\\\\x57F3\\\\xB3B8\\\\xF778\\\\x77F6": [
+      "Tourmenteur[s] d'\u00e2mes"
+    ],
+    "enc:\\\\x8101\\\\x57F4\\\\xCF00\\\\x1F8A": [
+      "Tourmenteur[s] d'eau"
+    ],
+    "enc:\\\\x8101\\\\x57F5\\\\xA177\\\\x8902\\\\x4B1A": [
+      "Tourmenteur[s] du coeur"
+    ],
+    "enc:\\\\x8101\\\\x57F6\\\\xFDFF\\\\x8DBE\\\\x0AD7": [
+      "Tourmenteur[s] de chair"
+    ],
+    "enc:\\\\x8101\\\\x57F7\\\\xE689\\\\x85E0\\\\x73C1": [
+      "Tourmenteur[s] d'esprit"
+    ],
+    "enc:\\\\x8101\\\\x57F8\\\\x82C7\\\\xBF65\\\\x043C": [
+      "Tourmenteur[s] de la Terre"
+    ],
+    "enc:\\\\x8101\\\\x57F9\\\\xCA2E\\\\xD34C\\\\x744D": [
+      "Tourmenteur[s] de la raison"
+    ]
+  },
+  "schema": "py4gw_enemy_tracker_names",
+  "schema_version": 1
+}

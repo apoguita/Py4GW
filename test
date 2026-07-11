@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+from typing import Callable
+
+from Py4GWCoreLib.BottingTree import BottingTree
+from Py4GWCoreLib.IniManager import IniManager
+
+from Py4GWCoreLib.native_src.internals.types import Vec2f
+from Py4GWCoreLib.routines_src.behaviourtrees_src.constants.lists import *
+from Sources.ApoSource.ApoBottingLib import wrappers as BT
+from Py4GWCoreLib.routines_src.behaviourtrees_src.constants import *
+from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
+from Py4GWCoreLib.enums import Range
+
+MODULE_NAME = 'Farm Gemstones Redux'
+INI_PATH = 'Widgets/Automation/Bots/Farm Gemstones Redux'
+INI_FILENAME = 'Farm_Gemstones_Redux.ini'
+
+GATE_OF_ANGUISH_OUTPOST= 474
+MISSION_MAP = 445
+
+PRIEST_COORDS = Vec2f(6010, -13344)
+PRIEST_ZHELLIX_COORDS = Vec2f(-3079, -4578)
+
+
+initialized = False
+ini_key = ''
+botting_tree: BottingTree | None = None
+
+
+def ensure_botting_tree() -> BottingTree:
+    global botting_tree
+
+    if botting_tree is None:
+        botting_tree = BottingTree.Create(
+            MODULE_NAME,
+            main_routine=get_execution_steps(),
+            routine_name='MultiAccountSequence',
+            repeat=True,
+            multi_account=True,
+            configure_fn=lambda tree: tree.Config.ConfigureUpkeep(
+                consumable_upkeeps=CONSUMABLE_UPKEEPS,
+            ),
+        )
+
+    return botting_tree
+
+
+def InitializeBot() -> BehaviorTree:
+    bot = ensure_botting_tree()
+    return BT.Sequence(
+        name='Initialize Bot',
+        map_id_or_name=GATE_OF_ANGUISH_OUTPOST,
+        random_travel=False,
+        hard_mode=True,
+        children=[
+            bot.Config.Aggressive(multi_account=True, auto_loot=False),
+            BT.CreateParty(multibox_invite=True),
+            BT.MoveAndDialog(PRIEST_COORDS,0x84),
+            BT.WaitForMapToChange(map_id=MISSION_MAP)
+        ],
+    )
+
+
+def Killroute() -> BehaviorTree:
+    return BT.Sequence(
+        name='Gemstones Defense',
+        children=[
+            BT.Move(PRIEST_ZHELLIX_COORDS),
+            BT.CustomAction(lambda: use_summoning_stone_all_accounts(), name='Use summons'),
+            BT.Wait(15000),
+            BT.CustomAction(lambda: defend_until_finished(), name='Defend Zhellix'),
+            BT.Resign(
+                wait_for_map_load=True,
+                target_map_id=GATE_OF_ANGUISH_OUTPOST,
+                multi_account=True,
+            ),
+        ],
+    )
+
+
+def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
+    return [
+        ('Initialize Bot', InitializeBot),
+        ('Gemstones Defense', Killroute),
+    ]
+
+
+def DefendZhellix() -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="DefendZhellix",
+            action_fn=_defend_zhellix_bt,
+        )
+    )
+
+def main() -> None:
+    global initialized, ini_key
+
+    if not initialized:
+        if not ini_key:
+            ini_key = IniManager().ensure_key(INI_PATH, INI_FILENAME)
+            if not ini_key:
+                return
+            IniManager().load_once(ini_key)
+
+        ensure_botting_tree()
+        initialized = True
+
+    tree = ensure_botting_tree()
+    tree.tick()
+    tree.UI.draw_window()
+
+
+if __name__ == '__main__':
+    main()

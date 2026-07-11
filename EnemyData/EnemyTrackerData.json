@@ -88,11 +88,105 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x0BCE\\\\xEA5E\\\\xA733\\\\x49BD": {
+      "encoded_names": [
+        "\\\\x0BCE\\\\xEA5E\\\\xA733\\\\x49BD"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        137
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BCF\\\\x8FBE\\\\xAE3E\\\\x4796": {
+      "encoded_names": [
+        "\\\\x0BCF\\\\x8FBE\\\\xAE3E\\\\x4796"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        129
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {
+        "164": {
+          "id": 164,
+          "name": "Elemental Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "220": {
+          "id": 220,
+          "name": "Blinding Flash",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "225": {
+          "id": 225,
+          "name": "Air Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "230": {
+          "id": 230,
+          "name": "Lightning Javelin",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x0BD1\\\\xFDC1\\\\xE5BB\\\\x5299": {
+      "encoded_names": [
+        "\\\\x0BD1\\\\xFDC1\\\\xE5BB\\\\x5299"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        135
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x0BD4\\\\x8E71\\\\xF6DB\\\\x0BAB": {
       "encoded_names": [
         "\\\\x0BD4\\\\x8E71\\\\xF6DB\\\\x0BAB"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Monk",
       "inferred_secondary": "",
       "model_ids": [
         134
@@ -105,7 +199,70 @@
           "name": "Isle of the Nameless"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "266": {
+          "id": 266,
+          "name": "Peace and Harmony",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "300": {
+          "id": 300,
+          "name": "Contemplation of Purity",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "307": {
+          "id": 307,
+          "name": "Reversal of Fortune",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x0BD5\\\\x9BA4\\\\xB464\\\\x2118": {
+      "encoded_names": [
+        "\\\\x0BD5\\\\x9BA4\\\\xB464\\\\x2118"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        132
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {
+        "475": {
+          "id": 475,
+          "name": "Quickening Zephyr",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
     },
     "enc:\\\\x0BD7\\\\x82CB\\\\x0528": {
       "encoded_names": [
@@ -292,7 +449,8 @@
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
-        155
+        155,
+        4476
       ],
       "observed_maps": {
         "280": {
@@ -300,6 +458,12 @@
           "id": 280,
           "instance_type": "Explorable",
           "name": "Isle of the Nameless"
+        },
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
         }
       },
       "observed_skills": {}
@@ -311,7 +475,8 @@
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
-        155
+        155,
+        4476
       ],
       "observed_maps": {
         "280": {
@@ -319,6 +484,12 @@
           "id": 280,
           "instance_type": "Explorable",
           "name": "Isle of the Nameless"
+        },
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
         }
       },
       "observed_skills": {}
@@ -349,7 +520,8 @@
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
-        155
+        155,
+        4476
       ],
       "observed_maps": {
         "280": {
@@ -357,6 +529,12 @@
           "id": 280,
           "instance_type": "Explorable",
           "name": "Isle of the Nameless"
+        },
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
         }
       },
       "observed_skills": {}
@@ -1357,6 +1535,25 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x0F91\\\\x8757\\\\x1653": {
+      "encoded_names": [
+        "\\\\x0F91\\\\x8757\\\\x1653"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2930
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x0F92\\\\xD03B\\\\x864A\\\\x4901": {
       "encoded_names": [
         "\\\\x0F92\\\\xD03B\\\\x864A\\\\x4901"
@@ -1508,6 +1705,12 @@
           "id": 241,
           "instance_type": "Explorable",
           "name": "The Undercity"
+        },
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
         },
         "462": {
           "base_id": 462,
@@ -3291,6 +3494,12 @@
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
         },
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        },
         "546": {
           "base_id": 546,
           "id": 546,
@@ -3327,6 +3536,12 @@
           "id": 22,
           "instance_type": "Explorable",
           "name": "Ice Caves of Sorrow outpost"
+        },
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
         },
         "546": {
           "base_id": 546,
@@ -22861,6 +23076,12 @@
           "id": 404,
           "instance_type": "Explorable",
           "name": "Wilderness of Bahdza"
+        },
+        "514": {
+          "base_id": 514,
+          "id": 514,
+          "instance_type": "Explorable",
+          "name": "Unknown Map ID"
         }
       },
       "observed_skills": {
@@ -24627,6 +24848,25 @@
           "id": 380,
           "instance_type": "Explorable",
           "name": "Arkjok Ward"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x0F41\\\\xEFCB\\\\xE7FF\\\\x254E": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0F41\\\\xEFCB\\\\xE7FF\\\\x254E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        138
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
         }
       },
       "observed_skills": {}
@@ -27916,6 +28156,82 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x32EF\\\\x8707\\\\x9391\\\\x2FD0": {
+      "encoded_names": [
+        "\\\\x8101\\\\x32EF\\\\x8707\\\\x9391\\\\x2FD0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5122
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Explorable",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x32F0\\\\xC153\\\\xC6DE\\\\x6052": {
+      "encoded_names": [
+        "\\\\x8101\\\\x32F0\\\\xC153\\\\xC6DE\\\\x6052"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5122
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Explorable",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x3705\\\\xD5FA\\\\x1B14": {
+      "encoded_names": [
+        "\\\\x8101\\\\x3705\\\\xD5FA\\\\x1B14"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5149
+      ],
+      "observed_maps": {
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x370A\\\\x8C0D\\\\xEC56\\\\x42C3": {
+      "encoded_names": [
+        "\\\\x8101\\\\x370A\\\\x8C0D\\\\xEC56\\\\x42C3"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5148
+      ],
+      "observed_maps": {
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8101\\\\x38EC\\\\xD08B\\\\x8C46\\\\x2EB7": {
       "encoded_names": [
         "\\\\x8101\\\\x38EC\\\\xD08B\\\\x8C46\\\\x2EB7"
@@ -29812,6 +30128,63 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8101\\\\x4665\\\\x9E79\\\\xADAB\\\\x0128": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4665\\\\x9E79\\\\xADAB\\\\x0128"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4473
+      ],
+      "observed_maps": {
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x4666\\\\x883A\\\\xFD69\\\\x1A36": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4666\\\\x883A\\\\xFD69\\\\x1A36"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4474
+      ],
+      "observed_maps": {
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x4667\\\\x8894\\\\xF1DF\\\\x1DB7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4667\\\\x8894\\\\xF1DF\\\\x1DB7"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4475
+      ],
+      "observed_maps": {
+        "456": {
+          "base_id": 456,
+          "id": 456,
+          "instance_type": "Explorable",
+          "name": "Churrhir Fields"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8101\\\\x46AA\\\\x4140": {
       "encoded_names": [
         "\\\\x8101\\\\x46AA\\\\x4140"
@@ -29899,6 +30272,108 @@
           "profession_id": 1
         }
       }
+    },
+    "enc:\\\\x8101\\\\x46CC\\\\xFF84\\\\xE7D6\\\\x4273": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46CC\\\\xFF84\\\\xE7D6\\\\x4273"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        5074
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Explorable",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {
+        "1549": {
+          "id": 1549,
+          "name": "Harrier's Toss",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x46D0\\\\xEC0A\\\\x942A\\\\x041A": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46D0\\\\xEC0A\\\\x942A\\\\x041A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5119
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Explorable",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x46D3\\\\xC879\\\\xBD02\\\\x7FCA": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46D3\\\\xC879\\\\xBD02\\\\x7FCA"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5120
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Explorable",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x46D5\\\\xFD6E\\\\x90AC\\\\x034E": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46D5\\\\xFD6E\\\\x90AC\\\\x034E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5121
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Outpost",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x46D8\\\\xD6CB\\\\xF813\\\\x43DB": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46D8\\\\xD6CB\\\\xF813\\\\x43DB"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5122
+      ],
+      "observed_maps": {
+        "544": {
+          "base_id": 544,
+          "id": 544,
+          "instance_type": "Explorable",
+          "name": "Chahbek Village outpost"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x46EA\\\\xE602\\\\xC496\\\\x117A": {
       "encoded_names": [
@@ -35123,6 +35598,56 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8101\\\\x743C\\\\xA6FF\\\\x87EB\\\\x0E59": {
+      "encoded_names": [
+        "\\\\x8101\\\\x743C\\\\xA6FF\\\\x87EB\\\\x0E59"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6524
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "2088": {
+          "id": 2088,
+          "name": "Trample",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "254": {
+          "id": 254,
+          "name": "Vigorous Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "283": {
+          "id": 283,
+          "name": "Dwayna's Kiss",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "838": {
+          "id": 838,
+          "name": "Dwayna's Sorrow",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x743D\\\\xEC98\\\\x990C\\\\x78F8": {
       "encoded_names": [
         "\\\\x8101\\\\x743D\\\\xEC98\\\\x990C\\\\x78F8"
@@ -35165,9 +35690,21 @@
           "profession": "None",
           "profession_id": 0
         },
+        "384": {
+          "id": 384,
+          "name": "Gash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
         "386": {
           "id": 386,
           "name": "Seeking Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "390": {
+          "id": 390,
+          "name": "Savage Slash",
           "profession": "Warrior",
           "profession_id": 1
         },
@@ -35176,6 +35713,68 @@
           "name": "Protector's Defense",
           "profession": "Warrior",
           "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x743E\\\\xF0A0\\\\xAB26\\\\x5924": {
+      "encoded_names": [
+        "\\\\x8101\\\\x743E\\\\xF0A0\\\\xAB26\\\\x5924"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6527
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "1197": {
+          "id": 1197,
+          "name": "Needling Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "1470": {
+          "id": 1470,
+          "name": "Barbed Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "2088": {
+          "id": 2088,
+          "name": "Trample",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "393": {
+          "id": 393,
+          "name": "Crippling Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "400": {
+          "id": 400,
+          "name": "Precision Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "468": {
+          "id": 468,
+          "name": "Symbiosis",
+          "profession": "Ranger",
+          "profession_id": 2
         }
       }
     },
@@ -35713,6 +36312,12 @@
         6528
       ],
       "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        },
         "546": {
           "base_id": 546,
           "id": 546,
@@ -35787,6 +36392,12 @@
           "instance_type": "Explorable",
           "name": "Bjora Marches"
         },
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        },
         "546": {
           "base_id": 546,
           "id": 546,
@@ -35855,6 +36466,12 @@
         6530
       ],
       "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        },
         "546": {
           "base_id": 546,
           "id": 546,
@@ -37185,6 +37802,156 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x7BA5\\\\xF660\\\\x974E\\\\x76C1": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7BA5\\\\xF660\\\\x974E\\\\x76C1"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7010
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "33": {
+          "id": 33,
+          "name": "Illusionary Weaponry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "34": {
+          "id": 34,
+          "name": "Sympathetic Visage",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "38": {
+          "id": 38,
+          "name": "Channeling",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7BA6\\\\xBB66\\\\xE73B\\\\x14C6": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7BA6\\\\xBB66\\\\xE73B\\\\x14C6"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7004
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "110": {
+          "id": 110,
+          "name": "Unholy Feast",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "127": {
+          "id": 127,
+          "name": "Mark of Subversion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "153": {
+          "id": 153,
+          "name": "Vampiric Gaze",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "806": {
+          "id": 806,
+          "name": "Cultist's Fervor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "98": {
+          "id": 98,
+          "name": "Consume Corpse",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7BA7\\\\xF7FD\\\\xD7C9\\\\x74C4": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7BA7\\\\xF7FD\\\\xD7C9\\\\x74C4"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        7007
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "1130": {
+          "id": 1130,
+          "name": "Spear of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1400": {
+          "id": 1400,
+          "name": "Reversal of Damage",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "251": {
+          "id": 251,
+          "name": "Scourge Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "294": {
+          "id": 294,
+          "name": "Signet of Judgment",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "302": {
+          "id": 302,
+          "name": "Smite Hex",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "312": {
+          "id": 312,
+          "name": "Holy Strike",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": {
       "encoded_names": [
         "\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42"
@@ -37797,6 +38564,25 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x0D28\\\\xD728\\\\x8B36\\\\x6219": {
+      "encoded_names": [
+        "\\\\x8102\\\\x0D28\\\\xD728\\\\x8B36\\\\x6219"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5893
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8102\\\\x0D2D\\\\xCACD\\\\xAA82\\\\x4813": {
       "encoded_names": [
         "\\\\x8102\\\\x0D2D\\\\xCACD\\\\xAA82\\\\x4813"
@@ -38111,6 +38897,126 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x14A4\\\\xB62C\\\\xD146\\\\x1764": {
+      "encoded_names": [
+        "\\\\x8102\\\\x14A4\\\\xB62C\\\\xD146\\\\x1764"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        6495
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "1470": {
+          "id": 1470,
+          "name": "Barbed Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x14B1\\\\xD3D1\\\\x865E\\\\x6BC6": {
+      "encoded_names": [
+        "\\\\x8102\\\\x14B1\\\\xD3D1\\\\x865E\\\\x6BC6"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6496
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "1052": {
+          "id": 1052,
+          "name": "Accumulated Pain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "813": {
+          "id": 813,
+          "name": "Lyssa's Aura",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "899": {
+          "id": 899,
+          "name": "Images of Remorse",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x14B3\\\\xC81D\\\\xBFD2\\\\x0C82": {
+      "encoded_names": [
+        "\\\\x8102\\\\x14B3\\\\xC81D\\\\xBFD2\\\\x0C82"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6542
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "151": {
+          "id": 151,
+          "name": "Feast of Corruption",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "2089": {
+          "id": 2089,
+          "name": "Wurm_Bile",
+          "profession": "None",
+          "profession_id": 0
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x18E7\\\\xFAD2\\\\x3807": {
       "encoded_names": [
         "\\\\x8102\\\\x18E7\\\\xFAD2\\\\x3807"
@@ -38412,6 +39318,74 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x2041\\\\x9724\\\\xCC91\\\\x32B0": {
+      "encoded_names": [
+        "\\\\x8102\\\\x2041\\\\x9724\\\\xCC91\\\\x32B0"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6525
+      ],
+      "observed_maps": {
+        "513": {
+          "base_id": 513,
+          "id": 513,
+          "instance_type": "Explorable",
+          "name": "Drakkar Lake"
+        }
+      },
+      "observed_skills": {
+        "1691": {
+          "id": 1691,
+          "name": "Dismiss Condition",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "2088": {
+          "id": 2088,
+          "name": "Trample",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "241": {
+          "id": 241,
+          "name": "Life Bond",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "244": {
+          "id": 244,
+          "name": "Life Attunement",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "289": {
+          "id": 289,
+          "name": "Vital Blessing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "293": {
+          "id": 293,
+          "name": "Signet of Devotion",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "297": {
+          "id": 297,
+          "name": "Blessed Signet",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "847": {
+          "id": 847,
+          "name": "Boon Signet",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x2044\\\\xC97B\\\\xB5B1\\\\x09F9": {
       "encoded_names": [
         "\\\\x8102\\\\x2044\\\\xC97B\\\\xB5B1\\\\x09F9"
@@ -38701,6 +39675,12 @@
         "294": {
           "id": 294,
           "name": "Signet of Judgment",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "302": {
+          "id": 302,
+          "name": "Smite Hex",
           "profession": "Monk",
           "profession_id": 3
         },

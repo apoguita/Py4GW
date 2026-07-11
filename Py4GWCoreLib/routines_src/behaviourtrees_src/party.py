@@ -323,7 +323,13 @@ class BTParty:
 
             existing_heroes = set()
             for hero in Party.GetHeroes() or []:
-                hid = int(getattr(hero, "hero_id", 0) or 0)
+                hero_id = getattr(hero, "hero_id", 0)
+
+                if hasattr(hero_id, "GetID"):
+                    hid = int(hero.hero_id.GetID() or 0)
+                else:
+                    hid = int(hero_id or 0)
+
                 if hid > 0:
                     existing_heroes.add(hid)
 

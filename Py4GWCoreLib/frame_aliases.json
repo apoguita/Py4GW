@@ -1203,5 +1203,7 @@
     "3613855137,0,0,4,0,0": "Collector.ItemContainer",
     "3613855137,0,0,4,0,0,489": "Collector.ItemContainer.Item1",
     "3613855137,0,0,4,0,0,490": "Collector.ItemContainer.Item2",
-    "731118013": "Merchant.CustomizeWeaponButton"
+    "731118013": "Merchant.CustomizeWeaponButton",
+    "140452905,5,1,16,2": "FinalDeleteCharacterButton",
+    "140452905,5,1,16,3": "Annuler"
 }
