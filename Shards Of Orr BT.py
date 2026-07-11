@@ -425,9 +425,6 @@ def _map_is(map_id: int, name: str) -> BehaviorTree:
     return BehaviorTree(BehaviorTree.ActionNode(name=name, action_fn=_check))
 
 
-def _distance(a: tuple[float, float], b: tuple[float, float]) -> float:
-    return math.hypot(float(a[0]) - float(b[0]), float(a[1]) - float(b[1]))
-
 
 def EnsureTorch(name: str) -> BehaviorTree:
     """Ensure that the local player is carrying an active SoO torch."""
@@ -498,17 +495,6 @@ def BrazierSequence(
         name=name,
         children=children,
     )
-
-def DropBundleTwice(name: str = "Drop Bundle Twice") -> BehaviorTree:
-    return BT.Sequence(
-        name=name,
-        children=[
-            BT.DropBundle(log=True),
-            BT.Wait(250),
-        ],
-    )
-
-
 
 def ensure_botting_tree() -> BottingTree:
     global botting_tree
@@ -739,7 +725,7 @@ def RunLevel2() -> BehaviorTree:
             ),
             EnsureTorch("Pickup First Level 2 Torch"),
             BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True),
-            DropBundleTwice("Drop Torch Before First Combat"),
+            BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_RETURN_TO_FIRST_TORCH_PATH,
                 name="Clear And Return To First Torch",
@@ -750,7 +736,7 @@ def RunLevel2() -> BehaviorTree:
             BT.Move(Vec2f(-11030.3, -17474.0), pause_on_combat=False),
             BT.Move(Vec2f(-11303.0, -14596.0), pause_on_combat=False),
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
-            DropBundleTwice("Drop Torch For Level 2 Cleaning Route"),
+            BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_CLEANING_PATH,
                 name="Clear Remaining Level 2 Room 1 Enemies",
@@ -759,7 +745,7 @@ def RunLevel2() -> BehaviorTree:
             ),
             EnsureTorch("Pick Up Torch After Level 2 Cleaning"),
             BT.Move(L2_TO_ROOM2_DROP, pause_on_combat=True),
-            DropBundleTwice("Drop Torch Before Room 2"),
+            BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_RETURN_TO_ROOM2_TORCH_PATH,
                 name="Clear Route Back To Room 2 Torch",
@@ -773,7 +759,7 @@ def RunLevel2() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Nearby.value,
             ),
-            DropBundleTwice("Drop Torch At End Of Room 2"),
+            BT.DropBundle(log=True),
             BT.VanquishNode([Vec2f(-4245.2, -2101.0)],
                 name="Clear Level 2 Room 2",
                 flag_heroes_to_waypoint=False,
@@ -781,7 +767,7 @@ def RunLevel2() -> BehaviorTree:
             ),
             EnsureTorch("Pick Up Torch For Second Brazier Route"),
             BrazierSequence("Level 2 Brazier Route 2", L2_BRAZIER_PART2),
-            DropBundleTwice("Drop Torch After Second Brazier Route"),
+            BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_PATH_TO_LOCK,
                 name="Level 2 Route To Dungeon Lock",
@@ -943,7 +929,7 @@ def RunLevel3() -> BehaviorTree:
             ),
             EnsureTorch("Pickup Level 3 Torch"),
             BrazierSequence("Level 3 Brazier Route", L3_BRAZIERS),
-            DropBundleTwice("Drop Level 3 Torch"),
+            BT.DropBundle(log=True),
             BT.VanquishNode(
                 L3_BRIGANT_KILL_PATH,
                 name="Kill Level 3 Brigant",
