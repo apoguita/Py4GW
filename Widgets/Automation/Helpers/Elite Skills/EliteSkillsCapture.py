@@ -3687,9 +3687,9 @@ def AdvancedHeroTeam():
 
     # Define skill templates by hero type
     skill_template_map = {
-        HeroType.Gwen: "OQhkAsC8gFKzJIHM9MdDBcaG4iB",
+        HeroType.Gwen: "OQhkAsB8gFK0LACYeGJAHUPVGwFD", #Ineptitude
         HeroType.Norgu: "OQhkAoC8AGKyJM95gprBZARcxA",
-        HeroType.Vekk: "OgVDI8gsS5AnATPmOHgCAZAFBA",
+        HeroType.Vekk: "OgljgwMpZO0iwB54b4N0h74aM", #Thunderclap
         HeroType.MasterOfWhispers: "OABDUshnSyBVBoBKgbhVVfCWCA",
         HeroType.Olias: "OAhjQoGYIP3hhWVVaO5EeDTqNA",
         HeroType.Ogden: "OwUUMsG/E4SNgbE3N3ETfQgZAMEA",
