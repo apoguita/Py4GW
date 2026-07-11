@@ -52,6 +52,8 @@ from typing import Any, TYPE_CHECKING, Callable, TypedDict, cast
 
 import PyImGui
 
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_consumables import local_effect_active
+
 from ...Py4GWcorelib import ConsoleLog, Console, Vec2f
 from ...enums_src.IO_enums import CHAR_MAP, Key
 from ...enums_src.GameData_enums import Range
@@ -584,7 +586,7 @@ class BTPlayer:
                     return BehaviorTree.NodeState.FAILURE
                 status_value = int(player_status)
 
-                player = Player.player_instance()
+                player = cast(Any, Player.player_instance())
                 if not hasattr(player, "SetPlayerStatus") or not hasattr(player, "GetPlayerStatus"):
                     _fail_log(
                         "SetPlayerStatus",
@@ -1624,3 +1626,45 @@ class BTPlayer:
                 )
             )
             return tree
+        
+
+        @staticmethod
+        def HasLocalEffect(
+            effect_id: int,
+            log: bool = False,
+        ) -> BehaviorTree:
+            """
+            Build a condition tree that succeeds while the local player has an effect.
+
+            Meta:
+            Expose: true
+            Audience: intermediate
+            Display: Has Local Effect
+            Purpose: Check whether the local player currently has a specific effect.
+            UserDescription: Use this when a branch should continue only while a given effect is active on the local player.
+            Notes: Delegates the low-level effect lookup to `local_effect_active`.
+            """
+
+            def _has_local_effect() -> bool:
+                active = local_effect_active(
+                    int(effect_id)
+                )
+
+                if log:
+                    _log(
+                        "HasLocalEffect",
+                        (
+                            f"effect_id={effect_id}, "
+                            f"active={active}"
+                        ),
+                        log=log,
+                    )
+
+                return active
+
+            return BehaviorTree(
+                BehaviorTree.ConditionNode(
+                    name=f"HasLocalEffect({effect_id})",
+                    condition_fn=_has_local_effect,
+                )
+            )
