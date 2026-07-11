@@ -1894,116 +1894,366 @@ class BTAgents:
                 )
             )
 
+
     @staticmethod
     def WaitForClearEnemiesInArea(
-            x: float,
-            y: float,
-            radius: float = float(Range.Earshot.value),
-            allowed_alive_enemies: int = 0,
-            interact_interval_ms: int = 750,
-            log: bool = False,
-        ) -> BehaviorTree:
-            """
-            Build a tree that waits until the alive-enemy count in an area is at or below an allowed threshold.
+        x: float,
+        y: float,
+        radius: float = float(Range.Earshot.value),
+        allowed_alive_enemies: int = 0,
+        interact_interval_ms: int = 750,
+        stable_clear_ms: int = 0,
+        keep_player_near_center: bool = False,
+        center_tolerance: float = 750.0,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that waits until the alive-enemy count in an area is at or
+        below an allowed threshold.
 
-            Meta:
-              Expose: true
-              Audience: advanced
-              Display: Wait For Clear Enemies In Area
-              Purpose: Wait until the alive-enemy count in an area is at or below an allowed threshold, nudging the nearest enemy when needed.
-              UserDescription: Use this when you want to block until the area is clear enough while still provoking nearby enemies to commit.
-              Notes: Returns RUNNING while the alive-enemy count exceeds the threshold and SUCCESS once it is at or below it.
-            """
-            from typing import Any
-            from ...Py4GWcorelib import Utils
-            from ...GlobalCache import GLOBAL_CACHE
-            from ... import SharedCommandType
+        The routine can optionally require the area to remain clear for a stable
+        duration before succeeding, and can keep the local player near the area
+        center while the routine is active.
 
-            state = {
-                "paused_for_looting": False,
-                "last_interact_ms": 0,
-                "last_target_id": 0,
-            }
+        Meta:
+        Expose: true
+        Audience: advanced
+        Display: Wait For Clear Enemies In Area
+        Purpose: Wait until an area is clear enough, optionally requiring a stable clear duration and keeping the player near the center.
+        UserDescription: Use this when you want to block until enemies in an area are cleared, including encounters with delayed respawns or multiple waves.
+        Notes: Returns RUNNING while enemies remain or while the stable-clear timer is active. Returns SUCCESS once the configured clear conditions are met.
+        """
+        from typing import Any
 
-            def _get_enemies_in_area() -> list[int]:
-                enemy_array = list(RoutinesAgents.GetFilteredEnemyArray(x, y, radius) or [])
-                enemy_array = [agent_id for agent_id in enemy_array if Agent.IsAlive(agent_id)]
-                enemy_array.sort(key=lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)))
-                return enemy_array
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Py4GWcorelib import Utils
+        from ...enums_src.Multiboxing_enums import SharedCommandType
 
-            def _get_pause_reason(node: BehaviorTree.Node) -> str:
-                account_email: str = Player.GetAccountEmail()
-                index: int
-                message: Any
-                index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
-                if (
-                    index != -1
-                    and message
-                    and message.Command == SharedCommandType.PickUpLoot
-                    and bool(getattr(message, "Running", False))
-                ):
-                    return "loot_message_active"
-                if Checks.Player.IsDead():
-                    return "player_dead"
-                if bool(node.blackboard.get("PAUSE_MOVEMENT", False)):
-                    return "external_pause"
-                if Checks.Player.IsCasting():
-                    return "casting"
-                return ""
+        state = {
+            "paused": False,
+            "last_interact_ms": 0,
+            "last_target_id": 0,
+            "clear_since_ms": 0,
+        }
 
-            def _wait_for_clear_enemies(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-                now = Utils.GetBaseTimestamp()
-                enemies = _get_enemies_in_area()
-                node.blackboard["wait_clear_area_enemy_count"] = len(enemies)
-                node.blackboard["wait_clear_area_center"] = (x, y)
-                node.blackboard["wait_clear_area_radius"] = radius
-                node.blackboard["wait_clear_area_allowed_alive_enemies"] = allowed_alive_enemies
+        def _reset_state() -> None:
+            state["paused"] = False
+            state["last_interact_ms"] = 0
+            state["last_target_id"] = 0
+            state["clear_since_ms"] = 0
 
-                pause_reason = _get_pause_reason(node)
-                if pause_reason:
-                    if log and not state["paused_for_looting"]:
-                        _log("WaitForClearEnemiesInArea", f"Pausing wait-for-clear routine near ({x}, {y}) due to {pause_reason}.", log=log)
-                    state["paused_for_looting"] = True
-                    return BehaviorTree.NodeState.RUNNING
+        def _get_enemies_in_area() -> list[int]:
+            enemy_array = list(
+                RoutinesAgents.GetFilteredEnemyArray(
+                    float(x),
+                    float(y),
+                    float(radius),
+                )
+                or []
+            )
 
-                state["paused_for_looting"] = False
+            enemy_array = [
+                int(agent_id)
+                for agent_id in enemy_array
+                if int(agent_id) > 0
+                and Agent.IsValid(int(agent_id))
+                and Agent.IsAlive(int(agent_id))
+            ]
 
-                if len(enemies) <= allowed_alive_enemies:
-                    if log:
-                        _log(
-                            "WaitForClearEnemiesInArea",
-                            f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
-                            log=log,
-                            message_type=Console.MessageType.Success,
-                        )
-                    state["last_target_id"] = 0
-                    state["last_interact_ms"] = 0
-                    return BehaviorTree.NodeState.SUCCESS
+            player_xy = Player.GetXY()
 
-                target_id = enemies[0]
-                node.blackboard["wait_clear_area_target_id"] = target_id
-
-                if state["last_target_id"] != target_id or now - state["last_interact_ms"] >= interact_interval_ms:
-                    Player.ChangeTarget(target_id)
-                    Player.Interact(target_id, False)
-                    state["last_target_id"] = target_id
-                    state["last_interact_ms"] = now
-
-                if log:
-                    _log(
-                        "WaitForClearEnemiesInArea",
-                        f"Waiting for area near ({x}, {y}) to clear: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}, target_id={target_id}.",
-                        log=log,
-                    )
-                return BehaviorTree.NodeState.RUNNING
-
-            return BehaviorTree(
-                BehaviorTree.ConditionNode(
-                    name="WaitForClearEnemiesInArea",
-                    condition_fn=_wait_for_clear_enemies,
+            enemy_array.sort(
+                key=lambda agent_id: Utils.Distance(
+                    player_xy,
+                    Agent.GetXY(agent_id),
                 )
             )
-        
+
+            return enemy_array
+
+        def _get_pause_reason(
+            node: BehaviorTree.Node,
+        ) -> str:
+            account_email = str(
+                Player.GetAccountEmail() or ""
+            )
+
+            try:
+                index: int
+                message: Any
+                index, message = (
+                    GLOBAL_CACHE.ShMem.PreviewNextMessage(
+                        account_email
+                    )
+                )
+            except Exception:
+                index = -1
+                message = None
+
+            if (
+                index != -1
+                and message is not None
+                and getattr(message, "Command", None)
+                == SharedCommandType.PickUpLoot
+                and bool(
+                    getattr(
+                        message,
+                        "Running",
+                        False,
+                    )
+                )
+            ):
+                return "loot_message_active"
+
+            if Checks.Player.IsDead():
+                return "player_dead"
+
+            if bool(
+                node.blackboard.get(
+                    "PAUSE_MOVEMENT",
+                    False,
+                )
+            ):
+                return "external_pause"
+
+            if Checks.Player.IsCasting():
+                return "casting"
+
+            return ""
+
+        def _keep_player_near_center() -> None:
+            if not keep_player_near_center:
+                return
+
+            try:
+                player_xy = Player.GetXY()
+            except Exception:
+                return
+
+            if not player_xy:
+                return
+
+            if (
+                Utils.Distance(
+                    player_xy,
+                    (float(x), float(y)),
+                )
+                > float(center_tolerance)
+            ):
+                Player.Move(
+                    float(x),
+                    float(y),
+                )
+
+        def _wait_for_clear_enemies(
+            node: BehaviorTree.Node,
+        ) -> BehaviorTree.NodeState:
+            now = int(
+                Utils.GetBaseTimestamp()
+            )
+
+            _keep_player_near_center()
+
+            enemies = _get_enemies_in_area()
+
+            node.blackboard[
+                "wait_clear_area_enemy_count"
+            ] = len(enemies)
+            node.blackboard[
+                "wait_clear_area_center"
+            ] = (
+                float(x),
+                float(y),
+            )
+            node.blackboard[
+                "wait_clear_area_radius"
+            ] = float(radius)
+            node.blackboard[
+                "wait_clear_area_allowed_alive_enemies"
+            ] = int(
+                allowed_alive_enemies
+            )
+            node.blackboard[
+                "wait_clear_area_stable_clear_ms"
+            ] = int(
+                stable_clear_ms
+            )
+            node.blackboard[
+                "wait_clear_area_clear_since_ms"
+            ] = int(
+                state["clear_since_ms"]
+            )
+
+            pause_reason = _get_pause_reason(
+                node
+            )
+
+            if pause_reason:
+                if log and not state["paused"]:
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Pausing clear-area routine near "
+                            f"({x}, {y}) due to "
+                            f"{pause_reason}."
+                        ),
+                        log=log,
+                    )
+
+                state["paused"] = True
+                return BehaviorTree.NodeState.RUNNING
+
+            state["paused"] = False
+
+            if (
+                len(enemies)
+                <= int(allowed_alive_enemies)
+            ):
+                state["last_target_id"] = 0
+                state["last_interact_ms"] = 0
+
+                if int(stable_clear_ms) <= 0:
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Area at ({x}, {y}) is clear "
+                            f"enough: alive_enemies="
+                            f"{len(enemies)}, allowed="
+                            f"{allowed_alive_enemies}."
+                        ),
+                        log=log,
+                        message_type=(
+                            Console.MessageType.Success
+                        ),
+                    )
+
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if state["clear_since_ms"] <= 0:
+                    state["clear_since_ms"] = now
+
+                    node.blackboard[
+                        "wait_clear_area_clear_since_ms"
+                    ] = now
+
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Area near ({x}, {y}) is "
+                            f"currently clear. Starting "
+                            f"{stable_clear_ms}ms stable "
+                            f"clear timer."
+                        ),
+                        log=log,
+                    )
+
+                    return BehaviorTree.NodeState.RUNNING
+
+                clear_elapsed_ms = (
+                    now
+                    - int(
+                        state[
+                            "clear_since_ms"
+                        ]
+                    )
+                )
+
+                node.blackboard[
+                    "wait_clear_area_clear_elapsed_ms"
+                ] = clear_elapsed_ms
+
+                if (
+                    clear_elapsed_ms
+                    >= int(stable_clear_ms)
+                ):
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Area near ({x}, {y}) "
+                            f"remained clear for "
+                            f"{clear_elapsed_ms}ms."
+                        ),
+                        log=log,
+                        message_type=(
+                            Console.MessageType.Success
+                        ),
+                    )
+
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                return BehaviorTree.NodeState.RUNNING
+
+            # An enemy reappeared, so any stable-clear timer is cancelled.
+            if state["clear_since_ms"] > 0:
+                _log(
+                    "WaitForClearEnemiesInArea",
+                    (
+                        f"Enemy activity resumed near "
+                        f"({x}, {y}); resetting the "
+                        f"stable-clear timer."
+                    ),
+                    log=log,
+                )
+
+            state["clear_since_ms"] = 0
+
+            target_id = int(
+                enemies[0]
+            )
+
+            node.blackboard[
+                "wait_clear_area_target_id"
+            ] = target_id
+
+            if (
+                state["last_target_id"]
+                != target_id
+                or now
+                - int(
+                    state[
+                        "last_interact_ms"
+                    ]
+                )
+                >= int(
+                    interact_interval_ms
+                )
+            ):
+                Player.ChangeTarget(
+                    target_id
+                )
+                Player.Interact(
+                    target_id,
+                    False,
+                )
+
+                state["last_target_id"] = (
+                    target_id
+                )
+                state["last_interact_ms"] = now
+
+                _log(
+                    "WaitForClearEnemiesInArea",
+                    (
+                        f"Interacting with enemy "
+                        f"{target_id} near ({x}, {y}); "
+                        f"alive_enemies={len(enemies)}."
+                    ),
+                    log=log,
+                )
+
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name="WaitForClearEnemiesInArea",
+                condition_fn=(
+                    _wait_for_clear_enemies
+                ),
+            )
+        )
+
     @staticmethod
     def TargetNearestItem(distance, log:bool=False):
             """

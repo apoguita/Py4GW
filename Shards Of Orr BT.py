@@ -1,32 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-import os
-
-import Py4GW
-from typing import Optional, Any
-import math
-import time
-
-
+from collections.abc import Callable
+import os, Py4GW, math
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Quest import Quest
-from Py4GWCoreLib.Agent import Agent
-from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.enums_src.GameData_enums import Range
-
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.enums_src.Player_enums import PlayerStatus
 from Py4GWCoreLib.routines_src.behaviourtrees_src.items import BTItems
 from Py4GWCoreLib.routines_src.behaviourtrees_src.constants.lists import CONSUMABLE_UPKEEPS as ALL_CONSUMABLE_UPKEEPS
-
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 
 
@@ -819,165 +806,20 @@ def RunLevel2() -> BehaviorTree:
     )
 
 
-def ResolveFendiFight() -> BehaviorTree:
-    """Resolve the Fendi encounter with a native stateful BT ActionNode."""
-    anchor = (-16022.9, 17889.9)
-    state: dict[str, float | None] = {"stable_since": None}
-
-    def _reset() -> None:
-        state["stable_since"] = None
-
-    def _tick(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        if Map.GetMapID() != SOO_LEVEL_3:
-            _reset()
-            return BehaviorTree.NodeState.FAILURE
-
-        player_xy = Player.GetXY()
-        if not player_xy:
-            return BehaviorTree.NodeState.RUNNING
-
-        if _distance(player_xy, anchor) > 750.0:
-            Player.Move(*anchor)
-
-        nearest_id = 0
-        nearest_distance = float("inf")
-        boss_present = False
-
-        for agent_id in AgentArray.GetEnemyArray():
-            if not Agent.IsAlive(agent_id):
-                continue
-
-            enemy_xy = Agent.GetXY(agent_id)
-            if not enemy_xy or _distance(enemy_xy, anchor) > Range.Compass.value:
-                continue
-
-            if int(Agent.GetModelID(agent_id)) in FENDI_BOSS_MODEL_IDS:
-                boss_present = True
-
-            distance = _distance(enemy_xy, player_xy)
-            if distance < nearest_distance:
-                nearest_distance = distance
-                nearest_id = int(agent_id)
-
-        if nearest_id:
-            state["stable_since"] = None
-            Player.ChangeTarget(nearest_id)
-            Player.Interact(nearest_id, True)
-            enemy_xy = Agent.GetXY(nearest_id)
-            if enemy_xy and nearest_distance > Range.Earshot.value:
-                Player.Move(*enemy_xy)
-            return BehaviorTree.NodeState.RUNNING
-
-        if boss_present:
-            state["stable_since"] = None
-            return BehaviorTree.NodeState.RUNNING
-
-        stable_since = state["stable_since"]
-        if stable_since is None:
-            state["stable_since"] = time.monotonic()
-            Player.Move(*anchor)
-            return BehaviorTree.NodeState.RUNNING
-
-        if time.monotonic() - float(stable_since) >= 20.0:
-            _reset()
-            return BehaviorTree.NodeState.SUCCESS
-
-        Player.Move(*anchor)
-        return BehaviorTree.NodeState.RUNNING
-
-    return BehaviorTree(
-        BehaviorTree.ActionNode(
-            name="Resolve Fendi Fight",
-            action_fn=_tick,
-        )
-    )
-
-
-
-def _find_shandra_nearby(max_dist: float = 3000.0) -> int:
-    npcs = AgentArray.GetNPCMinipetArray()
-    npcs = AgentArray.Filter.ByDistance(npcs, Player.GetXY(), max_dist)
-    npcs = AgentArray.Sort.ByDistance(npcs, Player.GetXY())
-    for agent_id in npcs:
-        try:
-            if "shandra" in Agent.GetNameByID(int(agent_id)).lower():
-                return int(agent_id)
-        except Exception:
-            continue
-    return 0
-
-
 def CollectInsideReward() -> BehaviorTree:
-    """Collect Shandra's in-dungeon reward with a native BT ActionNode."""
-    state: dict[str, Any] = {
-        "phase": "find",
-        "deadline": 0.0,
-        "target": 0,
-        "settle_until": 0.0,
-    }
-
-    def _reset() -> None:
-        state.update(
-            phase="find",
-            deadline=0.0,
-            target=0,
-            settle_until=0.0,
-        )
-
-    def _tick(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        now = time.monotonic()
-        phase = str(state["phase"])
-
-        if phase == "find":
-            if float(state["deadline"]) <= 0.0:
-                state["deadline"] = now + 12.0
-
-            target = _find_shandra_nearby()
-            if not target:
-                if now >= float(state["deadline"]):
-                    _reset()
-                    return BehaviorTree.NodeState.FAILURE
-                return BehaviorTree.NodeState.RUNNING
-
-            state["target"] = target
-            Player.ChangeTarget(target)
-            Player.Interact(target, False)
-            Player.SendDialog(SHANDRA_REWARD_DIALOG)
-
-            sender = Player.GetAccountEmail()
-            for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
-                email = str(getattr(account, "AccountEmail", "") or "")
-                if email and email != sender:
-                    GLOBAL_CACHE.ShMem.SendMessage(
-                        sender,
-                        email,
-                        SharedCommandType.SendDialogToTarget,
-                        (
-                            float(target),
-                            float(SHANDRA_REWARD_DIALOG),
-                            0.0,
-                            0.0,
-                        ),
-                    )
-
-            state["phase"] = "settle"
-            state["settle_until"] = now + 3.0
-            return BehaviorTree.NodeState.RUNNING
-
-        if phase == "settle":
-            if now < float(state["settle_until"]):
-                return BehaviorTree.NodeState.RUNNING
-            _reset()
-            return BehaviorTree.NodeState.SUCCESS
-
-        _reset()
-        return BehaviorTree.NodeState.FAILURE
-
-    return BehaviorTree(
-        BehaviorTree.ActionNode(
-            name="Collect Inside Reward",
-            action_fn=_tick,
-        )
+    return BT.Sequence(
+        name="Collect Inside Reward",
+        children=[
+            BT.TargetAgentByName(
+                agent_name="Shandra",
+                log=True,
+            ),
+            BT.InteractTargetAndSendDialog(
+                dialog_id=SHANDRA_REWARD_DIALOG,
+                multi_account=True,
+                log=True,
+            ),
+        ],
     )
 
 
@@ -1020,23 +862,50 @@ def CollectRewardAndPrepareRestart() -> BehaviorTree:
     try_inside_reward = BT.Sequence(
         name="Try Collect Shandra Reward Inside Dungeon",
         children=[
-            _quest_state_is("complete", "LostSoulsCompleteInsideDungeon"),
+            _quest_state_is(
+                "complete",
+                "LostSoulsCompleteInsideDungeon",
+            ),
             CollectInsideReward(),
-            BT.WaitForQuestCleared(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
         ],
     )
 
     return BT.Sequence(
         name="Collect Reward And Prepare Restart",
         children=[
-            BT.Selector(name="Try Inside Reward", children=[try_inside_reward, BT.Succeeder(name="InsideRewardUnavailable")]),
-            BT.LogMessage(message="Waiting for the end-of-dungeon countdown.", module_name=MODULE_NAME),
-            BT.WaitForMapLoad(map_id=ARBOR_BAY, timeout_ms=120_000),
-            BT.WaitUntilOnExplorable(timeout_ms=30_000),
-            BT.Wait(2_000),
-            BT.Move(SHANDRA_APPROACH, pause_on_combat=False, log=True),
+            BT.Selector(
+                name="Try Inside Reward",
+                children=[
+                    try_inside_reward,
+                    BT.Succeeder(
+                        "InsideRewardUnavailable"
+                    ),
+                ],
+            ),
+            BT.LogMessage(
+                message=(
+                    "Waiting for the end-of-dungeon "
+                    "countdown."
+                ),
+                module_name=MODULE_NAME,
+            ),
+            BT.WaitForMapLoad(
+                map_id=ARBOR_BAY,
+                timeout_ms=120_000,
+            ),
+            BT.Move(
+                SHANDRA_APPROACH,
+                pause_on_combat=False,
+                log=True,
+            ),
             PrepareNextDungeonRun(),
-            BT.LogMessage(message="Lost Souls active and party back in SoO Level 1.", module_name=MODULE_NAME),
+            BT.LogMessage(
+                message=(
+                    "Lost Souls active and party back "
+                    "in SoO Level 1."
+                ),
+                module_name=MODULE_NAME,
+            ),
         ],
     )
 
@@ -1090,7 +959,17 @@ def RunLevel3() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Nearby.value,
             ),
-            ResolveFendiFight(),
+            BT.WaitForClearEnemiesInArea(
+                x=-16022.9,
+                y=17889.9,
+                radius=Range.Compass.value,
+                allowed_alive_enemies=0,
+                interact_interval_ms=750,
+                stable_clear_ms=20_000,
+                keep_player_near_center=True,
+                center_tolerance=750.0,
+                log=True,
+            ),
             BT.Move(
                 Vec2f(-15821.0, 16834.0),
                 pause_on_combat=False,

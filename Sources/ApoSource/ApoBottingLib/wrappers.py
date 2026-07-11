@@ -427,6 +427,10 @@ def LogMessage(message: str,
     )
     
 #region dialogs
+
+def TargetAgentByName(agent_name: str,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Agents.TargetAgentByName(agent_name=agent_name,log=log,)
+
 def TargetNearest(x: float, y: float, target_distance: float = Range.Nearby.value, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Agents.TargetNearestNPCXY(x=x,y=y,distance=target_distance,log=log)
 
@@ -1616,10 +1620,9 @@ def ClearEnemiesInArea(pos: PointOrPath, radius: float = Range.Spirit.value, all
     point = _final_point(pos)
     return RoutinesBT.Agents.ClearEnemiesInArea(x=point.x,y=point.y,radius=radius,allowed_alive_enemies=allowed_alive_enemies,)
 
-def WaitForClearEnemiesInArea(pos: PointOrPath, radius: float = Range.Spirit.value, allowed_alive_enemies: int = 0) -> BehaviorTree:
-    point = _final_point(pos)
-    return RoutinesBT.Agents.WaitForClearEnemiesInArea(x=point.x,y=point.y,radius=radius,allowed_alive_enemies=allowed_alive_enemies,)
-     
+def WaitForClearEnemiesInArea(x: float,y: float,radius: float = Range.Earshot.value,allowed_alive_enemies: int = 0,interact_interval_ms: int = 750,stable_clear_ms: int = 0,keep_player_near_center: bool = False,center_tolerance: float = 750.0,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Agents.WaitForClearEnemiesInArea(x=x,y=y,radius=radius,allowed_alive_enemies=allowed_alive_enemies,interact_interval_ms=interact_interval_ms,stable_clear_ms=stable_clear_ms,keep_player_near_center=keep_player_near_center,center_tolerance=center_tolerance,log=log,)     
+
 #region Items
 def IsItemInInventoryBags(modelID_or_encStr: int | str) -> BehaviorTree:
     return RoutinesBT.Items.IsItemInInventoryBags(modelID_or_encStr=modelID_or_encStr)
