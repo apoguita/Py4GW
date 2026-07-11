@@ -1,4 +1,5 @@
-from Py4GWCoreLib import Botting, Agent, GLOBAL_CACHE, Routines, ActionQueueManager, Player
+from Py4GWCoreLib import Botting, Agent, GLOBAL_CACHE, Routines, ActionQueueManager, Player, Party
+from Py4GWCoreLib.enums_src.Hero_enums import HeroType
 import PyImGui, Py4GW
 import os
 BOT_NAME = "Killroy Stoneskin"
@@ -6,6 +7,36 @@ MODULE_NAME = "Killroy Stonekin's Punch-Out Extravaganza!"
 MODULE_ICON = "Textures\\Module_Icons\\Leveler - Killroy Stoneskin.png"
 
 bot = Botting(BOT_NAME, config_stop_on_party_wipe=False)
+
+def InviteHeroesForXP(bot: Botting) -> None:
+    """
+    Invite specific heroes that need leveling (Koss, Dunkoro, Tahlkora, Melonni, Olias, AcolyteJin, AcolyteSousuke)
+    for XP from quest rewards.
+    """
+    # Heroes that don't start at max level and need XP
+    leveling_heroes = [
+        HeroType.Koss,
+        HeroType.Dunkoro,
+        HeroType.Tahlkora,
+        HeroType.Melonni,
+        HeroType.Olias,
+        HeroType.AcolyteJin,
+        HeroType.AcolyteSousuke,
+    ]
+    
+    hero_ids = [int(hero.value) for hero in leveling_heroes]
+    
+    bot.Party.LeaveParty()
+    bot.Wait.ForTime(1000)
+    
+    for hero_id in hero_ids:
+        try:
+            Party.Heroes.AddHero(hero_id)
+            bot.Wait.ForTime(200)
+        except Exception:
+            continue
+    
+    print(f"Invited leveling heroes for XP")
 
 def bot_routine(bot: Botting) -> None:
     KillroyMap(bot)
@@ -34,8 +65,10 @@ def KillroyMap(bot: Botting) -> None:
     bot.Wait.ForTime(3000)
     bot.Party.Resign()
     bot.Wait.UntilOnOutpost()
+    bot.States.AddCustomState(lambda: InviteHeroesForXP(bot), "Invite Heroes For XP")
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835807)
     bot.Map.TravelGH()
+    bot.Party.LeaveParty()
     bot.Map.LeaveGH()
     bot.Wait.ForMapLoad(target_map_id=644)  # gunnars_hold_id
     bot.States.JumpToStepName("[H]Killroy Stoneskin_1")
