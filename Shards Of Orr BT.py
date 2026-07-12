@@ -724,8 +724,125 @@ def RunLevel2() -> BehaviorTree:
         ],
     )
 
+def WaitAndTargetAgentByName(
+    agent_name: str,
+    timeout_ms: int = 10_000,
+    poll_interval_ms: int = 150,
+    log: bool = False,
+) -> BehaviorTree:
+    """
+    Wait until an agent matching the supplied name is available, then target it.
+
+    The name search is partial and case-insensitive because it relies on
+    Agent.GetAgentIDByName().
+    """
+    import time
+
+    from Py4GWCoreLib.Agent import Agent
+    from Py4GWCoreLib.Player import Player
+
+    started_at = 0.0
+    found_agent_id = 0
+    success_logged = False
+
+    def _wait_and_target(
+        _node: BehaviorTree.Node,
+    ) -> BehaviorTree.NodeState:
+        nonlocal started_at
+        nonlocal found_agent_id
+        nonlocal success_logged
+
+        now = time.monotonic()
+
+        if started_at <= 0.0:
+            started_at = now
+
+            if log:
+                Py4GW.Console.Log(
+                    MODULE_NAME,
+                    (
+                        f"Waiting for agent matching "
+                        f"'{agent_name}'."
+                    ),
+                    Py4GW.Console.MessageType.Info,
+                )
+
+        found_agent_id = int(
+            Agent.GetAgentIDByName(
+                agent_name
+            )
+            or 0
+        )
+
+        if found_agent_id > 0:
+            Player.ChangeTarget(
+                found_agent_id
+            )
+
+            if log and not success_logged:
+                Py4GW.Console.Log(
+                    MODULE_NAME,
+                    (
+                        f"Found and targeted "
+                        f"'{agent_name}': "
+                        f"agent_id={found_agent_id}."
+                    ),
+                    Py4GW.Console.MessageType.Success,
+                )
+                success_logged = True
+
+            started_at = 0.0
+            return BehaviorTree.NodeState.SUCCESS
+
+        elapsed_ms = (
+            now - started_at
+        ) * 1000.0
+
+        if elapsed_ms >= max(
+            1,
+            int(timeout_ms),
+        ):
+            if log:
+                Py4GW.Console.Log(
+                    MODULE_NAME,
+                    (
+                        f"Timed out while waiting for "
+                        f"agent matching '{agent_name}'."
+                    ),
+                    Py4GW.Console.MessageType.Warning,
+                )
+
+            started_at = 0.0
+            found_agent_id = 0
+            success_logged = False
+
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree(
+        BehaviorTree.WaitUntilNode(
+            name=(
+                f"WaitAndTargetAgentByName"
+                f"({agent_name})"
+            ),
+            condition_fn=_wait_and_target,
+            throttle_interval_ms=max(
+                10,
+                int(poll_interval_ms),
+            ),
+            timeout_ms=0,
+        )
+    )
 
 def CollectInsideReward() -> BehaviorTree:
+    """
+    Collect the Lost Souls reward from Shandra inside the dungeon.
+
+    Shandra is resolved by partial, case-insensitive name matching. The routine
+    then interacts with the current target and selects the first automatic
+    dialogue option locally and across the multibox party.
+    """
     return BT.Sequence(
         name="Collect Inside Reward",
         children=[
@@ -733,10 +850,30 @@ def CollectInsideReward() -> BehaviorTree:
                 agent_name="Shandra",
                 log=True,
             ),
-            BT.InteractTargetAndSendDialog(
-                dialog_id=SHANDRA_REWARD_DIALOG,
+            BT.LogMessage(
+                message=(
+                    "Shandra was found inside the dungeon. "
+                    "Attempting to collect the Lost Souls reward "
+                    "using automatic dialogue."
+                ),
+                module_name=MODULE_NAME,
+            ),
+            BT.InteractTargetAndAutoDialog(
+                buttons=0,
                 multi_account=True,
+                aftercast_ms=500,
                 log=True,
+            ),
+            BT.WaitForQuestCleared(
+                LOST_SOULS_QUEST_ID,
+                timeout_ms=15_000,
+            ),
+            BT.LogMessage(
+                message=(
+                    "The Lost Souls reward was successfully "
+                    "collected inside the dungeon."
+                ),
+                module_name=MODULE_NAME,
             ),
         ],
     )
@@ -769,13 +906,49 @@ def UseAvailableSummoningStone() -> BehaviorTree:
     )
 
 def PrepareNextDungeonRun() -> BehaviorTree:
+    """
+    Prepare the next Shards of Orr run after returning to Arbor Bay.
+
+    Two scenarios are supported:
+
+    1. The reward was collected inside the dungeon:
+       - Lost Souls is missing;
+       - retake the quest in Arbor Bay;
+       - enter Shards of Orr.
+
+    2. The reward remains complete:
+       - collect the reward from Shandra in Arbor Bay;
+       - enter and immediately leave Level 1;
+       - retake Lost Souls in Arbor Bay;
+       - enter Shards of Orr again for the next run.
+    """
+
     reward_collected_inside = BT.Sequence(
         name="Restart After Inside Reward",
         children=[
-            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="missing", log=True),
-            BT.LogMessage(message="Reward already collected inside. Retaking Lost Souls.", module_name=MODULE_NAME),
-            BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_TAKE_DIALOG, pause_on_combat=False, multi_account=True, log=True),
-            BT.WaitForActiveQuest(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
+            BT.IsQuestState(
+                quest_id=LOST_SOULS_QUEST_ID,
+                state="missing",
+                log=True,
+            ),
+            BT.LogMessage(
+                message=(
+                    "The reward was already collected inside "
+                    "the dungeon. Retaking Lost Souls."
+                ),
+                module_name=MODULE_NAME,
+            ),
+            BT.MoveAndDialog(
+                SHANDRA_APPROACH,
+                SHANDRA_TAKE_DIALOG,
+                pause_on_combat=False,
+                multi_account=True,
+                log=True,
+            ),
+            BT.WaitForActiveQuest(
+                LOST_SOULS_QUEST_ID,
+                timeout_ms=15_000,
+            ),
             EnterShardsOfOrr(),
         ],
     )
@@ -783,23 +956,90 @@ def PrepareNextDungeonRun() -> BehaviorTree:
     reward_not_collected_inside = BT.Sequence(
         name="Restart After Outside Reward",
         children=[
-            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="complete", log=True),
-            BT.LogMessage(message="Reward still pending. Collecting it in Arbor Bay.", module_name=MODULE_NAME),
-            BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_REWARD_DIALOG, pause_on_combat=False, multi_account=True, log=True),
-            BT.WaitForQuestCleared(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
+            BT.IsQuestState(
+                quest_id=LOST_SOULS_QUEST_ID,
+                state="complete",
+                log=True,
+            ),
+            BT.LogMessage(
+                message=(
+                    "The reward is still pending. "
+                    "Collecting it from Shandra in Arbor Bay."
+                ),
+                module_name=MODULE_NAME,
+            ),
+            BT.Move(
+                SHANDRA_APPROACH,
+                pause_on_combat=False,
+                log=True,
+            ),
+            BT.TargetAgentByName(
+                agent_name="Shandra",
+                log=True,
+            ),
+            BT.InteractTargetAndAutoDialog(
+                buttons=0,
+                multi_account=True,
+                aftercast_ms=500,
+                log=True,
+            ),
+            BT.WaitForQuestCleared(
+                LOST_SOULS_QUEST_ID,
+                timeout_ms=15_000,
+            ),
+            BT.LogMessage(
+                message=(
+                    "The Lost Souls reward was collected "
+                    "successfully in Arbor Bay."
+                ),
+                module_name=MODULE_NAME,
+            ),
+
+            # Enter the dungeon once before retaking the quest,
+            # as required by the outside-reward scenario.
             EnterShardsOfOrr(),
-            BT.MoveAndExitMap(LEVEL1_EXIT_TO_ARBOR, target_map_id=ARBOR_BAY, log=True),
-            BT.WaitUntilOnExplorable(timeout_ms=30_000),
-            BT.Wait(2_000),
-            BT.Move([Vec2f(10218.0, -18864.0), SHANDRA_APPROACH], pause_on_combat=False, log=True),
-            BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_TAKE_DIALOG, pause_on_combat=False, multi_account=True, log=True),
-            BT.WaitForActiveQuest(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
+
+            BT.MoveAndExitMap(
+                LEVEL1_EXIT_TO_ARBOR,
+                target_map_id=ARBOR_BAY,
+                log=True,
+            ),
+            BT.WaitUntilOnExplorable(
+                timeout_ms=30_000,
+            ),
+            BT.Wait(
+                2_000,
+            ),
+            BT.Move(
+                [
+                    Vec2f(10218.0, -18864.0),
+                    SHANDRA_APPROACH,
+                ],
+                pause_on_combat=False,
+                log=True,
+            ),
+            BT.MoveAndDialog(
+                SHANDRA_APPROACH,
+                SHANDRA_TAKE_DIALOG,
+                pause_on_combat=False,
+                multi_account=True,
+                log=True,
+            ),
+            BT.WaitForActiveQuest(
+                LOST_SOULS_QUEST_ID,
+                timeout_ms=15_000,
+            ),
             EnterShardsOfOrr(),
         ],
     )
 
-    return BT.Selector(name="Prepare Next Dungeon Run",children=[reward_collected_inside,reward_not_collected_inside,],
-)
+    return BT.Selector(
+        name="Prepare Next Dungeon Run",
+        children=[
+            reward_collected_inside,
+            reward_not_collected_inside,
+        ],
+    )
 
 
 def CollectRewardAndPrepareRestart(
@@ -829,11 +1069,6 @@ def CollectRewardAndPrepareRestart(
     reward_collected_inside = BT.Sequence(
         name="Collect Shandra Reward Inside Dungeon",
         children=[
-            BT.IsQuestState(
-                quest_id=LOST_SOULS_QUEST_ID,
-                state="complete",
-                log=True,
-            ),
             BT.LogMessage(
                 message=(
                     "Lost Souls is complete. Looking for "
@@ -983,25 +1218,20 @@ def RunLevel3() -> BehaviorTree:
                 center_tolerance=750.0,
                 log=True,
             ),
-            BT.Move(
-                Vec2f(-15821.0, 16834.0),
-                pause_on_combat=False,
-                log=True,
-            ),
             BT.MoveAndInteractWithGadget(
             gadget_id=FENDI_CHEST_GADGET_ID,
             pos=Vec2f(*FENDI_CHEST_POSITION),
             search_distance=700.0,
             interaction_distance=Range.Nearby.value,
             interaction_count=3,
-            interaction_interval_ms=2000,
+            interaction_interval_ms=1000,
             account_settle_ms=5_000,
             timeout_ms=90_000,
             multi_account=True,
             include_self=True,
             log=True,
         ),
-            CollectRewardAndPrepareRestart(),
+
         ],
     )
 
@@ -1016,6 +1246,7 @@ def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
         ("Run Level 1", RunLevel1),
         ("Run Level 2", RunLevel2),
         ("Run Level 3", RunLevel3),
+        ("Collect Reward And Prepare Restart", CollectRewardAndPrepareRestart),
     ]
 
 

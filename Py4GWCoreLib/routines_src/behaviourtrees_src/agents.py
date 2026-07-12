@@ -1236,6 +1236,7 @@ class BTAgents:
                     Player.ChangeTarget(
                         target_agent_id
                     )
+
                     Player.Interact(
                         target_agent_id,
                         False,

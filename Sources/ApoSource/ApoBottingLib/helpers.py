@@ -245,7 +245,7 @@ def _send_multibox_dialog_to_target(
                     0.0,
                     0.0,
                 ),
-                timeout_ms=5000,
+                timeout_ms=10000,
                 poll_interval_ms=100,
                 log=log,
                 aftercast_ms=aftercast_ms,

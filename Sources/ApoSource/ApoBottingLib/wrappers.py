@@ -2138,6 +2138,13 @@ def WaitForActiveQuest(quest_id: int, timeout_ms: int = 1500, throttle_interval_
 def WaitForQuestCleared(quest_id: int, timeout_ms: int = 1500, throttle_interval_ms: int = 150) -> BehaviorTree:
     return RoutinesBT.Party.WaitForActiveQuestCleared(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)
 
+def WaitForQuestState(quest_id: int,state: str,timeout_ms: int = 10000,throttle_interval_ms: int = 250,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Party.WaitForQuestState(quest_id=quest_id,state=state,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,log=log,)
+
+def AbandonQuest(quest_id: int,multi_account: bool = False,include_self: bool = True,timeout_ms: int = 10_000,aftercast_ms: int = 250,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Party.AbandonQuest(quest_id=quest_id,multi_account=multi_account,include_self=include_self,timeout_ms=timeout_ms,aftercast_ms=aftercast_ms,log=log,)
+
+
 def LogoutToCharacterSelect() -> BehaviorTree:
     return RoutinesBT.Player.LogoutToCharacterSelect()
 
@@ -2850,22 +2857,6 @@ def Selector(
         )
     )
 
-def AbandonQuest(
-    quest_id: int,
-    multi_account: bool = False,
-    include_self: bool = True,
-    timeout_ms: int = 10_000,
-    aftercast_ms: int = 250,
-    log: bool = False,
-) -> BehaviorTree:
-    return RoutinesBT.Party.AbandonQuest(
-        quest_id=quest_id,
-        multi_account=multi_account,
-        include_self=include_self,
-        timeout_ms=timeout_ms,
-        aftercast_ms=aftercast_ms,
-        log=log,
-    )
 
 def PickupGroundItemByModelID(
     model_ids: int | SequenceABC[int],
@@ -2900,7 +2891,7 @@ def IsQuestState(
     state: str,
     log: bool = False,
 ) -> BehaviorTree:
-    return RoutinesBT.Quest.IsQuestState(
+    return RoutinesBT.Party.IsQuestState(
         quest_id=quest_id,
         state=state,
         log=log,

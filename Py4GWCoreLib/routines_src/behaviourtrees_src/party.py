@@ -693,6 +693,112 @@ class BTParty:
         )
 
     @staticmethod
+    def WaitForQuestState(
+        quest_id: int,
+        state: str,
+        timeout_ms: int = 10000,
+        throttle_interval_ms: int = 250,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that waits until the requested quest reaches the requested state.
+
+        Valid states:
+        - "active"
+        - "complete"
+        - "missing"
+
+        Meta:
+        Expose: true
+        Audience: intermediate
+        Display: Wait For Quest State
+        Purpose: Wait until a quest reaches the requested state.
+        UserDescription: Use this when a dialog or interaction should be confirmed by waiting for a quest state change.
+        Notes: Returns SUCCESS only when the requested state is reached before timeout.
+        """
+
+        expected_state = str(state).strip().lower()
+
+        valid_states = {
+            "active",
+            "complete",
+            "missing",
+        }
+
+        if expected_state not in valid_states:
+            raise ValueError(
+                f"Unsupported quest state '{state}'. "
+                f"Expected one of {sorted(valid_states)}."
+            )
+
+        def _wait_for_quest_state() -> BehaviorTree.NodeState:
+            from ...Quest import Quest
+
+            quest_ids = {
+                int(qid)
+                for qid in (Quest.GetQuestLogIds() or [])
+            }
+
+            quest_in_log = int(quest_id) in quest_ids
+
+            try:
+                quest_complete = bool(
+                    Quest.IsQuestCompleted(
+                        int(quest_id)
+                    )
+                )
+            except Exception:
+                quest_complete = False
+
+            if expected_state == "missing":
+                matched = not quest_in_log
+
+            elif expected_state == "active":
+                matched = (
+                    quest_in_log
+                    and not quest_complete
+                )
+
+            else:  # complete
+                matched = (
+                    quest_in_log
+                    and quest_complete
+                )
+
+            if matched:
+                _log(
+                    "BTQuest.WaitForQuestState",
+                    (
+                        f"Quest {int(quest_id)} "
+                        f"reached state '{expected_state}'."
+                    ),
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name=(
+                    f"WaitForQuestState"
+                    f"({int(quest_id)},"
+                    f"{expected_state})"
+                ),
+                condition_fn=_wait_for_quest_state,
+                throttle_interval_ms=max(
+                    1,
+                    int(throttle_interval_ms),
+                ),
+                timeout_ms=max(
+                    0,
+                    int(timeout_ms),
+                ),
+            )
+        )
+
+
+    @staticmethod
     def IsQuestInLog(quest_id: int, log: bool = False) -> BehaviorTree:
         """
         Build a condition tree that succeeds when the requested quest id is present in the quest log.
@@ -1049,5 +1155,118 @@ class BTParty:
                     0,
                     int(aftercast_ms),
                 ),
+            )
+        )
+    
+
+    @staticmethod
+    def IsQuestState(
+        quest_id: int,
+        state: str,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a condition tree that checks the current state of a quest.
+
+        Supported states are `missing`, `active`, and `complete`.
+
+        Meta:
+          Expose: true
+          Audience: beginner
+          Display: Is Quest State
+          Purpose: Check whether a quest is missing, active, or complete.
+          UserDescription: Use this when a selector or sequence should run only for a specific quest state.
+          Notes: Returns SUCCESS when the requested state matches and FAILURE immediately otherwise.
+        """
+        normalized_state = str(
+            state or ""
+        ).strip().lower()
+
+        valid_states = {
+            "missing",
+            "active",
+            "complete",
+        }
+
+        if normalized_state not in valid_states:
+            raise ValueError(
+                "state must be one of: "
+                "'missing', 'active', 'complete'."
+            )
+
+        resolved_quest_id = int(quest_id)
+
+        def _resolve_quest_state() -> str:
+            quest_ids = {
+                int(current_quest_id)
+                for current_quest_id in (
+                    Quest.GetQuestLogIds()
+                    or []
+                )
+            }
+
+            if resolved_quest_id not in quest_ids:
+                return "missing"
+
+            try:
+                if Quest.IsQuestCompleted(
+                    resolved_quest_id
+                ):
+                    return "complete"
+            except Exception:
+                pass
+
+            return "active"
+
+        def _is_quest_state(
+            node: BehaviorTree.Node,
+        ) -> BehaviorTree.NodeState:
+            current_state = (
+                _resolve_quest_state()
+            )
+
+            node.blackboard[
+                "quest_state_quest_id"
+            ] = resolved_quest_id
+            node.blackboard[
+                "quest_state_current"
+            ] = current_state
+            node.blackboard[
+                "quest_state_expected"
+            ] = normalized_state
+
+            if current_state == normalized_state:
+                _log(
+                    "IsQuestState",
+                    (
+                        f"Quest {resolved_quest_id} "
+                        f"is in expected state "
+                        f"'{normalized_state}'."
+                    ),
+                    log=log,
+                )
+                return (
+                    BehaviorTree.NodeState.SUCCESS
+                )
+
+            _log(
+                "IsQuestState",
+                (
+                    f"Quest {resolved_quest_id} "
+                    f"is '{current_state}', expected "
+                    f"'{normalized_state}'."
+                ),
+                log=log,
+            )
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=(
+                    f"IsQuestState("
+                    f"{resolved_quest_id}, "
+                    f"{normalized_state})"
+                ),
+                condition_fn=_is_quest_state,
             )
         )

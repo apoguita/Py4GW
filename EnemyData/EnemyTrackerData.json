@@ -35559,6 +35559,18 @@
           "profession": "Elementalist",
           "profession_id": 6
         },
+        "1375": {
+          "id": 1375,
+          "name": "Stoneflesh Aura",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "1663": {
           "id": 1663,
           "name": "Elemental Flame",
@@ -35586,6 +35598,24 @@
         "197": {
           "id": 197,
           "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "209": {
+          "id": 209,
+          "name": "Mind Freeze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "217": {
+          "id": 217,
+          "name": "Crystal Wave",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "219": {
+          "id": 219,
+          "name": "Obsidian Flame",
           "profession": "Elementalist",
           "profession_id": 6
         },
@@ -35633,6 +35663,12 @@
           "profession": "Elementalist",
           "profession_id": 6
         },
+        "1261": {
+          "id": 1261,
+          "name": "Frigid Armor",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "1368": {
           "id": 1368,
           "name": "Chilling Winds",
@@ -35648,6 +35684,12 @@
         "1379": {
           "id": 1379,
           "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1382": {
+          "id": 1382,
+          "name": "Freezing Gust",
           "profession": "Elementalist",
           "profession_id": 6
         },
@@ -35672,6 +35714,12 @@
         "185": {
           "id": 185,
           "name": "Mind Burn",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "209": {
+          "id": 209,
+          "name": "Mind Freeze",
           "profession": "Elementalist",
           "profession_id": 6
         },
@@ -35720,6 +35768,12 @@
         "845": {
           "id": 845,
           "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "846": {
+          "id": 846,
+          "name": "Steam",
           "profession": "Elementalist",
           "profession_id": 6
         }
@@ -38017,6 +38071,12 @@
         }
       },
       "observed_skills": {
+        "1144": {
+          "id": 1144,
+          "name": "Silverwing Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
         "325": {
           "id": 325,
           "name": "Distracting Blow",
@@ -40114,6 +40174,12 @@
         "123": {
           "id": 123,
           "name": "Insidious Parasite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1358": {
+          "id": 1358,
+          "name": "Ulcerous Lungs",
           "profession": "Necromancer",
           "profession_id": 4
         },
