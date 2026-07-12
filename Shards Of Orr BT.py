@@ -1,3 +1,5 @@
+# region Imports
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -15,9 +17,20 @@ from Py4GWCoreLib.routines_src.behaviourtrees_src.items import BTItems
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 
 
+# endregion
+
+
+# region Script metadata
+
 MODULE_NAME = "Shards of Orr BT"
 INI_PATH = "Widgets/Automation/Bots/Missions/Dungeons/Shards of Orr BT"
 INI_FILENAME = "Shards_of_Orr_BT.ini"
+
+
+# endregion
+
+
+# region Game identifiers
 
 # Maps
 VLOXS_FALL = 624
@@ -60,6 +73,12 @@ SUMMON_RESTOCK_ITEMS: tuple[tuple[int, int], ...] = tuple(
     (model_id, 10) for model_id in SUMMON_MODEL_IDS
 )
 
+
+# endregion
+
+
+# region Settings state
+
 _SETTINGS_SECTION = "Settings"
 _settings_path = os.path.join(
     Py4GW.Console.get_projects_path(),
@@ -77,6 +96,12 @@ _activate_conset = True
 _restock_pcons = True
 _activate_pcons = True
 _use_summoning_stone = True
+
+
+# endregion
+
+
+# region Routes and coordinates
 
 # Coordinates
 VLOXS_EXIT = Vec2f(15505.38, 12460.59)
@@ -225,6 +250,11 @@ initialized = False
 ini_key = ""
 botting_tree: BottingTree | None = None
 
+# endregion
+
+
+# region Settings
+
 
 def _load_settings() -> None:
     global _settings_loaded
@@ -273,6 +303,7 @@ def _enabled_consumable_upkeeps() -> tuple[int, ...]:
             for model_id in enabled
         )
     )
+
 
 def _configure_runtime_upkeeps() -> None:
     if botting_tree is None:
@@ -411,6 +442,52 @@ def _runtime_restock_node() -> BehaviorTree:
     )
 
 
+# endregion
+
+
+# region Reusable script helpers
+
+
+def PickupTorch() -> BehaviorTree:
+    return BT.PickupGroundItemByModelID(
+        model_ids=TORCH_MODEL_IDS,
+        max_distance=10_000.0,
+        timeout_ms=45_000,
+        allow_unassigned=True,
+        interaction_interval_ms=5000,
+        aftercast_ms=100,
+        log=True,
+    )
+
+
+def UseAvailableSummoningStone() -> BehaviorTree:
+    """
+    Use the first available summoning stone once.
+
+    Summoning stones are handled as one-shot consumables and are therefore
+    kept outside the continuous consumable upkeep service.
+    """
+    if not _use_summoning_stone:
+        return BT.Succeeder(
+            "SummoningStoneDisabled",
+        )
+
+    return BT.Selector(
+        name="Use Available Summoning Stone",
+        children=[
+            BTItems.UseConsumable(
+                int(model_id),
+            )
+            for model_id in SUMMON_MODEL_IDS
+        ]
+        + [
+            BT.Succeeder(
+                "NoSummoningStoneAvailable",
+            ),
+        ],
+    )
+
+
 def BrazierSequence(
     name: str,
     points: list[tuple[float, float]],
@@ -438,6 +515,13 @@ def BrazierSequence(
         name=name,
         children=children,
     )
+
+
+# endregion
+
+
+# region Bot initialization
+
 
 def ensure_botting_tree() -> BottingTree:
     global botting_tree
@@ -483,6 +567,12 @@ def InitializeBot() -> BehaviorTree:
     )
 
 
+# endregion
+
+
+# region Preparation and dungeon entry
+
+
 def PreparePartyAndSupplies() -> BehaviorTree:
     already_ready_in_level_1 = BT.Sequence(
         name="Skip Outpost Preparation - Already In Level 1",
@@ -520,6 +610,7 @@ def PreparePartyAndSupplies() -> BehaviorTree:
     )
     return BT.Selector(children=[already_ready_in_level_1, normal_preparation], name="Prepare Party And Supplies")
 
+
 def TravelToShandra() -> BehaviorTree:
     skip_if_already_in_level_1 = BT.Sequence(
         name="Skip Travel To Shandra - Already In Level 1",
@@ -543,6 +634,7 @@ def TravelToShandra() -> BehaviorTree:
         ],
     )
     return BT.Selector(children=[skip_if_already_in_level_1, normal_travel], name="Travel To Shandra")
+
 
 def HandleShandraQuest() -> BehaviorTree:
     already_inside = BT.Sequence(
@@ -577,6 +669,7 @@ def HandleShandraQuest() -> BehaviorTree:
     )
     return BT.Selector(children=[already_inside, active, completed, missing], name="Handle Shandra Quest")
 
+
 def EnterShardsOfOrr() -> BehaviorTree:
     already_inside = BT.Sequence(
         name="Skip Dungeon Entry - Already In Level 1",
@@ -596,6 +689,11 @@ def EnterShardsOfOrr() -> BehaviorTree:
         ],
     )
     return BT.Selector(children=[already_inside, normal_entry], name="Enter Shards of Orr")
+
+
+# endregion
+# region Dungeon level 1
+
 
 def RunLevel1() -> BehaviorTree:
     return BT.Sequence(
@@ -633,6 +731,10 @@ def RunLevel1() -> BehaviorTree:
     )
 
 
+# endregion
+# region Dungeon level 2
+
+
 def RunLevel2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
@@ -656,7 +758,7 @@ def RunLevel2() -> BehaviorTree:
                 pause_on_combat=False,
                 log=True,
             ),
-            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            PickupTorch(),
             BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True),
             BT.DropBundle(log=True),
             BT.VanquishNode(
@@ -665,7 +767,7 @@ def RunLevel2() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
             ),
-            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            PickupTorch(),
             BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True),
             BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True),
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
@@ -676,7 +778,7 @@ def RunLevel2() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Compass.value,
             ),
-            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            PickupTorch(),
             BT.VanquishNode(L2_TO_ROOM2_DROP,clear_area_radius=Range.Area.value, pause_on_combat=True),
             BT.DropBundle(log=True),
             BT.VanquishNode(
@@ -685,7 +787,7 @@ def RunLevel2() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
             ),
-            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            PickupTorch(),
             BT.VanquishNode(
                 L2_ROOM2_PATH,
                 name="Clear Level 2 Room 2",
@@ -698,7 +800,7 @@ def RunLevel2() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
             ),
-            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            PickupTorch(),
             BrazierSequence("Level 2 Brazier Route 2", L2_BRAZIER_PART2),
             BT.DropBundle(log=True),
             BT.VanquishNode(
@@ -724,116 +826,95 @@ def RunLevel2() -> BehaviorTree:
         ],
     )
 
-def WaitAndTargetAgentByName(
-    agent_name: str,
-    timeout_ms: int = 10_000,
-    poll_interval_ms: int = 150,
-    log: bool = False,
-) -> BehaviorTree:
-    """
-    Wait until an agent matching the supplied name is available, then target it.
 
-    The name search is partial and case-insensitive because it relies on
-    Agent.GetAgentIDByName().
-    """
-    import time
+# endregion
+# region Dungeon level 3
 
-    from Py4GWCoreLib.Agent import Agent
-    from Py4GWCoreLib.Player import Player
 
-    started_at = 0.0
-    found_agent_id = 0
-    success_logged = False
-
-    def _wait_and_target(
-        _node: BehaviorTree.Node,
-    ) -> BehaviorTree.NodeState:
-        nonlocal started_at
-        nonlocal found_agent_id
-        nonlocal success_logged
-
-        now = time.monotonic()
-
-        if started_at <= 0.0:
-            started_at = now
-
-            if log:
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    (
-                        f"Waiting for agent matching "
-                        f"'{agent_name}'."
-                    ),
-                    Py4GW.Console.MessageType.Info,
-                )
-
-        found_agent_id = int(
-            Agent.GetAgentIDByName(
-                agent_name
-            )
-            or 0
-        )
-
-        if found_agent_id > 0:
-            Player.ChangeTarget(
-                found_agent_id
-            )
-
-            if log and not success_logged:
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    (
-                        f"Found and targeted "
-                        f"'{agent_name}': "
-                        f"agent_id={found_agent_id}."
-                    ),
-                    Py4GW.Console.MessageType.Success,
-                )
-                success_logged = True
-
-            started_at = 0.0
-            return BehaviorTree.NodeState.SUCCESS
-
-        elapsed_ms = (
-            now - started_at
-        ) * 1000.0
-
-        if elapsed_ms >= max(
-            1,
-            int(timeout_ms),
-        ):
-            if log:
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    (
-                        f"Timed out while waiting for "
-                        f"agent matching '{agent_name}'."
-                    ),
-                    Py4GW.Console.MessageType.Warning,
-                )
-
-            started_at = 0.0
-            found_agent_id = 0
-            success_logged = False
-
-            return BehaviorTree.NodeState.FAILURE
-
-        return BehaviorTree.NodeState.RUNNING
-
-    return BehaviorTree(
-        BehaviorTree.WaitUntilNode(
-            name=(
-                f"WaitAndTargetAgentByName"
-                f"({agent_name})"
+def RunLevel3() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Shards of Orr Level 3",
+        children=[
+            UseAvailableSummoningStone(),
+            BT.MoveAndDialog(
+                L3_ENTRY_BLESSING,
+                dialog_id=DWARVEN_BLESSING_DIALOG,
+                multi_account=True,
+                log=True,
             ),
-            condition_fn=_wait_and_target,
-            throttle_interval_ms=max(
-                10,
-                int(poll_interval_ms),
+            BT.VanquishNode(
+                L3_MAIN_PATH,
+                name="Level 3 Main Route",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
             ),
-            timeout_ms=0,
-        )
+            BT.VanquishNode(
+                L3_BRIGANT_APPROACH,
+                name="Level 3 Route Before Torch",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
+            ),
+            BT.VanquishNode(
+                L3_PATH_TO_TORCH,
+                name="Level 3 Route To Torch Chest",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
+            ),
+            BT.MoveAndInteractWithGadget(
+                L3_TORCH_CHEST, pause_on_combat=False, log=True,
+            ),
+            PickupTorch(),
+            BrazierSequence("Level 3 Brazier Route", L3_BRAZIERS),
+            BT.DropBundle(log=True),
+            BT.VanquishNode(
+                L3_BRIGANT_KILL_PATH,
+                name="Kill Level 3 Brigant",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
+            ),
+            BT.MoveAndInteractWithGadget(
+                L3_BOSS_DOOR, pause_on_combat=False, log=True,
+            ),
+            BT.VanquishNode(
+                L3_FENDI_PATH,
+                name="Route To Fendi",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
+            ),
+            BT.WaitForClearEnemiesInArea(
+                x=-16022.9,
+                y=17889.9,
+                radius=Range.Compass.value,
+                allowed_alive_enemies=0,
+                interact_interval_ms=750,
+                stable_clear_ms=20_000,
+                keep_player_near_center=True,
+                center_tolerance=750.0,
+                log=True,
+            ),
+            BT.MoveAndInteractWithGadget(
+            gadget_id=FENDI_CHEST_GADGET_ID,
+            pos=Vec2f(*FENDI_CHEST_POSITION),
+            search_distance=700.0,
+            interaction_distance=Range.Nearby.value,
+            interaction_count=3,
+            interaction_interval_ms=1000,
+            account_settle_ms=5_000,
+            timeout_ms=90_000,
+            multi_account=True,
+            include_self=True,
+            log=True,
+        ),
+
+        ],
     )
+
+
+# endregion
+
+
+# region Reward and restart flow
+
 
 def CollectInsideReward() -> BehaviorTree:
     """
@@ -878,32 +959,6 @@ def CollectInsideReward() -> BehaviorTree:
         ],
     )
 
-def UseAvailableSummoningStone() -> BehaviorTree:
-    """
-    Use the first available summoning stone once.
-
-    Summoning stones are handled as one-shot consumables and are therefore
-    kept outside the continuous consumable upkeep service.
-    """
-    if not _use_summoning_stone:
-        return BT.Succeeder(
-            "SummoningStoneDisabled",
-        )
-
-    return BT.Selector(
-        name="Use Available Summoning Stone",
-        children=[
-            BTItems.UseConsumable(
-                int(model_id),
-            )
-            for model_id in SUMMON_MODEL_IDS
-        ]
-        + [
-            BT.Succeeder(
-                "NoSummoningStoneAvailable",
-            ),
-        ],
-    )
 
 def PrepareNextDungeonRun() -> BehaviorTree:
     """
@@ -1158,82 +1213,11 @@ def CollectRewardAndPrepareRestart(
         ],
     )
 
-def RunLevel3() -> BehaviorTree:
-    return BT.Sequence(
-        name="Run Shards of Orr Level 3",
-        children=[
-            UseAvailableSummoningStone(),
-            BT.MoveAndDialog(
-                L3_ENTRY_BLESSING,
-                dialog_id=DWARVEN_BLESSING_DIALOG,
-                multi_account=True,
-                log=True,
-            ),
-            BT.VanquishNode(
-                L3_MAIN_PATH,
-                name="Level 3 Main Route",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            BT.VanquishNode(
-                L3_BRIGANT_APPROACH,
-                name="Level 3 Route Before Torch",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            BT.VanquishNode(
-                L3_PATH_TO_TORCH,
-                name="Level 3 Route To Torch Chest",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            BT.MoveAndInteractWithGadget(
-                L3_TORCH_CHEST, pause_on_combat=False, log=True,
-            ),
-            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),            BrazierSequence("Level 3 Brazier Route", L3_BRAZIERS),
-            BT.DropBundle(log=True),
-            BT.VanquishNode(
-                L3_BRIGANT_KILL_PATH,
-                name="Kill Level 3 Brigant",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            BT.MoveAndInteractWithGadget(
-                L3_BOSS_DOOR, pause_on_combat=False, log=True,
-            ),
-            BT.VanquishNode(
-                L3_FENDI_PATH,
-                name="Route To Fendi",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            BT.WaitForClearEnemiesInArea(
-                x=-16022.9,
-                y=17889.9,
-                radius=Range.Compass.value,
-                allowed_alive_enemies=0,
-                interact_interval_ms=750,
-                stable_clear_ms=20_000,
-                keep_player_near_center=True,
-                center_tolerance=750.0,
-                log=True,
-            ),
-            BT.MoveAndInteractWithGadget(
-            gadget_id=FENDI_CHEST_GADGET_ID,
-            pos=Vec2f(*FENDI_CHEST_POSITION),
-            search_distance=700.0,
-            interaction_distance=Range.Nearby.value,
-            interaction_count=3,
-            interaction_interval_ms=1000,
-            account_settle_ms=5_000,
-            timeout_ms=90_000,
-            multi_account=True,
-            include_self=True,
-            log=True,
-        ),
 
-        ],
-    )
+# endregion
+
+
+# region Execution
 
 
 def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
@@ -1267,6 +1251,9 @@ def main() -> None:
     tree = ensure_botting_tree()
     tree.tick()
     tree.UI.draw_window()
+
+
+# endregion
 
 
 if __name__ == "__main__":
