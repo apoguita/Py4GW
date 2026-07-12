@@ -16,3 +16,10 @@ CONSUMABLE_UPKEEPS=[
     ModelID.Honeycomb.value,
     ModelID.War_Supplies.value,
 ]
+
+CONSET_UPKEEPS = [
+    ModelID.Essence_Of_Celerity.value,
+    ModelID.Grail_Of_Might.value,
+    ModelID.Armor_Of_Salvation.value,
+]
+

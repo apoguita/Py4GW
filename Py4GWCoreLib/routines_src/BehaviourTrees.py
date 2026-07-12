@@ -46,6 +46,7 @@ Docstring parsing rules
 """
 
 from Py4GWCoreLib.routines_src.Agents import Agents
+from Py4GWCoreLib.routines_src.behaviourtrees_src.quest import BTQuest
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console
 from ..Map import Map
@@ -136,3 +137,4 @@ class BT:
     Shared = BTShared
     Multibox = BTShared
     Keybinds = BTKeybinds
+    Quest = BTQuest

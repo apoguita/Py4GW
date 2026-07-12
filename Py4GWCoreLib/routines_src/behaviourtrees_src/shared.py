@@ -297,7 +297,7 @@ class BTShared:
         command: SharedCommandType | int | None = None,
         refs_blackboard_key: str = "shared_refs",
         clear_refs_on_success: bool = True,
-        timeout_ms: int = 5000,
+        timeout_ms: int = 10000,
         poll_interval_ms: int = 100,
         log: bool = False,
     ) -> BehaviorTree:

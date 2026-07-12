@@ -962,6 +962,242 @@ class BTItems:
             )
         )
 
+
+
+    @staticmethod
+    def PickupGroundItemByModelID(
+        model_ids: int | Sequence[int],
+        max_distance: float = 5_000.0,
+        timeout_ms: int = 15_000,
+        allow_unassigned: bool = True,
+        interaction_interval_ms: int = 500,
+        aftercast_ms: int = 100,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Pick up the nearest ground item matching one of the supplied model IDs.
+
+        The routine targets and interacts with the matching ground-item agent,
+        allowing the game client to handle movement and pickup naturally.
+
+        Meta:
+        Expose: true
+        Audience: intermediate
+        Display: Pickup Ground Item By Model ID
+        Purpose: Find and pick up a specific nearby ground item by model ID.
+        UserDescription: Use this for bundles, torches, quest objects, or other ground items that should be picked up by the local account.
+        Notes: Does not use LootConfig, multibox loot, or shared loot locks.
+        """
+        accepted_model_ids = (
+            {int(model_ids)}
+            if isinstance(model_ids, int)
+            else {
+                int(model_id)
+                for model_id in model_ids
+            }
+        )
+
+        state = {
+            "started_at": 0.0,
+            "target_agent_id": 0,
+            "last_interaction_at": 0.0,
+            "interacted": False,
+        }
+
+        def _trace(message: str) -> None:
+            if log:
+                ConsoleLog(
+                    "PickupGroundItemByModelID",
+                    message,
+                    log=True,
+                )
+
+        def _reset() -> None:
+            state["started_at"] = 0.0
+            state["target_agent_id"] = 0
+            state["last_interaction_at"] = 0.0
+            state["interacted"] = False
+
+        def _item_exists(agent_id: int) -> bool:
+            if agent_id <= 0:
+                return False
+
+            try:
+                return bool(
+                    Agent.GetItemAgentByID(agent_id)
+                )
+            except Exception:
+                return False
+
+        def _find_nearest_matching_item() -> int:
+            local_player_id = int(
+                Player.GetAgentID() or 0
+            )
+
+            item_agents = AgentArray.GetItemArray()
+            item_agents = AgentArray.Filter.ByDistance(
+                item_agents,
+                Player.GetXY(),
+                float(max_distance),
+            )
+            item_agents = AgentArray.Sort.ByDistance(
+                item_agents,
+                Player.GetXY(),
+            )
+
+            for candidate in item_agents:
+                agent_id = int(candidate)
+
+                if not _item_exists(agent_id):
+                    continue
+
+                try:
+                    owner_id = int(
+                        Agent.GetItemAgentOwnerID(
+                            agent_id
+                        )
+                        or 0
+                    )
+                except Exception:
+                    owner_id = 0
+
+                if owner_id != local_player_id:
+                    if not (
+                        allow_unassigned
+                        and owner_id == 0
+                    ):
+                        continue
+
+                try:
+                    item_id = int(
+                        Agent.GetItemAgentItemID(
+                            agent_id
+                        )
+                        or 0
+                    )
+                except Exception:
+                    continue
+
+                if item_id <= 0:
+                    continue
+
+                try:
+                    model_id = int(
+                        GLOBAL_CACHE.Item.GetModelID(
+                            item_id
+                        )
+                        or 0
+                    )
+                except Exception:
+                    continue
+
+                if model_id in accepted_model_ids:
+                    return agent_id
+
+            return 0
+
+        def _pickup_item() -> BehaviorTree.NodeState:
+            now = time.monotonic()
+
+            if not accepted_model_ids:
+                _reset()
+                return BehaviorTree.NodeState.FAILURE
+
+            if state["started_at"] <= 0.0:
+                state["started_at"] = now
+
+            if (
+                now - float(state["started_at"])
+            ) * 1000.0 >= max(
+                1,
+                int(timeout_ms),
+            ):
+                _trace(
+                    "Timed out while trying to pick up the item."
+                )
+                _reset()
+                return BehaviorTree.NodeState.FAILURE
+
+            target_agent_id = int(
+                state["target_agent_id"]
+            )
+
+            if target_agent_id > 0:
+                if not _item_exists(target_agent_id):
+                    if state["interacted"]:
+                        _trace(
+                            "Ground item disappeared after interaction."
+                        )
+                        _reset()
+                        return BehaviorTree.NodeState.SUCCESS
+
+                    state["target_agent_id"] = 0
+                    return BehaviorTree.NodeState.RUNNING
+
+            if target_agent_id <= 0:
+                target_agent_id = (
+                    _find_nearest_matching_item()
+                )
+
+                if target_agent_id <= 0:
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["target_agent_id"] = (
+                    target_agent_id
+                )
+                state["interacted"] = False
+
+                _trace(
+                    f"Found item agent "
+                    f"{target_agent_id}."
+                )
+
+            interval_s = (
+                max(
+                    0,
+                    int(interaction_interval_ms),
+                )
+                / 1000.0
+            )
+
+            if (
+                now
+                - float(
+                    state["last_interaction_at"]
+                )
+                < interval_s
+            ):
+                return BehaviorTree.NodeState.RUNNING
+
+            state["last_interaction_at"] = now
+            state["interacted"] = True
+
+            Player.ChangeTarget(
+                target_agent_id
+            )
+            Player.Interact(
+                target_agent_id,
+                False,
+            )
+
+            _trace(
+                f"Interacting with item agent "
+                f"{target_agent_id}."
+            )
+
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="PickupGroundItemByModelID",
+                action_fn=_pickup_item,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+
+
+
     @staticmethod
     def LootItems(distance: float, timeout_ms: int = 10000, aftercast_ms: int = 500) -> BehaviorTree:
         """
@@ -1842,329 +2078,8 @@ class BTItems:
         )
         return BehaviorTree(tree)
 
-    @staticmethod
-    def PickupGroundItemByModelID(
-        model_ids: int | Sequence[int],
-        max_distance: float = 5_000.0,
-        pickup_distance: float = 180.0,
-        timeout_ms: int = 15_000,
-        allow_unassigned: bool = True,
-        interaction_interval_ms: int = 150,
-        aftercast_ms: int = 100,
-        log: bool = False,
-    ) -> BehaviorTree:
-        """
-        Pick up the nearest ground item matching one of the supplied model IDs.
 
-        The action is local to the account executing the BehaviorTree. It does not
-        use LootConfig, multibox loot or shared loot locks.
 
-        Parameters
-        ----------
-        model_ids
-            One model ID or a collection of accepted model IDs.
-        max_distance
-            Maximum distance from the player used when searching.
-        pickup_distance
-            Distance at which interaction with the item is attempted.
-        timeout_ms
-            Maximum duration before returning FAILURE.
-        allow_unassigned
-            Accept items with owner ID 0 in addition to items owned by the local
-            player.
-        interaction_interval_ms
-            Minimum interval between interaction attempts.
-        aftercast_ms
-            ActionNode aftercast delay.
-        log
-            Enable console logging.
-
-        Returns
-        -------
-        BehaviorTree
-            SUCCESS after the selected ground item disappears following an
-            interaction.
-            FAILURE when timeout expires or the action is interrupted.
-            RUNNING while searching, moving or interacting.
-        """
-
-        from Py4GWCoreLib.Py4GWcorelib import ConsoleLog
-
-        class PickupItemState(TypedDict):
-            started_at: float
-            target_agent_id: int
-            target_item_id: int
-            target_xy: tuple[float, float] | None
-            last_interaction_at: float
-            interacted: bool
-
-        accepted_model_ids = (
-            {int(model_ids)}
-            if isinstance(model_ids, int)
-            else {int(model_id) for model_id in model_ids}
-        )
-
-        state: PickupItemState = {
-            "started_at": 0.0,
-            "target_agent_id": 0,
-            "target_item_id": 0,
-            "target_xy": None,
-            "last_interaction_at": 0.0,
-            "interacted": False,
-        }
-
-        def _trace(message: str) -> None:
-            if log:
-                ConsoleLog(
-                    "PickupGroundItemByModelID",
-                    message,
-                    log=True,
-                )
-
-        def _reset() -> None:
-            state["started_at"] = 0.0
-            state["target_agent_id"] = 0
-            state["target_item_id"] = 0
-            state["target_xy"] = None
-            state["last_interaction_at"] = 0.0
-            state["interacted"] = False
-
-        def _stop_player() -> None:
-            try:
-                x, y = Player.GetXY()
-                Player.Move(float(x), float(y))
-            except Exception:
-                pass
-
-        def _item_agent_exists(agent_id: int) -> bool:
-            if agent_id <= 0:
-                return False
-
-            try:
-                return bool(Agent.GetItemAgentByID(agent_id))
-            except Exception:
-                return False
-
-        def _get_owner_id(agent_id: int) -> int:
-            try:
-                return int(Agent.GetItemAgentOwnerID(agent_id) or 0)
-            except Exception:
-                pass
-
-            try:
-                item_agent = Agent.GetItemAgentByID(agent_id)
-                return int(getattr(item_agent, "owner", 0) or 0)
-            except Exception:
-                return 0
-
-        def _get_item_and_model_id(
-            agent_id: int,
-        ) -> tuple[int, int]:
-            try:
-                item_id = int(
-                    Agent.GetItemAgentItemID(agent_id)
-                )
-            except Exception:
-                return 0, 0
-
-            if item_id <= 0:
-                return 0, 0
-
-            try:
-                model_id = int(
-                    GLOBAL_CACHE.Item.GetModelID(item_id)
-                )
-            except Exception:
-                return item_id, 0
-
-            return item_id, model_id
-
-        def _find_nearest_matching_item() -> tuple[
-            int,
-            int,
-            tuple[float, float] | None,
-        ]:
-            local_player_id = int(Player.GetAgentID())
-
-            item_agents = AgentArray.GetItemArray()
-            item_agents = AgentArray.Filter.ByDistance(
-                item_agents,
-                Player.GetXY(),
-                float(max_distance),
-            )
-            item_agents = AgentArray.Sort.ByDistance(
-                item_agents,
-                Player.GetXY(),
-            )
-
-            for candidate_id in item_agents:
-                agent_id = int(candidate_id)
-
-                if not _item_agent_exists(agent_id):
-                    continue
-
-                owner_id = _get_owner_id(agent_id)
-
-                valid_owner_ids = {local_player_id}
-                if allow_unassigned:
-                    valid_owner_ids.add(0)
-
-                if owner_id not in valid_owner_ids:
-                    continue
-
-                item_id, model_id = _get_item_and_model_id(
-                    agent_id
-                )
-
-                if item_id <= 0:
-                    continue
-
-                if model_id not in accepted_model_ids:
-                    continue
-
-                try:
-                    xy = Agent.GetXY(agent_id)
-                except Exception:
-                    continue
-
-                if not xy:
-                    continue
-
-                return (
-                    agent_id,
-                    item_id,
-                    (
-                        float(xy[0]),
-                        float(xy[1]),
-                    ),
-                )
-
-            return 0, 0, None
-
-        def _distance(
-            a: tuple[float, float],
-            b: tuple[float, float],
-        ) -> float:
-            dx = float(a[0]) - float(b[0])
-            dy = float(a[1]) - float(b[1])
-            return (dx * dx + dy * dy) ** 0.5
-
-        def _pickup_item(
-            node: BehaviorTree.Node,
-        ) -> BehaviorTree.NodeState:
-            now = time.monotonic()
-
-            if bool(
-                node.blackboard.get(
-                    "USER_INTERRUPT_ACTIVE",
-                    False,
-                )
-            ):
-                _stop_player()
-                _reset()
-                return BehaviorTree.NodeState.FAILURE
-
-            if not accepted_model_ids:
-                _reset()
-                return BehaviorTree.NodeState.FAILURE
-
-            if state["started_at"] <= 0.0:
-                state["started_at"] = now
-
-            elapsed_ms = (
-                now - state["started_at"]
-            ) * 1000.0
-
-            if elapsed_ms >= max(1, int(timeout_ms)):
-                _trace("Timed out while searching for the item.")
-                _stop_player()
-                _reset()
-                return BehaviorTree.NodeState.FAILURE
-
-            target_agent_id = state["target_agent_id"]
-
-            if target_agent_id > 0:
-                if not _item_agent_exists(target_agent_id):
-                    if state["interacted"]:
-                        _trace(
-                            "Ground item disappeared after interaction."
-                        )
-                        _stop_player()
-                        _reset()
-                        return BehaviorTree.NodeState.SUCCESS
-
-                    state["target_agent_id"] = 0
-                    state["target_item_id"] = 0
-                    state["target_xy"] = None
-                    return BehaviorTree.NodeState.RUNNING
-
-            if target_agent_id <= 0:
-                (
-                    target_agent_id,
-                    target_item_id,
-                    target_xy,
-                ) = _find_nearest_matching_item()
-
-                if target_agent_id <= 0 or target_xy is None:
-                    return BehaviorTree.NodeState.RUNNING
-
-                state["target_agent_id"] = target_agent_id
-                state["target_item_id"] = target_item_id
-                state["target_xy"] = target_xy
-                state["interacted"] = False
-
-                _trace(
-                    f"Found item agent {target_agent_id}."
-                )
-
-            target_xy = state["target_xy"]
-            if target_xy is None:
-                state["target_agent_id"] = 0
-                return BehaviorTree.NodeState.RUNNING
-
-            player_xy = Player.GetXY()
-
-            distance_to_item = _distance(
-                (
-                    float(player_xy[0]),
-                    float(player_xy[1]),
-                ),
-                target_xy,
-            )
-
-            if distance_to_item > float(pickup_distance):
-                Player.Move(
-                    float(target_xy[0]),
-                    float(target_xy[1]),
-                )
-                return BehaviorTree.NodeState.RUNNING
-
-            interval_s = (
-                max(0, int(interaction_interval_ms))
-                / 1000.0
-            )
-
-            if (
-                now - state["last_interaction_at"]
-                < interval_s
-            ):
-                return BehaviorTree.NodeState.RUNNING
-
-            state["last_interaction_at"] = now
-            state["interacted"] = True
-
-            Player.ChangeTarget(target_agent_id)
-            Player.Interact(target_agent_id, False)
-
-            return BehaviorTree.NodeState.RUNNING
-
-        return BehaviorTree(
-            BehaviorTree.ActionNode(
-                name="PickupGroundItemByModelID",
-                action_fn=_pickup_item,
-                aftercast_ms=aftercast_ms,
-            )
-        )
 
     @staticmethod
     def DestroyZeroValueItems(

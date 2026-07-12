@@ -79,6 +79,12 @@
     "enc:\\\\x4161\\\\xA291\\\\xB856\\\\x0259": [
       "Esprit[s] de famine"
     ],
+    "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": [
+      "Esprit[s] de douleur"
+    ],
+    "enc:\\\\x4165\\\\xAA52\\\\x6E73": [
+      "Esprit[s] de Destruction"
+    ],
     "enc:\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72": [
       "Ma\u00eetre[s] des d\u00e9g\u00e2ts"
     ],
@@ -157,6 +163,9 @@
     "enc:\\\\x8101\\\\x4736\\\\xF036\\\\x9959\\\\x0190": [
       "Animation[s] d'horreur[s] d\u00e9chiquet\u00e9e[s]"
     ],
+    "enc:\\\\x8101\\\\x4737\\\\xE78D\\\\x9F9E\\\\x59B9": [
+      "Esprit[s] d'angoisse"
+    ],
     "enc:\\\\x8101\\\\x49EB\\\\xA26F\\\\x9E48\\\\x5FB3": [
       "N\u00e9phile[s] traqueuse[s]"
     ],
@@ -228,6 +237,105 @@
     ],
     "enc:\\\\x8101\\\\x57F9\\\\xCA2E\\\\xD34C\\\\x744D": [
       "Tourmenteur[s] de la raison"
+    ],
+    "enc:\\\\x8101\\\\x737A\\\\xB6E9\\\\x2E05": [
+      "Coeur[s] de ch\u00eane sauvage[s]"
+    ],
+    "enc:\\\\x8101\\\\x742A\\\\xD2E5\\\\x8AFA\\\\x7C87": [
+      "Drake[s] chromatique[s]"
+    ],
+    "enc:\\\\x8101\\\\x742B\\\\x9FAE\\\\x826A\\\\x7212": [
+      "Drake[s] chromatique[s]"
+    ],
+    "enc:\\\\x8101\\\\x742C\\\\xD070\\\\xD203\\\\x4B5B": [
+      "Drake[s] chromatique[s]"
+    ],
+    "enc:\\\\x8101\\\\x742D\\\\x8AF2\\\\xF0B8\\\\x2398": [
+      "Drake[s] chromatique[s]"
+    ],
+    "enc:\\\\x8101\\\\x763E\\\\xF0FC\\\\xE65A\\\\x63EC": [
+      "Neoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x7645\\\\xF6E7\\\\x69F7": [
+      "Hypnoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x7646\\\\xF16E\\\\xC21B\\\\x3F9B": [
+      "Necross krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x7647\\\\x8B99\\\\xD397\\\\x19D4": [
+      "Arcanoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x7648\\\\xBD1B\\\\xC8C1\\\\x40D0": [
+      "Devouss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x7649\\\\xBD2C\\\\xBF18\\\\x3855": [
+      "Neoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x764A\\\\xBAFF\\\\xB3C7\\\\x76C2": [
+      "Neoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x76B0\\\\x9F99\\\\xE643\\\\x2BDC": [
+      "Fendi Nin"
+    ],
+    "enc:\\\\x8101\\\\x76BB\\\\xE389\\\\xEBD2\\\\x5BB6": [
+      "Neoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x76E3\\\\x9ADB\\\\xCFAD\\\\x2A04": [
+      "Neoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D1\\\\x94E7\\\\xCE8C\\\\x022C": [
+      "Spectre[s] de la crypte"
+    ],
+    "enc:\\\\x8101\\\\x79D2\\\\x9243\\\\xFDAB\\\\x76C1": [
+      "Fant\u00f4me[s] de choc"
+    ],
+    "enc:\\\\x8101\\\\x79D3\\\\x94A9\\\\x678D": [
+      "Illusionniste[s] squelette[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D4\\\\x837A\\\\xB0B2\\\\x26F7": [
+      "Magicien[s] squelette[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D5\\\\xE7BF\\\\xD1DF\\\\x0235": [
+      "Pr\u00eatre[s] squelette[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D6\\\\x9EF8\\\\xD507\\\\x4DD7": [
+      "Squelette[s] archer[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D7\\\\x9660\\\\xC036\\\\x786C": [
+      "Dragon[s] putr\u00e9fi\u00e9[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D8\\\\x931B\\\\xF82C\\\\x2236": [
+      "Brute[s] zombie[s]"
+    ],
+    "enc:\\\\x8101\\\\x79D9\\\\xFB83\\\\xA564\\\\x0A62": [
+      "Clerc[s] encha\u00een\u00e9[s]"
+    ],
+    "enc:\\\\x8101\\\\x79DA\\\\xCA0B\\\\xB8D5\\\\x2BEA": [
+      "N\u00e9cromant[s] zombie[s]"
+    ],
+    "enc:\\\\x8101\\\\x7C32\\\\xBE23\\\\xBF2F\\\\x5AFF": [
+      "Gardien[s] squelette[s]"
+    ],
+    "enc:\\\\x8102\\\\x10E1\\\\x9E29\\\\xC83F\\\\x5C60": [
+      "Fendi Nin"
+    ],
+    "enc:\\\\x8102\\\\x144D\\\\xA005\\\\xED03\\\\x3943": [
+      "Ame de Fendi Nin"
+    ],
+    "enc:\\\\x8102\\\\x144F\\\\xA2EA\\\\xC29A\\\\x1987": [
+      "Membre[s] d'\u00e9quipage damn\u00e9[s]"
+    ],
+    "enc:\\\\x8102\\\\x288C\\\\x8650\\\\xE055\\\\x40F7": [
+      "Flannuss Grandaile"
+    ],
+    "enc:\\\\x8102\\\\x2914\\\\xF8EE\\\\xFD7D\\\\x0415": [
+      "Hache[s] enchant\u00e9e[s]"
+    ],
+    "enc:\\\\x8102\\\\x291A\\\\xFB1A\\\\x9149\\\\x6788": [
+      "Ep\u00e9e[s] enchant\u00e9e[s]"
+    ],
+    "enc:\\\\x8102\\\\x2C76\\\\xEBF4\\\\xB1F7\\\\x2700": [
+      "Brigand[s] maudit[s]"
     ]
   },
   "schema": "py4gw_enemy_tracker_names",

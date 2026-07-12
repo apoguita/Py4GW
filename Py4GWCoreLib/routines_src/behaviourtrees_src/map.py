@@ -808,3 +808,67 @@ class BTMap:
                 )
         
         return BehaviorTree(tree)
+
+
+    @staticmethod
+    def IsCurrentMap(
+        map_id: int,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a condition tree that succeeds when the player is currently on the
+        requested map.
+
+        Meta:
+        Expose: true
+        Audience: beginner
+        Display: Is Current Map
+        Purpose: Check whether the current map id matches a requested map id.
+        UserDescription: Use this when a selector or sequence should run only on a specific map.
+        Notes: Returns SUCCESS on a match and FAILURE immediately otherwise. This routine does not wait for a map change.
+        """
+
+        def _is_current_map(
+            node: BehaviorTree.Node,
+        ) -> BehaviorTree.NodeState:
+            current_map_id = int(
+                Map.GetMapID() or 0
+            )
+            expected_map_id = int(map_id)
+
+            node.blackboard[
+                "current_map_id"
+            ] = current_map_id
+            node.blackboard[
+                "expected_map_id"
+            ] = expected_map_id
+
+            if current_map_id == expected_map_id:
+                _log(
+                    "IsCurrentMap",
+                    (
+                        f"Current map {current_map_id} "
+                        f"matches expected map "
+                        f"{expected_map_id}."
+                    ),
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            _log(
+                "IsCurrentMap",
+                (
+                    f"Current map {current_map_id} "
+                    f"does not match expected map "
+                    f"{expected_map_id}."
+                ),
+                log=log,
+            )
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"IsCurrentMap({int(map_id)})",
+                condition_fn=_is_current_map,
+            )
+        )

@@ -232,7 +232,7 @@ def EnterChahbekMission() -> BehaviorTree:
             ),
 
             BT.MoveAndInteractWithGadget(
-                Vec2f(-4725, -1830),
+                Vec2f(-4725.0, -1830.0),
                 pause_on_combat=True,
                 log=True,
             ),
@@ -240,26 +240,26 @@ def EnterChahbekMission() -> BehaviorTree:
             BT.Wait(2_000),
 
             BT.MoveAndInteractWithGadget(
-                Vec2f(-1725, -2550),
+                Vec2f(-1725.0, -2550.0),
                 pause_on_combat=True,
                 log=True,
             ),
             BT.Wait(1_500),
-            BT.InteractWithGadgetAtXY(Vec2f(-1725, -2550)),
+            BT.InteractWithGadgetAtXY(Vec2f(-1725.0, -2550.0)),
 
             BT.MoveAndInteractWithGadget(
-                Vec2f(-4725, -1830),
+                Vec2f(-4725.0, -1830.0),
                 pause_on_combat=True,
                 log=True,
             ),
             BT.MoveAndInteractWithGadget(
-                Vec2f(-1731, -4138),
+                Vec2f(-1731.0, -4138.0),
                 pause_on_combat=True,
                 log=True,
             ),
             BT.UnflagAllHeroes(),
             BT.Wait(2_000),
-            BT.InteractWithGadgetAtXY(Vec2f(-1731, -4138)),
+            BT.InteractWithGadgetAtXY(Vec2f(-1731.0, -4138.0)),
 
             BT.VanquishNode(
                 name="Clear Chahbek Final Path",

@@ -2850,20 +2850,35 @@ def Selector(
         )
     )
 
+def AbandonQuest(
+    quest_id: int,
+    multi_account: bool = False,
+    include_self: bool = True,
+    timeout_ms: int = 10_000,
+    aftercast_ms: int = 250,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Party.AbandonQuest(
+        quest_id=quest_id,
+        multi_account=multi_account,
+        include_self=include_self,
+        timeout_ms=timeout_ms,
+        aftercast_ms=aftercast_ms,
+        log=log,
+    )
+
 def PickupGroundItemByModelID(
     model_ids: int | SequenceABC[int],
     max_distance: float = 5_000.0,
-    pickup_distance: float = 180.0,
     timeout_ms: int = 15_000,
     allow_unassigned: bool = True,
-    interaction_interval_ms: int = 150,
+    interaction_interval_ms: int = 500,
     aftercast_ms: int = 100,
     log: bool = False,
 ) -> BehaviorTree:
     return RoutinesBT.Items.PickupGroundItemByModelID(
         model_ids=model_ids,
         max_distance=max_distance,
-        pickup_distance=pickup_distance,
         timeout_ms=timeout_ms,
         allow_unassigned=allow_unassigned,
         interaction_interval_ms=interaction_interval_ms,
@@ -2871,3 +2886,22 @@ def PickupGroundItemByModelID(
         log=log,
     )
 
+def IsCurrentMap(
+    map_id: int,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Map.IsCurrentMap(
+        map_id=map_id,
+        log=log,
+    )
+
+def IsQuestState(
+    quest_id: int,
+    state: str,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Quest.IsQuestState(
+        quest_id=quest_id,
+        state=state,
+        log=log,
+    )

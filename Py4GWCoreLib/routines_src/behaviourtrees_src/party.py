@@ -20,6 +20,10 @@ from ...Py4GWcorelib import ConsoleLog, Console
 from ...Skillbar import SkillBar
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from .composite import BTComposite
+import time
+
+from ...Quest import Quest
+from ...enums import SharedCommandType
 
 
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
@@ -625,39 +629,7 @@ class BTParty:
             )
         )
 
-    @staticmethod
-    def AbandonQuest(quest_id: int, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
-        """
-        Build an action tree that abandons a quest by id.
-
-        Meta:
-          Expose: true
-          Audience: intermediate
-          Display: Abandon Quest
-          Purpose: Abandon a quest by quest id.
-          UserDescription: Use this when a route needs to reset or clear a specific quest.
-          Notes: Fails when the quest id is not positive.
-        """
-
-        def _abandon_quest() -> BehaviorTree.NodeState:
-            qid = int(quest_id)
-            if qid <= 0:
-                _fail_log("BTParty.AbandonQuest", f"Failed to abandon quest: invalid quest id {qid}.")
-                return BehaviorTree.NodeState.FAILURE
-            from ...Quest import Quest
-
-            Quest.AbandonQuest(qid)
-            _log("BTParty.AbandonQuest", f"Abandoned quest id={qid}.", log=log)
-            return BehaviorTree.NodeState.SUCCESS
-
-        return BehaviorTree(
-            BehaviorTree.ActionNode(
-                name="AbandonQuest",
-                action_fn=_abandon_quest,
-                aftercast_ms=max(0, int(aftercast_ms)),
-            )
-        )
-
+    
     @staticmethod
     def WaitForActiveQuest(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250, log: bool = False) -> BehaviorTree:
         """
@@ -776,5 +748,306 @@ class BTParty:
             BehaviorTree.ConditionNode(
                 name=f"IsQuestAbsentFromLog({int(quest_id)})",
                 condition_fn=_is_quest_absent_from_log,
+            )
+        )
+
+
+    @staticmethod
+    def AbandonQuest(
+        quest_id: int,
+        multi_account: bool = False,
+        include_self: bool = True,
+        timeout_ms: int = 10_000,
+        aftercast_ms: int = 250,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that abandons a quest locally or across active accounts.
+
+        When multibox mode is enabled, the routine abandons the quest locally
+        when requested, sends an AbandonQuest shared command to every other
+        active account, then waits until all dispatched messages are processed.
+
+        Meta:
+        Expose: true
+        Audience: intermediate
+        Display: Abandon Quest
+        Purpose: Abandon a quest locally or across a multibox party.
+        UserDescription: Use this when every account must reset the same quest before continuing.
+        Notes: Remote accounts must support SharedCommandType.AbandonQuest.
+        """
+        import time
+
+        resolved_quest_id = int(quest_id)
+        resolved_timeout_ms = max(
+            0,
+            int(timeout_ms),
+        )
+
+        phase = "start"
+        started_at = 0.0
+        refs: list[tuple[str, int]] = []
+
+        def _reset() -> None:
+            nonlocal phase
+            nonlocal started_at
+            nonlocal refs
+
+            phase = "start"
+            started_at = 0.0
+            refs = []
+
+        def _trace(
+            message: str,
+            message_type=Console.MessageType.Info,
+        ) -> None:
+            _log(
+                "BTParty.AbandonQuest",
+                message,
+                log=log,
+                message_type=message_type,
+            )
+
+        def _message_is_active(
+            sender_email: str,
+            receiver_email: str,
+            message_index: int,
+        ) -> bool:
+            if int(message_index) < 0:
+                return False
+
+            try:
+                message = GLOBAL_CACHE.ShMem.GetInbox(
+                    int(message_index)
+                )
+            except Exception:
+                return False
+
+            return (
+                bool(
+                    getattr(
+                        message,
+                        "Active",
+                        False,
+                    )
+                )
+                and str(
+                    getattr(
+                        message,
+                        "SenderEmail",
+                        "",
+                    )
+                    or ""
+                )
+                == sender_email
+                and str(
+                    getattr(
+                        message,
+                        "ReceiverEmail",
+                        "",
+                    )
+                    or ""
+                )
+                == receiver_email
+                and int(
+                    getattr(
+                        message,
+                        "Command",
+                        -1,
+                    )
+                )
+                == int(
+                    SharedCommandType.AbandonQuest
+                )
+            )
+
+        def _abandon_quest(
+            _node: BehaviorTree.Node,
+        ) -> BehaviorTree.NodeState:
+            nonlocal phase
+            nonlocal started_at
+            nonlocal refs
+
+            now = time.monotonic()
+
+            if resolved_quest_id <= 0:
+                _fail_log(
+                    "BTParty.AbandonQuest",
+                    (
+                        "Invalid quest id: "
+                        f"{resolved_quest_id}."
+                    ),
+                )
+                _reset()
+                return BehaviorTree.NodeState.FAILURE
+
+            if phase == "start":
+                started_at = now
+                refs = []
+
+                if include_self:
+                    Quest.AbandonQuest(
+                        resolved_quest_id
+                    )
+
+                    _trace(
+                        (
+                            f"Abandoned quest "
+                            f"{resolved_quest_id} locally."
+                        )
+                    )
+
+                if not multi_account:
+                    _reset()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                sender_email = str(
+                    Player.GetAccountEmail() or ""
+                )
+
+                if not sender_email:
+                    _fail_log(
+                        "BTParty.AbandonQuest",
+                        "Unable to resolve the local account email.",
+                    )
+                    _reset()
+                    return BehaviorTree.NodeState.FAILURE
+
+                for account in (
+                    GLOBAL_CACHE.ShMem.GetAllAccountData()
+                    or []
+                ):
+                    receiver_email = str(
+                        getattr(
+                            account,
+                            "AccountEmail",
+                            "",
+                        )
+                        or ""
+                    )
+
+                    if (
+                        not receiver_email
+                        or receiver_email == sender_email
+                    ):
+                        continue
+
+                    try:
+                        message_index = int(
+                            GLOBAL_CACHE.ShMem.SendMessage(
+                                sender_email,
+                                receiver_email,
+                                SharedCommandType.AbandonQuest,
+                                (
+                                    resolved_quest_id,
+                                    0,
+                                    0,
+                                    0,
+                                ),
+                            )
+                        )
+                    except Exception as error:
+                        _fail_log(
+                            "BTParty.AbandonQuest",
+                            (
+                                "Failed to send AbandonQuest "
+                                f"to '{receiver_email}': {error}"
+                            ),
+                        )
+                        continue
+
+                    refs.append(
+                        (
+                            receiver_email,
+                            message_index,
+                        )
+                    )
+
+                    _trace(
+                        (
+                            f"Sent quest {resolved_quest_id} "
+                            f"abandon command to "
+                            f"'{receiver_email}' "
+                            f"(message={message_index})."
+                        )
+                    )
+
+                if not refs:
+                    _trace(
+                        "No remote accounts required processing."
+                    )
+                    _reset()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                phase = "wait"
+                return BehaviorTree.NodeState.RUNNING
+
+            if phase == "wait":
+                sender_email = str(
+                    Player.GetAccountEmail() or ""
+                )
+
+                pending_accounts: list[str] = []
+
+                for receiver_email, message_index in refs:
+                    if _message_is_active(
+                        sender_email,
+                        receiver_email,
+                        message_index,
+                    ):
+                        pending_accounts.append(
+                            receiver_email
+                        )
+
+                if not pending_accounts:
+                    remote_count = len(refs)
+
+                    _trace(
+                        (
+                            f"Quest {resolved_quest_id} "
+                            f"abandoned on the local account "
+                            f"and {remote_count} remote account(s)."
+                        ),
+                        Console.MessageType.Success,
+                    )
+
+                    _reset()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                elapsed_ms = (
+                    now - started_at
+                ) * 1000.0
+
+                if (
+                    resolved_timeout_ms > 0
+                    and elapsed_ms >= resolved_timeout_ms
+                ):
+                    _fail_log(
+                        "BTParty.AbandonQuest",
+                        (
+                            "Timed out while waiting for "
+                            "remote quest abandonment: "
+                            + ", ".join(
+                                pending_accounts
+                            )
+                        ),
+                    )
+
+                    _reset()
+                    return BehaviorTree.NodeState.FAILURE
+
+                return BehaviorTree.NodeState.RUNNING
+
+            _reset()
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="AbandonQuest",
+                action_fn=_abandon_quest,
+                aftercast_ms=max(
+                    0,
+                    int(aftercast_ms),
+                ),
             )
         )

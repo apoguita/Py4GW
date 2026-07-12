@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-import os, Py4GW, math
+import os, Py4GW
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.IniManager import IniManager
-from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib.Map import Map
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.GameData_enums import Range
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.enums_src.Player_enums import PlayerStatus
+from Py4GWCoreLib.routines_src.behaviourtrees_src.constants.lists import CONSET_UPKEEPS, CONSUMABLE_UPKEEPS as ALL_CONSUMABLE_UPKEEPS
 from Py4GWCoreLib.routines_src.behaviourtrees_src.items import BTItems
-from Py4GWCoreLib.routines_src.behaviourtrees_src.constants.lists import CONSUMABLE_UPKEEPS as ALL_CONSUMABLE_UPKEEPS
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 
 
@@ -43,13 +41,6 @@ ARMOR_OF_SALVATION = 24861
 # Summoning stones already used by the original SoO script.
 SUMMON_MODEL_IDS = (30209, 37810, 31155)
 
-
-CONSET_UPKEEPS = (
-    ESSENCE_OF_CELERITY,
-    GRAIL_OF_MIGHT,
-    ARMOR_OF_SALVATION,
-)
-
 # Standard personal consumables provided by ApoBottingLib.
 # The conset IDs are excluded because they have their own settings.
 PCON_UPKEEPS = tuple(
@@ -63,6 +54,10 @@ CONSET_RESTOCK_ITEMS: tuple[tuple[int, int], ...] = tuple(
 )
 PCON_RESTOCK_ITEMS: tuple[tuple[int, int], ...] = tuple(
     (model_id, 10) for model_id in PCON_UPKEEPS
+)
+
+SUMMON_RESTOCK_ITEMS: tuple[tuple[int, int], ...] = tuple(
+    (model_id, 10) for model_id in SUMMON_MODEL_IDS
 )
 
 _SETTINGS_SECTION = "Settings"
@@ -111,42 +106,16 @@ SOO_ENTRANCE_PATH = [
     Vec2f(9240.07, -20260.95),
 ]
 
-L1_PATH_BEFORE_BRIGANT = [
-    Vec2f(-11685.5, 10475.5), Vec2f(-10682.6, 9841.2),
-    Vec2f(-9670.9, 9744.2), Vec2f(-8661.9, 9975.7),
-    Vec2f(-7653.5, 10063.4), Vec2f(-6652.0, 10156.2),
-    Vec2f(-5646.1, 10717.7), Vec2f(-4642.3, 11376.3),
-    Vec2f(-3640.8, 11984.6), Vec2f(-2634.2, 12702.1),
-    Vec2f(-1630.8, 13315.2), Vec2f(-628.5, 14075.6),
-    Vec2f(379.8, 14700.8), Vec2f(1384.7, 15324.0),
-    Vec2f(2394.5, 15950.3), Vec2f(3409.5, 15710.4),
-    Vec2f(4157.9, 14705.9), Vec2f(5089.4, 13698.1),
-    Vec2f(6090.8, 13172.6), Vec2f(7091.1, 13482.8),
-    Vec2f(8093.3, 13148.6), Vec2f(8503.9, 12143.5),
-    Vec2f(7496.9, 11676.0), Vec2f(6494.3, 10739.2),
-]
-
-L1_PATH_TO_FIRST_DOOR = [
-    Vec2f(9196.0, 11484.4), Vec2f(10196.0, 12469.4),
-    Vec2f(11198.7, 13401.8), Vec2f(12201.3, 14284.4),
-    Vec2f(13202.8, 15176.3), Vec2f(14207.0, 16116.2),
-    Vec2f(15208.8, 16871.6), Vec2f(16213.2, 16417.3),
-    Vec2f(16643.4, 15416.6), Vec2f(16994.9, 14410.6),
-    Vec2f(17115.6, 13405.6), Vec2f(16689.2, 12400.4),
-]
-
-L1_PATH_TO_GADGET = [
-    Vec2f(15927.4, 11684.7), Vec2f(16037.8, 10679.9),
-    Vec2f(15761.1, 9679.7), Vec2f(15289.5, 8672.6),
-    Vec2f(14447.3, 7672.0), Vec2f(14526.2, 6664.2),
-    Vec2f(14951.6, 5657.9),
+L1_PATH = [
+    Vec2f(3720.16, 15370.78),
+    Vec2f(6740.06, 11039.32),
+    Vec2f(16026.25, 16957.26),
+    Vec2f(14255.37, 6189.60)
 ]
 
 L1_PATH_AFTER_DOOR = [
-    Vec2f(15364.9, 4858.7), Vec2f(15689.5, 3857.7),
-    Vec2f(16026.7, 2857.1), Vec2f(17030.7, 2262.6),
-    Vec2f(18035.7, 1888.8), Vec2f(19037.1, 1384.6),
-    Vec2f(19679.2, 1009.5), Vec2f(20181.6, 1203.7),
+    Vec2f(17442.40, 2577.83),
+    Vec2f(20181.6, 1203.7),
     Vec2f(20400.5, 1300.0),
 ]
 
@@ -155,9 +124,8 @@ TORCH_MODEL_IDS = (22341, 22342)
 TORCH_BUFF_ID = 2545
 
 L2_BLESSING_NPC = Vec2f(-14076.0, -19457.0)
+
 L2_PATH_TO_TORCH = [
-    Vec2f(-14977.9, -16480.2),
-    Vec2f(-15985.6, -16838.1),
     Vec2f(-16985.9, -16929.4),
 ]
 L2_TORCH_CHEST = Vec2f(-14709.0, -16548.0)
@@ -167,25 +135,23 @@ L2_FIRST_TORCH_DROP_POINT_PATH = [
 L2_RETURN_TO_FIRST_TORCH_PATH = [
     Vec2f(-9259.0, -17322.0),
     Vec2f(-9971.23, -17633.08),
-    Vec2f(-11136.85, -17201.66),
+
 ]
 L2_BRAZIER_PART1 = [
-    (-11303.0, -14596.0),
-    (-11019.0, -11550.0),
-    (-9028.0, -9021.0),
-    (-6805.0, -11511.0),
-    (-8984.0, -13842.0),
+    (-11303.00, -14596.00),
+    (-11019.00, -11550.00),
+    (-9028.00, -9021.00),
+    (-6805.00, -11511.00),
+    (-8984.00, -13842.00),
 ]
 L2_CLEANING_PATH = [
-    Vec2f(-8836.63, -11471.01),
+    Vec2f(-9011.27, -11536.79),
 ]
-L2_TO_ROOM2_DROP = Vec2f(-11061.1, -7578.5)
+L2_TO_ROOM2_DROP = (Vec2f(-10514.69, -9542.61), Vec2f(-11061.1, -7578.5))
 L2_RETURN_TO_ROOM2_TORCH_PATH = [
     Vec2f(-10958.2, -4529.5),
     Vec2f(-11690.64, -3802.55),
-    Vec2f(-10958.2, -4529.5),
-    Vec2f(-11032.11, -5389.71),
-    Vec2f(-11090.10, -6890.14),
+
 ]
 L2_ROOM2_PATH = [
     Vec2f(-8066.1, -4222.4),
@@ -193,18 +159,12 @@ L2_ROOM2_PATH = [
 ]
 
 L2_BRAZIER_PART2 = [
-    (-3717.0, -4254.0),
-    (-8251.0, -3240.0),
+    (-3717.00, -4254.00),
+    (-8251.00, -3240.00),
     (-8278.0, -1670.0),
 ]
 L2_AFTER_PART2_POSITION = Vec2f(-5009.49, -2542.30)
 L2_PATH_TO_LOCK = [
-    Vec2f(-11033.4, -6755.6),
-    Vec2f(-11318.0, -7767.2),
-    Vec2f(-12320.7, -8417.1),
-    Vec2f(-13324.0, -8649.0),
-    Vec2f(-14326.3, -8773.0),
-    Vec2f(-15331.0, -8905.6),
     Vec2f(-16335.1, -9004.5),
 ]
 L2_DUNGEON_LOCK = Vec2f(-18725.0, -9171.0)
@@ -216,11 +176,9 @@ L2_EXIT_PATH = [
 # Level 3 routes
 L3_ENTRY_BLESSING = Vec2f(17544.0, 18810.0)
 L3_MAIN_PATH = [
-    Vec2f(16111.0, 17556.0), Vec2f(13998.4,18866.7),
-    Vec2f(12990.9,19299.5), Vec2f(11988.8,19353.2),
-    Vec2f(10986.4,19188.9), Vec2f(9985.7,18719.2),
-    Vec2f(9402.1,17715.6), Vec2f(9076.9,17383.4),
-    Vec2f(9133.0,16373.0), Vec2f(8496.5,15367.3),
+    Vec2f(16325.98, 15981.14),
+    Vec2f(13998.4,18866.7),
+    Vec2f(8496.5,15367.3),
     Vec2f(7978.0,14357.9), Vec2f(7105.7,13350.9),
     Vec2f(6236.1,12349.0), Vec2f(5524.4,11344.1),
     Vec2f(4813.8,10340.7), Vec2f(4095.0,9332.7),
@@ -251,7 +209,7 @@ L3_BRAZIERS = [
     (-4959.0,7558.0), (-7532.0,4536.0), (-10984.0,486.0),
     (-12621.0,2948.0),
 ]
-L3_BRIGANT_KILL_PATH = [Vec2f(-11878.79,2166.51), Vec2f(-9686.32,2632.0)]
+L3_BRIGANT_KILL_PATH = [Vec2f(-11878.79,2166.51), Vec2f(-9252.32, 6396.40), Vec2f(-9686.32,2632.0)]
 L3_BOSS_DOOR = Vec2f(-9252.32, 6396.40)
 L3_FENDI_PATH = [
     Vec2f(-8871.19,6152.95), Vec2f(-9326.33,6862.55),
@@ -262,8 +220,6 @@ L3_FENDI_PATH = [
 ]
 FENDI_CHEST_POSITION = (-15800.98, 16901.23)
 FENDI_CHEST_GADGET_ID = 8934
-FENDI_SCAN_RADIUS = 700.0
-FENDI_BOSS_MODEL_IDS = {7064, 7065}
 
 initialized = False
 ini_key = ""
@@ -297,13 +253,26 @@ def _save_settings() -> None:
 
 
 def _enabled_consumable_upkeeps() -> tuple[int, ...]:
+    """
+    Return the consumables that must be continuously maintained.
+
+    Summoning stones are excluded because they are one-shot items and must not
+    be handled by ConsumableService.
+    """
     enabled: list[int] = []
+
     if _activate_conset:
         enabled.extend(CONSET_UPKEEPS)
+
     if _activate_pcons:
         enabled.extend(PCON_UPKEEPS)
-    return tuple(dict.fromkeys(int(model_id) for model_id in enabled))
 
+    return tuple(
+        dict.fromkeys(
+            int(model_id)
+            for model_id in enabled
+        )
+    )
 
 def _configure_runtime_upkeeps() -> None:
     if botting_tree is None:
@@ -323,53 +292,83 @@ def _configure_runtime_upkeeps() -> None:
 
 def _draw_settings() -> None:
     import PyImGui
-    global _use_hard_mode, _restock_conset, _activate_conset
-    global _restock_pcons, _activate_pcons, _use_summoning_stone
+
+    global _use_hard_mode
+    global _restock_conset, _activate_conset
+    global _restock_pcons, _activate_pcons
+    global _use_summoning_stone
 
     _load_settings()
+
     PyImGui.text("Shards of Orr Settings")
     PyImGui.separator()
 
     changed = False
     upkeep_changed = False
 
-    value = PyImGui.checkbox("Hard Mode (HM)", _use_hard_mode)
+    value = PyImGui.checkbox(
+        "Hard Mode (HM)",
+        _use_hard_mode,
+    )
     if value != _use_hard_mode:
         _use_hard_mode = value
         changed = True
 
     PyImGui.separator()
     PyImGui.text("Conset")
-    value = PyImGui.checkbox("Restock conset from storage", _restock_conset)
+
+    value = PyImGui.checkbox(
+        "Restock conset from storage",
+        _restock_conset,
+    )
     if value != _restock_conset:
         _restock_conset = value
         changed = True
-    value = PyImGui.checkbox("Activate / maintain conset", _activate_conset)
+
+    value = PyImGui.checkbox(
+        "Activate / maintain conset",
+        _activate_conset,
+    )
     if value != _activate_conset:
         _activate_conset = value
         changed = True
         upkeep_changed = True
 
     PyImGui.separator()
-    PyImGui.text("Personal consumables (pcons)")
-    value = PyImGui.checkbox("Restock pcons from storage", _restock_pcons)
+    PyImGui.text("Personal consumables")
+
+    value = PyImGui.checkbox(
+        "Restock pcons from storage",
+        _restock_pcons,
+    )
     if value != _restock_pcons:
         _restock_pcons = value
         changed = True
-    value = PyImGui.checkbox("Activate / maintain pcons", _activate_pcons)
+
+    value = PyImGui.checkbox(
+        "Activate / maintain pcons",
+        _activate_pcons,
+    )
     if value != _activate_pcons:
         _activate_pcons = value
         changed = True
         upkeep_changed = True
 
     PyImGui.separator()
-    value = PyImGui.checkbox("Use summoning stone", _use_summoning_stone)
+    PyImGui.text("Summoning stones")
+
+    value = PyImGui.checkbox(
+        "Use summoning stones",
+        _use_summoning_stone,
+    )
     if value != _use_summoning_stone:
         _use_summoning_stone = value
         changed = True
+        upkeep_changed = True
 
     if changed:
         _save_settings()
+
     if upkeep_changed:
         _configure_runtime_upkeeps()
 
@@ -382,79 +381,33 @@ def _runtime_difficulty_node() -> BehaviorTree:
 
 
 def _runtime_restock_node() -> BehaviorTree:
-    def _build(_node: BehaviorTree.Node) -> BehaviorTree:
+    def _build(
+        _node: BehaviorTree.Node,
+    ) -> BehaviorTree:
         items: list[tuple[int, int]] = []
+
         if _restock_conset:
             items.extend(CONSET_RESTOCK_ITEMS)
+
         if _restock_pcons:
             items.extend(PCON_RESTOCK_ITEMS)
+
+        if _use_summoning_stone:
+            items.extend(SUMMON_RESTOCK_ITEMS)
+
         if not items:
-            return BT.Succeeder("RestockDisabled")
-        return BT.RestockItemsFromList(tuple(items), allow_missing=True)
+            return BT.Succeeder(
+                "RestockDisabled"
+            )
 
-    return BT.Subtree(name="Restock Selected Consumables", subtree_fn=_build)
-
-def _quest_state() -> str:
-    quest_ids = {int(quest_id) for quest_id in (Quest.GetQuestLogIds() or [])}
-    if LOST_SOULS_QUEST_ID not in quest_ids:
-        return "missing"
-    if Quest.IsQuestCompleted(LOST_SOULS_QUEST_ID):
-        return "complete"
-    return "active"
-
-
-def _quest_state_is(expected: str, name: str) -> BehaviorTree:
-    def _check(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        return (
-            BehaviorTree.NodeState.SUCCESS
-            if _quest_state() == expected
-            else BehaviorTree.NodeState.FAILURE
+        return BT.RestockItemsFromList(
+            tuple(items),
+            allow_missing=True,
         )
 
-    return BehaviorTree(BehaviorTree.ActionNode(name=name, action_fn=_check))
-
-
-def _map_is(map_id: int, name: str) -> BehaviorTree:
-    def _check(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        return (
-            BehaviorTree.NodeState.SUCCESS
-            if int(Map.GetMapID()) == int(map_id)
-            else BehaviorTree.NodeState.FAILURE
-        )
-
-    return BehaviorTree(BehaviorTree.ActionNode(name=name, action_fn=_check))
-
-
-
-def EnsureTorch(name: str) -> BehaviorTree:
-    """Ensure that the local player is carrying an active SoO torch."""
-    return BT.Selector(
-        name=name,
-        children=[
-            BT.HasLocalEffect(
-                effect_id=TORCH_BUFF_ID,
-                log=True,
-            ),
-            BT.Sequence(
-                name=f"{name} Pickup",
-                children=[
-                    BT.PickupGroundItemByModelID(
-                        model_ids=TORCH_MODEL_IDS,
-                        max_distance=5_000.0,
-                        pickup_distance=180.0,
-                        timeout_ms=15_000,
-                        allow_unassigned=True,
-                        interaction_interval_ms=150,
-                        aftercast_ms=100,
-                        log=True,
-                    ),
-                    BT.HasLocalEffect(
-                        effect_id=TORCH_BUFF_ID,
-                        log=True,
-                    ),
-                ],
-            ),
-        ],
+    return BT.Subtree(
+        name="Restock Selected Consumables",
+        subtree_fn=_build,
     )
 
 
@@ -465,30 +418,20 @@ def BrazierSequence(
     children: list[BehaviorTree | BehaviorTree.Node] = []
 
     for x, y in points:
-        children.extend(
-            [
-                BT.HasLocalEffect(
-                    effect_id=TORCH_BUFF_ID,
-                    log=True,
-                ),
-                BT.MoveAndInteractWithGadget(
-                    pos=Vec2f(float(x), float(y)),
-                    gadget_id=None,
-                    search_distance=300.0,
-                    interaction_distance=220.0,
-                    interaction_count=2,
-                    interaction_interval_ms=100,
-                    timeout_ms=15_000,
-                    pause_on_combat=False,
-                    multi_account=False,
-                    include_self=True,
-                    log=True,
-                ),
-                BT.HasLocalEffect(
-                    effect_id=TORCH_BUFF_ID,
-                    log=True,
-                ),
-            ]
+        children.append(
+            BT.MoveAndInteractWithGadget(
+                pos=Vec2f(float(x), float(y)),
+                gadget_id=None,
+                search_distance=300.0,
+                interaction_distance=220.0,
+                interaction_count=2,
+                interaction_interval_ms=100,
+                timeout_ms=15_000,
+                pause_on_combat=False,
+                multi_account=False,
+                include_self=True,
+                log=True,
+            )
         )
 
     return BT.Sequence(
@@ -544,8 +487,15 @@ def PreparePartyAndSupplies() -> BehaviorTree:
     already_ready_in_level_1 = BT.Sequence(
         name="Skip Outpost Preparation - Already In Level 1",
         children=[
-            _map_is(SOO_LEVEL_1, "AlreadyInSoOLevel1ForPreparation"),
-            _quest_state_is("active", "LostSoulsActiveForPreparation"),
+            BT.IsCurrentMap(
+    map_id=SOO_LEVEL_1,
+    log=True,
+),
+            BT.IsQuestState(
+                quest_id=LOST_SOULS_QUEST_ID,
+                state="active",
+                log=True,
+            ),
             BT.Succeeder("OutpostPreparationAlreadyDone"),
         ],
     )
@@ -556,6 +506,13 @@ def PreparePartyAndSupplies() -> BehaviorTree:
         hard_mode=None,
         children=[
             BT.CreateParty(multibox_invite=True, timeout_ms=30_000, log=True),
+            BT.AbandonQuest(
+    quest_id=LOST_SOULS_QUEST_ID,
+    multi_account=True,
+    include_self=True,
+    timeout_ms=10_000,
+    log=True,
+),
             _runtime_difficulty_node(),
             _runtime_restock_node(),
             BT.LogMessage(message="Party formed and selected settings applied", module_name=MODULE_NAME),
@@ -567,8 +524,8 @@ def TravelToShandra() -> BehaviorTree:
     skip_if_already_in_level_1 = BT.Sequence(
         name="Skip Travel To Shandra - Already In Level 1",
         children=[
-            _map_is(SOO_LEVEL_1, "AlreadyInSoOLevel1ForTravel"),
-            _quest_state_is("active", "LostSoulsActiveForTravel"),
+            BT.IsCurrentMap(map_id=SOO_LEVEL_1, log=True),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="active", log=True),
             BT.Succeeder("TravelToShandraAlreadyDone"),
         ],
     )
@@ -579,6 +536,7 @@ def TravelToShandra() -> BehaviorTree:
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             BT.Wait(2_000),
             BT.MoveAndDialog(ARBOR_BLESSING_NPC, dialog_id=DWARVEN_BLESSING_DIALOG, multi_account=True, log=True),
+            BT.Wait(3_000),
             BT.Move(ARBOR_TO_SHANDRA_PATH, pause_on_combat=True, log=True),
             BT.WaitUntilOutOfCombat(timeout_ms=60_000),
             BT.Move(SHANDRA_APPROACH, pause_on_combat=False, log=True),
@@ -590,19 +548,19 @@ def HandleShandraQuest() -> BehaviorTree:
     already_inside = BT.Sequence(
         name="Skip Shandra Handler - Already In Level 1",
         children=[
-            _map_is(SOO_LEVEL_1, "AlreadyInSoOLevel1ForQuest"),
-            _quest_state_is("active", "LostSoulsAlreadyActiveInside"),
+            BT.IsCurrentMap(map_id=SOO_LEVEL_1, log=True),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="active", log=True),
             BT.Succeeder("ShandraHandlerAlreadyDone"),
         ],
     )
     active = BT.Sequence(
         name="Lost Souls Already Active",
-        children=[_quest_state_is("active", "LostSoulsIsActive"), BT.Succeeder("ContinueWithActiveQuest")],
+        children=[BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="active", log=True), BT.Succeeder("ContinueWithActiveQuest")],
     )
     completed = BT.Sequence(
         name="Collect And Retake Lost Souls",
         children=[
-            _quest_state_is("complete", "LostSoulsIsComplete"),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="complete", log=True),
             BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_REWARD_DIALOG, pause_on_combat=False, multi_account=True, log=True),
             BT.WaitForQuestCleared(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
             BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_TAKE_DIALOG, pause_on_combat=False, multi_account=True, log=True),
@@ -612,7 +570,7 @@ def HandleShandraQuest() -> BehaviorTree:
     missing = BT.Sequence(
         name="Take Lost Souls",
         children=[
-            _quest_state_is("missing", "LostSoulsIsMissing"),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="missing", log=True),
             BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_TAKE_DIALOG, pause_on_combat=False, multi_account=True, log=True),
             BT.WaitForActiveQuest(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
         ],
@@ -623,8 +581,8 @@ def EnterShardsOfOrr() -> BehaviorTree:
     already_inside = BT.Sequence(
         name="Skip Dungeon Entry - Already In Level 1",
         children=[
-            _map_is(SOO_LEVEL_1, "AlreadyInSoOLevel1ForEntry"),
-            _quest_state_is("active", "LostSoulsActiveForEntry"),
+            BT.IsCurrentMap(map_id=SOO_LEVEL_1, log=True),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="active", log=True),
             BT.Succeeder("DungeonEntryAlreadyDone"),
         ],
     )
@@ -639,51 +597,25 @@ def EnterShardsOfOrr() -> BehaviorTree:
     )
     return BT.Selector(children=[already_inside, normal_entry], name="Enter Shards of Orr")
 
-def UseAvailableSummon() -> BehaviorTree:
-    def _build(_node: BehaviorTree.Node) -> BehaviorTree:
-        if not _use_summoning_stone:
-            return BT.Succeeder("SummoningStoneDisabled")
-        return BT.Selector(
-            children=[
-                BTItems.UseConsumable(model_id) for model_id in SUMMON_MODEL_IDS
-            ] + [BT.Succeeder("NoSummonAvailable")],
-            name="Use Available Summon"
-        )
-
-    return BT.Subtree(name="Use Summoning Stone Setting", subtree_fn=_build)
-
-
 def RunLevel1() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 1",
         children=[
-            BT.AddModelToLootWhitelist(25416),
+            UseAvailableSummoningStone(),
+            BT.AddModelToLootWhitelist(25410),
             BT.MoveAndDialog(
                 Vec2f(-11686.0, 10427.0),
                 dialog_id=DWARVEN_BLESSING_DIALOG,
                 multi_account=True,
                 log=True,
             ),
-            UseAvailableSummon(),
             BT.VanquishNode(
-                L1_PATH_BEFORE_BRIGANT,
+                L1_PATH,
                 name="Level 1 First Route",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
-            BT.VanquishNode(
-                L1_PATH_TO_FIRST_DOOR,
-                name="Level 1 Route To Door",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
-            ),
-            BT.Move(Vec2f(15953.0, 11902.0), pause_on_combat=True),
-            BT.VanquishNode(
-                L1_PATH_TO_GADGET,
-                name="Level 1 Route To Door Gadget",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
-            ),
+            
             BT.MoveAndInteractWithGadget(Vec2f(15100.0, 5443.0),
                 pause_on_combat=True,
                 log=True,
@@ -692,7 +624,7 @@ def RunLevel1() -> BehaviorTree:
                 L1_PATH_AFTER_DOOR,
                 name="Level 1 Route To Level 2",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_2, timeout_ms=60_000),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
@@ -705,36 +637,37 @@ def RunLevel2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
         children=[
+            UseAvailableSummoningStone(),
+            BT.AddModelToLootWhitelist(25410),
             BT.MoveAndDialog(
                 L2_BLESSING_NPC,
                 dialog_id=DWARVEN_BLESSING_DIALOG,
                 multi_account=True,
                 log=True,
             ),
-            UseAvailableSummon(),
             BT.VanquishNode(
                 L2_PATH_TO_TORCH,
                 name="Level 2 Route To Torch Chest",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.MoveAndInteractWithGadget(
                 L2_TORCH_CHEST,
                 pause_on_combat=False,
                 log=True,
             ),
-            EnsureTorch("Pickup First Level 2 Torch"),
+            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
             BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True),
             BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_RETURN_TO_FIRST_TORCH_PATH,
                 name="Clear And Return To First Torch",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
-            EnsureTorch("Recover First Level 2 Torch"),
-            BT.Move(Vec2f(-11030.3, -17474.0), pause_on_combat=False),
-            BT.Move(Vec2f(-11303.0, -14596.0), pause_on_combat=False),
+            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True),
+            BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True),
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
             BT.DropBundle(log=True),
             BT.VanquishNode(
@@ -743,36 +676,36 @@ def RunLevel2() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Compass.value,
             ),
-            EnsureTorch("Pick Up Torch After Level 2 Cleaning"),
-            BT.Move(L2_TO_ROOM2_DROP, pause_on_combat=True),
+            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
+            BT.VanquishNode(L2_TO_ROOM2_DROP,clear_area_radius=Range.Area.value, pause_on_combat=True),
             BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_RETURN_TO_ROOM2_TORCH_PATH,
                 name="Clear Route Back To Room 2 Torch",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
-            EnsureTorch("Pick Up Level 2 Room 2 Torch"),
+            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
             BT.VanquishNode(
                 L2_ROOM2_PATH,
                 name="Clear Level 2 Room 2",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.DropBundle(log=True),
             BT.VanquishNode([Vec2f(-4245.2, -2101.0)],
                 name="Clear Level 2 Room 2",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
-            EnsureTorch("Pick Up Torch For Second Brazier Route"),
+            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),
             BrazierSequence("Level 2 Brazier Route 2", L2_BRAZIER_PART2),
             BT.DropBundle(log=True),
             BT.VanquishNode(
                 L2_PATH_TO_LOCK,
                 name="Level 2 Route To Dungeon Lock",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.MoveAndInteractWithGadget(
                 L2_DUNGEON_LOCK,
@@ -808,13 +741,38 @@ def CollectInsideReward() -> BehaviorTree:
         ],
     )
 
+def UseAvailableSummoningStone() -> BehaviorTree:
+    """
+    Use the first available summoning stone once.
 
+    Summoning stones are handled as one-shot consumables and are therefore
+    kept outside the continuous consumable upkeep service.
+    """
+    if not _use_summoning_stone:
+        return BT.Succeeder(
+            "SummoningStoneDisabled",
+        )
+
+    return BT.Selector(
+        name="Use Available Summoning Stone",
+        children=[
+            BTItems.UseConsumable(
+                int(model_id),
+            )
+            for model_id in SUMMON_MODEL_IDS
+        ]
+        + [
+            BT.Succeeder(
+                "NoSummoningStoneAvailable",
+            ),
+        ],
+    )
 
 def PrepareNextDungeonRun() -> BehaviorTree:
     reward_collected_inside = BT.Sequence(
         name="Restart After Inside Reward",
         children=[
-            _quest_state_is("missing", "LostSoulsMissingAfterInsideReward"),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="missing", log=True),
             BT.LogMessage(message="Reward already collected inside. Retaking Lost Souls.", module_name=MODULE_NAME),
             BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_TAKE_DIALOG, pause_on_combat=False, multi_account=True, log=True),
             BT.WaitForActiveQuest(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
@@ -825,7 +783,7 @@ def PrepareNextDungeonRun() -> BehaviorTree:
     reward_not_collected_inside = BT.Sequence(
         name="Restart After Outside Reward",
         children=[
-            _quest_state_is("complete", "LostSoulsCompleteAfterDungeon"),
+            BT.IsQuestState(quest_id=LOST_SOULS_QUEST_ID, state="complete", log=True),
             BT.LogMessage(message="Reward still pending. Collecting it in Arbor Bay.", module_name=MODULE_NAME),
             BT.MoveAndDialog(SHANDRA_APPROACH, SHANDRA_REWARD_DIALOG, pause_on_combat=False, multi_account=True, log=True),
             BT.WaitForQuestCleared(LOST_SOULS_QUEST_ID, timeout_ms=15_000),
@@ -844,15 +802,74 @@ def PrepareNextDungeonRun() -> BehaviorTree:
 )
 
 
-def CollectRewardAndPrepareRestart() -> BehaviorTree:
-    try_inside_reward = BT.Sequence(
-        name="Try Collect Shandra Reward Inside Dungeon",
+def CollectRewardAndPrepareRestart(
+    end_countdown_timeout_ms: int = 190_000,
+) -> BehaviorTree:
+    """
+    Attempt to collect the Lost Souls reward from Shandra inside the dungeon,
+    then wait for the end-of-dungeon countdown and prepare the next run.
+
+    Two scenarios are supported:
+
+    1. Shandra is available inside the dungeon:
+       - collect the reward inside;
+       - wait for the automatic return to Arbor Bay;
+       - retake Lost Souls;
+       - enter Shards of Orr for the next run.
+
+    2. Shandra is unavailable inside the dungeon:
+       - log that the reward remains pending;
+       - wait for the automatic return to Arbor Bay;
+       - collect the reward outside;
+       - perform the required dungeon entry/exit sequence;
+       - retake Lost Souls;
+       - enter Shards of Orr for the next run.
+    """
+
+    reward_collected_inside = BT.Sequence(
+        name="Collect Shandra Reward Inside Dungeon",
         children=[
-            _quest_state_is(
-                "complete",
-                "LostSoulsCompleteInsideDungeon",
+            BT.IsQuestState(
+                quest_id=LOST_SOULS_QUEST_ID,
+                state="complete",
+                log=True,
+            ),
+            BT.LogMessage(
+                message=(
+                    "Lost Souls is complete. Looking for "
+                    "Shandra inside the dungeon."
+                ),
+                module_name=MODULE_NAME,
             ),
             CollectInsideReward(),
+            BT.WaitForQuestCleared(
+                LOST_SOULS_QUEST_ID,
+                timeout_ms=15_000,
+            ),
+            BT.LogMessage(
+                message=(
+                    "Shandra was found inside the dungeon "
+                    "and the Lost Souls reward was collected."
+                ),
+                module_name=MODULE_NAME,
+            ),
+        ],
+    )
+
+    reward_not_collected_inside = BT.Sequence(
+        name="Shandra Unavailable Inside Dungeon",
+        children=[
+            BT.LogMessage(
+                message=(
+                    "Shandra was not found inside the dungeon "
+                    "or the inside reward could not be collected. "
+                    "The reward will be handled in Arbor Bay."
+                ),
+                module_name=MODULE_NAME,
+            ),
+            BT.Succeeder(
+                "InsideRewardUnavailable",
+            ),
         ],
     )
 
@@ -860,24 +877,35 @@ def CollectRewardAndPrepareRestart() -> BehaviorTree:
         name="Collect Reward And Prepare Restart",
         children=[
             BT.Selector(
-                name="Try Inside Reward",
+                name="Resolve Inside Reward",
                 children=[
-                    try_inside_reward,
-                    BT.Succeeder(
-                        "InsideRewardUnavailable"
-                    ),
+                    reward_collected_inside,
+                    reward_not_collected_inside,
                 ],
             ),
             BT.LogMessage(
                 message=(
-                    "Waiting for the end-of-dungeon "
-                    "countdown."
+                    "Waiting for the end-of-dungeon countdown "
+                    "and the return to Arbor Bay."
                 ),
                 module_name=MODULE_NAME,
             ),
             BT.WaitForMapLoad(
                 map_id=ARBOR_BAY,
-                timeout_ms=120_000,
+                timeout_ms=end_countdown_timeout_ms,
+            ),
+            BT.WaitUntilOnExplorable(
+                timeout_ms=30_000,
+            ),
+            BT.Wait(
+                2_000,
+            ),
+            BT.LogMessage(
+                message=(
+                    "The party has returned to Arbor Bay. "
+                    "Preparing the next dungeon run."
+                ),
+                module_name=MODULE_NAME,
             ),
             BT.Move(
                 SHANDRA_APPROACH,
@@ -887,8 +915,8 @@ def CollectRewardAndPrepareRestart() -> BehaviorTree:
             PrepareNextDungeonRun(),
             BT.LogMessage(
                 message=(
-                    "Lost Souls active and party back "
-                    "in SoO Level 1."
+                    "Lost Souls is active and the party is "
+                    "back inside Shards of Orr Level 1."
                 ),
                 module_name=MODULE_NAME,
             ),
@@ -899,42 +927,41 @@ def RunLevel3() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 3",
         children=[
+            UseAvailableSummoningStone(),
             BT.MoveAndDialog(
                 L3_ENTRY_BLESSING,
                 dialog_id=DWARVEN_BLESSING_DIALOG,
                 multi_account=True,
                 log=True,
             ),
-            UseAvailableSummon(),
             BT.VanquishNode(
                 L3_MAIN_PATH,
                 name="Level 3 Main Route",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.VanquishNode(
                 L3_BRIGANT_APPROACH,
                 name="Level 3 Route Before Torch",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.VanquishNode(
                 L3_PATH_TO_TORCH,
                 name="Level 3 Route To Torch Chest",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.MoveAndInteractWithGadget(
                 L3_TORCH_CHEST, pause_on_combat=False, log=True,
             ),
-            EnsureTorch("Pickup Level 3 Torch"),
-            BrazierSequence("Level 3 Brazier Route", L3_BRAZIERS),
+            BT.PickupGroundItemByModelID(model_ids=TORCH_MODEL_IDS,max_distance=10_000.0,timeout_ms=45_000,allow_unassigned=True,interaction_interval_ms=5000,aftercast_ms=100,log=True,),            BrazierSequence("Level 3 Brazier Route", L3_BRAZIERS),
             BT.DropBundle(log=True),
             BT.VanquishNode(
                 L3_BRIGANT_KILL_PATH,
                 name="Kill Level 3 Brigant",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.MoveAndInteractWithGadget(
                 L3_BOSS_DOOR, pause_on_combat=False, log=True,
@@ -943,7 +970,7 @@ def RunLevel3() -> BehaviorTree:
                 L3_FENDI_PATH,
                 name="Route To Fendi",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Nearby.value,
+                clear_area_radius=Range.Spellcast.value,
             ),
             BT.WaitForClearEnemiesInArea(
                 x=-16022.9,
@@ -966,8 +993,8 @@ def RunLevel3() -> BehaviorTree:
             pos=Vec2f(*FENDI_CHEST_POSITION),
             search_distance=700.0,
             interaction_distance=Range.Nearby.value,
-            interaction_count=1,
-            interaction_interval_ms=500,
+            interaction_count=3,
+            interaction_interval_ms=2000,
             account_settle_ms=5_000,
             timeout_ms=90_000,
             multi_account=True,
