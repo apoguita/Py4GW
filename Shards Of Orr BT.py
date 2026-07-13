@@ -318,6 +318,7 @@ def _configure_runtime_upkeeps() -> None:
         ),
         consumable_upkeeps=_enabled_consumable_upkeeps(),
         heroai_state_logging=False,
+        enable_party_wipe_recovery=True
     )
 
 
@@ -1100,7 +1101,7 @@ def EnterShardsOfOrr() -> BehaviorTree:
 # region Dungeon level 1
 
 
-def RunLevel1() -> BehaviorTree:
+def Level1_Part1() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 1",
         children=[
@@ -1123,6 +1124,17 @@ def RunLevel1() -> BehaviorTree:
                 pause_on_combat=True,
                 log=True,
             ),
+            
+        ],
+    )
+
+
+# endregion
+#region Level 1 - part 2
+def Level1_Part2() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Shards of Orr Level 1 - Part 2",
+        children=[
             BT.VanquishNode(
                 L1_PATH_AFTER_DOOR,
                 name="Level 1 Route To Level 2",
@@ -1134,13 +1146,13 @@ def RunLevel1() -> BehaviorTree:
             BT.Wait(2_000),
         ],
     )
+#endregion
 
 
-# endregion
-# region Dungeon level 2
+# region Level 2 - part 1
 
 
-def RunLevel2() -> BehaviorTree:
+def Level2_Part1() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
         children=[
@@ -1177,6 +1189,15 @@ def RunLevel2() -> BehaviorTree:
             BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True),
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
             BT.DropBundle(log=True),
+        ],
+    )
+#endregion
+# region Level 2 - part 2
+
+def Level2_Part2() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Shards of Orr Level 2",
+        children=[
             BT.VanquishNode(
                 L2_CLEANING_PATH,
                 name="Clear Remaining Level 2 Room 1 Enemies",
@@ -1233,12 +1254,11 @@ def RunLevel2() -> BehaviorTree:
 
 
 # endregion
-# region Dungeon level 3
 
-
-def RunLevel3() -> BehaviorTree:
+# region Level 3 - part 1
+def Level3_FirstPath() -> BehaviorTree:
     return BT.Sequence(
-        name="Run Shards of Orr Level 3",
+        name="Run Shards of Orr Level 3 First Path",
         children=[
             UseAvailableSummoningStone(),
             BT.MoveAndDialog(
@@ -1253,17 +1273,33 @@ def RunLevel3() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
             ),
+        ],
+    )
+#endregion
+
+# region Level 3 - part 2
+def Level3_BrigantRoom() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Shards of Orr Level 3 Second Path",
+        children=[
             BT.VanquishNode(
                 L3_BRIGANT_APPROACH,
                 name="Level 3 Route Before Torch",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
             ),
-            BT.VanquishNode(
+        ],
+    )
+#endregion
+
+def Level3_Torch() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Shards of Orr Level 3 Third Path",
+        children=[
+            BT.Move(
                 L3_PATH_TO_TORCH,
-                name="Level 3 Route To Torch Chest",
                 flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
+                pause_on_combat=False
             ),
             BT.MoveAndInteractWithGadget(
                 L3_TORCH_CHEST, pause_on_combat=False, log=True,
@@ -1271,6 +1307,15 @@ def RunLevel3() -> BehaviorTree:
             PickupTorch(),
             BrazierSequence("Level 3 Brazier Route", L3_BRAZIERS),
             BT.DropBundle(log=True),
+        ],
+    )
+
+
+# region Level 3 - part 3
+def Level3_Brigant() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Shards of Orr Level 3",
+        children=[                      
             BT.VanquishNode(
                 L3_BRIGANT_KILL_PATH,
                 name="Kill Level 3 Brigant",
@@ -1280,6 +1325,15 @@ def RunLevel3() -> BehaviorTree:
             BT.MoveAndInteractWithGadget(
                 L3_BOSS_DOOR, pause_on_combat=False, log=True,
             ),
+        ],
+    )
+# endregion
+
+# region Level 3 - boss
+def Level3_Fendi() -> BehaviorTree:
+    return BT.Sequence(
+        name="Run Fendi Boss Fight",
+        children=[
             BT.VanquishNode(
                 L3_FENDI_PATH,
                 name="Route To Fendi",
@@ -1310,12 +1364,9 @@ def RunLevel3() -> BehaviorTree:
             include_self=True,
             log=True,
         ),
-
-        ],
-    )
-
-
-# endregion
+    
+        ])
+#endregion
 
 
 # region Reward and restart flow
@@ -1632,9 +1683,19 @@ def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
         ("Travel To Shandra", TravelToShandra),
         ("Handle Shandra Quest", HandleShandraQuest),
         ("Enter Shards Of Orr", EnterShardsOfOrr),
-        ("Run Level 1", RunLevel1),
-        ("Run Level 2", RunLevel2),
-        ("Run Level 3", RunLevel3),
+
+        ("Level 1 Before door", Level1_Part1),
+        ("Level 1 After door", Level1_Part2),
+
+        ("Level 2 After First Brazier Sequence", Level2_Part1),
+        ("Level 2 After First Room", Level2_Part2),
+
+        ("Level 3 First Path", Level3_FirstPath),
+        ("Level 3 Brigant Room", Level3_BrigantRoom),
+        ("Level 3 Torch", Level3_Torch),
+        ("Level 3 Brigant", Level3_Brigant),
+        ("Level 3 Fendi Boss Fight", Level3_Fendi),
+
         ("Collect Reward And Prepare Restart", CollectRewardAndPrepareRestart),
     ]
 
