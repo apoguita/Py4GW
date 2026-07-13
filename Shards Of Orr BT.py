@@ -445,7 +445,7 @@ def _runtime_restock_node() -> BehaviorTree:
 # endregion
 
 
-# region Reusable script helpers
+# region Helpers
 
 
 def PickupTorch() -> BehaviorTree:
@@ -496,20 +496,7 @@ def BrazierSequence(
 
     for x, y in points:
         children.append(
-            BT.MoveAndInteractWithGadget(
-                pos=Vec2f(float(x), float(y)),
-                gadget_id=None,
-                search_distance=300.0,
-                interaction_distance=220.0,
-                interaction_count=2,
-                interaction_interval_ms=100,
-                timeout_ms=15_000,
-                pause_on_combat=False,
-                multi_account=False,
-                include_self=True,
-                log=True,
-            )
-        )
+            BT.MoveAndInteractWithGadget(pos=Vec2f(float(x), float(y)),gadget_id=None,search_distance=300.0,interaction_distance=220.0,interaction_count=2,interaction_interval_ms=100,timeout_ms=15_000,pause_on_combat=False,multi_account=False,include_self=True,log=True,))
 
     return BT.Sequence(
         name=name,
