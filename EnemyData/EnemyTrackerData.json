@@ -6104,6 +6104,25 @@
         }
       }
     },
+    "enc:\\\\x147D\\\\xD3C0\\\\x2155": {
+      "encoded_names": [
+        "\\\\x147D\\\\xD3C0\\\\x2155"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2783
+      ],
+      "observed_maps": {
+        "15": {
+          "base_id": 15,
+          "id": 15,
+          "instance_type": "Outpost",
+          "name": "D'Alessio Seaboard outpost"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x1483\\\\xC2FC\\\\x116A": {
       "encoded_names": [
         "\\\\x1483\\\\xC2FC\\\\x116A"
@@ -35491,9 +35510,33 @@
           "profession": "Elementalist",
           "profession_id": 6
         },
+        "1261": {
+          "id": 1261,
+          "name": "Frigid Armor",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "1375": {
           "id": 1375,
           "name": "Stoneflesh Aura",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1382": {
+          "id": 1382,
+          "name": "Freezing Gust",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1663": {
+          "id": 1663,
+          "name": "Elemental Flame",
           "profession": "Elementalist",
           "profession_id": 6
         },
@@ -35503,9 +35546,33 @@
           "profession": "Elementalist",
           "profession_id": 6
         },
+        "179": {
+          "id": 179,
+          "name": "Incendiary Bonds",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "185": {
           "id": 185,
           "name": "Mind Burn",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "209": {
+          "id": 209,
+          "name": "Mind Freeze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "213": {
+          "id": 213,
+          "name": "Shard Storm",
           "profession": "Elementalist",
           "profession_id": 6
         },
@@ -35521,11 +35588,47 @@
           "profession": "Elementalist",
           "profession_id": 6
         },
+        "226": {
+          "id": 226,
+          "name": "Mind Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "232": {
+          "id": 232,
+          "name": "Lightning Touch",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "235": {
+          "id": 235,
+          "name": "Blurred Vision",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
         "2486": {
           "id": 2486,
           "name": "Elemental_Shift",
           "profession": "None",
           "profession_id": 0
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "846": {
+          "id": 846,
+          "name": "Steam",
+          "profession": "Elementalist",
+          "profession_id": 6
         }
       }
     },
@@ -38086,6 +38189,12 @@
         "390": {
           "id": 390,
           "name": "Savage Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "851": {
+          "id": 851,
+          "name": "Sun and Moon Slash",
           "profession": "Warrior",
           "profession_id": 1
         },

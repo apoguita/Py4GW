@@ -253,7 +253,7 @@ botting_tree: BottingTree | None = None
 # endregion
 
 
-# region Settings
+# region Run config
 
 
 def _load_settings() -> None:
@@ -321,7 +321,7 @@ def _configure_runtime_upkeeps() -> None:
     )
 
 
-def _draw_settings() -> None:
+def _draw_run_config() -> None:
     import PyImGui
 
     global _use_hard_mode
@@ -331,7 +331,7 @@ def _draw_settings() -> None:
 
     _load_settings()
 
-    PyImGui.text("Shards of Orr Settings")
+    PyImGui.text("Shards of Orr Run Config")
     PyImGui.separator()
 
     changed = False
@@ -492,15 +492,433 @@ def BrazierSequence(
     name: str,
     points: list[tuple[float, float]],
 ) -> BehaviorTree:
-    children: list[BehaviorTree | BehaviorTree.Node] = []
+    """
+    Activate a sequence of SoO braziers.
 
-    for x, y in points:
+    The first brazier is activated normally because the torch flame effect is
+    not available before that interaction. Every following movement continuously
+    monitors the flame and returns to the previous brazier if it disappears.
+    """
+    if not points:
+        return BT.Succeeder(
+            f"{name}Empty",
+        )
+
+    children: list[
+        BehaviorTree | BehaviorTree.Node
+    ] = []
+
+    first_x, first_y = points[0]
+
+    children.append(
+        BT.MoveAndInteractWithGadget(
+            pos=Vec2f(
+                float(first_x),
+                float(first_y),
+            ),
+            gadget_id=None,
+            search_distance=300.0,
+            interaction_distance=220.0,
+            interaction_count=2,
+            interaction_interval_ms=250,
+            timeout_ms=15_000,
+            pause_on_combat=False,
+            multi_account=False,
+            include_self=True,
+            log=True,
+        )
+    )
+
+    for index in range(
+        1,
+        len(points),
+    ):
+        previous_brazier = points[
+            index - 1
+        ]
+        next_brazier = points[
+            index
+        ]
+
         children.append(
-            BT.MoveAndInteractWithGadget(pos=Vec2f(float(x), float(y)),gadget_id=None,search_distance=300.0,interaction_distance=220.0,interaction_count=2,interaction_interval_ms=100,timeout_ms=15_000,pause_on_combat=False,multi_account=False,include_self=True,log=True,))
+            MoveBetweenBraziersWithFlameRecovery(
+            name=f"{name} {index}/{len(points) - 1}",
+            previous_brazier=previous_brazier,
+            next_brazier=next_brazier,
+            effect_id=TORCH_BUFF_ID,
+            interaction_distance=220.0,
+            interaction_count=2,
+            interaction_interval_ms=250,
+            effect_apply_timeout_ms=3000,
+            timeout_ms=90000,
+            max_recoveries=5,
+            log=True,)
+        )
 
     return BT.Sequence(
         name=name,
         children=children,
+    )
+
+def MoveBetweenBraziersWithFlameRecovery(
+    name: str,
+    previous_brazier: tuple[float, float],
+    next_brazier: tuple[float, float],
+    effect_id: int = TORCH_BUFF_ID,
+    interaction_distance: float = 220.0,
+    interaction_count: int = 2,
+    interaction_interval_ms: int = 250,
+    effect_apply_timeout_ms: int = 3_000,
+    timeout_ms: int = 90_000,
+    max_recoveries: int = 5,
+    log: bool = True,
+) -> BehaviorTree:
+    """
+    Move between two braziers while continuously monitoring the torch flame.
+
+    Movement is delegated entirely to the regular BT Move node. If the flame
+    disappears while moving to the next brazier, that movement subtree is
+    reset, the current movement is cancelled once, and a dedicated BT Move
+    subtree returns the player to the previous brazier. The torch is then
+    relit before the original movement resumes.
+    """
+    import time
+
+    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+    from Py4GWCoreLib.Player import Player
+
+    previous_pos = Vec2f(
+        float(previous_brazier[0]),
+        float(previous_brazier[1]),
+    )
+    next_pos = Vec2f(
+        float(next_brazier[0]),
+        float(next_brazier[1]),
+    )
+
+    move_to_next = BT.Move(
+        next_pos,
+        tolerance=float(interaction_distance),
+        pause_on_combat=False,
+        log=log,
+    )
+    move_to_previous = BT.Move(
+        previous_pos,
+        tolerance=float(interaction_distance),
+        pause_on_combat=False,
+        log=log,
+    )
+    relight_previous = BT.MoveAndInteractWithGadget(
+        pos=previous_pos,
+        gadget_id=None,
+        search_distance=300.0,
+        interaction_distance=float(interaction_distance),
+        interaction_count=max(1, int(interaction_count)),
+        interaction_interval_ms=max(0, int(interaction_interval_ms)),
+        timeout_ms=15_000,
+        pause_on_combat=False,
+        multi_account=False,
+        include_self=True,
+        log=log,
+    )
+    interact_next = BT.MoveAndInteractWithGadget(
+        pos=next_pos,
+        gadget_id=None,
+        search_distance=300.0,
+        interaction_distance=float(interaction_distance),
+        interaction_count=max(1, int(interaction_count)),
+        interaction_interval_ms=max(0, int(interaction_interval_ms)),
+        timeout_ms=15_000,
+        pause_on_combat=False,
+        multi_account=False,
+        include_self=True,
+        log=log,
+    )
+
+    state = {
+        "phase": "move_to_next",
+        "started_at": 0.0,
+        "phase_started_at": 0.0,
+        "recovery_count": 0,
+    }
+
+    def _trace(
+        message: str,
+        message_type=Py4GW.Console.MessageType.Info,
+    ) -> None:
+        if log:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"[{name}] {message}",
+                message_type,
+            )
+
+    def _has_active_flame() -> bool:
+        try:
+            return bool(
+                GLOBAL_CACHE.Effects.HasEffect(
+                    Player.GetAgentID(),
+                    int(effect_id),
+                )
+            )
+        except Exception:
+            return False
+
+    def _cancel_current_movement() -> None:
+        try:
+            player_x, player_y = Player.GetXY()
+            Player.Move(
+                float(player_x),
+                float(player_y),
+            )
+        except Exception:
+            pass
+
+    def _reset_tree(tree: BehaviorTree) -> None:
+        try:
+            tree.reset()
+        except Exception:
+            try:
+                tree.root.reset()
+            except Exception:
+                pass
+
+    def _tick_tree(
+        tree: BehaviorTree,
+        node: BehaviorTree.Node,
+    ) -> BehaviorTree.NodeState:
+        tree.root.blackboard = node.blackboard
+        result = tree.root.tick()
+
+        if isinstance(result, BehaviorTree.NodeState):
+            return result
+        if result is True:
+            return BehaviorTree.NodeState.SUCCESS
+        if result is False:
+            return BehaviorTree.NodeState.FAILURE
+        return BehaviorTree.NodeState.RUNNING
+
+    def _reset_all() -> None:
+        _reset_tree(move_to_next)
+        _reset_tree(move_to_previous)
+        _reset_tree(relight_previous)
+        _reset_tree(interact_next)
+
+        state["phase"] = "move_to_next"
+        state["started_at"] = 0.0
+        state["phase_started_at"] = 0.0
+        state["recovery_count"] = 0
+
+    def _begin_recovery(now: float) -> BehaviorTree.NodeState:
+        state["recovery_count"] += 1
+
+        if state["recovery_count"] > max(1, int(max_recoveries)):
+            _trace(
+                (
+                    "Torch recovery failed after "
+                    f"{max(1, int(max_recoveries))} attempt(s)."
+                ),
+                Py4GW.Console.MessageType.Warning,
+            )
+            _reset_all()
+            return BehaviorTree.NodeState.FAILURE
+
+        _trace(
+            (
+                "Torch flame extinguished during movement. "
+                "Returning to the previous brazier "
+                f"(recovery {state['recovery_count']}/"
+                f"{max(1, int(max_recoveries))})."
+            ),
+            Py4GW.Console.MessageType.Warning,
+        )
+
+        _reset_tree(move_to_next)
+        _reset_tree(move_to_previous)
+        _reset_tree(relight_previous)
+        _cancel_current_movement()
+
+        state["phase"] = "move_to_previous"
+        state["phase_started_at"] = now
+        return BehaviorTree.NodeState.RUNNING
+
+    def _move_with_recovery(
+        node: BehaviorTree.Node,
+    ) -> BehaviorTree.NodeState:
+        now = time.monotonic()
+
+        if state["started_at"] <= 0.0:
+            state["started_at"] = now
+            state["phase_started_at"] = now
+            _trace(
+                (
+                    "Starting monitored BT movement from "
+                    f"{previous_brazier} to {next_brazier}."
+                )
+            )
+
+        elapsed_ms = (
+            now - float(state["started_at"])
+        ) * 1000.0
+
+        if elapsed_ms >= max(1, int(timeout_ms)):
+            _trace(
+                "Timed out while moving between braziers.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            _cancel_current_movement()
+            _reset_all()
+            return BehaviorTree.NodeState.FAILURE
+
+        if bool(
+            node.blackboard.get(
+                "USER_INTERRUPT_ACTIVE",
+                False,
+            )
+        ):
+            _cancel_current_movement()
+            _reset_all()
+            return BehaviorTree.NodeState.FAILURE
+
+        phase = str(state["phase"])
+
+        if phase == "move_to_next":
+            if not _has_active_flame():
+                return _begin_recovery(now)
+
+            result = _tick_tree(move_to_next, node)
+
+            if result == BehaviorTree.NodeState.RUNNING:
+                return BehaviorTree.NodeState.RUNNING
+
+            if result == BehaviorTree.NodeState.FAILURE:
+                _trace(
+                    "Movement to the next brazier failed.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                _reset_all()
+                return BehaviorTree.NodeState.FAILURE
+
+            _reset_tree(move_to_next)
+            state["phase"] = "interact_next"
+            state["phase_started_at"] = now
+            _trace(
+                "Reached the next brazier with the torch still active."
+            )
+            return BehaviorTree.NodeState.RUNNING
+
+        if phase == "interact_next":
+            if not _has_active_flame():
+                return _begin_recovery(now)
+
+            result = _tick_tree(interact_next, node)
+
+            if result == BehaviorTree.NodeState.RUNNING:
+                return BehaviorTree.NodeState.RUNNING
+
+            if result == BehaviorTree.NodeState.FAILURE:
+                _trace(
+                    "Interaction with the next brazier failed.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                _reset_all()
+                return BehaviorTree.NodeState.FAILURE
+
+            _trace(
+                "Next brazier interaction completed.",
+                Py4GW.Console.MessageType.Success,
+            )
+            _reset_all()
+            return BehaviorTree.NodeState.SUCCESS
+
+        if phase == "move_to_previous":
+            result = _tick_tree(move_to_previous, node)
+
+            if result == BehaviorTree.NodeState.RUNNING:
+                return BehaviorTree.NodeState.RUNNING
+
+            if result == BehaviorTree.NodeState.FAILURE:
+                _trace(
+                    "Movement back to the previous brazier failed.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                _reset_all()
+                return BehaviorTree.NodeState.FAILURE
+
+            _reset_tree(move_to_previous)
+            state["phase"] = "relight_previous"
+            state["phase_started_at"] = now
+            _trace(
+                "Reached the previous brazier. Relighting the torch."
+            )
+            return BehaviorTree.NodeState.RUNNING
+
+        if phase == "relight_previous":
+            result = _tick_tree(relight_previous, node)
+
+            if result == BehaviorTree.NodeState.RUNNING:
+                return BehaviorTree.NodeState.RUNNING
+
+            if result == BehaviorTree.NodeState.FAILURE:
+                _trace(
+                    "Interaction with the previous brazier failed.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                _reset_all()
+                return BehaviorTree.NodeState.FAILURE
+
+            _reset_tree(relight_previous)
+            state["phase"] = "wait_for_relight"
+            state["phase_started_at"] = now
+            return BehaviorTree.NodeState.RUNNING
+
+        if phase == "wait_for_relight":
+            if _has_active_flame():
+                _trace(
+                    (
+                        "Torch relit successfully. "
+                        "Resuming movement to the next brazier."
+                    ),
+                    Py4GW.Console.MessageType.Success,
+                )
+                _reset_tree(move_to_next)
+                _reset_tree(interact_next)
+                state["phase"] = "move_to_next"
+                state["phase_started_at"] = now
+                return BehaviorTree.NodeState.RUNNING
+
+            elapsed_phase_ms = (
+                now - float(state["phase_started_at"])
+            ) * 1000.0
+
+            if elapsed_phase_ms < max(
+                1,
+                int(effect_apply_timeout_ms),
+            ):
+                return BehaviorTree.NodeState.RUNNING
+
+            _trace(
+                (
+                    "The torch effect did not return after "
+                    "the previous brazier interaction. Retrying."
+                ),
+                Py4GW.Console.MessageType.Warning,
+            )
+
+            _reset_tree(relight_previous)
+            state["phase"] = "relight_previous"
+            state["phase_started_at"] = now
+            return BehaviorTree.NodeState.RUNNING
+
+        _reset_all()
+        return BehaviorTree.NodeState.FAILURE
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name=name,
+            action_fn=_move_with_recovery,
+            aftercast_ms=0,
+        )
     )
 
 
@@ -726,37 +1144,7 @@ def RunLevel2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
         children=[
-            UseAvailableSummoningStone(),
-            BT.AddModelToLootWhitelist(25410),
-            BT.MoveAndDialog(
-                L2_BLESSING_NPC,
-                dialog_id=DWARVEN_BLESSING_DIALOG,
-                multi_account=True,
-                log=True,
-            ),
-            BT.VanquishNode(
-                L2_PATH_TO_TORCH,
-                name="Level 2 Route To Torch Chest",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            BT.MoveAndInteractWithGadget(
-                L2_TORCH_CHEST,
-                pause_on_combat=False,
-                log=True,
-            ),
-            PickupTorch(),
-            BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True),
-            BT.DropBundle(log=True),
-            BT.VanquishNode(
-                L2_RETURN_TO_FIRST_TORCH_PATH,
-                name="Clear And Return To First Torch",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Spellcast.value,
-            ),
-            PickupTorch(),
-            BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True),
-            BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True),
+            
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
             BT.DropBundle(log=True),
             BT.VanquishNode(
@@ -1210,11 +1598,11 @@ def CollectRewardAndPrepareRestart(
 def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     return [
         ("Initialize Bot", InitializeBot),
-        ("Prepare Party And Supplies", PreparePartyAndSupplies),
-        ("Travel To Shandra", TravelToShandra),
-        ("Handle Shandra Quest", HandleShandraQuest),
-        ("Enter Shards Of Orr", EnterShardsOfOrr),
-        ("Run Level 1", RunLevel1),
+        #("Prepare Party And Supplies", PreparePartyAndSupplies),
+        #("Travel To Shandra", TravelToShandra),
+        #("Handle Shandra Quest", HandleShandraQuest),
+        #("Enter Shards Of Orr", EnterShardsOfOrr),
+        #("Run Level 1", RunLevel1),
         ("Run Level 2", RunLevel2),
         ("Run Level 3", RunLevel3),
         ("Collect Reward And Prepare Restart", CollectRewardAndPrepareRestart),
@@ -1231,13 +1619,16 @@ def main() -> None:
                 return
             IniManager().load_once(ini_key)
 
-        tree = ensure_botting_tree()
-        tree.UI.override_draw_config(_draw_settings)
+        ensure_botting_tree()
         initialized = True
 
     tree = ensure_botting_tree()
     tree.tick()
-    tree.UI.draw_window()
+    tree.UI.draw_window(
+        extra_tabs=[
+            ("Config", _draw_run_config),
+        ],
+    )
 
 
 # endregion
