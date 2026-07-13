@@ -1144,7 +1144,37 @@ def RunLevel2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
         children=[
-            
+            UseAvailableSummoningStone(),
+            BT.AddModelToLootWhitelist(25410),
+            BT.MoveAndDialog(
+                L2_BLESSING_NPC,
+                dialog_id=DWARVEN_BLESSING_DIALOG,
+                multi_account=True,
+                log=True,
+            ),
+            BT.VanquishNode(
+                L2_PATH_TO_TORCH,
+                name="Level 2 Route To Torch Chest",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
+            ),
+            BT.MoveAndInteractWithGadget(
+                L2_TORCH_CHEST,
+                pause_on_combat=False,
+                log=True,
+            ),
+            PickupTorch(),
+            BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True),
+            BT.DropBundle(log=True),
+            BT.VanquishNode(
+                L2_RETURN_TO_FIRST_TORCH_PATH,
+                name="Clear And Return To First Torch",
+                flag_heroes_to_waypoint=False,
+                clear_area_radius=Range.Spellcast.value,
+            ),
+            PickupTorch(),
+            BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True),
+            BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True),
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
             BT.DropBundle(log=True),
             BT.VanquishNode(
@@ -1598,11 +1628,11 @@ def CollectRewardAndPrepareRestart(
 def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     return [
         ("Initialize Bot", InitializeBot),
-        #("Prepare Party And Supplies", PreparePartyAndSupplies),
-        #("Travel To Shandra", TravelToShandra),
-        #("Handle Shandra Quest", HandleShandraQuest),
-        #("Enter Shards Of Orr", EnterShardsOfOrr),
-        #("Run Level 1", RunLevel1),
+        ("Prepare Party And Supplies", PreparePartyAndSupplies),
+        ("Travel To Shandra", TravelToShandra),
+        ("Handle Shandra Quest", HandleShandraQuest),
+        ("Enter Shards Of Orr", EnterShardsOfOrr),
+        ("Run Level 1", RunLevel1),
         ("Run Level 2", RunLevel2),
         ("Run Level 3", RunLevel3),
         ("Collect Reward And Prepare Restart", CollectRewardAndPrepareRestart),
