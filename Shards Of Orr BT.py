@@ -251,8 +251,7 @@ L2_BRAZIER_PART2 = [
     (-8278.0, -1670.0),
 ]
 L2_AFTER_PART2_POSITION = Vec2f(-5009.49, -2542.30)
-L2_PATH_TO_LOCK = [
-    Vec2f(-16335.1, -9004.5),(-18700.0, -9171.0)
+L2_PATH_TO_LOCK = [Vec2f(-7063, -2017),Vec2f(-16335.1, -9004.5),(-18700.0, -9171.0)
 ]
 L2_DUNGEON_LOCK = Vec2f(-18725.0, -9171.0)
 L2_EXIT_PATH = [
@@ -2286,7 +2285,7 @@ def Level2_Part2() -> BehaviorTree:
             PickupTorch(),
             BrazierSequence("Level 2 Brazier Route 2", L2_BRAZIER_PART2),
             BT.DropBundle(log=True),
-            BT.WaitForClearEnemiesInArea(-6798.8, -2436.4, radius=Range.Spirit.value, allowed_alive_enemies=0, interact_interval_ms=750, stable_clear_ms=20_000, keep_player_near_center=False, center_tolerance=750.0, log=False),
+            BT.ClearEnemiesInArea(Vec2f(-6798.8, -2436.4),allowed_alive_enemies=0,),
             ResilientVanquishNode(
                 L2_PATH_TO_LOCK,
                 name="Level 2 Route To Dungeon Lock",
