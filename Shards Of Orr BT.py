@@ -264,15 +264,10 @@ L2_EXIT_PATH = [
 L3_ENTRY_BLESSING = Vec2f(17544.0, 18810.0)
 L3_MAIN_PATH = [
     Vec2f(16325.98, 15981.14),
-    Vec2f(13998.4,18866.7),
-    Vec2f(8496.5,15367.3),
-    Vec2f(7978.0,14357.9), Vec2f(7105.7,13350.9),
-    Vec2f(6236.1,12349.0), Vec2f(5524.4,11344.1),
-    Vec2f(4813.8,10340.7), Vec2f(4095.0,9332.7),
-    Vec2f(3091.4,8424.8), Vec2f(2078.2,8286.5),
-    Vec2f(1926.0,5848.0), Vec2f(1069.7,8045.3),
-    Vec2f(619.8,7044.0), Vec2f(-385.8,6478.3),
-    Vec2f(-1123.5,7481.9),
+    Vec2f(14511, 19206),
+    Vec2f(8539, 17072),
+    Vec2f(3547, 8795),
+    Vec2f(4813.8,10340.7)
 ]
 
 L3_PATH_TO_TORCH = [
@@ -2326,6 +2321,8 @@ def Level3_FirstPath() -> BehaviorTree:
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
             ),
+            BT.ClearEnemiesInArea(Vec2f(1025, 6872),radius=Range.Compass.value),
+            BT.Move(Vec2f(1025, 6872))
         ],
     )
 #endregion
@@ -2339,6 +2336,7 @@ def Level3_BrigantRoom() -> BehaviorTree:
                 Vec2f(-8577, 4008),
                 radius=Range.Compass.value,
             ),
+            BT.Move(Vec2f(-8577, 4008))
         ],
     )
 #endregion
