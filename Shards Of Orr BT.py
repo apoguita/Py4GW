@@ -2063,7 +2063,6 @@ def TravelToShandra() -> BehaviorTree:
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             BT.Wait(2_000),
             BT.MoveAndDialog(ARBOR_BLESSING_NPC, dialog_id=DWARVEN_BLESSING_DIALOG, multi_account=True, log=True),
-            BT.Wait(3_000),
             BT.Move(ARBOR_TO_SHANDRA_PATH, pause_on_combat=True, log=True),
             BT.WaitUntilOutOfCombat(timeout_ms=60_000),
             BT.Move(SHANDRA_APPROACH, pause_on_combat=False, log=True),
