@@ -273,11 +273,7 @@ L3_MAIN_PATH = [
     Vec2f(619.8,7044.0), Vec2f(-385.8,6478.3),
     Vec2f(-1123.5,7481.9),
 ]
-L3_BRIGANT_ROOM = [
-Vec2f(-4582.0, 6658.0),
-Vec2f(-8483, 4037),
-Vec2f(-10525, 2483)
-]
+
 L3_PATH_TO_TORCH = [
     Vec2f(-4723.0,6703.0), Vec2f(-1280.0,7880.0),
     Vec2f(3089.73,8511.0), Vec2f(4963.0,9974.0),
@@ -2342,8 +2338,8 @@ def Level3_BrigantRoom() -> BehaviorTree:
         name="Run Shards of Orr Level 3 Second Path",
         children=[
             BT.ClearEnemiesInArea(
-                L3_BRIGANT_ROOM,
-                radius=Range.Longbow.value,
+                Vec2f(-8577, 4008),
+                radius=Range.Compass.value,
             ),
         ],
     )
