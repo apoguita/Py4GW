@@ -198,6 +198,7 @@ SOO_ENTRANCE_PATH = [
 L1_PATH = [
     Vec2f(3720.16, 15370.78),
     Vec2f(6740.06, 11039.32),
+    Vec2f(14698, 16436),
     Vec2f(15879, 11171),
     Vec2f(16026.25, 16957.26),
     Vec2f(14255.37, 6189.60)
@@ -2143,7 +2144,7 @@ def EnterShardsOfOrr(
 
 
 # endregion
-# region Dungeon level 1
+# region Level 1
 
 
 def Level1_Part1() -> BehaviorTree:
