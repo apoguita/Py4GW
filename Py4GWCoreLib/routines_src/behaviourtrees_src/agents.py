@@ -45,19 +45,21 @@ Docstring parsing rules
 
 from __future__ import annotations
 
-from typing import Any
-
 from ...Agent import Agent
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...enums_src.GameData_enums import Range
-from ...native_src.internals.types import Vec2f
+
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..Agents import Agents as RoutinesAgents
 from ..Checks import Checks
 from .composite import BTCompositeHelpers
 from .movement import BTMovement
 from .player import BTPlayer
+import time
+from typing import Any, TypedDict
+import time
+from ...native_src.internals.types import PointOrPath, PointPath, Vec2f
 
 
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
@@ -73,12 +75,12 @@ class BTAgents:
     Public BT helper group for targeting, lookup, and agent-driven interaction flows.
 
     Meta:
-      Expose: true
-      Audience: advanced
-      Display: Agents
-      Purpose: Group public BT routines related to agent lookup, targeting, and agent interaction flows.
-      UserDescription: Built-in BT helper group for targeting and agent interaction routines.
-      Notes: Public `PascalCase` methods in this class are discovery candidates when marked exposed.
+    Expose: true
+    Audience: advanced
+    Display: Agents
+    Purpose: Group public BT routines related to agent lookup, targeting, and agent interaction flows.
+    UserDescription: Built-in BT helper group for targeting and agent interaction routines.
+    Notes: Public `PascalCase` methods in this class are discovery candidates when marked exposed.
     """
     agent_ids = None
 
@@ -627,8 +629,924 @@ class BTAgents:
             modelID_or_encStr=modelID_or_encStr,
             button_number=button_number,
             log=log,
-        )
+    )
 
+
+
+    @staticmethod
+    def MoveAndInteractWithGadget(
+        gadget_id: int | None = None,
+        pos: PointOrPath | None = None,
+        search_distance: float = 5_000.0,
+        interaction_distance: float = Range.Nearby.value,
+        interaction_count: int = 1,
+        interaction_interval_ms: int = 500,
+        account_settle_ms: int = 5_000,
+        timeout_ms: int = 90_000,
+        multi_account: bool = False,
+        include_self: bool = True,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that finds a gadget by its internal gadget id, moves to it,
+        and interacts with it.
+
+        When multibox mode is enabled, the local account interacts first. Remote
+        accounts in the same map instance are then processed one at a time. The
+        node waits for each shared-memory interaction command to finish before
+        dispatching the next one.
+
+        Meta:
+        Expose: true
+        Audience: advanced
+        Display: Move And Interact With Gadget By ID
+        Purpose: Find a specific gadget, move to it, and interact locally or sequentially across multiple accounts.
+        UserDescription: Use this when a chest, lock, lever, or other known gadget must be interacted with by one or several accounts.
+        Notes: Remote accounts are filtered by map instance and processed sequentially.
+        """
+        from ...AgentArray import AgentArray
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Py4GWcorelib import Utils
+        from ...enums_src.Multiboxing_enums import SharedCommandType
+
+        class GadgetInteractionState(TypedDict):
+            phase: str
+            started_at: float
+
+            target_agent_id: int
+            target_xy: tuple[float, float] | None
+
+            local_interaction_count: int
+            next_action_at: float
+
+            account_emails: list[str]
+            account_index: int
+            account_interaction_count: int
+
+            current_account_email: str
+            current_message_index: int
+            remote_command_deadline: float
+
+            settle_until: float
+
+        resolved_search_point: Vec2f | None = None
+
+        if pos is not None:
+            try:
+                resolved_path = PointPath.as_path(pos)
+                if resolved_path:
+                    resolved_search_point = resolved_path[-1]
+            except Exception:
+                resolved_search_point = None
+
+        state: GadgetInteractionState = {
+            "phase": "find",
+            "started_at": 0.0,
+
+            "target_agent_id": 0,
+            "target_xy": None,
+
+            "local_interaction_count": 0,
+            "next_action_at": 0.0,
+
+            "account_emails": [],
+            "account_index": 0,
+            "account_interaction_count": 0,
+
+            "current_account_email": "",
+            "current_message_index": -1,
+            "remote_command_deadline": 0.0,
+
+            "settle_until": 0.0,
+        }
+
+        def _reset() -> None:
+            state["phase"] = "find"
+            state["started_at"] = 0.0
+
+            state["target_agent_id"] = 0
+            state["target_xy"] = None
+
+            state["local_interaction_count"] = 0
+            state["next_action_at"] = 0.0
+
+            state["account_emails"] = []
+            state["account_index"] = 0
+            state["account_interaction_count"] = 0
+
+            state["current_account_email"] = ""
+            state["current_message_index"] = -1
+            state["remote_command_deadline"] = 0.0
+
+            state["settle_until"] = 0.0
+
+        def _stop_local_player() -> None:
+            try:
+                player_x, player_y = Player.GetXY()
+                Player.Move(
+                    float(player_x),
+                    float(player_y),
+                )
+            except Exception:
+                pass
+
+        def _is_matching_gadget(agent_id: int) -> bool:
+            if agent_id <= 0:
+                return False
+
+            if gadget_id is None:
+                return Agent.IsValid(agent_id)
+
+            try:
+                return (
+                    int(Agent.GetGadgetID(agent_id) or 0)
+                    == int(gadget_id)
+                )
+            except Exception:
+                return False
+
+        def _find_gadget() -> tuple[
+            int,
+            tuple[float, float] | None,
+        ]:
+            # Cas 1 : recherche par gadget ID
+            if gadget_id is not None:
+                if resolved_search_point is None:
+                    agent_id = int(
+                        RoutinesAgents.GetNearestGadgetByID(
+                            gadget_id=int(gadget_id),
+                            max_distance=float(search_distance),
+                        )
+                        or 0
+                    )
+
+                    if agent_id <= 0:
+                        return 0, None
+
+                    xy = Agent.GetXY(agent_id)
+
+                    return (
+                        agent_id,
+                        (
+                            float(xy[0]),
+                            float(xy[1]),
+                        ),
+                    )
+
+                origin = (
+                    float(resolved_search_point.x),
+                    float(resolved_search_point.y),
+                )
+
+                gadget_agents = AgentArray.GetGadgetArray()
+                gadget_agents = AgentArray.Filter.ByDistance(
+                    gadget_agents,
+                    origin,
+                    float(search_distance),
+                )
+                gadget_agents = AgentArray.Sort.ByDistance(
+                    gadget_agents,
+                    origin,
+                )
+
+                for candidate_id in gadget_agents:
+                    agent_id = int(candidate_id)
+
+                    if not _is_matching_gadget(agent_id):
+                        continue
+
+                    xy = Agent.GetXY(agent_id)
+
+                    return (
+                        agent_id,
+                        (
+                            float(xy[0]),
+                            float(xy[1]),
+                        ),
+                    )
+
+                return 0, None
+
+            # Cas 2 : aucun ID, recherche du gadget le plus proche de pos
+            if resolved_search_point is not None:
+                agent_id = int(
+                    RoutinesAgents.GetNearestGadgetXY(
+                        float(resolved_search_point.x),
+                        float(resolved_search_point.y),
+                        float(search_distance),
+                    )
+                    or 0
+                )
+            else:
+                # Cas 3 : aucun ID et aucune position
+                agent_id = int(
+                    RoutinesAgents.GetNearestGadget(
+                        float(search_distance),
+                    )
+                    or 0
+                )
+
+            if agent_id <= 0:
+                return 0, None
+
+            xy = Agent.GetXY(agent_id)
+
+            return (
+                agent_id,
+                (
+                    float(xy[0]),
+                    float(xy[1]),
+                ),
+            )
+
+        def _read_party_id(account_data) -> int:
+            """
+            Read PartyID defensively because its exact nesting can vary between
+            shared-memory account-data versions.
+            """
+            candidates = (
+                getattr(account_data, "PartyID", None),
+                getattr(
+                    getattr(
+                        account_data,
+                        "AgentData",
+                        None,
+                    ),
+                    "PartyID",
+                    None,
+                ),
+                getattr(
+                    getattr(
+                        getattr(
+                            account_data,
+                            "AgentData",
+                            None,
+                        ),
+                        "Party",
+                        None,
+                    ),
+                    "PartyID",
+                    None,
+                ),
+            )
+
+            for value in candidates:
+                try:
+                    resolved_value = int(value or 0)
+                except Exception:
+                    continue
+
+                if resolved_value > 0:
+                    return resolved_value
+
+            return 0
+
+        def _same_map_instance(
+            leader_data,
+            account_data,
+        ) -> bool:
+            try:
+                leader_map = leader_data.AgentData.Map
+                account_map = account_data.AgentData.Map
+
+                return bool(
+                    int(account_map.MapID)
+                    == int(leader_map.MapID)
+                    and account_map.Region
+                    == leader_map.Region
+                    and account_map.Language
+                    == leader_map.Language
+                    and account_map.District
+                    == leader_map.District
+                )
+            except Exception:
+                return False
+
+        def _same_party_if_known(
+            leader_data,
+            account_data,
+        ) -> bool:
+            leader_party_id = _read_party_id(
+                leader_data
+            )
+            account_party_id = _read_party_id(
+                account_data
+            )
+
+            # Some shared-memory versions do not expose PartyID.
+            # In that case, the map-instance filter remains authoritative.
+            if (
+                leader_party_id <= 0
+                or account_party_id <= 0
+            ):
+                return True
+
+            return account_party_id == leader_party_id
+
+        def _collect_remote_accounts() -> list[str]:
+            sender_email = str(
+                Player.GetAccountEmail() or ""
+            )
+
+            if not sender_email:
+                return []
+
+            try:
+                leader_data = (
+                    GLOBAL_CACHE.ShMem
+                    .GetAccountDataFromEmail(
+                        sender_email
+                    )
+                )
+            except Exception:
+                leader_data = None
+
+            if leader_data is None:
+                _fail_log(
+                    "MoveAndInteractWithGadgetByID",
+                    (
+                        "Could not resolve the local "
+                        "shared-memory account data."
+                    ),
+                )
+                return []
+
+            account_emails: list[str] = []
+
+            for account_data in (
+                GLOBAL_CACHE.ShMem.GetAllAccountData()
+                or []
+            ):
+                account_email = str(
+                    getattr(
+                        account_data,
+                        "AccountEmail",
+                        "",
+                    )
+                    or ""
+                )
+
+                if not account_email:
+                    continue
+
+                if account_email == sender_email:
+                    continue
+
+                if not bool(
+                    getattr(
+                        account_data,
+                        "IsSlotActive",
+                        True,
+                    )
+                ):
+                    continue
+
+                if not _same_map_instance(
+                    leader_data,
+                    account_data,
+                ):
+                    continue
+
+                if not _same_party_if_known(
+                    leader_data,
+                    account_data,
+                ):
+                    continue
+
+                account_emails.append(
+                    account_email
+                )
+
+            return account_emails
+
+        def _message_is_active(
+            message_index: int,
+            sender_email: str,
+            receiver_email: str,
+        ) -> bool:
+            if message_index < 0:
+                return False
+
+            try:
+                message = GLOBAL_CACHE.ShMem.GetInbox(
+                    message_index
+                )
+            except Exception:
+                return False
+
+            if message is None:
+                return False
+
+            try:
+                return bool(
+                    getattr(message, "Active", False)
+                    and str(
+                        getattr(
+                            message,
+                            "SenderEmail",
+                            "",
+                        )
+                        or ""
+                    )
+                    == sender_email
+                    and str(
+                        getattr(
+                            message,
+                            "ReceiverEmail",
+                            "",
+                        )
+                        or ""
+                    )
+                    == receiver_email
+                    and int(
+                        getattr(
+                            message,
+                            "Command",
+                            -1,
+                        )
+                    )
+                    == int(
+                        SharedCommandType
+                        .InteractWithTarget
+                    )
+                )
+            except Exception:
+                return False
+
+        def _move_and_interact(
+            node: BehaviorTree.Node,
+        ) -> BehaviorTree.NodeState:
+            now = time.monotonic()
+
+            if bool(
+                node.blackboard.get(
+                    "USER_INTERRUPT_ACTIVE",
+                    False,
+                )
+            ):
+                _stop_local_player()
+                _reset()
+                return BehaviorTree.NodeState.FAILURE
+
+            if state["started_at"] <= 0.0:
+                state["started_at"] = now
+
+            elapsed_ms = (
+                now - state["started_at"]
+            ) * 1000.0
+
+            if elapsed_ms >= max(
+                1,
+                int(timeout_ms),
+            ):
+                _fail_log(
+                    "MoveAndInteractWithGadgetByID",
+                    (
+                        f"Timed out while processing "
+                        f"gadget id {gadget_id}."
+                    ),
+                )
+                _stop_local_player()
+                _reset()
+                return BehaviorTree.NodeState.FAILURE
+
+            phase = state["phase"]
+
+            # -------------------------------------------------
+            # Resolve the gadget
+            # -------------------------------------------------
+
+            if phase == "find":
+                (
+                    target_agent_id,
+                    target_xy,
+                ) = _find_gadget()
+
+                if (
+                    target_agent_id <= 0
+                    or target_xy is None
+                ):
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["target_agent_id"] = (
+                    target_agent_id
+                )
+                state["target_xy"] = target_xy
+
+                node.blackboard[
+                    "gadget_target_agent_id"
+                ] = target_agent_id
+                node.blackboard[
+                    "gadget_target_id"
+                ] = int(gadget_id or 0)
+                node.blackboard[
+                    "gadget_target_xy"
+                ] = target_xy
+
+                _log(
+                    "MoveAndInteractWithGadgetByID",
+                    (
+                        f"Found gadget id {gadget_id}: "
+                        f"agent_id={target_agent_id}, "
+                        f"position={target_xy}."
+                    ),
+                    log=log,
+                )
+
+                state["phase"] = (
+                    "local_move"
+                    if include_self
+                    else "prepare_accounts"
+                )
+
+                return BehaviorTree.NodeState.RUNNING
+
+            target_agent_id = (
+                state["target_agent_id"]
+            )
+            target_xy = state["target_xy"]
+
+            if not _is_matching_gadget(
+                target_agent_id
+            ):
+                _fail_log(
+                    "MoveAndInteractWithGadgetByID",
+                    (
+                        f"Gadget id {gadget_id} "
+                        "is no longer valid."
+                    ),
+                )
+                _reset()
+                return BehaviorTree.NodeState.FAILURE
+
+            if target_xy is None:
+                state["phase"] = "find"
+                return BehaviorTree.NodeState.RUNNING
+
+            # -------------------------------------------------
+            # Local account
+            # -------------------------------------------------
+
+            if phase == "local_move":
+                distance_to_gadget = float(
+                    Utils.Distance(
+                        Player.GetXY(),
+                        target_xy,
+                    )
+                )
+
+                node.blackboard[
+                    "gadget_target_distance"
+                ] = distance_to_gadget
+
+                if (
+                    distance_to_gadget
+                    > float(interaction_distance)
+                ):
+                    Player.Move(
+                        float(target_xy[0]),
+                        float(target_xy[1]),
+                    )
+                    return BehaviorTree.NodeState.RUNNING
+
+                _stop_local_player()
+                Player.ChangeTarget(
+                    target_agent_id
+                )
+
+                state["phase"] = (
+                    "local_interact"
+                )
+                state["next_action_at"] = 0.0
+
+                return BehaviorTree.NodeState.RUNNING
+
+            if phase == "local_interact":
+                if now < state["next_action_at"]:
+                    return BehaviorTree.NodeState.RUNNING
+
+                local_count = state[
+                    "local_interaction_count"
+                ]
+
+                if local_count < max(
+                    1,
+                    int(interaction_count),
+                ):
+                    Player.ChangeTarget(
+                        target_agent_id
+                    )
+
+                    Player.Interact(
+                        target_agent_id,
+                        False,
+                    )
+
+                    state[
+                        "local_interaction_count"
+                    ] = local_count + 1
+
+                    state["next_action_at"] = (
+                        now
+                        + max(
+                            0,
+                            int(
+                                interaction_interval_ms
+                            ),
+                        )
+                        / 1000.0
+                    )
+
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["phase"] = (
+                    "prepare_accounts"
+                )
+                return BehaviorTree.NodeState.RUNNING
+
+            # -------------------------------------------------
+            # Prepare remote account list
+            # -------------------------------------------------
+
+            if phase == "prepare_accounts":
+                if not multi_account:
+                    _reset()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                state["account_emails"] = (
+                    _collect_remote_accounts()
+                )
+                state["account_index"] = 0
+                state[
+                    "account_interaction_count"
+                ] = 0
+
+                state[
+                    "current_account_email"
+                ] = ""
+                state[
+                    "current_message_index"
+                ] = -1
+
+                state["phase"] = (
+                    "remote_dispatch"
+                )
+
+                _log(
+                    "MoveAndInteractWithGadgetByID",
+                    (
+                        "Remote accounts in the same "
+                        "instance to process: "
+                        f"{len(state['account_emails'])}."
+                    ),
+                    log=log,
+                )
+
+                return BehaviorTree.NodeState.RUNNING
+
+            # -------------------------------------------------
+            # Remote accounts, sequentially
+            # -------------------------------------------------
+
+            if phase == "remote_dispatch":
+                account_emails = state[
+                    "account_emails"
+                ]
+                account_index = state[
+                    "account_index"
+                ]
+
+                if account_index >= len(
+                    account_emails
+                ):
+                    _log(
+                        "MoveAndInteractWithGadgetByID",
+                        (
+                            f"Finished interaction with "
+                            f"gadget id {gadget_id}."
+                        ),
+                        log=log,
+                        message_type=(
+                            Console.MessageType.Success
+                        ),
+                    )
+                    _reset()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                interaction_index = state[
+                    "account_interaction_count"
+                ]
+
+                if interaction_index >= max(
+                    1,
+                    int(interaction_count),
+                ):
+                    state["phase"] = (
+                        "remote_settle"
+                    )
+                    state["settle_until"] = (
+                        now
+                        + max(
+                            0,
+                            int(account_settle_ms),
+                        )
+                        / 1000.0
+                    )
+
+                    return BehaviorTree.NodeState.RUNNING
+
+                sender_email = str(
+                    Player.GetAccountEmail() or ""
+                )
+                receiver_email = account_emails[
+                    account_index
+                ]
+
+                message_index = int(
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        sender_email,
+                        receiver_email,
+                        SharedCommandType
+                        .InteractWithTarget,
+                        (
+                            float(target_agent_id),
+                            0.0,
+                            0.0,
+                            0.0,
+                        ),
+                    )
+                )
+
+                if message_index < 0:
+                    _fail_log(
+                        "MoveAndInteractWithGadgetByID",
+                        (
+                            "Failed to dispatch "
+                            f"InteractWithTarget to "
+                            f"{receiver_email}."
+                        ),
+                    )
+
+                    # Skip this interaction rather than
+                    # blocking the entire routine forever.
+                    state[
+                        "account_interaction_count"
+                    ] = interaction_index + 1
+                    state["next_action_at"] = (
+                        now
+                        + max(
+                            0,
+                            int(
+                                interaction_interval_ms
+                            ),
+                        )
+                        / 1000.0
+                    )
+                    state["phase"] = (
+                        "remote_interval"
+                    )
+                    return BehaviorTree.NodeState.RUNNING
+
+                state[
+                    "current_account_email"
+                ] = receiver_email
+                state[
+                    "current_message_index"
+                ] = message_index
+
+                state[
+                    "remote_command_deadline"
+                ] = (
+                    now
+                    + max(
+                        10.0,
+                        float(account_settle_ms)
+                        / 1000.0,
+                    )
+                )
+
+                _log(
+                    "MoveAndInteractWithGadgetByID",
+                    (
+                        f"Sent interaction "
+                        f"{interaction_index + 1}/"
+                        f"{max(1, int(interaction_count))} "
+                        f"to account "
+                        f"{account_index + 1}/"
+                        f"{len(account_emails)} "
+                        f"(message={message_index})."
+                    ),
+                    log=log,
+                )
+
+                state["phase"] = (
+                    "remote_wait"
+                )
+
+                return BehaviorTree.NodeState.RUNNING
+
+            if phase == "remote_wait":
+                sender_email = str(
+                    Player.GetAccountEmail() or ""
+                )
+                receiver_email = state[
+                    "current_account_email"
+                ]
+                message_index = state[
+                    "current_message_index"
+                ]
+
+                if _message_is_active(
+                    message_index,
+                    sender_email,
+                    receiver_email,
+                ):
+                    if (
+                        now
+                        < state[
+                            "remote_command_deadline"
+                        ]
+                    ):
+                        return BehaviorTree.NodeState.RUNNING
+
+                    _fail_log(
+                        "MoveAndInteractWithGadgetByID",
+                        (
+                            "Remote interaction timed out "
+                            f"for {receiver_email}; "
+                            "continuing with the next step."
+                        ),
+                    )
+
+                state[
+                    "account_interaction_count"
+                ] += 1
+                state[
+                    "current_account_email"
+                ] = ""
+                state[
+                    "current_message_index"
+                ] = -1
+
+                state["next_action_at"] = (
+                    now
+                    + max(
+                        0,
+                        int(
+                            interaction_interval_ms
+                        ),
+                    )
+                    / 1000.0
+                )
+                state["phase"] = (
+                    "remote_interval"
+                )
+
+                return BehaviorTree.NodeState.RUNNING
+
+            if phase == "remote_interval":
+                if now < state["next_action_at"]:
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["phase"] = (
+                    "remote_dispatch"
+                )
+                return BehaviorTree.NodeState.RUNNING
+
+            if phase == "remote_settle":
+                if now < state["settle_until"]:
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["account_index"] += 1
+                state[
+                    "account_interaction_count"
+                ] = 0
+                state[
+                    "current_account_email"
+                ] = ""
+                state[
+                    "current_message_index"
+                ] = -1
+
+                state["phase"] = (
+                    "remote_dispatch"
+                )
+
+                return BehaviorTree.NodeState.RUNNING
+
+            _reset()
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=(
+                    "MoveAndInteractWithGadgetByID"
+                    f"({gadget_id})"
+                ),
+                action_fn=_move_and_interact,
+            )
+        )
+    
     @staticmethod
     def TargetNearestNPC(distance:float = 4500.0, log:bool=False):
             """
@@ -977,116 +1895,366 @@ class BTAgents:
                 )
             )
 
+
     @staticmethod
     def WaitForClearEnemiesInArea(
-            x: float,
-            y: float,
-            radius: float = float(Range.Earshot.value),
-            allowed_alive_enemies: int = 0,
-            interact_interval_ms: int = 750,
-            log: bool = False,
-        ) -> BehaviorTree:
-            """
-            Build a tree that waits until the alive-enemy count in an area is at or below an allowed threshold.
+        x: float,
+        y: float,
+        radius: float = float(Range.Earshot.value),
+        allowed_alive_enemies: int = 0,
+        interact_interval_ms: int = 750,
+        stable_clear_ms: int = 0,
+        keep_player_near_center: bool = False,
+        center_tolerance: float = 750.0,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that waits until the alive-enemy count in an area is at or
+        below an allowed threshold.
 
-            Meta:
-              Expose: true
-              Audience: advanced
-              Display: Wait For Clear Enemies In Area
-              Purpose: Wait until the alive-enemy count in an area is at or below an allowed threshold, nudging the nearest enemy when needed.
-              UserDescription: Use this when you want to block until the area is clear enough while still provoking nearby enemies to commit.
-              Notes: Returns RUNNING while the alive-enemy count exceeds the threshold and SUCCESS once it is at or below it.
-            """
-            from typing import Any
-            from ...Py4GWcorelib import Utils
-            from ...GlobalCache import GLOBAL_CACHE
-            from ... import SharedCommandType
+        The routine can optionally require the area to remain clear for a stable
+        duration before succeeding, and can keep the local player near the area
+        center while the routine is active.
 
-            state = {
-                "paused_for_looting": False,
-                "last_interact_ms": 0,
-                "last_target_id": 0,
-            }
+        Meta:
+        Expose: true
+        Audience: advanced
+        Display: Wait For Clear Enemies In Area
+        Purpose: Wait until an area is clear enough, optionally requiring a stable clear duration and keeping the player near the center.
+        UserDescription: Use this when you want to block until enemies in an area are cleared, including encounters with delayed respawns or multiple waves.
+        Notes: Returns RUNNING while enemies remain or while the stable-clear timer is active. Returns SUCCESS once the configured clear conditions are met.
+        """
+        from typing import Any
 
-            def _get_enemies_in_area() -> list[int]:
-                enemy_array = list(RoutinesAgents.GetFilteredEnemyArray(x, y, radius) or [])
-                enemy_array = [agent_id for agent_id in enemy_array if Agent.IsAlive(agent_id)]
-                enemy_array.sort(key=lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)))
-                return enemy_array
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Py4GWcorelib import Utils
+        from ...enums_src.Multiboxing_enums import SharedCommandType
 
-            def _get_pause_reason(node: BehaviorTree.Node) -> str:
-                account_email: str = Player.GetAccountEmail()
-                index: int
-                message: Any
-                index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
-                if (
-                    index != -1
-                    and message
-                    and message.Command == SharedCommandType.PickUpLoot
-                    and bool(getattr(message, "Running", False))
-                ):
-                    return "loot_message_active"
-                if Checks.Player.IsDead():
-                    return "player_dead"
-                if bool(node.blackboard.get("PAUSE_MOVEMENT", False)):
-                    return "external_pause"
-                if Checks.Player.IsCasting():
-                    return "casting"
-                return ""
+        state = {
+            "paused": False,
+            "last_interact_ms": 0,
+            "last_target_id": 0,
+            "clear_since_ms": 0,
+        }
 
-            def _wait_for_clear_enemies(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-                now = Utils.GetBaseTimestamp()
-                enemies = _get_enemies_in_area()
-                node.blackboard["wait_clear_area_enemy_count"] = len(enemies)
-                node.blackboard["wait_clear_area_center"] = (x, y)
-                node.blackboard["wait_clear_area_radius"] = radius
-                node.blackboard["wait_clear_area_allowed_alive_enemies"] = allowed_alive_enemies
+        def _reset_state() -> None:
+            state["paused"] = False
+            state["last_interact_ms"] = 0
+            state["last_target_id"] = 0
+            state["clear_since_ms"] = 0
 
-                pause_reason = _get_pause_reason(node)
-                if pause_reason:
-                    if log and not state["paused_for_looting"]:
-                        _log("WaitForClearEnemiesInArea", f"Pausing wait-for-clear routine near ({x}, {y}) due to {pause_reason}.", log=log)
-                    state["paused_for_looting"] = True
-                    return BehaviorTree.NodeState.RUNNING
+        def _get_enemies_in_area() -> list[int]:
+            enemy_array = list(
+                RoutinesAgents.GetFilteredEnemyArray(
+                    float(x),
+                    float(y),
+                    float(radius),
+                )
+                or []
+            )
 
-                state["paused_for_looting"] = False
+            enemy_array = [
+                int(agent_id)
+                for agent_id in enemy_array
+                if int(agent_id) > 0
+                and Agent.IsValid(int(agent_id))
+                and Agent.IsAlive(int(agent_id))
+            ]
 
-                if len(enemies) <= allowed_alive_enemies:
-                    if log:
-                        _log(
-                            "WaitForClearEnemiesInArea",
-                            f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
-                            log=log,
-                            message_type=Console.MessageType.Success,
-                        )
-                    state["last_target_id"] = 0
-                    state["last_interact_ms"] = 0
-                    return BehaviorTree.NodeState.SUCCESS
+            player_xy = Player.GetXY()
 
-                target_id = enemies[0]
-                node.blackboard["wait_clear_area_target_id"] = target_id
-
-                if state["last_target_id"] != target_id or now - state["last_interact_ms"] >= interact_interval_ms:
-                    Player.ChangeTarget(target_id)
-                    Player.Interact(target_id, False)
-                    state["last_target_id"] = target_id
-                    state["last_interact_ms"] = now
-
-                if log:
-                    _log(
-                        "WaitForClearEnemiesInArea",
-                        f"Waiting for area near ({x}, {y}) to clear: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}, target_id={target_id}.",
-                        log=log,
-                    )
-                return BehaviorTree.NodeState.RUNNING
-
-            return BehaviorTree(
-                BehaviorTree.ConditionNode(
-                    name="WaitForClearEnemiesInArea",
-                    condition_fn=_wait_for_clear_enemies,
+            enemy_array.sort(
+                key=lambda agent_id: Utils.Distance(
+                    player_xy,
+                    Agent.GetXY(agent_id),
                 )
             )
-        
+
+            return enemy_array
+
+        def _get_pause_reason(
+            node: BehaviorTree.Node,
+        ) -> str:
+            account_email = str(
+                Player.GetAccountEmail() or ""
+            )
+
+            try:
+                index: int
+                message: Any
+                index, message = (
+                    GLOBAL_CACHE.ShMem.PreviewNextMessage(
+                        account_email
+                    )
+                )
+            except Exception:
+                index = -1
+                message = None
+
+            if (
+                index != -1
+                and message is not None
+                and getattr(message, "Command", None)
+                == SharedCommandType.PickUpLoot
+                and bool(
+                    getattr(
+                        message,
+                        "Running",
+                        False,
+                    )
+                )
+            ):
+                return "loot_message_active"
+
+            if Checks.Player.IsDead():
+                return "player_dead"
+
+            if bool(
+                node.blackboard.get(
+                    "PAUSE_MOVEMENT",
+                    False,
+                )
+            ):
+                return "external_pause"
+
+            if Checks.Player.IsCasting():
+                return "casting"
+
+            return ""
+
+        def _keep_player_near_center() -> None:
+            if not keep_player_near_center:
+                return
+
+            try:
+                player_xy = Player.GetXY()
+            except Exception:
+                return
+
+            if not player_xy:
+                return
+
+            if (
+                Utils.Distance(
+                    player_xy,
+                    (float(x), float(y)),
+                )
+                > float(center_tolerance)
+            ):
+                Player.Move(
+                    float(x),
+                    float(y),
+                )
+
+        def _wait_for_clear_enemies(
+            node: BehaviorTree.Node,
+        ) -> BehaviorTree.NodeState:
+            now = int(
+                Utils.GetBaseTimestamp()
+            )
+
+            _keep_player_near_center()
+
+            enemies = _get_enemies_in_area()
+
+            node.blackboard[
+                "wait_clear_area_enemy_count"
+            ] = len(enemies)
+            node.blackboard[
+                "wait_clear_area_center"
+            ] = (
+                float(x),
+                float(y),
+            )
+            node.blackboard[
+                "wait_clear_area_radius"
+            ] = float(radius)
+            node.blackboard[
+                "wait_clear_area_allowed_alive_enemies"
+            ] = int(
+                allowed_alive_enemies
+            )
+            node.blackboard[
+                "wait_clear_area_stable_clear_ms"
+            ] = int(
+                stable_clear_ms
+            )
+            node.blackboard[
+                "wait_clear_area_clear_since_ms"
+            ] = int(
+                state["clear_since_ms"]
+            )
+
+            pause_reason = _get_pause_reason(
+                node
+            )
+
+            if pause_reason:
+                if log and not state["paused"]:
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Pausing clear-area routine near "
+                            f"({x}, {y}) due to "
+                            f"{pause_reason}."
+                        ),
+                        log=log,
+                    )
+
+                state["paused"] = True
+                return BehaviorTree.NodeState.RUNNING
+
+            state["paused"] = False
+
+            if (
+                len(enemies)
+                <= int(allowed_alive_enemies)
+            ):
+                state["last_target_id"] = 0
+                state["last_interact_ms"] = 0
+
+                if int(stable_clear_ms) <= 0:
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Area at ({x}, {y}) is clear "
+                            f"enough: alive_enemies="
+                            f"{len(enemies)}, allowed="
+                            f"{allowed_alive_enemies}."
+                        ),
+                        log=log,
+                        message_type=(
+                            Console.MessageType.Success
+                        ),
+                    )
+
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if state["clear_since_ms"] <= 0:
+                    state["clear_since_ms"] = now
+
+                    node.blackboard[
+                        "wait_clear_area_clear_since_ms"
+                    ] = now
+
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Area near ({x}, {y}) is "
+                            f"currently clear. Starting "
+                            f"{stable_clear_ms}ms stable "
+                            f"clear timer."
+                        ),
+                        log=log,
+                    )
+
+                    return BehaviorTree.NodeState.RUNNING
+
+                clear_elapsed_ms = (
+                    now
+                    - int(
+                        state[
+                            "clear_since_ms"
+                        ]
+                    )
+                )
+
+                node.blackboard[
+                    "wait_clear_area_clear_elapsed_ms"
+                ] = clear_elapsed_ms
+
+                if (
+                    clear_elapsed_ms
+                    >= int(stable_clear_ms)
+                ):
+                    _log(
+                        "WaitForClearEnemiesInArea",
+                        (
+                            f"Area near ({x}, {y}) "
+                            f"remained clear for "
+                            f"{clear_elapsed_ms}ms."
+                        ),
+                        log=log,
+                        message_type=(
+                            Console.MessageType.Success
+                        ),
+                    )
+
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                return BehaviorTree.NodeState.RUNNING
+
+            # An enemy reappeared, so any stable-clear timer is cancelled.
+            if state["clear_since_ms"] > 0:
+                _log(
+                    "WaitForClearEnemiesInArea",
+                    (
+                        f"Enemy activity resumed near "
+                        f"({x}, {y}); resetting the "
+                        f"stable-clear timer."
+                    ),
+                    log=log,
+                )
+
+            state["clear_since_ms"] = 0
+
+            target_id = int(
+                enemies[0]
+            )
+
+            node.blackboard[
+                "wait_clear_area_target_id"
+            ] = target_id
+
+            if (
+                state["last_target_id"]
+                != target_id
+                or now
+                - int(
+                    state[
+                        "last_interact_ms"
+                    ]
+                )
+                >= int(
+                    interact_interval_ms
+                )
+            ):
+                Player.ChangeTarget(
+                    target_id
+                )
+                Player.Interact(
+                    target_id,
+                    False,
+                )
+
+                state["last_target_id"] = (
+                    target_id
+                )
+                state["last_interact_ms"] = now
+
+                _log(
+                    "WaitForClearEnemiesInArea",
+                    (
+                        f"Interacting with enemy "
+                        f"{target_id} near ({x}, {y}); "
+                        f"alive_enemies={len(enemies)}."
+                    ),
+                    log=log,
+                )
+
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name="WaitForClearEnemiesInArea",
+                condition_fn=(
+                    _wait_for_clear_enemies
+                ),
+            )
+        )
+
     @staticmethod
     def TargetNearestItem(distance, log:bool=False):
             """

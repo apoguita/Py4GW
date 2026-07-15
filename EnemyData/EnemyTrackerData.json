@@ -3303,6 +3303,12 @@
           "instance_type": "Explorable",
           "name": "Cursed Lands"
         },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
         "72": {
           "base_id": 72,
           "id": 72,
@@ -18962,6 +18968,12 @@
           "instance_type": "Explorable",
           "name": "Cursed Lands"
         },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        },
         "62": {
           "base_id": 62,
           "id": 62,
@@ -19029,6 +19041,12 @@
           "id": 56,
           "instance_type": "Explorable",
           "name": "Cursed Lands"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
         },
         "62": {
           "base_id": 62,
@@ -30146,6 +30164,12 @@
         5771
       ],
       "observed_maps": {
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        },
         "649": {
           "base_id": 649,
           "id": 649,
@@ -34643,6 +34667,50 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x737A\\\\xB6E9\\\\x2E05": {
+      "encoded_names": [
+        "\\\\x8101\\\\x737A\\\\xB6E9\\\\x2E05"
+      ],
+      "inferred_primary": "Paragon",
+      "inferred_secondary": "",
+      "model_ids": [
+        6352
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1547": {
+          "id": 1547,
+          "name": "Mighty Throw",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1550": {
+          "id": 1550,
+          "name": "Unblockable Throw",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1602": {
+          "id": 1602,
+          "name": "Stunning Strike",
+          "profession": "Paragon",
+          "profession_id": 9
+        },
+        "1605": {
+          "id": 1605,
+          "name": "Wild Throw",
+          "profession": "Paragon",
+          "profession_id": 9
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x737F\\\\x99E5\\\\xFEAC\\\\x66B7": {
       "encoded_names": [
         "\\\\x8101\\\\x737F\\\\x99E5\\\\xFEAC\\\\x66B7"
@@ -34872,6 +34940,12 @@
         6989
       ],
       "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        },
         "625": {
           "base_id": 625,
           "id": 625,
@@ -34934,6 +35008,12 @@
         6990
       ],
       "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        },
         "625": {
           "base_id": 625,
           "id": 625,
@@ -34996,6 +35076,12 @@
         6991
       ],
       "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        },
         "625": {
           "base_id": 625,
           "id": 625,
@@ -35058,6 +35144,12 @@
         6992
       ],
       "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        },
         "625": {
           "base_id": 625,
           "id": 625,
@@ -36973,6 +37065,44 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x763E\\\\xF0FC\\\\xE65A\\\\x63EC": {
+      "encoded_names": [
+        "\\\\x8101\\\\x763E\\\\xF0FC\\\\xE65A\\\\x63EC"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6343
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "2484": {
+          "id": 2484,
+          "name": "Metamorphosis",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "390": {
+          "id": 390,
+          "name": "Savage Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x7641\\\\xB831\\\\x9F20\\\\x4076": {
       "encoded_names": [
         "\\\\x8101\\\\x7641\\\\xB831\\\\x9F20\\\\x4076"
@@ -37007,6 +37137,419 @@
           "id": 482,
           "instance_type": "Explorable",
           "name": "Bjora Marches"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x7645\\\\xF6E7\\\\x69F7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7645\\\\xF6E7\\\\x69F7"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6338
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1052": {
+          "id": 1052,
+          "name": "Accumulated Pain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "1341": {
+          "id": 1341,
+          "name": "Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "1996": {
+          "id": 1996,
+          "name": "Sum of All Fears",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "25": {
+          "id": 25,
+          "name": "Power Drain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "803": {
+          "id": 803,
+          "name": "Power Leech",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7646\\\\xF16E\\\\xC21B\\\\x3F9B": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7646\\\\xF16E\\\\xC21B\\\\x3F9B"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        6341
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "105": {
+          "id": 105,
+          "name": "Deathly Swarm",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1069": {
+          "id": 1069,
+          "name": "Taste of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1997": {
+          "id": 1997,
+          "name": "Withering Aura",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "2058": {
+          "id": 2058,
+          "name": "Putrid Bile",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "91": {
+          "id": 91,
+          "name": "Well of Power",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "935": {
+          "id": 935,
+          "name": "Rising Bile",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7647\\\\x8B99\\\\xD397\\\\x19D4": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7647\\\\x8B99\\\\xD397\\\\x19D4"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        6339
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1367": {
+          "id": 1367,
+          "name": "Blinding Surge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1376": {
+          "id": 1376,
+          "name": "Glyph of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "2059": {
+          "id": 2059,
+          "name": "Shell Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "223": {
+          "id": 223,
+          "name": "Chain Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "225": {
+          "id": 225,
+          "name": "Air Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7648\\\\xBD1B\\\\xC8C1\\\\x40D0": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7648\\\\xBD1B\\\\xC8C1\\\\x40D0"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        6340
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1397": {
+          "id": 1397,
+          "name": "Light of Deliverance",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "2003": {
+          "id": 2003,
+          "name": "Cure Hex",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "2062": {
+          "id": 2062,
+          "name": "Healing Ribbon",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "958": {
+          "id": 958,
+          "name": "Healing Whisper",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7649\\\\xBD2C\\\\xBF18\\\\x3855": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7649\\\\xBD2C\\\\xBF18\\\\x3855"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        6342
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1144": {
+          "id": 1144,
+          "name": "Silverwing Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "390": {
+          "id": 390,
+          "name": "Savage Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x764A\\\\xBAFF\\\\xB3C7\\\\x76C2": {
+      "encoded_names": [
+        "\\\\x8101\\\\x764A\\\\xBAFF\\\\xB3C7\\\\x76C2"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6344
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "2484": {
+          "id": 2484,
+          "name": "Metamorphosis",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "851": {
+          "id": 851,
+          "name": "Sun and Moon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "907": {
+          "id": 907,
+          "name": "Dragon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x76B0\\\\x9F99\\\\xE643\\\\x2BDC": {
+      "encoded_names": [
+        "\\\\x8101\\\\x76B0\\\\x9F99\\\\xE643\\\\x2BDC"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7064
+      ],
+      "observed_maps": {
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "112": {
+          "id": 112,
+          "name": "Desecrate Enchantments",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "123": {
+          "id": 123,
+          "name": "Insidious Parasite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1358": {
+          "id": 1358,
+          "name": "Ulcerous Lungs",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "151": {
+          "id": 151,
+          "name": "Feast of Corruption",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x76BB\\\\xE389\\\\xEBD2\\\\x5BB6": {
+      "encoded_names": [
+        "\\\\x8101\\\\x76BB\\\\xE389\\\\xEBD2\\\\x5BB6"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6345
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1144": {
+          "id": 1144,
+          "name": "Silverwing Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "2484": {
+          "id": 2484,
+          "name": "Metamorphosis",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x76E3\\\\x9ADB\\\\xCFAD\\\\x2A04": {
+      "encoded_names": [
+        "\\\\x8101\\\\x76E3\\\\x9ADB\\\\xCFAD\\\\x2A04"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6346
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
         }
       },
       "observed_skills": {}
@@ -37182,6 +37725,712 @@
           "name": "Parasitic_Bite",
           "profession": "None",
           "profession_id": 0
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D1\\\\x94E7\\\\xCE8C\\\\x022C": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D1\\\\x94E7\\\\xCE8C\\\\x022C"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7079
+      ],
+      "observed_maps": {
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        }
+      },
+      "observed_skills": {
+        "23": {
+          "id": 23,
+          "name": "Power Spike",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "24": {
+          "id": 24,
+          "name": "Power Leak",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "25": {
+          "id": 25,
+          "name": "Power Drain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "49": {
+          "id": 49,
+          "name": "Mind Wrack",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "50": {
+          "id": 50,
+          "name": "Wastrel's Worry",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "57": {
+          "id": 57,
+          "name": "Cry of Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "953": {
+          "id": 953,
+          "name": "Power Flux",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D2\\\\x9243\\\\xFDAB\\\\x76C1": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D2\\\\x9243\\\\xFDAB\\\\x76C1"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        7083
+      ],
+      "observed_maps": {
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        }
+      },
+      "observed_skills": {
+        "1369": {
+          "id": 1369,
+          "name": "Lightning Bolt",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1664": {
+          "id": 1664,
+          "name": "Invoke Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "2059": {
+          "id": 2059,
+          "name": "Shell Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "220": {
+          "id": 220,
+          "name": "Blinding Flash",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "223": {
+          "id": 223,
+          "name": "Chain Lightning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "224": {
+          "id": 224,
+          "name": "Enervating Charge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "225": {
+          "id": 225,
+          "name": "Air Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D3\\\\x94A9\\\\x678D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D3\\\\x94A9\\\\x678D"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7087
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1341": {
+          "id": 1341,
+          "name": "Frustration",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "1348": {
+          "id": 1348,
+          "name": "Hex Eater Vortex",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "19": {
+          "id": 19,
+          "name": "Fragility",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "27": {
+          "id": 27,
+          "name": "Shatter Delusions",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "44": {
+          "id": 44,
+          "name": "Phantom Pain",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "78": {
+          "id": 78,
+          "name": "Epidemic",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "931": {
+          "id": 931,
+          "name": "Power Return",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D4\\\\x837A\\\\xB0B2\\\\x26F7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D4\\\\x837A\\\\xB0B2\\\\x26F7"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        7088
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1367": {
+          "id": 1367,
+          "name": "Blinding Surge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "167": {
+          "id": 167,
+          "name": "Eruption",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "224": {
+          "id": 224,
+          "name": "Enervating Charge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "225": {
+          "id": 225,
+          "name": "Air Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "231": {
+          "id": 231,
+          "name": "Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D5\\\\xE7BF\\\\xD1DF\\\\x0235": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D5\\\\xE7BF\\\\xD1DF\\\\x0235"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        7091
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1399": {
+          "id": 1399,
+          "name": "Shield of Absorption",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "2005": {
+          "id": 2005,
+          "name": "Smiter's Boon",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "253": {
+          "id": 253,
+          "name": "Scourge Sacrifice",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "259": {
+          "id": 259,
+          "name": "Shield of Deflection",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "302": {
+          "id": 302,
+          "name": "Smite Hex",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "307": {
+          "id": 307,
+          "name": "Reversal of Fortune",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D6\\\\x9EF8\\\\xD507\\\\x4DD7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D6\\\\x9EF8\\\\xD507\\\\x4DD7"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        7092
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1470": {
+          "id": 1470,
+          "name": "Barbed Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "1719": {
+          "id": 1719,
+          "name": "Screaming Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "2143": {
+          "id": 2143,
+          "name": "Disrupting Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "404": {
+          "id": 404,
+          "name": "Poison Arrow",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "406": {
+          "id": 406,
+          "name": "Debilitating Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "424": {
+          "id": 424,
+          "name": "Throw Dirt",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D7\\\\x9660\\\\xC036\\\\x786C": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D7\\\\x9660\\\\xC036\\\\x786C"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "None",
+      "model_ids": [
+        7093
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "105": {
+          "id": 105,
+          "name": "Deathly Swarm",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "510": {
+          "id": 510,
+          "name": "Deafening_Roar",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "764": {
+          "id": 764,
+          "name": "Wail of Doom",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "828": {
+          "id": 828,
+          "name": "Vile Miasma",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D8\\\\x931B\\\\xF82C\\\\x2236": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D8\\\\x931B\\\\xF82C\\\\x2236"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        7094
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1410": {
+          "id": 1410,
+          "name": "Overbearing Smash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "359": {
+          "id": 359,
+          "name": "Heavy Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "850": {
+          "id": 850,
+          "name": "Fierce Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "889": {
+          "id": 889,
+          "name": "Forceful Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79D9\\\\xFB83\\\\xA564\\\\x0A62": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79D9\\\\xFB83\\\\xA564\\\\x0A62"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        7097
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1400": {
+          "id": 1400,
+          "name": "Reversal of Damage",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1687": {
+          "id": 1687,
+          "name": "Zealous Benediction",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "2004": {
+          "id": 2004,
+          "name": "Smite Condition",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "245": {
+          "id": 245,
+          "name": "Protective Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "302": {
+          "id": 302,
+          "name": "Smite Hex",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "307": {
+          "id": 307,
+          "name": "Reversal of Fortune",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x79DA\\\\xCA0B\\\\xB8D5\\\\x2BEA": {
+      "encoded_names": [
+        "\\\\x8101\\\\x79DA\\\\xCA0B\\\\xB8D5\\\\x2BEA"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7095
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "104": {
+          "id": 104,
+          "name": "Death Nova",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "107": {
+          "id": 107,
+          "name": "Virulence",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1365": {
+          "id": 1365,
+          "name": "Signet of Lost Souls",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1997": {
+          "id": 1997,
+          "name": "Withering Aura",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "828": {
+          "id": 828,
+          "name": "Vile Miasma",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "95": {
+          "id": 95,
+          "name": "Putrid Explosion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x7C32\\\\xBE23\\\\xBF2F\\\\x5AFF": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7C32\\\\xBE23\\\\xBF2F\\\\x5AFF"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        7089
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        }
+      },
+      "observed_skills": {
+        "320": {
+          "id": 320,
+          "name": "Hamstring",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "329": {
+          "id": 329,
+          "name": "Skull Crack",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "382": {
+          "id": 382,
+          "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "384": {
+          "id": 384,
+          "name": "Gash",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -38029,6 +39278,56 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x10E1\\\\x9E29\\\\xC83F\\\\x5C60": {
+      "encoded_names": [
+        "\\\\x8102\\\\x10E1\\\\x9E29\\\\xC83F\\\\x5C60"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7064
+      ],
+      "observed_maps": {
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "123": {
+          "id": 123,
+          "name": "Insidious Parasite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1358": {
+          "id": 1358,
+          "name": "Ulcerous Lungs",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "151": {
+          "id": 151,
+          "name": "Feast of Corruption",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x11AB\\\\x8DA3\\\\x61D8": {
       "encoded_names": [
         "\\\\x8102\\\\x11AB\\\\x8DA3\\\\x61D8"
@@ -38108,6 +39407,106 @@
           "name": "Throw Dirt",
           "profession": "Ranger",
           "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x144D\\\\xA005\\\\xED03\\\\x3943": {
+      "encoded_names": [
+        "\\\\x8102\\\\x144D\\\\xA005\\\\xED03\\\\x3943"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        7065
+      ],
+      "observed_maps": {
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1358": {
+          "id": 1358,
+          "name": "Ulcerous Lungs",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1659": {
+          "id": 1659,
+          "name": "Toxic Chill",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x144F\\\\xA2EA\\\\xC29A\\\\x1987": {
+      "encoded_names": [
+        "\\\\x8102\\\\x144F\\\\xA2EA\\\\xC29A\\\\x1987"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        7063
+      ],
+      "observed_maps": {
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1215": {
+          "id": 1215,
+          "name": "Clamor of Souls",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1245": {
+          "id": 1245,
+          "name": "Gaze from Beyond",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1247": {
+          "id": 1247,
+          "name": "Pain",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1745": {
+          "id": 1745,
+          "name": "Anguish",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "916": {
+          "id": 916,
+          "name": "Lamentation",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "920": {
+          "id": 920,
+          "name": "Destruction",
+          "profession": "Ritualist",
+          "profession_id": 8
         }
       }
     },
@@ -39277,6 +40676,50 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x288C\\\\x8650\\\\xE055\\\\x40F7": {
+      "encoded_names": [
+        "\\\\x8102\\\\x288C\\\\x8650\\\\xE055\\\\x40F7"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        6309
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {
+        "1119": {
+          "id": 1119,
+          "name": "Karei's Healing Circle",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "282": {
+          "id": 282,
+          "name": "Word of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "887": {
+          "id": 887,
+          "name": "Signet of Rejuvenation",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x2895\\\\xCEF4\\\\x869A\\\\x65D1": {
       "encoded_names": [
         "\\\\x8102\\\\x2895\\\\xCEF4\\\\x869A\\\\x65D1"
@@ -39428,6 +40871,106 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x8102\\\\x2914\\\\xF8EE\\\\xFD7D\\\\x0415": {
+      "encoded_names": [
+        "\\\\x8102\\\\x2914\\\\xF8EE\\\\xFD7D\\\\x0415"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        6913
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "334": {
+          "id": 334,
+          "name": "Axe Rake",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "337": {
+          "id": 337,
+          "name": "Dismember",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "342": {
+          "id": 342,
+          "name": "Axe Twist",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x8102\\\\x291A\\\\xFB1A\\\\x9149\\\\x6788": {
+      "encoded_names": [
+        "\\\\x8102\\\\x291A\\\\xFB1A\\\\x9149\\\\x6788"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        6920
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "382": {
+          "id": 382,
+          "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "385": {
+          "id": 385,
+          "name": "Final Thrust",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "892": {
+          "id": 892,
+          "name": "Quivering Blade",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
     "enc:\\\\x8102\\\\x2A76\\\\xB9F0\\\\x8EE6\\\\x687F": {
       "encoded_names": [
         "\\\\x8102\\\\x2A76\\\\xB9F0\\\\x8EE6\\\\x687F"
@@ -39446,6 +40989,74 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x8102\\\\x2C76\\\\xEBF4\\\\xB1F7\\\\x2700": {
+      "encoded_names": [
+        "\\\\x8102\\\\x2C76\\\\xEBF4\\\\xB1F7\\\\x2700"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        7060
+      ],
+      "observed_maps": {
+        "581": {
+          "base_id": 581,
+          "id": 581,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 1)"
+        },
+        "582": {
+          "base_id": 582,
+          "id": 582,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 2)"
+        },
+        "583": {
+          "base_id": 583,
+          "id": 583,
+          "instance_type": "Explorable",
+          "name": "Shards of Oor (level 3)"
+        }
+      },
+      "observed_skills": {
+        "1367": {
+          "id": 1367,
+          "name": "Blinding Surge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "224": {
+          "id": 224,
+          "name": "Enervating Charge",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "225": {
+          "id": 225,
+          "name": "Air Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "231": {
+          "id": 231,
+          "name": "Shock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x8102\\\\x387B\\\\xACE0\\\\xCCF0\\\\x024A": {
       "encoded_names": [
@@ -39496,6 +41107,25 @@
           "profession_id": 6
         }
       }
+    },
+    "enc:\\\\x8102\\\\x58DA\\\\xEEFB\\\\xF907\\\\x6E7C": {
+      "encoded_names": [
+        "\\\\x8102\\\\x58DA\\\\xEEFB\\\\xF907\\\\x6E7C"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        5897
+      ],
+      "observed_maps": {
+        "485": {
+          "base_id": 485,
+          "id": 485,
+          "instance_type": "Explorable",
+          "name": "Arbor Bay"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8102\\\\x5BAD\\\\xE127\\\\xB7B2\\\\x53D7": {
       "encoded_names": [

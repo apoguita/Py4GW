@@ -427,6 +427,10 @@ def LogMessage(message: str,
     )
     
 #region dialogs
+
+def TargetAgentByName(agent_name: str,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Agents.TargetAgentByName(agent_name=agent_name,log=log,)
+
 def TargetNearest(x: float, y: float, target_distance: float = Range.Nearby.value, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Agents.TargetNearestNPCXY(x=x,y=y,distance=target_distance,log=log)
 
@@ -1277,16 +1281,40 @@ def MoveAndInteract(
     )
 
 def MoveAndInteractWithGadget(
-    pos: PointOrPath,
-    target_distance: float = Range.Area.value,
-    move_tolerance: float = 150.0,
+    pos: PointOrPath | None = None,
+    gadget_id: int | None = None,
+    search_distance: float = 5_000.0,
+    interaction_distance: float = Range.Nearby.value,
+    interaction_count: int = 1,
+    interaction_interval_ms: int = 500,
+    account_settle_ms: int = 5_000,
+    timeout_ms: int = 90_000,
     pause_on_combat: bool | None = None,
+    move_tolerance: float = 150.0,
     flag_heroes_to_waypoint: bool = False,
+    multi_account: bool = False,
+    include_self: bool = True,
     log: bool = False,
 ) -> BehaviorTree:
-    return _movement_with_runtime_pause(
-        "MoveAndInteractWithGadget",
-        lambda resolved_pause: RoutinesBT.Composite.Sequence(
+    def _build(resolved_pause: bool) -> BehaviorTree:
+        interaction_tree = RoutinesBT.Agents.MoveAndInteractWithGadget(
+            pos=pos,
+            gadget_id=gadget_id,
+            search_distance=search_distance,
+            interaction_distance=interaction_distance,
+            interaction_count=interaction_count,
+            interaction_interval_ms=interaction_interval_ms,
+            account_settle_ms=account_settle_ms,
+            timeout_ms=timeout_ms,
+            multi_account=multi_account,
+            include_self=include_self,
+            log=log,
+        )
+
+        if pos is None:
+            return interaction_tree
+
+        return RoutinesBT.Composite.Sequence(
             RoutinesBT.Movement.MovePath(
                 pos=pos,
                 pause_on_combat=resolved_pause,
@@ -1295,10 +1323,17 @@ def MoveAndInteractWithGadget(
                 log=log,
             ),
             _wait_until_player_stops_moving(log=log),
-            Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
-            TargetNearestGadgetAndInteract(pos=pos, target_distance=target_distance, log=log),
+            Wait(
+                _POST_MOVEMENT_SETTLE_MS,
+                log=log,
+            ),
+            interaction_tree,
             name="MoveAndInteractWithGadget",
-        ),
+        )
+
+    return _movement_with_runtime_pause(
+        "MoveAndInteractWithGadget",
+        _build,
         pause_on_combat=pause_on_combat,
     )
         
@@ -1585,10 +1620,9 @@ def ClearEnemiesInArea(pos: PointOrPath, radius: float = Range.Spirit.value, all
     point = _final_point(pos)
     return RoutinesBT.Agents.ClearEnemiesInArea(x=point.x,y=point.y,radius=radius,allowed_alive_enemies=allowed_alive_enemies,)
 
-def WaitForClearEnemiesInArea(pos: PointOrPath, radius: float = Range.Spirit.value, allowed_alive_enemies: int = 0) -> BehaviorTree:
-    point = _final_point(pos)
-    return RoutinesBT.Agents.WaitForClearEnemiesInArea(x=point.x,y=point.y,radius=radius,allowed_alive_enemies=allowed_alive_enemies,)
-     
+def WaitForClearEnemiesInArea(x: float,y: float,radius: float = Range.Earshot.value,allowed_alive_enemies: int = 0,interact_interval_ms: int = 750,stable_clear_ms: int = 0,keep_player_near_center: bool = False,center_tolerance: float = 750.0,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Agents.WaitForClearEnemiesInArea(x=x,y=y,radius=radius,allowed_alive_enemies=allowed_alive_enemies,interact_interval_ms=interact_interval_ms,stable_clear_ms=stable_clear_ms,keep_player_near_center=keep_player_near_center,center_tolerance=center_tolerance,log=log,)     
+
 #region Items
 def IsItemInInventoryBags(modelID_or_encStr: int | str) -> BehaviorTree:
     return RoutinesBT.Items.IsItemInInventoryBags(modelID_or_encStr=modelID_or_encStr)
@@ -2103,6 +2137,13 @@ def WaitForActiveQuest(quest_id: int, timeout_ms: int = 1500, throttle_interval_
 
 def WaitForQuestCleared(quest_id: int, timeout_ms: int = 1500, throttle_interval_ms: int = 150) -> BehaviorTree:
     return RoutinesBT.Party.WaitForActiveQuestCleared(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)
+
+def WaitForQuestState(quest_id: int,state: str,timeout_ms: int = 10000,throttle_interval_ms: int = 250,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Party.WaitForQuestState(quest_id=quest_id,state=state,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,log=log,)
+
+def AbandonQuest(quest_id: int,multi_account: bool = False,include_self: bool = True,timeout_ms: int = 10_000,aftercast_ms: int = 250,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Party.AbandonQuest(quest_id=quest_id,multi_account=multi_account,include_self=include_self,timeout_ms=timeout_ms,aftercast_ms=aftercast_ms,log=log,)
+
 
 def LogoutToCharacterSelect() -> BehaviorTree:
     return RoutinesBT.Player.LogoutToCharacterSelect()
@@ -2795,3 +2836,63 @@ def HandleQuest(
         )
     )    
 
+
+def HasLocalEffect(
+    effect_id: int,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Player.HasLocalEffect(
+        effect_id=effect_id,
+        log=log,
+        )
+
+def Selector(
+    children: SequenceABC[BehaviorTree | BehaviorTree.Node],
+    name: str = "Selector",
+) -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.SelectorNode(
+            name=name,
+            children=list(children),
+        )
+    )
+
+
+def PickupGroundItemByModelID(
+    model_ids: int | SequenceABC[int],
+    max_distance: float = 5_000.0,
+    timeout_ms: int = 15_000,
+    allow_unassigned: bool = True,
+    interaction_interval_ms: int = 500,
+    aftercast_ms: int = 100,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Items.PickupGroundItemByModelID(
+        model_ids=model_ids,
+        max_distance=max_distance,
+        timeout_ms=timeout_ms,
+        allow_unassigned=allow_unassigned,
+        interaction_interval_ms=interaction_interval_ms,
+        aftercast_ms=aftercast_ms,
+        log=log,
+    )
+
+def IsCurrentMap(
+    map_id: int,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Map.IsCurrentMap(
+        map_id=map_id,
+        log=log,
+    )
+
+def IsQuestState(
+    quest_id: int,
+    state: str,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Party.IsQuestState(
+        quest_id=quest_id,
+        state=state,
+        log=log,
+    )
