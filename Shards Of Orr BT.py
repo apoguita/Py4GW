@@ -198,6 +198,7 @@ SOO_ENTRANCE_PATH = [
 L1_PATH = [
     Vec2f(3720.16, 15370.78),
     Vec2f(6740.06, 11039.32),
+    Vec2f(15879, 11171),
     Vec2f(16026.25, 16957.26),
     Vec2f(14255.37, 6189.60)
 ]
@@ -1490,9 +1491,9 @@ def PickupTorch() -> BehaviorTree:
         max_distance=10_000.0,
         timeout_ms=45_000,
         allow_unassigned=True,
-        interaction_interval_ms=5000,
+        interaction_interval_ms=1000,
         aftercast_ms=100,
-        log=True,
+        log=False,
     )
 
 
@@ -2064,14 +2065,14 @@ def TravelToShandra() -> BehaviorTree:
     normal_travel = BT.Sequence(
         name="Travel To Shandra From Vlox",
         children=[
-            BT.MoveAndExitMap(VLOXS_EXIT, target_map_id=ARBOR_BAY, log=False),
+            BT.MoveAndExitMap(VLOXS_EXIT, target_map_id=ARBOR_BAY, log=True),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             BT.Wait(2_000),
             BT.MoveAndDialog(ARBOR_BLESSING_NPC, dialog_id=DWARVEN_BLESSING_DIALOG, multi_account=True, log=True),
             BT.Wait(3_000),
-            BT.Move(ARBOR_TO_SHANDRA_PATH, pause_on_combat=True, log=False),
+            BT.Move(ARBOR_TO_SHANDRA_PATH, pause_on_combat=True, log=True),
             BT.WaitUntilOutOfCombat(timeout_ms=60_000),
-            BT.Move(SHANDRA_APPROACH, pause_on_combat=False, log=False),
+            BT.Move(SHANDRA_APPROACH, pause_on_combat=False, log=True),
         ],
     )
     return BT.Selector(children=[skip_if_already_in_level_1, normal_travel], name="Travel To Shandra")
@@ -2125,7 +2126,7 @@ def EnterShardsOfOrr(
     normal_entry = BT.Sequence(
         name="Enter Shards of Orr From Arbor Bay",
         children=[
-            BT.Move(SOO_ENTRANCE_PATH, pause_on_combat=False, log=False),
+            BT.Move(SOO_ENTRANCE_PATH, pause_on_combat=False, log=True),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_1, timeout_ms=60_000),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             BT.Wait(2_000),
@@ -2164,7 +2165,7 @@ def Level1_Part1() -> BehaviorTree:
                 Vec2f(-11686.0, 10427.0),
                 dialog_id=DWARVEN_BLESSING_DIALOG,
                 multi_account=True,
-                log=False,
+                log=True,
             ),
             ResilientVanquishNode(
                 L1_PATH,
@@ -2175,7 +2176,7 @@ def Level1_Part1() -> BehaviorTree:
             
             BT.MoveAndInteractWithGadget(Vec2f(15100.0, 5443.0),
                 pause_on_combat=True,
-                log=False,
+                log=True,
             ),
             
         ],
@@ -2228,7 +2229,7 @@ def Level2_Part1() -> BehaviorTree:
                 log=True,
             ),
             PickupTorch(),
-            BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True, log=False),
+            BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True, log=True),
             BT.DropBundle(log=True),
             ResilientVanquishNode(
                 L2_RETURN_TO_FIRST_TORCH_PATH,
@@ -2237,8 +2238,8 @@ def Level2_Part1() -> BehaviorTree:
                 clear_area_radius=Range.Spellcast.value,
             ),
             PickupTorch(),
-            BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True, log=False),
-            BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True, log=False),
+            BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True, log=True),
+            BT.Move(Vec2f(-11303.00, -14596.00), pause_on_combat=True, log=True),
             BrazierSequence("Level 2 Brazier Route 1", L2_BRAZIER_PART1),
             BT.DropBundle(log=True),
         ],
@@ -2250,11 +2251,8 @@ def Level2_Part2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
         children=[
-            ResilientVanquishNode(
-                L2_CLEANING_PATH,
-                name="Clear Remaining Level 2 Room 1 Enemies",
-                flag_heroes_to_waypoint=False,
-                clear_area_radius=Range.Compass.value,
+            BT.ClearEnemiesInArea(
+                L2_CLEANING_PATH,radius=Range.Compass.value,
             ),
             PickupTorch(),
             ResilientVanquishNode(L2_TO_ROOM2_DROP,clear_area_radius=Range.Area.value, pause_on_combat=True),
@@ -2401,7 +2399,7 @@ def Level3_Fendi() -> BehaviorTree:
                 stable_clear_ms=20_000,
                 keep_player_near_center=False,
                 center_tolerance=750.0,
-                log=False,
+                log=True,
             ),
             _record_run_end_node(),
     
@@ -2423,7 +2421,7 @@ def CollectInsideReward() -> BehaviorTree:
     return BT.Sequence(
         name="Collect Inside Reward",
         children=[
-            BT.Move(Vec2f(-15794.14, 16964.48)),
+            BT.Move(Vec2f(-14873, 17174)),
             BT.MoveAndInteractWithGadget(
             gadget_id=FENDI_CHEST_GADGET_ID,
             pos=Vec2f(*FENDI_CHEST_POSITION),

@@ -1172,13 +1172,8 @@ class BTItems:
             state["last_interaction_at"] = now
             state["interacted"] = True
 
-            Player.ChangeTarget(
-                target_agent_id
-            )
-            Player.Interact(
-                target_agent_id,
-                False,
-            )
+            Player.ChangeTarget(target_agent_id)
+            Player.Interact(target_agent_id, False)
 
             _trace(
                 f"Interacting with item agent "
