@@ -38189,6 +38189,12 @@
           "name": "Vile Miasma",
           "profession": "Necromancer",
           "profession_id": 4
+        },
+        "95": {
+          "id": 95,
+          "name": "Putrid Explosion",
+          "profession": "Necromancer",
+          "profession_id": 4
         }
       }
     },
@@ -39299,6 +39305,12 @@
         "108": {
           "id": 108,
           "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "112": {
+          "id": 112,
+          "name": "Desecrate Enchantments",
           "profession": "Necromancer",
           "profession_id": 4
         },
