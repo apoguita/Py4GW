@@ -2466,7 +2466,7 @@ def Level3_Fendi() -> BehaviorTree:
                 radius=Range.Compass.value,
                 allowed_alive_enemies=0,
                 interact_interval_ms=750,
-                stable_clear_ms=20_000,
+                stable_clear_ms=10_000,
                 keep_player_near_center=False,
                 center_tolerance=750.0,
                 log=True,
