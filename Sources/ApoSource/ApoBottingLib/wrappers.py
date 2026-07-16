@@ -1166,7 +1166,7 @@ def Move(
     flag_heroes_to_waypoint: bool = False,
     log: bool = False,
     ignore_destination_obstacles: bool = False,
-    destination_obstacle_ignore_distance: float = 1500.0,
+    destination_obstacle_ignore_distance: float = Range.Earshot.value
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "Move",
