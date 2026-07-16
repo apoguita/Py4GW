@@ -9,7 +9,7 @@ import time
 import Py4GW
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.IniManager import IniManager
-from Py4GWCoreLib import GLOBAL_CACHE, IniHandler, Player, SharedCommandType
+from Py4GWCoreLib import Agent, GLOBAL_CACHE, IniHandler, Player, SharedCommandType
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.native_src.internals.types import Vec2f
@@ -1439,14 +1439,91 @@ def _draw_statistics() -> None:
 # region Helpers
 
 def PickupTorch() -> BehaviorTree:
-    return BT.PickupGroundItemByModelID(
+    pickup_tree = BT.PickupGroundItemByModelID(
         model_ids=TORCH_MODEL_IDS,
-        max_distance=10_000.0,
+        max_distance=20_000.0,
         timeout_ms=45_000,
         allow_unassigned=True,
         interaction_interval_ms=1000,
         aftercast_ms=100,
         log=True,
+    )
+
+    def _pickup_or_restart_step(
+        node: BehaviorTree.Node,
+    ) -> BehaviorTree.NodeState:
+        try:
+            torch_already_carried = bool(
+                Agent.IsHoldingItem(
+                    Player.GetAgentID(),
+                )
+            )
+        except Exception:
+            torch_already_carried = False
+
+        if torch_already_carried:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                (
+                    "Torch pickup skipped: the player is already "
+                    "carrying a bundle."
+                ),
+                Py4GW.Console.MessageType.Info,
+            )
+            return BehaviorTree.NodeState.SUCCESS
+
+        pickup_tree.blackboard = node.blackboard
+        pickup_result = BehaviorTree.Node._normalize_state(
+            pickup_tree.tick()
+        )
+        if pickup_result is None:
+            raise TypeError(
+                "PickupTorch received a non-NodeState result."
+            )
+
+        if pickup_result != BehaviorTree.NodeState.FAILURE:
+            return pickup_result
+
+        step_name = str(
+            node.blackboard.get(
+                "current_step_name",
+                "",
+            )
+            or ""
+        )
+        if not step_name:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                (
+                    "Torch pickup failed, but no current named planner "
+                    "step is available for local recovery."
+                ),
+                Py4GW.Console.MessageType.Warning,
+            )
+            return BehaviorTree.NodeState.FAILURE
+
+        node.blackboard[
+            "restart_step_name_request"
+        ] = step_name
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            (
+                "Torch pickup timed out. Restarting the current "
+                f"planner step '{step_name}' instead of the full run."
+            ),
+            Py4GW.Console.MessageType.Warning,
+        )
+
+        # Keep the current planner tick alive until BottingTree processes the
+        # restart request at the end of the frame.
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name="PickupTorchWithStepRecovery",
+            action_fn=_pickup_or_restart_step,
+            aftercast_ms=0,
+        )
     )
 
 def ForcePickupKey() -> BehaviorTree:
@@ -2389,7 +2466,7 @@ def Level3_Fendi() -> BehaviorTree:
                 radius=Range.Compass.value,
                 allowed_alive_enemies=0,
                 interact_interval_ms=750,
-                stable_clear_ms=10_000,
+                stable_clear_ms=20_000,
                 keep_player_near_center=False,
                 center_tolerance=750.0,
                 log=True,
@@ -2414,7 +2491,21 @@ def CollectInsideReward() -> BehaviorTree:
     return BT.Sequence(
         name="Collect Inside Reward",
         children=[
-            
+            BT.Move(Vec2f(-15198, 16839), log=True),
+            BT.MoveAndInteractWithGadget(
+            gadget_id=FENDI_CHEST_GADGET_ID,
+            pos=Vec2f(*FENDI_CHEST_POSITION),
+            search_distance=700.0,
+            interaction_distance=Range.Nearby.value,
+            interaction_count=2,
+            interaction_interval_ms=1000,
+            account_settle_ms=3_000,
+            timeout_ms=90_000,
+            multi_account=True,
+            include_self=True,
+            log=True,
+            ),
+            BT.Wait(5000),
             BT.TargetAgentByName(
                 agent_name="Shandra",
                 log=True,
@@ -2444,24 +2535,13 @@ def CollectInsideReward() -> BehaviorTree:
                 ),
                 module_name=MODULE_NAME,
             ),
-            BT.Move(Vec2f(-15198, 16839), log=True),
-            BT.MoveAndInteractWithGadget(
-            gadget_id=FENDI_CHEST_GADGET_ID,
-            pos=Vec2f(*FENDI_CHEST_POSITION),
-            search_distance=700.0,
-            interaction_distance=Range.Nearby.value,
-            interaction_count=2,
-            interaction_interval_ms=1000,
-            account_settle_ms=3_000,
-            timeout_ms=90_000,
-            multi_account=True,
-            include_self=True,
-            log=True,
-            ),
+            
             
             _inventory_statistics_node(after_chest=True),
         ],
     )
+
+
 
 
 def PrepareNextDungeonRun() -> BehaviorTree:
