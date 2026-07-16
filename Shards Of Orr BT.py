@@ -2305,6 +2305,7 @@ def Level2_Part2() -> BehaviorTree:
                 L2_CLEANING_PATH,radius=Range.Compass.value,
                 log=True,
             ),
+            BT.Move(Vec2f(-9011.27, -11536.79)),
             PickupTorch(),
             BT.VanquishNode(
                 L2_TO_ROOM2_DROP,
