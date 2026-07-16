@@ -37,6 +37,7 @@ class _BottingTreeTicksHost(Protocol):
     def EnsureHeroAIOptionsEnabled(self) -> None: ...
     def _should_log_heroai_state(self, state: str) -> bool: ...
     def RestoreAccountIsolation(self) -> bool: ...
+    def GetNamedPlannerStepNames(self) -> list[str]: ...
 
 
 class BottingTreeTicksMixin:
@@ -219,12 +220,23 @@ class BottingTreeTicksMixin:
             self.paused = False
             self.RestoreAccountIsolation()
         elif planner_result == BehaviorTree.NodeState.FAILURE:
-            Py4GW.Console.Log('BottingTree', 'Planner tree failed.', Py4GW.Console.MessageType.Warning)
-            bb['PLANNER_STATUS'] = 'PLANNER: Failed'
             bb['PLANNER_OWNER'] = PlannerStatus.OWNER_PLANNER.value
-            self.started = False
-            self.paused = False
-            self.RestoreAccountIsolation()
+            current_step_name = str(bb.get('current_step_name', '') or '')
+            named_step_names = self.GetNamedPlannerStepNames()
+            if current_step_name and current_step_name in named_step_names:
+                Py4GW.Console.Log(
+                    'BottingTree',
+                    f"Planner step '{current_step_name}' failed. Restarting the current named step.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                bb['PLANNER_STATUS'] = f'PLANNER: Restarting {current_step_name}'
+                bb['restart_step_name_request'] = current_step_name
+            else:
+                Py4GW.Console.Log('BottingTree', 'Planner tree failed.', Py4GW.Console.MessageType.Warning)
+                bb['PLANNER_STATUS'] = 'PLANNER: Failed'
+                self.started = False
+                self.paused = False
+                self.RestoreAccountIsolation()
         return BehaviorTree.NodeState.RUNNING
 
     def _tick_service_tree(

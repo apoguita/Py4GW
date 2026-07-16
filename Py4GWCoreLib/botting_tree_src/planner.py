@@ -23,6 +23,8 @@ class BottingTreePlannerMixin:
 
         def ClearBlackboardValue(self, key: str) -> None: ...
 
+        def EnsurePartyWipeRecoveryService(self, default_step_name: Callable[[], str | None]) -> None: ...
+
         def _tick_heroai(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState: ...
 
         def _tick_planner(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState: ...
@@ -186,10 +188,23 @@ class BottingTreePlannerMixin:
         ]
         if repeat:
             full_pass = self._build_named_planner_tree(steps, start_from=None, name=f'{name} Full Pass', repeat=False)
+
+            def _tick_repeated_pass(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+                """Repeat completed passes while still propagating failures."""
+                full_pass.blackboard = node.blackboard
+                result = BehaviorTree.Node._normalize_state(full_pass.tick())
+                if result is None:
+                    raise TypeError('Repeated named planner pass returned a non-NodeState result.')
+                if result == BehaviorTree.NodeState.SUCCESS:
+                    full_pass.reset()
+                    return BehaviorTree.NodeState.RUNNING
+                return result
+
             children.append(
-                BehaviorTree.RepeaterForeverNode(
-                    full_pass.root,
+                BehaviorTree.ActionNode(
                     name='Loop: restart routine',
+                    action_fn=_tick_repeated_pass,
+                    aftercast_ms=0,
                 )
             )
         return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
