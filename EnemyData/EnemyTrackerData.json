@@ -3309,6 +3309,18 @@
           "instance_type": "Explorable",
           "name": "Shards of Oor (level 2)"
         },
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
+        },
+        "651": {
+          "base_id": 651,
+          "id": 651,
+          "instance_type": "Explorable",
+          "name": "Sacnoth Valley"
+        },
         "72": {
           "base_id": 72,
           "id": 72,
@@ -3339,6 +3351,12 @@
           "id": 546,
           "instance_type": "Explorable",
           "name": "Jaga Moraine"
+        },
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
         }
       },
       "observed_skills": {}
@@ -3472,6 +3490,12 @@
           "id": 62,
           "instance_type": "Explorable",
           "name": "Watchtower Coast"
+        },
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
         }
       },
       "observed_skills": {}
@@ -35301,6 +35325,12 @@
           "profession": "Ritualist",
           "profession_id": 8
         },
+        "1234": {
+          "id": 1234,
+          "name": "Mend Body and Soul",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
         "1250": {
           "id": 1250,
           "name": "Preservation",
@@ -35310,6 +35340,12 @@
         "1266": {
           "id": 1266,
           "name": "Soothing",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "917": {
+          "id": 917,
+          "name": "Rupture Soul",
           "profession": "Ritualist",
           "profession_id": 8
         },
@@ -35700,7 +35736,7 @@
         "\\\\x8101\\\\x749E\\\\x9B25\\\\xF9B0\\\\x5373"
       ],
       "inferred_primary": "Necromancer",
-      "inferred_secondary": "",
+      "inferred_secondary": "None",
       "model_ids": [
         6707
       ],
@@ -35731,9 +35767,21 @@
           "profession": "Necromancer",
           "profession_id": 4
         },
+        "2083": {
+          "id": 2083,
+          "name": "Mandragors_Charge",
+          "profession": "None",
+          "profession_id": 0
+        },
         "822": {
           "id": 822,
           "name": "Weaken Knees",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "98": {
+          "id": 98,
+          "name": "Consume Corpse",
           "profession": "Necromancer",
           "profession_id": 4
         }
@@ -36561,6 +36609,51 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x7515\\\\xE1D5\\\\x857C\\\\x0B27": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7515\\\\xE1D5\\\\x857C\\\\x0B27"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6939
+      ],
+      "observed_maps": {
+        "576": {
+          "base_id": 576,
+          "id": 576,
+          "instance_type": "Explorable",
+          "name": "Ooza Pit"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x7517\\\\x9868\\\\xD72E\\\\x1D64": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7517\\\\x9868\\\\xD72E\\\\x1D64"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        6945
+      ],
+      "observed_maps": {
+        "576": {
+          "base_id": 576,
+          "id": 576,
+          "instance_type": "Explorable",
+          "name": "Ooza Pit"
+        }
+      },
+      "observed_skills": {
+        "169": {
+          "id": 169,
+          "name": "Earth Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
     "enc:\\\\x8101\\\\x7585\\\\x17C62\\\\x0764": {
       "encoded_names": [
         "\\\\x8101\\\\x7585\\\\x17C62\\\\x0764"
@@ -36813,8 +36906,8 @@
       "encoded_names": [
         "\\\\x8101\\\\x75FA\\\\xC509\\\\xFF9E\\\\x019F"
       ],
-      "inferred_primary": "Elementalist",
-      "inferred_secondary": "Warrior",
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "Elementalist",
       "model_ids": [
         6678
       ],
@@ -36844,6 +36937,24 @@
           "name": "Conjure Flame",
           "profession": "Elementalist",
           "profession_id": 6
+        },
+        "332": {
+          "id": 332,
+          "name": "Bull's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "336": {
+          "id": 336,
+          "name": "Executioner's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "338": {
+          "id": 338,
+          "name": "Eviscerate",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -36981,6 +37092,12 @@
         6689
       ],
       "observed_maps": {
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
+        },
         "651": {
           "base_id": 651,
           "id": 651,
@@ -37019,6 +37136,12 @@
         6690
       ],
       "observed_maps": {
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
+        },
         "651": {
           "base_id": 651,
           "id": 651,
@@ -37400,6 +37523,18 @@
           "name": "Savage Slash",
           "profession": "Warrior",
           "profession_id": 1
+        },
+        "851": {
+          "id": 851,
+          "name": "Sun and Moon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "907": {
+          "id": 907,
+          "name": "Dragon Slash",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -37426,6 +37561,12 @@
           "name": "Metamorphosis",
           "profession": "None",
           "profession_id": 0
+        },
+        "325": {
+          "id": 325,
+          "name": "Distracting Blow",
+          "profession": "Warrior",
+          "profession_id": 1
         },
         "851": {
           "id": 851,
@@ -37615,6 +37756,25 @@
           "profession_id": 4
         }
       }
+    },
+    "enc:\\\\x8101\\\\x7834\\\\x8195\\\\x9ABE\\\\x1356": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7834\\\\x8195\\\\x9ABE\\\\x1356"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6860
+      ],
+      "observed_maps": {
+        "576": {
+          "base_id": 576,
+          "id": 576,
+          "instance_type": "Explorable",
+          "name": "Ooza Pit"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x790C\\\\xE4FD\\\\xB49B\\\\x03C1": {
       "encoded_names": [
@@ -38632,8 +38792,8 @@
       "encoded_names": [
         "\\\\x8102\\\\x0477\\\\xE99F\\\\xE88C\\\\x50A7"
       ],
-      "inferred_primary": "None",
-      "inferred_secondary": "Warrior",
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "None",
       "model_ids": [
         6681
       ],
@@ -38669,6 +38829,12 @@
           "name": "Gloat",
           "profession": "None",
           "profession_id": 0
+        },
+        "332": {
+          "id": 332,
+          "name": "Bull's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
         },
         "336": {
           "id": 336,
@@ -38789,6 +38955,12 @@
           "name": "Resurrection Signet",
           "profession": "None",
           "profession_id": 0
+        },
+        "382": {
+          "id": 382,
+          "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -38933,6 +39105,12 @@
         "1": {
           "id": 1,
           "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "390": {
+          "id": 390,
+          "name": "Savage Slash",
           "profession": "Warrior",
           "profession_id": 1
         }
@@ -40518,6 +40696,25 @@
         }
       }
     },
+    "enc:\\\\x8102\\\\x23A9\\\\x84FB\\\\xF257\\\\x5441": {
+      "encoded_names": [
+        "\\\\x8102\\\\x23A9\\\\x84FB\\\\xF257\\\\x5441"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        6599
+      ],
+      "observed_maps": {
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8102\\\\x23AA\\\\xEF7A\\\\x9E79\\\\x72EB": {
       "encoded_names": [
         "\\\\x8102\\\\x23AA\\\\xEF7A\\\\x9E79\\\\x72EB"
@@ -40966,6 +41163,12 @@
         "382": {
           "id": 382,
           "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "384": {
+          "id": 384,
+          "name": "Gash",
           "profession": "Warrior",
           "profession_id": 1
         },

@@ -174,19 +174,35 @@ class RestorationMagic:
 
     #region P
     def Protective_Was_Kaolai(self) -> BuildCoroutine:
-        """Cast Protective Was Kaolai on self (item-spell). Picks up Kaolai's
-        ashes - grants +10 armor while held; the party heal triggers on drop.
-        Pair with Drop_Held_Bundle in the rotation (drop check FIRST) so the
-        heal actually releases when the party needs it."""
-        protective_was_kaolai_id: int = Skill.GetID("Protective_Was_Kaolai")
+        """Cast Protective Was Kaolai only when stationary and in combat.
+
+        The ashes grant +10 armor while held. Dropping them triggers
+        the party heal, so Drop_Held_Bundle should remain before this
+        function in the skill rotation.
+        """
+        protective_was_kaolai_id: int = Skill.GetID(
+            "Protective_Was_Kaolai"
+        )
 
         if not self.build.IsSkillEquipped(protective_was_kaolai_id):
             return False
 
-        # Already holding any bundle (PwK ashes, or another item spell) -
-        # recasting would either fail or replace the current bundle and waste
-        # the un-released heal. Let Drop_Held_Bundle release first.
-        if Agent.IsHoldingItem(Player.GetAgentID()):
+        player_agent_id = Player.GetAgentID()
+        player_agent = Agent.GetLivingAgentByID(player_agent_id)
+
+        if not player_agent:
+            return False
+
+        # Do not interrupt movement to cast Kaolai.
+        if getattr(player_agent, "is_moving", False):
+            return False
+
+        # Prevent casting while travelling or catching up with the group.
+        if not self.build.IsInAggro():
+            return False
+
+        # Do not replace an existing bundle before its heal is released.
+        if Agent.IsHoldingItem(player_agent_id):
             return False
 
         if not Routines.Checks.Skills.CanCast():
@@ -194,7 +210,7 @@ class RestorationMagic:
 
         return (yield from self.build.CastSkillID(
             skill_id=protective_was_kaolai_id,
-            target_agent_id=Player.GetAgentID(),
+            target_agent_id=player_agent_id,
             aftercast_delay=250,
             log=False,
         ))

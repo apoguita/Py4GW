@@ -4,11 +4,26 @@
     "enc:\\\\x1230\\\\x9354\\\\x94B4\\\\x654F": [
       "Horreur[s] squelettique[s]"
     ],
+    "enc:\\\\x1231\\\\xFA22\\\\xB883\\\\x6EC7": [
+      "D\u00e9mon[s] squelette[s]"
+    ],
+    "enc:\\\\x1232\\\\xF535\\\\x05E0": [
+      "Serviteur[s] squelette[s]"
+    ],
     "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": [
       "Esprit[s] de douleur"
     ],
     "enc:\\\\x4165\\\\xAA52\\\\x6E73": [
       "Esprit[s] de Destruction"
+    ],
+    "enc:\\\\x4166\\\\xC58F\\\\xC9EF\\\\x6608": [
+      "Esprit[s] d'apaisement"
+    ],
+    "enc:\\\\x4168\\\\xE950\\\\x9424\\\\x0FD0": [
+      "Esprit[s] de pr\u00e9servation"
+    ],
+    "enc:\\\\x4170\\\\xEC42\\\\x8C5C\\\\x55CF": [
+      "Esprit[s] de r\u00e9tablissement"
     ],
     "enc:\\\\x8101\\\\x4737\\\\xE78D\\\\x9F9E\\\\x59B9": [
       "Esprit[s] d'angoisse"
@@ -27,6 +42,63 @@
     ],
     "enc:\\\\x8101\\\\x742D\\\\x8AF2\\\\xF0B8\\\\x2398": [
       "Drake[s] chromatique[s]"
+    ],
+    "enc:\\\\x8101\\\\x7495\\\\x81EA\\\\xD0F2\\\\x62D2": [
+      "Pr\u00eatre[s] des T\u00e9n\u00e8bres grawl[s]"
+    ],
+    "enc:\\\\x8101\\\\x7496\\\\xA890\\\\xD4C3\\\\x7665": [
+      "Champion[s] grawl[s]"
+    ],
+    "enc:\\\\x8101\\\\x7497\\\\xBE32\\\\xE72D\\\\x0740": [
+      "D\u00e9magogue[s] grawl[s]"
+    ],
+    "enc:\\\\x8101\\\\x7498\\\\xBBE7\\\\x9DEA\\\\x45DB": [
+      "Nymphe[s] mantide[s]"
+    ],
+    "enc:\\\\x8101\\\\x749A\\\\xFAA4\\\\xC686\\\\x3789": [
+      "Reine[s] mantide[s]"
+    ],
+    "enc:\\\\x8101\\\\x749B\\\\x93C6\\\\x0836": [
+      "Ecailleux mortel[s]"
+    ],
+    "enc:\\\\x8101\\\\x749C\\\\x9407\\\\xF0A7\\\\x33CF": [
+      "Fouetteur[s] \u00e9cailleux"
+    ],
+    "enc:\\\\x8101\\\\x749E\\\\x9B25\\\\xF9B0\\\\x5373": [
+      "Mandragore[s] ignoble[s]"
+    ],
+    "enc:\\\\x8101\\\\x749F\\\\xBFAE\\\\xB553\\\\x4AA9": [
+      "Mandragore[s] de poussi\u00e8re d\u00e9moniaque"
+    ],
+    "enc:\\\\x8101\\\\x7515\\\\xE1D5\\\\x857C\\\\x0B27": [
+      "Vase[s] scintillante[s]"
+    ],
+    "enc:\\\\x8101\\\\x7517\\\\x9868\\\\xD72E\\\\x1D64": [
+      "Vase[s] terrestre[s]"
+    ],
+    "enc:\\\\x8101\\\\x7585\\\\x17C62\\\\x0764": [
+      "Dominateur[s] charr[s]"
+    ],
+    "enc:\\\\x8101\\\\x7586\\\\x8188\\\\xD49B\\\\x099B": [
+      "Exorciste[s] charr[s]"
+    ],
+    "enc:\\\\x8101\\\\x75F8\\\\xD515\\\\xEBB1\\\\x2BBC": [
+      "Gardefeu[pl:\"Gardefeux\"] charr[s]"
+    ],
+    "enc:\\\\x8101\\\\x75F9\\\\x8121\\\\x2E58": [
+      "Proph\u00e8te[s] charr[s]"
+    ],
+    "enc:\\\\x8101\\\\x75FA\\\\xC509\\\\xFF9E\\\\x019F": [
+      "Charr[s] ma\u00eetre[s] de la hache"
+    ],
+    "enc:\\\\x8101\\\\x75FB\\\\xFD26\\\\xF540\\\\x0B9F": [
+      "R\u00f4deur[s] charr[s]"
+    ],
+    "enc:\\\\x8101\\\\x75FF\\\\xB024\\\\x723D": [
+      "Charr[s] Lame-temp\u00eate"
+    ],
+    "enc:\\\\x8101\\\\x7600\\\\xA418\\\\x943C\\\\x3F67": [
+      "Vengeur[s] charr[s]"
     ],
     "enc:\\\\x8101\\\\x763E\\\\xF0FC\\\\xE65A\\\\x63EC": [
       "Neoss krait[s]"
@@ -57,6 +129,15 @@
     ],
     "enc:\\\\x8101\\\\x76E3\\\\x9ADB\\\\xCFAD\\\\x2A04": [
       "Neoss krait[s]"
+    ],
+    "enc:\\\\x8101\\\\x7834\\\\x8195\\\\x9ABE\\\\x1356": [
+      "Vase[s] \u00e9vanescente[s]"
+    ],
+    "enc:\\\\x8101\\\\x790C\\\\xE4FD\\\\xB49B\\\\x03C1": [
+      "Mandragore[s] Crodombre[s]"
+    ],
+    "enc:\\\\x8101\\\\x790D\\\\x9881\\\\x1289": [
+      "Fouisseuse[s] mantide[s]"
     ],
     "enc:\\\\x8101\\\\x79D1\\\\x94E7\\\\xCE8C\\\\x022C": [
       "Spectre[s] de la crypte"
@@ -91,14 +172,53 @@
     "enc:\\\\x8101\\\\x7C32\\\\xBE23\\\\xBF2F\\\\x5AFF": [
       "Gardien[s] squelette[s]"
     ],
+    "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": [
+      "Mandragore[s] de fum\u00e9e d\u00e9moniaque"
+    ],
+    "enc:\\\\x8102\\\\x0475\\\\xCBAD\\\\xB3D3\\\\x390D": [
+      "B\u00e2tisseur[s] charr[s]"
+    ],
+    "enc:\\\\x8102\\\\x0477\\\\xE99F\\\\xE88C\\\\x50A7": [
+      "Charr[s] ma\u00eetre[s] de la hache"
+    ],
+    "enc:\\\\x8102\\\\x0478\\\\xF501\\\\xC52C\\\\x3EFC": [
+      "Charr[s] ma\u00eetre[s] de la lame"
+    ],
+    "enc:\\\\x8102\\\\x047A\\\\xD1AE\\\\x966B\\\\x5DFA": [
+      "Charr[s] ma\u00eetre[s] de la lame"
+    ],
+    "enc:\\\\x8102\\\\x05BC\\\\x88B5\\\\x3348": [
+      "Torch Gardombre"
+    ],
+    "enc:\\\\x8102\\\\x05BD\\\\x9C5E\\\\x5B24": [
+      "Paw Flamenoire"
+    ],
     "enc:\\\\x8102\\\\x10E1\\\\x9E29\\\\xC83F\\\\x5C60": [
       "Fendi Nin"
+    ],
+    "enc:\\\\x8102\\\\x141C\\\\xAB55\\\\xAE8D\\\\x38D8": [
+      "Mangeur[s] de charogne"
     ],
     "enc:\\\\x8102\\\\x144D\\\\xA005\\\\xED03\\\\x3943": [
       "Ame de Fendi Nin"
     ],
     "enc:\\\\x8102\\\\x144F\\\\xA2EA\\\\xC29A\\\\x1987": [
       "Membre[s] d'\u00e9quipage damn\u00e9[s]"
+    ],
+    "enc:\\\\x8102\\\\x21FF\\\\x81FA\\\\x91A2\\\\x7901": [
+      "Charr[s] ma\u00eetre[s] de la hache"
+    ],
+    "enc:\\\\x8102\\\\x2200\\\\x8991\\\\x2C07": [
+      "R\u00f4deur[s] charr[s]"
+    ],
+    "enc:\\\\x8102\\\\x23A1\\\\xAC0C\\\\xD1A0\\\\x19C5": [
+      "Loup[s] de pierre"
+    ],
+    "enc:\\\\x8102\\\\x23A9\\\\x84FB\\\\xF257\\\\x5441": [
+      "Chaelse Parefeu"
+    ],
+    "enc:\\\\x8102\\\\x23B0\\\\x882C\\\\x9617\\\\x3BA5": [
+      "Thraexis Mord-\u00e9clair"
     ],
     "enc:\\\\x8102\\\\x288C\\\\x8650\\\\xE055\\\\x40F7": [
       "Flannuss Grandaile"

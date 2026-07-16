@@ -46,6 +46,7 @@ Docstring parsing rules
 from __future__ import annotations
 
 from collections.abc import Callable
+import math
 import random
 from typing import Any, TYPE_CHECKING, Callable, TypedDict, cast
 
@@ -67,6 +68,9 @@ from ...py4gwcorelib_src.Console import ConsoleLog, Console
 from ..Checks import Checks
 from ...UIManager import UIManager
 from ...enums_src.UI_enums import ControlAction
+from .local_avoidance import CircularObstacle
+from .local_avoidance import choose_avoidance_target
+from .local_avoidance import find_first_blocker
 
 
 
@@ -149,6 +153,17 @@ class BTMovement:
         strafe_started_ms: int | None
         strafe_duration_ms: int
         last_move_command_ms: int | None
+        last_flagged_waypoint: Point2D | None
+        avoidance_active: bool
+        avoidance_target: Point2D | None
+        avoidance_blocker_id: int
+        avoidance_side: int
+        avoidance_last_eval_ms: int | None
+        avoidance_last_command_ms: int | None
+        avoidance_navmesh_gen: Any | None
+        avoidance_navmesh_checked: bool
+        avoidance_no_detour_blocker_id: int
+        avoidance_no_detour_last_log_ms: int | None
         
     #region Move
     @staticmethod
@@ -163,17 +178,24 @@ class BTMovement:
         flag_heroes_to_waypoint: bool = False,
         log: bool = False,
         path_points_override: list[tuple[float, float]] | None = None,
+        avoid_obstacles: bool = True,
+        avoid_gadgets: bool = True,
+        ignore_destination_obstacles: bool = False,
+        avoidance_lookahead: float = 500.0,
+        avoidance_steering_distance: float = 400.0,
+        avoidance_clearance: float = 80.0,
+        avoidance_update_ms: int = 200,
     ) -> BehaviorTree:
         """
-        Build a tree that moves the player to target coordinates using autopathing and runtime recovery logic.
+        Build a tree that moves the player to target coordinates using autopathing, proactive local avoidance, and runtime recovery logic.
 
         Meta:
             Expose: true
             Audience: advanced
             Display: Move
-            Purpose: Move the player to target coordinates with waypoint tracking, pause handling, and timeout protection.
-            UserDescription: Use this when you want a robust movement routine that can pause, recover, and report progress through the blackboard.
-            Notes: Writes movement state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers. Optionally flags all heroes to each dispatched waypoint.
+            Purpose: Move the player to target coordinates with waypoint tracking, local obstacle avoidance, pause handling, and timeout protection.
+            UserDescription: Use this when you want a robust movement routine that can steer around nearby agents and collidable gadget candidates, pause, recover, and report progress through the blackboard.
+            Notes: Writes movement and avoidance state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers. Interaction composites may ignore NPCs and gadgets at the final destination while retaining avoidance along the route.
         """
         state: BTMovement._MoveState = {
             "path_gen": None,
@@ -202,6 +224,17 @@ class BTMovement:
             "strafe_started_ms": None,
             "strafe_duration_ms": 500,
             "last_move_command_ms": None,
+            "last_flagged_waypoint": None,
+            "avoidance_active": False,
+            "avoidance_target": None,
+            "avoidance_blocker_id": 0,
+            "avoidance_side": 0,
+            "avoidance_last_eval_ms": None,
+            "avoidance_last_command_ms": None,
+            "avoidance_navmesh_gen": None,
+            "avoidance_navmesh_checked": False,
+            "avoidance_no_detour_blocker_id": 0,
+            "avoidance_no_detour_last_log_ms": None,
         }
 
         def _reset_runtime() -> None:
@@ -239,6 +272,17 @@ class BTMovement:
             state["strafe_started_ms"] = None
             state["strafe_duration_ms"] = 500
             state["last_move_command_ms"] = None
+            state["last_flagged_waypoint"] = None
+            state["avoidance_active"] = False
+            state["avoidance_target"] = None
+            state["avoidance_blocker_id"] = 0
+            state["avoidance_side"] = 0
+            state["avoidance_last_eval_ms"] = None
+            state["avoidance_last_command_ms"] = None
+            state["avoidance_navmesh_gen"] = None
+            state["avoidance_navmesh_checked"] = False
+            state["avoidance_no_detour_blocker_id"] = 0
+            state["avoidance_no_detour_last_log_ms"] = None
 
         def _reset_result() -> None:
             """
@@ -298,6 +342,13 @@ class BTMovement:
             node.blackboard["move_strafe_side"] = state["strafe_side"]
             node.blackboard["move_strafe_phase"] = int(state["strafe_phase"])
             node.blackboard["move_strafe_active"] = bool(state["strafe_active"])
+            node.blackboard["move_avoidance_enabled"] = bool(avoid_obstacles)
+            node.blackboard["move_avoidance_gadgets_enabled"] = bool(avoid_gadgets)
+            node.blackboard["move_avoidance_ignore_destination_obstacles"] = bool(ignore_destination_obstacles)
+            node.blackboard["move_avoidance_active"] = bool(state["avoidance_active"])
+            node.blackboard["move_avoidance_target"] = state["avoidance_target"]
+            node.blackboard["move_avoidance_blocker_id"] = int(state["avoidance_blocker_id"])
+            node.blackboard["move_avoidance_side"] = int(state["avoidance_side"])
 
         def _debug_enabled(node: BehaviorTree.Node) -> bool:
             """
@@ -396,7 +447,12 @@ class BTMovement:
                 return "casting"
             return ""
 
-        def _issue_move(target_x: float, target_y: float) -> None:
+        def _issue_move(
+            target_x: float,
+            target_y: float,
+            *,
+            flag_target: Point2D | None = None,
+        ) -> None:
             """
             Send a move command toward the current waypoint.
 
@@ -420,9 +476,14 @@ class BTMovement:
                     move_y += random.uniform(-10.0, 10.0)
             Player.Move(move_x, move_y)
             if flag_heroes_to_waypoint and Map.IsExplorable() and Party.IsPartyLeader():
-                if int(Party.GetHeroCount() or 0) > 0:
-                    Party.Heroes.FlagAllHeroes(float(target_x), float(target_y))
-                _apply_multibox_all_flag(float(target_x), float(target_y))
+                flag_x, flag_y = flag_target or (target_x, target_y)
+                flag_waypoint = (float(flag_x), float(flag_y))
+                last_flagged_waypoint = state["last_flagged_waypoint"]
+                if last_flagged_waypoint is None or math.dist(last_flagged_waypoint, flag_waypoint) > 10.0:
+                    if int(Party.GetHeroCount() or 0) > 0:
+                        Party.Heroes.FlagAllHeroes(flag_waypoint[0], flag_waypoint[1])
+                    _apply_multibox_all_flag(flag_waypoint[0], flag_waypoint[1])
+                    state["last_flagged_waypoint"] = flag_waypoint
             state["last_move_point"] = (move_x, move_y)
             from ...Py4GWcorelib import Utils
             state["last_move_command_ms"] = Utils.GetBaseTimestamp()
@@ -469,7 +530,14 @@ class BTMovement:
             Player.Interact(target_id, False)
             node.blackboard["move_pause_target_id"] = target_id
 
-        def _try_issue_move(node: BehaviorTree.Node, target_x: float, target_y: float, now: int) -> bool:
+        def _try_issue_move(
+            node: BehaviorTree.Node,
+            target_x: float,
+            target_y: float,
+            now: int,
+            *,
+            flag_target: Point2D | None = None,
+        ) -> bool:
             if bool(node.blackboard.get("COMBAT_ACTIVE", False)) and not pause_on_combat:
                 last_move_command_ms = state["last_move_command_ms"]
                 if last_move_command_ms is not None:
@@ -479,7 +547,315 @@ class BTMovement:
                         _set_blackboard(node, "running", "waiting_attack_window")
                         return False
 
-            _issue_move(target_x, target_y)
+            _issue_move(target_x, target_y, flag_target=flag_target)
+            return True
+
+        def _clear_avoidance(*, preserve_side: bool = False) -> None:
+            state["avoidance_active"] = False
+            state["avoidance_target"] = None
+            state["avoidance_blocker_id"] = 0
+            state["avoidance_last_command_ms"] = None
+            if not preserve_side:
+                state["avoidance_side"] = 0
+
+        def _tick_avoidance_navmesh(node: BehaviorTree.Node) -> bool:
+            """Lazily prepare static geometry used to validate local detours."""
+            if not avoid_obstacles or state["avoidance_navmesh_checked"]:
+                return False
+
+            from ...Pathing import AutoPathing
+
+            auto_pathing = AutoPathing()
+            if auto_pathing.get_navmesh() is not None:
+                state["avoidance_navmesh_checked"] = True
+                return False
+
+            if state["avoidance_navmesh_gen"] is None:
+                state["avoidance_navmesh_gen"] = auto_pathing.load_pathing_maps()
+
+            try:
+                next(state["avoidance_navmesh_gen"])
+                _set_blackboard(node, "running", "loading_avoidance_navmesh")
+                return True
+            except StopIteration:
+                state["avoidance_navmesh_gen"] = None
+                state["avoidance_navmesh_checked"] = True
+                return False
+
+        def _agent_collision_radius(agent_id: int, fallback: float = 48.0) -> float:
+            width, _ = Agent.GetModelScale1(agent_id)
+            width = abs(float(width or 0.0))
+            if not math.isfinite(width) or width <= 1.0 or width >= 500.0:
+                return float(fallback)
+            return max(32.0, min(160.0, width * 0.5))
+
+        def _collect_avoidance_obstacles(
+            node: BehaviorTree.Node,
+            current_pos: Point2D,
+        ) -> list[CircularObstacle]:
+            """Collect nearby living and gadget collision candidates on the player's plane."""
+            from ...AgentArray import AgentArray
+
+            player_id = int(Player.GetAgentID() or 0)
+            player_agent = Agent.GetAgentByID(player_id)
+            if player_id <= 0 or player_agent is None:
+                return []
+
+            player_zplane = int(player_agent.pos.zplane)
+            player_radius = _agent_collision_radius(player_id)
+            destination_interaction_ids: set[int] = {
+                int(agent_id or 0)
+                for agent_id in AgentArray.GetNPCMinipetArray()
+            }
+            if avoid_gadgets:
+                destination_interaction_ids.update(
+                    int(agent_id or 0)
+                    for agent_id in AgentArray.GetGadgetArray()
+                )
+            destination_interaction_ids.discard(0)
+            intentional_target_distance = max(
+                350.0,
+                float(tolerance) + 250.0,
+            )
+            previous_ignored_target_id = int(
+                node.blackboard.get("move_avoidance_ignored_target_id", 0) or 0
+            )
+            node.blackboard["move_avoidance_ignored_target_id"] = 0
+            scan_distance = max(
+                250.0,
+                float(avoidance_lookahead),
+                float(avoidance_steering_distance),
+            ) + 200.0
+            scan_distance_sq = scan_distance * scan_distance
+            safety_gap = max(0.0, float(avoidance_clearance))
+
+            obstacles: list[CircularObstacle] = []
+            for raw_agent_id in AgentArray.GetAgentArray():
+                agent_id = int(raw_agent_id or 0)
+                if agent_id <= 0 or agent_id == player_id:
+                    continue
+
+                agent = Agent.GetAgentByID(agent_id)
+                if agent is None:
+                    continue
+                if int(agent.pos.zplane) != player_zplane:
+                    continue
+
+                obstacle_radius: float | None = None
+                if agent.is_living_type:
+                    living = agent.GetAsAgentLiving()
+                    if living is None or bool(living.is_dead) or not bool(living.is_alive):
+                        continue
+
+                    # Friendly player accounts do not need to steer around one
+                    # another. Each account independently avoids NPCs and foes.
+                    if int(living.login_number or 0) != 0 and int(living.allegiance or 0) != 3:
+                        continue
+                    obstacle_radius = _agent_collision_radius(agent_id)
+                elif avoid_gadgets and agent.is_gadget_type:
+                    # Gadget semantics do not expose a reliable collidable flag.
+                    # Only include objects with a credible runtime model width;
+                    # unknown/zero-sized gadgets are ignored instead of receiving
+                    # the living-agent fallback radius.
+                    gadget_width = abs(float(agent.width1 or 0.0))
+                    if (
+                        not math.isfinite(gadget_width)
+                        or gadget_width <= 1.0
+                        or gadget_width >= 800.0
+                    ):
+                        continue
+                    obstacle_radius = max(16.0, min(220.0, gadget_width * 0.5))
+                else:
+                    continue
+
+                if obstacle_radius is None:
+                    continue
+
+                obstacle_pos = (float(agent.pos.x), float(agent.pos.y))
+                if (
+                    bool(ignore_destination_obstacles)
+                    and agent_id in destination_interaction_ids
+                    and math.dist(obstacle_pos, (float(x), float(y)))
+                    <= intentional_target_distance
+                ):
+                    node.blackboard["move_avoidance_ignored_target_id"] = agent_id
+                    if log and previous_ignored_target_id != agent_id:
+                        _log(
+                            "Move",
+                            (
+                                f"Interaction candidate {agent_id} is near the move destination; "
+                                "excluding it from local avoidance for this move."
+                            ),
+                            message_type=Console.MessageType.Info,
+                            log=True,
+                        )
+                    continue
+                delta_x = obstacle_pos[0] - current_pos[0]
+                delta_y = obstacle_pos[1] - current_pos[1]
+                if delta_x * delta_x + delta_y * delta_y > scan_distance_sq:
+                    continue
+
+                obstacles.append(
+                    CircularObstacle(
+                        agent_id=agent_id,
+                        position=obstacle_pos,
+                        radius=(
+                            player_radius
+                            + obstacle_radius
+                            + safety_gap
+                        ),
+                    )
+                )
+            return obstacles
+
+        def _is_local_segment_walkable(start: Point2D, end: Point2D) -> bool:
+            """Keep temporary steering points inside known static geometry."""
+            from ...Pathing import AutoPathing
+
+            navmesh = AutoPathing().get_navmesh()
+            if navmesh is None:
+                return True
+
+            margin = max(20.0, min(100.0, float(avoidance_clearance) * 0.5))
+            try:
+                return bool(
+                    navmesh.contains(end[0], end[1], margin=margin)
+                    and navmesh.has_line_of_sight(
+                        start,
+                        end,
+                        margin=margin,
+                        step_dist=50.0,
+                    )
+                )
+            except Exception:
+                return False
+
+        def _tick_local_avoidance(
+            node: BehaviorTree.Node,
+            current_pos: Point2D,
+            waypoint: Point2D,
+            now: int,
+        ) -> bool:
+            """Proactively steer around a dynamic obstacle before movement is blocked."""
+            if not avoid_obstacles:
+                return False
+
+            update_interval = max(50, int(avoidance_update_ms))
+            last_eval_ms = state["avoidance_last_eval_ms"]
+            if last_eval_ms is not None and now - last_eval_ms < update_interval:
+                return bool(state["avoidance_active"])
+            state["avoidance_last_eval_ms"] = now
+
+            obstacles = _collect_avoidance_obstacles(node, current_pos)
+            blocker = find_first_blocker(
+                current_pos,
+                waypoint,
+                obstacles,
+                lookahead=max(100.0, float(avoidance_lookahead)),
+            )
+            if blocker is None:
+                state["avoidance_no_detour_blocker_id"] = 0
+                state["avoidance_no_detour_last_log_ms"] = None
+                node.blackboard.pop("move_avoidance_blocked_without_detour", None)
+                if state["avoidance_active"]:
+                    previous_blocker_id = int(state["avoidance_blocker_id"])
+                    _clear_avoidance(preserve_side=True)
+                    node.blackboard.pop("move_avoidance_blocker_kind", None)
+                    state["move_issued"] = _try_issue_move(
+                        node,
+                        waypoint[0],
+                        waypoint[1],
+                        now,
+                        flag_target=waypoint,
+                    )
+                    if log:
+                        _log(
+                            "Move",
+                            f"Local path is clear after avoiding obstacle {previous_blocker_id}; resuming waypoint {waypoint}.",
+                            message_type=Console.MessageType.Info,
+                            log=True,
+                        )
+                return False
+
+            decision = choose_avoidance_target(
+                current_pos,
+                waypoint,
+                obstacles,
+                lookahead=max(100.0, float(avoidance_lookahead)),
+                steering_distance=max(150.0, float(avoidance_steering_distance)),
+                preferred_side=int(state["avoidance_side"]),
+                is_walkable=_is_local_segment_walkable,
+            )
+            if decision is None:
+                _clear_avoidance(preserve_side=True)
+                blocker_id = int(blocker.agent_id)
+                blocker_kind = "gadget" if Agent.IsGadget(blocker_id) else "living agent"
+                node.blackboard["move_avoidance_blocked_without_detour"] = blocker_id
+                node.blackboard["move_avoidance_blocker_kind"] = blocker_kind
+
+                previous_blocker_id = int(state["avoidance_no_detour_blocker_id"])
+                last_log_ms = state["avoidance_no_detour_last_log_ms"]
+                log_due = (
+                    previous_blocker_id != blocker_id
+                    or last_log_ms is None
+                    or now - last_log_ms >= 2_000
+                )
+                if log and log_due:
+                    _log(
+                        "Move",
+                        (
+                            f"{blocker_kind.capitalize()} {blocker_id} intersects the movement corridor, "
+                            "but no walkable local detour is currently available."
+                        ),
+                        message_type=Console.MessageType.Warning,
+                        log=True,
+                    )
+                    state["avoidance_no_detour_last_log_ms"] = now
+                state["avoidance_no_detour_blocker_id"] = blocker_id
+                return False
+
+            was_active = bool(state["avoidance_active"])
+            previous_blocker_id = int(state["avoidance_blocker_id"])
+            previous_target = state["avoidance_target"]
+            state["avoidance_active"] = True
+            state["avoidance_target"] = decision.target
+            state["avoidance_blocker_id"] = int(decision.blocker_id)
+            state["avoidance_side"] = int(decision.side)
+            blocker_kind = "gadget" if Agent.IsGadget(int(decision.blocker_id)) else "living agent"
+            state["avoidance_no_detour_blocker_id"] = 0
+            state["avoidance_no_detour_last_log_ms"] = None
+            node.blackboard["move_avoidance_blocker_kind"] = blocker_kind
+            node.blackboard.pop("move_avoidance_blocked_without_detour", None)
+
+            target_changed = (
+                previous_target is None
+                or math.dist(previous_target, decision.target) >= 40.0
+                or previous_blocker_id != int(decision.blocker_id)
+            )
+            last_command_ms = state["avoidance_last_command_ms"]
+            command_due = last_command_ms is None or now - last_command_ms >= update_interval
+            if target_changed or command_due:
+                _stop_strafe()
+                if _try_issue_move(
+                    node,
+                    decision.target[0],
+                    decision.target[1],
+                    now,
+                    flag_target=waypoint,
+                ):
+                    state["avoidance_last_command_ms"] = now
+
+            if log and (not was_active or previous_blocker_id != int(decision.blocker_id)):
+                side_name = "left" if decision.side > 0 else "right"
+                _log(
+                    "Move",
+                    (
+                        f"{blocker_kind.capitalize()} {decision.blocker_id} intersects the movement corridor; "
+                        f"steering {side_name} via {decision.target} before contact."
+                    ),
+                    message_type=Console.MessageType.Info,
+                    log=True,
+                )
             return True
 
         def _stop_strafe() -> None:
@@ -617,6 +993,7 @@ class BTMovement:
 
             if Checks.Player.IsDead():
                 _stop_strafe()
+                _clear_avoidance()
                 if log:
                     _log("Move", "Player is dead; movement remains active and waiting.", message_type=Console.MessageType.Warning, log=log)
                 state["was_paused"] = True
@@ -636,6 +1013,7 @@ class BTMovement:
             pause_reason: str = _get_pause_reason(node)
             if pause_reason:
                 _stop_strafe()
+                _clear_avoidance()
                 if not state["pause_logged"] and log:
                         _log("Move", f"Movement paused due to {pause_reason}.", message_type=Console.MessageType.Info, log=log)
                 if pause_reason == "combat" and not state["pause_logged"]:
@@ -675,6 +1053,9 @@ class BTMovement:
                 _finalize_move(node, "finished")
                 return BehaviorTree.NodeState.SUCCESS
 
+            if _tick_avoidance_navmesh(node):
+                return BehaviorTree.NodeState.RUNNING
+
             target_x, target_y = state["path_points"][state["path_index"]]
             if state["last_logged_waypoint_index"] != state["path_index"] and log:
                 _log(
@@ -687,12 +1068,9 @@ class BTMovement:
             current_pos: Point2D = Player.GetXY()
             current_distance: float = Utils.Distance(current_pos, (target_x, target_y))
 
-            if pause_on_combat and _tick_strafe(now):
-                _set_blackboard(node, "running", f"strafing_{state['strafe_side']}")
-                return BehaviorTree.NodeState.RUNNING
-
             if current_distance <= effective_tolerance:
                 _stop_strafe()
+                _clear_avoidance()
                 state["path_index"] += 1
                 state["move_issued"] = False
                 state["last_distance"] = None
@@ -719,6 +1097,22 @@ class BTMovement:
                 state["last_distance"] = Utils.Distance(Player.GetXY(), (target_x, target_y))
                 state["last_progress_ms"] = now
                 _set_blackboard(node, "running")
+                return BehaviorTree.NodeState.RUNNING
+
+            if _tick_local_avoidance(
+                node,
+                current_pos,
+                (float(target_x), float(target_y)),
+                now,
+            ):
+                state["move_issued"] = True
+                state["last_distance"] = current_distance
+                state["last_progress_ms"] = now
+                _set_blackboard(node, "running", "avoiding_obstacle")
+                return BehaviorTree.NodeState.RUNNING
+
+            if pause_on_combat and _tick_strafe(now):
+                _set_blackboard(node, "running", f"strafing_{state['strafe_side']}")
                 return BehaviorTree.NodeState.RUNNING
 
             if not state["move_issued"]:
@@ -1040,6 +1434,8 @@ class BTMovement:
         clear_area_radius: float = Range.Spirit.value,
         pause_on_combat: bool = True,
         flag_heroes_to_waypoint: bool = False,
+        move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        log: bool = False,
     ) -> BehaviorTree:
         from .agents import BTAgents
 
@@ -1047,10 +1443,17 @@ class BTMovement:
             BTMovement.Move(
                 x=coords.x,
                 y=coords.y,
+                tolerance=move_tolerance,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                log=log,
             ),
-            BTAgents.ClearEnemiesInArea(x=coords.x, y=coords.y, radius=clear_area_radius),
+            BTAgents.ClearEnemiesInArea(
+                x=coords.x,
+                y=coords.y,
+                radius=clear_area_radius,
+                log=log,
+            ),
             name="MoveAndKill",
         )
 
@@ -1062,6 +1465,7 @@ class BTMovement:
         pause_on_combat: bool = True,
         flag_heroes_to_waypoint: bool = False,
         log: bool = False,
+        ignore_destination_obstacles: bool = False,
     ) -> BehaviorTree:
         """
         Build an internal support tree that resolves an agent by model id and moves to its coordinates.
@@ -1102,6 +1506,7 @@ class BTMovement:
                 tolerance=Range.Adjacent.value,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=ignore_destination_obstacles,
                 log=log,
             )
 
@@ -1162,6 +1567,7 @@ class BTMovement:
         tolerance: float = DEFAULT_MOVE_TOLERANCE,
         flag_heroes_to_waypoint: bool = False,
         log: bool = False,
+        ignore_destination_obstacles: bool = False,
     ) -> BehaviorTree:
         """
         Build a tree that walks a path of one or more points.
@@ -1172,21 +1578,44 @@ class BTMovement:
           Display: Move Path
           Purpose: Move through a path of world coordinates in order.
           UserDescription: Use this when you want to walk through multiple points instead of a single destination.
-          Notes: A single point collapses to one move step; an empty path succeeds immediately.
+          Notes: A single point collapses to one move step; an empty path succeeds immediately. Destination-obstacle exclusion, when requested by an interaction wrapper, applies only to the final point.
         """
         from .player import BTPlayer
 
-        return BTMovement._build_path_tree(
-            "MovePath",
-            pos,
-            lambda point: BTMovement.Move(
+        points = BTMovement._as_path(pos)
+        if not points:
+            return BehaviorTree(
+                BehaviorTree.SucceederNode(name="MovePathEmptyPath")
+            )
+        if len(points) == 1:
+            point = points[0]
+            return BTMovement.Move(
                 x=point.x,
                 y=point.y,
                 tolerance=tolerance,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=ignore_destination_obstacles,
                 log=log,
-            ),
+            )
+
+        return BTComposite.Sequence(
+            *[
+                BTMovement.Move(
+                    x=point.x,
+                    y=point.y,
+                    tolerance=tolerance,
+                    pause_on_combat=pause_on_combat,
+                    flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                    ignore_destination_obstacles=(
+                        bool(ignore_destination_obstacles)
+                        and point_index == len(points) - 1
+                    ),
+                    log=log,
+                )
+                for point_index, point in enumerate(points)
+            ],
+            name="MovePath",
         )
 
     @staticmethod
@@ -1218,6 +1647,7 @@ class BTMovement:
                 y=y,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=True,
                 log=log,
             ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
@@ -1230,6 +1660,8 @@ class BTMovement:
         clear_area_radius: float = Range.Spirit.value,
         pause_on_combat: bool = True,
         flag_heroes_to_waypoint: bool = False,
+        move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        log: bool = False,
     ) -> BehaviorTree:
         """
         Build a tree that walks a path and clears enemies around each point.
@@ -1240,7 +1672,7 @@ class BTMovement:
           Display: Move And Kill Path
           Purpose: Walk through path points and clear enemies around each point.
           UserDescription: Use this when a route should advance point by point while clearing nearby enemies.
-          Notes: A single point collapses to the existing move-and-kill routine.
+          Notes: A single point collapses to the existing move-and-kill routine. Movement diagnostics and clear-area logs use the shared log flag.
         """
         from .player import BTPlayer
 
@@ -1252,6 +1684,8 @@ class BTMovement:
                 clear_area_radius=clear_area_radius,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                move_tolerance=move_tolerance,
+                log=log,
             ),
         )
 
@@ -1385,9 +1819,10 @@ class BTMovement:
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
                     flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                    ignore_destination_obstacles=(point_index == len(points) - 1),
                     log=False,
                 )
-                for point in points
+                for point_index, point in enumerate(points)
             ],
             BTAgents.TargetNearestNPCXY(
                 x=final_point.x,
@@ -1430,6 +1865,7 @@ class BTMovement:
                 y=y,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=True,
                 log=log,
             ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
@@ -1473,9 +1909,10 @@ class BTMovement:
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
                     flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                    ignore_destination_obstacles=(point_index == len(points) - 1),
                     log=False,
                 )
-                for point in points
+                for point_index, point in enumerate(points)
             ],
             BTAgents.TargetNearestNPCXY(
                 x=final_point.x,
@@ -1519,6 +1956,7 @@ class BTMovement:
                 y=y,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=True,
                 log=log,
             ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
@@ -1562,9 +2000,10 @@ class BTMovement:
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
                     flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                    ignore_destination_obstacles=(point_index == len(points) - 1),
                     log=False,
                 )
-                for point in points
+                for point_index, point in enumerate(points)
             ],
             BTAgents.TargetNearestNPCXY(
                 x=final_point.x,
@@ -1732,6 +2171,7 @@ class BTMovement:
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=True,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
@@ -1764,6 +2204,7 @@ class BTMovement:
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=True,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
@@ -1797,6 +2238,7 @@ class BTMovement:
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                ignore_destination_obstacles=True,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),

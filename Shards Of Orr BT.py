@@ -198,8 +198,7 @@ SOO_ENTRANCE_PATH = [
 L1_PATH = [
     Vec2f(3720.16, 15370.78),
     Vec2f(6740.06, 11039.32),
-    Vec2f(14698, 16436),
-    Vec2f(15879, 11171),
+    Vec2f(15757, 16952),
     Vec2f(16026.25, 16957.26),
     Vec2f(14255.37, 6189.60)
 ]
@@ -207,7 +206,7 @@ L1_PATH = [
 L1_PATH_AFTER_DOOR = [
     Vec2f(17442.40, 2577.83),
     Vec2f(20181.6, 1203.7),
-    Vec2f(20400.5, 1300.0),
+    
 ]
 
 # Level 2 routes / torch mechanics
@@ -253,7 +252,7 @@ L2_BRAZIER_PART2 = [
     (-8278.0, -1670.0),
 ]
 L2_AFTER_PART2_POSITION = Vec2f(-5009.49, -2542.30)
-L2_PATH_TO_LOCK = [Vec2f(-7063, -2017),Vec2f(-16335.1, -9004.5),(-18700.0, -9171.0)
+L2_PATH_TO_LOCK = [Vec2f(-6798.8, -2436.4),Vec2f(-7063, -2017),Vec2f(-16335.1, -9004.5),(-18700.0, -9171.0)
 ]
 L2_DUNGEON_LOCK = Vec2f(-18725.0, -9171.0)
 L2_EXIT_PATH = [
@@ -271,6 +270,13 @@ L3_MAIN_PATH = [
     Vec2f(4813.8,10340.7)
 ]
 
+L3_BRIGANT_ROOM = [
+    Vec2f(-4967, 5942),
+    Vec2f(-8658, 4070),
+    Vec2f(-11081, 2374),
+]
+
+
 L3_PATH_TO_TORCH = [
     Vec2f(-4723.0,6703.0), Vec2f(-1280.0,7880.0),
     Vec2f(3089.73,8511.0), Vec2f(4963.0,9974.0),
@@ -285,8 +291,9 @@ L3_BRAZIERS = [
     (-12621.0,2948.0),
 ]
 L3_BOSS_DOOR = Vec2f(-9252.32, 6396.40)
+L3_BRIGANT_FIGHT = Vec2f(-9614, 3194),Vec2f(-8871.19,6152.95), 
 L3_FENDI_PATH = [
-    Vec2f(-8871.19,6152.95),Vec2f(-9988, 7652), Vec2f(-12712.36, 13502.19),Vec2f(-13893.67, 14349.77),Vec2f(-15606.06, 15287.51),
+    Vec2f(-8696, 6323),Vec2f(-9988, 7652), Vec2f(-12712.36, 13502.19),Vec2f(-13893.67, 14349.77),Vec2f(-15606.06, 15287.51),
 ]
 FENDI_CHEST_POSITION = (-15800.98, 16901.23)
 FENDI_CHEST_GADGET_ID = 8934
@@ -1430,55 +1437,6 @@ def _draw_statistics() -> None:
 
 
 # region Helpers
-def ResilientVanquishNode(
-    steps,
-    clear_area_radius: float = Range.Spirit.value,
-    pause_on_combat: bool | None = None,
-    flag_heroes_to_waypoint: bool = False,
-    name: str = "VanquishNode",
-    max_attempts: int = 3,
-) -> BehaviorTree:
-    """Relance localement un VanquishNode en cas de FAILURE."""
-    attempt_count = max(1, int(max_attempts))
-    attempts: list[BehaviorTree] = []
-
-    for attempt_index in range(attempt_count):
-        attempt_number = attempt_index + 1
-
-        vanquish = BT.VanquishNode(
-            steps,
-            clear_area_radius=clear_area_radius,
-            pause_on_combat=pause_on_combat,
-            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
-            name=f"{name} - Attempt {attempt_number}",
-        )
-
-        if attempt_number == 1:
-            attempts.append(vanquish)
-            continue
-
-        attempts.append(
-            BT.Sequence(
-                name=f"Retry {name} - Attempt {attempt_number}",
-                children=[
-                    BT.LogMessage(
-                        message=(
-                            f"{name} failed, probably because movement was "
-                            f"blocked. Retrying locally "
-                            f"({attempt_number}/{attempt_count})."
-                        ),
-                        module_name=MODULE_NAME,
-                    ),
-                    BT.Wait(2_000),
-                    vanquish,
-                ],
-            )
-        )
-
-    return BT.Selector(
-        name=f"Resilient {name}",
-        children=attempts,
-    )
 
 def PickupTorch() -> BehaviorTree:
     return BT.PickupGroundItemByModelID(
@@ -1488,9 +1446,19 @@ def PickupTorch() -> BehaviorTree:
         allow_unassigned=True,
         interaction_interval_ms=1000,
         aftercast_ms=100,
-        log=False,
+        log=True,
     )
 
+def ForcePickupKey() -> BehaviorTree:
+    return BT.PickupGroundItemByModelID(
+        model_ids=25410,
+        max_distance=10_000.0,
+        timeout_ms=45_000,
+        allow_unassigned=True,
+        interaction_interval_ms=1000,
+        aftercast_ms=100,
+        log=True,
+    )
 
 def UseAvailableSummoningStone() -> BehaviorTree:
     """
@@ -2120,7 +2088,7 @@ def EnterShardsOfOrr(
     normal_entry = BT.Sequence(
         name="Enter Shards of Orr From Arbor Bay",
         children=[
-            BT.Move(SOO_ENTRANCE_PATH, pause_on_combat=False, log=True),
+            BT.Move(SOO_ENTRANCE_PATH, pause_on_combat=False, log=True, ignore_destination_obstacles=True),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_1, timeout_ms=60_000),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             BT.Wait(2_000),
@@ -2161,11 +2129,12 @@ def Level1_Part1() -> BehaviorTree:
                 multi_account=True,
                 log=True,
             ),
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L1_PATH,
                 name="Level 1 First Route",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
             
             BT.MoveAndInteractWithGadget(Vec2f(15100.0, 5443.0),
@@ -2183,12 +2152,14 @@ def Level1_Part2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 1 - Part 2",
         children=[
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L1_PATH_AFTER_DOOR,
                 name="Level 1 Route To Level 2",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
+            BT.Move(Vec2f(20400.5, 1300.0),ignore_destination_obstacles=True, log=True),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_2, timeout_ms=60_000),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             _mark_l2_start_node(),
@@ -2216,6 +2187,7 @@ def Level2_Part1() -> BehaviorTree:
             BT.ClearEnemiesInArea(
                 L2_TORCH_CHEST,
                 radius=Range.Compass.value,
+                log=True,
             ),
             BT.MoveAndInteractWithGadget(
                 L2_TORCH_CHEST,
@@ -2225,11 +2197,12 @@ def Level2_Part1() -> BehaviorTree:
             PickupTorch(),
             BT.Move(L2_FIRST_TORCH_DROP_POINT_PATH, pause_on_combat=True, log=True),
             BT.DropBundle(log=True),
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L2_RETURN_TO_FIRST_TORCH_PATH,
                 name="Clear And Return To First Torch",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
             PickupTorch(),
             BT.Move(Vec2f(-9404.44, -17963.49), pause_on_combat=True, log=True),
@@ -2247,38 +2220,48 @@ def Level2_Part2() -> BehaviorTree:
         children=[
             BT.ClearEnemiesInArea(
                 L2_CLEANING_PATH,radius=Range.Compass.value,
+                log=True,
             ),
             PickupTorch(),
-            ResilientVanquishNode(L2_TO_ROOM2_DROP,clear_area_radius=Range.Area.value, pause_on_combat=True),
+            BT.VanquishNode(
+                L2_TO_ROOM2_DROP,
+                clear_area_radius=Range.Area.value,
+                pause_on_combat=True,
+                log=True,
+            ),
             BT.DropBundle(log=True),
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L2_RETURN_TO_ROOM2_TORCH_PATH,
                 name="Clear Route Back To Room 2 Torch",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
             PickupTorch(),
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L2_ROOM2_PATH,
                 name="Clear Level 2 Room 2",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
             BT.DropBundle(log=True),
-            ResilientVanquishNode([Vec2f(-4245.2, -2101.0)],
+            BT.VanquishNode([Vec2f(-4245.2, -2101.0)],
                 name="Clear Level 2 Room 2",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
             PickupTorch(),
             BrazierSequence("Level 2 Brazier Route 2", L2_BRAZIER_PART2),
             BT.DropBundle(log=True),
-            BT.ClearEnemiesInArea(Vec2f(-6798.8, -2436.4),allowed_alive_enemies=0,),
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L2_PATH_TO_LOCK,
                 name="Level 2 Route To Dungeon Lock",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                pause_on_combat=True,
+                log=True,
             ),
             BT.MoveAndInteractWithGadget(
                 L2_DUNGEON_LOCK,
@@ -2288,7 +2271,7 @@ def Level2_Part2() -> BehaviorTree:
             BT.Move(
                 L2_EXIT_PATH,
                 pause_on_combat=False,
-                
+                ignore_destination_obstacles=True,
                 log=True,
             ),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_3, timeout_ms=60_000),
@@ -2314,14 +2297,19 @@ def Level3_FirstPath() -> BehaviorTree:
                 multi_account=True,
                 log=True,
             ),
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L3_MAIN_PATH,
                 name="Level 3 Main Route",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
-            BT.ClearEnemiesInArea(Vec2f(1025, 6872),radius=Range.Compass.value),
-            BT.Move(Vec2f(1025, 6872))
+            BT.ClearEnemiesInArea(
+                Vec2f(1025, 6872),
+                radius=Range.Compass.value,
+                log=True,
+            ),
+            BT.Move(Vec2f(1025, 6872), log=True),
         ],
     )
 #endregion
@@ -2331,11 +2319,12 @@ def Level3_BrigantRoom() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 3 Second Path",
         children=[
-            BT.ClearEnemiesInArea(
-                Vec2f(-8577, 4008),
-                radius=Range.Compass.value,
+            BT.VanquishNode(
+                L3_BRIGANT_ROOM,
+                pause_on_combat=True,
+                clear_area_radius=Range.Compass.value,
+                log=True,
             ),
-            BT.Move(Vec2f(-8577, 4008))
         ],
     )
 #endregion
@@ -2347,7 +2336,8 @@ def Level3_Torch() -> BehaviorTree:
             BT.Move(
                 L3_PATH_TO_TORCH,
                 flag_heroes_to_waypoint=False,
-                pause_on_combat=False
+                pause_on_combat=False,
+                log=True,
             ),
             BT.MoveAndInteractWithGadget(
                 L3_TORCH_CHEST, pause_on_combat=False, log=True,
@@ -2364,9 +2354,10 @@ def Level3_Brigant() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 3",
         children=[                      
-            BT.ClearEnemiesInArea(
-                Vec2f(-9614, 3194),
-                radius=Range.Longbow.value,
+            BT.VanquishNode(
+                L3_BRIGANT_FIGHT,
+                clear_area_radius=Range.Longbow.value,
+                log=True,
             ),
             BT.MoveAndInteractWithGadget(
                 L3_BOSS_DOOR, pause_on_combat=False, log=True,
@@ -2380,11 +2371,12 @@ def Level3_Fendi() -> BehaviorTree:
     return BT.Sequence(
         name="Run Fendi Boss Fight",
         children=[
-            ResilientVanquishNode(
+            BT.VanquishNode(
                 L3_FENDI_PATH,
                 name="Route To Fendi",
                 flag_heroes_to_waypoint=False,
                 clear_area_radius=Range.Spellcast.value,
+                log=True,
             ),
             BT.WaitForClearEnemiesInArea(
                 -15606.06, 15287.51,
@@ -2416,7 +2408,20 @@ def CollectInsideReward() -> BehaviorTree:
     return BT.Sequence(
         name="Collect Inside Reward",
         children=[
-
+            BT.Move(Vec2f(-15198, 16839), log=True),
+            BT.MoveAndInteractWithGadget(
+            gadget_id=FENDI_CHEST_GADGET_ID,
+            pos=Vec2f(*FENDI_CHEST_POSITION),
+            search_distance=700.0,
+            interaction_distance=Range.Nearby.value,
+            interaction_count=2,
+            interaction_interval_ms=1000,
+            account_settle_ms=3_000,
+            timeout_ms=90_000,
+            multi_account=True,
+            include_self=True,
+            log=True,
+            ),
             BT.TargetAgentByName(
                 agent_name="Shandra",
                 log=True,
@@ -2446,21 +2451,7 @@ def CollectInsideReward() -> BehaviorTree:
                 ),
                 module_name=MODULE_NAME,
             ),
-            BT.Move(Vec2f(-14873, 17174)),
-            BT.MoveAndInteractWithGadget(
-            gadget_id=FENDI_CHEST_GADGET_ID,
-            pos=Vec2f(*FENDI_CHEST_POSITION),
-            search_distance=700.0,
-            interaction_distance=Range.Nearby.value,
-            interaction_count=2,
-            interaction_interval_ms=1000,
-            account_settle_ms=3_000,
-            timeout_ms=90_000,
-            multi_account=True,
-            include_self=True,
-            log=True,
-            ),
-            BT.Wait(5_000),
+            
             _inventory_statistics_node(after_chest=True),
         ],
     )

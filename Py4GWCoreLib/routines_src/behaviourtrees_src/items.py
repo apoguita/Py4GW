@@ -985,7 +985,8 @@ class BTItems:
         Audience: intermediate
         Display: Pickup Ground Item By Model ID
         Purpose: Find and pick up a specific nearby ground item by model ID.
-        UserDescription: Use this for bundles, torches, quest objects, or other ground items that should be picked up by the local account.
+        UserDescription: Use this for bundles, torches, quest objects, or other
+        ground items that should be picked up by the local account.
         Notes: Does not use LootConfig, multibox loot, or shared loot locks.
         """
         accepted_model_ids = (
@@ -1169,16 +1170,23 @@ class BTItems:
             ):
                 return BehaviorTree.NodeState.RUNNING
 
+            # Remember whether this is the first interaction attempt.
+            first_interaction = not bool(
+                state["interacted"]
+            )
+
             state["last_interaction_at"] = now
             state["interacted"] = True
 
             Player.ChangeTarget(target_agent_id)
             Player.Interact(target_agent_id, False)
 
-            _trace(
-                f"Interacting with item agent "
-                f"{target_agent_id}."
-            )
+            # Keep retrying every tick, but only log the first attempt.
+            if first_interaction:
+                _trace(
+                    f"Interacting with item agent "
+                    f"{target_agent_id}."
+                )
 
             return BehaviorTree.NodeState.RUNNING
 

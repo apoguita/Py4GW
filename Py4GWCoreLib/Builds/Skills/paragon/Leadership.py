@@ -33,14 +33,28 @@ class Leadership:
             return False
 
         player_agent_id = Player.GetAgentID()
+
+        player_has_hr = Routines.Checks.Agents.HasEffect(
+            player_agent_id,
+            heroic_refrain_id,
+        )
+
+        # Lorsque l'option "Should Leadership lvl 20" est activée,
+        # HR doit d'abord être appliqué au lanceur pour atteindre le niveau 20.
         if self._get_leadership_level() < 20:
-            return (yield from self.build.CastSkillIDAndRestoreTarget(
-                skill_id=heroic_refrain_id,
-                target_agent_id=player_agent_id,
-                log=False,
-                aftercast_delay=250,
-            ))
-        if not Routines.Checks.Agents.HasEffect(player_agent_id, heroic_refrain_id):
+            if not player_has_hr:
+                return (yield from self.build.CastSkillIDAndRestoreTarget(
+                    skill_id=heroic_refrain_id,
+                    target_agent_id=player_agent_id,
+                    log=False,
+                    aftercast_delay=250,
+                ))
+
+            # HR est déjà actif : ne pas le relancer inutilement.
+            return False
+
+        # Même sans l'option niveau 20, le lanceur doit recevoir HR en priorité.
+        if not player_has_hr:
             return (yield from self.build.CastSkillIDAndRestoreTarget(
                 skill_id=heroic_refrain_id,
                 target_agent_id=player_agent_id,
@@ -48,11 +62,20 @@ class Leadership:
                 aftercast_delay=250,
             ))
 
+        # Chercher ensuite un membre du groupe à renforcer.
         target_agent_id = self.build.ResolveAllyTarget(
             heroic_refrain_id,
             heroic_refrain,
         )
+
         if not target_agent_id:
+            return False
+
+        # Ne pas relancer HR sur une cible qui possède déjà l'effet.
+        if Routines.Checks.Agents.HasEffect(
+            target_agent_id,
+            heroic_refrain_id,
+        ):
             return False
 
         return (yield from self.build.CastSkillIDAndRestoreTarget(
