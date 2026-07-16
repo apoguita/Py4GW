@@ -206,7 +206,7 @@ L1_PATH = [
 L1_PATH_AFTER_DOOR = [
     Vec2f(17442.40, 2577.83),
     Vec2f(20181.6, 1203.7),
-    
+    Vec2f(20400.5, 1300.0),
 ]
 
 # Level 2 routes / torch mechanics
@@ -1600,12 +1600,14 @@ def MoveBetweenBraziersWithFlameRecovery(
         next_pos,
         tolerance=float(interaction_distance),
         pause_on_combat=False,
+        ignore_destination_obstacles=True,
         log=log,
     )
     move_to_previous = BT.Move(
         previous_pos,
         tolerance=float(interaction_distance),
         pause_on_combat=False,
+        ignore_destination_obstacles=True,
         log=log,
     )
     relight_previous = BT.MoveAndInteractWithGadget(
@@ -2088,7 +2090,12 @@ def EnterShardsOfOrr(
     normal_entry = BT.Sequence(
         name="Enter Shards of Orr From Arbor Bay",
         children=[
-            BT.Move(SOO_ENTRANCE_PATH, pause_on_combat=False, log=True, ignore_destination_obstacles=True),
+            BT.Move(
+                SOO_ENTRANCE_PATH,
+                pause_on_combat=False,
+                ignore_destination_obstacles=True,
+                log=True,
+            ),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_1, timeout_ms=60_000),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             BT.Wait(2_000),
@@ -2159,7 +2166,6 @@ def Level1_Part2() -> BehaviorTree:
                 clear_area_radius=Range.Spellcast.value,
                 log=True,
             ),
-            BT.Move(Vec2f(20400.5, 1300.0),ignore_destination_obstacles=True, log=True),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_2, timeout_ms=60_000),
             BT.WaitUntilOnExplorable(timeout_ms=30_000),
             _mark_l2_start_node(),
@@ -2271,7 +2277,7 @@ def Level2_Part2() -> BehaviorTree:
             BT.Move(
                 L2_EXIT_PATH,
                 pause_on_combat=False,
-                ignore_destination_obstacles=True,
+                
                 log=True,
             ),
             BT.WaitForMapLoad(map_id=SOO_LEVEL_3, timeout_ms=60_000),
@@ -2383,7 +2389,7 @@ def Level3_Fendi() -> BehaviorTree:
                 radius=Range.Compass.value,
                 allowed_alive_enemies=0,
                 interact_interval_ms=750,
-                stable_clear_ms=20_000,
+                stable_clear_ms=10_000,
                 keep_player_near_center=False,
                 center_tolerance=750.0,
                 log=True,

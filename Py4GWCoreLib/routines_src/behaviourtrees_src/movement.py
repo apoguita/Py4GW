@@ -164,6 +164,7 @@ class BTMovement:
         avoidance_navmesh_checked: bool
         avoidance_no_detour_blocker_id: int
         avoidance_no_detour_last_log_ms: int | None
+        avoidance_logged_ignored_target_ids: set[int]
         
     #region Move
     @staticmethod
@@ -185,6 +186,8 @@ class BTMovement:
         avoidance_steering_distance: float = 400.0,
         avoidance_clearance: float = 80.0,
         avoidance_update_ms: int = 200,
+        destination_obstacle_position: Point2D | None = None,
+        destination_obstacle_ignore_distance: float = 1500.0,
     ) -> BehaviorTree:
         """
         Build a tree that moves the player to target coordinates using autopathing, proactive local avoidance, and runtime recovery logic.
@@ -195,8 +198,16 @@ class BTMovement:
             Display: Move
             Purpose: Move the player to target coordinates with waypoint tracking, local obstacle avoidance, pause handling, and timeout protection.
             UserDescription: Use this when you want a robust movement routine that can steer around nearby agents and collidable gadget candidates, pause, recover, and report progress through the blackboard.
-            Notes: Writes movement and avoidance state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers. Interaction composites may ignore NPCs and gadgets at the final destination while retaining avoidance along the route.
+            Notes: Writes movement and avoidance state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers. Interaction composites may ignore NPCs and gadgets near the final destination during a bounded approach while retaining avoidance for all other obstacles.
         """
+        resolved_destination_obstacle_position: Point2D = (
+            (
+                float(destination_obstacle_position[0]),
+                float(destination_obstacle_position[1]),
+            )
+            if destination_obstacle_position is not None
+            else (float(x), float(y))
+        )
         state: BTMovement._MoveState = {
             "path_gen": None,
             "path_points": None,
@@ -235,6 +246,7 @@ class BTMovement:
             "avoidance_navmesh_checked": False,
             "avoidance_no_detour_blocker_id": 0,
             "avoidance_no_detour_last_log_ms": None,
+            "avoidance_logged_ignored_target_ids": set(),
         }
 
         def _reset_runtime() -> None:
@@ -283,6 +295,7 @@ class BTMovement:
             state["avoidance_navmesh_checked"] = False
             state["avoidance_no_detour_blocker_id"] = 0
             state["avoidance_no_detour_last_log_ms"] = None
+            state["avoidance_logged_ignored_target_ids"] = set()
 
         def _reset_result() -> None:
             """
@@ -345,6 +358,8 @@ class BTMovement:
             node.blackboard["move_avoidance_enabled"] = bool(avoid_obstacles)
             node.blackboard["move_avoidance_gadgets_enabled"] = bool(avoid_gadgets)
             node.blackboard["move_avoidance_ignore_destination_obstacles"] = bool(ignore_destination_obstacles)
+            node.blackboard["move_avoidance_destination_obstacle_position"] = resolved_destination_obstacle_position
+            node.blackboard["move_avoidance_destination_obstacle_ignore_distance"] = float(destination_obstacle_ignore_distance)
             node.blackboard["move_avoidance_active"] = bool(state["avoidance_active"])
             node.blackboard["move_avoidance_target"] = state["avoidance_target"]
             node.blackboard["move_avoidance_blocker_id"] = int(state["avoidance_blocker_id"])
@@ -617,9 +632,13 @@ class BTMovement:
                 350.0,
                 float(tolerance) + 250.0,
             )
-            previous_ignored_target_id = int(
-                node.blackboard.get("move_avoidance_ignored_target_id", 0) or 0
+            destination_ignore_active = (
+                bool(ignore_destination_obstacles)
+                and math.dist(current_pos, resolved_destination_obstacle_position)
+                <= max(0.0, float(destination_obstacle_ignore_distance))
             )
+            node.blackboard["move_avoidance_destination_ignore_active"] = destination_ignore_active
+            node.blackboard["move_avoidance_destination_obstacle_position"] = resolved_destination_obstacle_position
             node.blackboard["move_avoidance_ignored_target_id"] = 0
             scan_distance = max(
                 250.0,
@@ -673,22 +692,25 @@ class BTMovement:
 
                 obstacle_pos = (float(agent.pos.x), float(agent.pos.y))
                 if (
-                    bool(ignore_destination_obstacles)
+                    destination_ignore_active
                     and agent_id in destination_interaction_ids
-                    and math.dist(obstacle_pos, (float(x), float(y)))
+                    and math.dist(obstacle_pos, resolved_destination_obstacle_position)
                     <= intentional_target_distance
                 ):
                     node.blackboard["move_avoidance_ignored_target_id"] = agent_id
-                    if log and previous_ignored_target_id != agent_id:
+                    logged_ignored_target_ids = state["avoidance_logged_ignored_target_ids"]
+                    if log and agent_id not in logged_ignored_target_ids:
                         _log(
                             "Move",
                             (
-                                f"Interaction candidate {agent_id} is near the move destination; "
-                                "excluding it from local avoidance for this move."
+                                f"Interaction candidate {agent_id} is near the final destination; "
+                                f"excluding it during the last {float(destination_obstacle_ignore_distance):.0f} "
+                                "units of the destination approach."
                             ),
                             message_type=Console.MessageType.Info,
                             log=True,
                         )
+                        logged_ignored_target_ids.add(agent_id)
                     continue
                 delta_x = obstacle_pos[0] - current_pos[0]
                 delta_y = obstacle_pos[1] - current_pos[1]
@@ -1568,6 +1590,7 @@ class BTMovement:
         flag_heroes_to_waypoint: bool = False,
         log: bool = False,
         ignore_destination_obstacles: bool = False,
+        destination_obstacle_ignore_distance: float = 1500.0,
     ) -> BehaviorTree:
         """
         Build a tree that walks a path of one or more points.
@@ -1578,7 +1601,7 @@ class BTMovement:
           Display: Move Path
           Purpose: Move through a path of world coordinates in order.
           UserDescription: Use this when you want to walk through multiple points instead of a single destination.
-          Notes: A single point collapses to one move step; an empty path succeeds immediately. Destination-obstacle exclusion, when requested by an interaction wrapper, applies only to the final point.
+          Notes: A single point collapses to one move step; an empty path succeeds immediately. Destination-obstacle exclusion uses the final path point and activates only during the configured final approach distance.
         """
         from .player import BTPlayer
 
@@ -1587,6 +1610,11 @@ class BTMovement:
             return BehaviorTree(
                 BehaviorTree.SucceederNode(name="MovePathEmptyPath")
             )
+        final_point = points[-1]
+        final_destination: Point2D = (
+            float(final_point.x),
+            float(final_point.y),
+        )
         if len(points) == 1:
             point = points[0]
             return BTMovement.Move(
@@ -1596,6 +1624,8 @@ class BTMovement:
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 ignore_destination_obstacles=ignore_destination_obstacles,
+                destination_obstacle_position=final_destination,
+                destination_obstacle_ignore_distance=destination_obstacle_ignore_distance,
                 log=log,
             )
 
@@ -1607,13 +1637,12 @@ class BTMovement:
                     tolerance=tolerance,
                     pause_on_combat=pause_on_combat,
                     flag_heroes_to_waypoint=flag_heroes_to_waypoint,
-                    ignore_destination_obstacles=(
-                        bool(ignore_destination_obstacles)
-                        and point_index == len(points) - 1
-                    ),
+                    ignore_destination_obstacles=ignore_destination_obstacles,
+                    destination_obstacle_position=final_destination,
+                    destination_obstacle_ignore_distance=destination_obstacle_ignore_distance,
                     log=log,
                 )
-                for point_index, point in enumerate(points)
+                for point in points
             ],
             name="MovePath",
         )

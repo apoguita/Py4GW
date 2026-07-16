@@ -1166,6 +1166,7 @@ def Move(
     flag_heroes_to_waypoint: bool = False,
     log: bool = False,
     ignore_destination_obstacles: bool = False,
+    destination_obstacle_ignore_distance: float = 1500.0,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "Move",
@@ -1175,6 +1176,7 @@ def Move(
             tolerance=tolerance,
             flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             ignore_destination_obstacles=ignore_destination_obstacles,
+            destination_obstacle_ignore_distance=destination_obstacle_ignore_distance,
             log=log,
         ),
         pause_on_combat=pause_on_combat,
