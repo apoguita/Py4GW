@@ -2301,8 +2301,8 @@ def Level2_Part2() -> BehaviorTree:
     return BT.Sequence(
         name="Run Shards of Orr Level 2",
         children=[
-            BT.ClearEnemiesInArea(
-                L2_CLEANING_PATH,radius=Range.Compass.value,
+            BT.WaitForClearEnemiesInArea(
+               9011.0,-11536.0,radius=Range.Compass.value,
                 log=True,
             ),
             BT.Move(Vec2f(-9011.27, -11536.79)),
