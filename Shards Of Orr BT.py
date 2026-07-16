@@ -2414,20 +2414,7 @@ def CollectInsideReward() -> BehaviorTree:
     return BT.Sequence(
         name="Collect Inside Reward",
         children=[
-            BT.Move(Vec2f(-15198, 16839), log=True),
-            BT.MoveAndInteractWithGadget(
-            gadget_id=FENDI_CHEST_GADGET_ID,
-            pos=Vec2f(*FENDI_CHEST_POSITION),
-            search_distance=700.0,
-            interaction_distance=Range.Nearby.value,
-            interaction_count=2,
-            interaction_interval_ms=1000,
-            account_settle_ms=3_000,
-            timeout_ms=90_000,
-            multi_account=True,
-            include_self=True,
-            log=True,
-            ),
+            
             BT.TargetAgentByName(
                 agent_name="Shandra",
                 log=True,
@@ -2456,6 +2443,20 @@ def CollectInsideReward() -> BehaviorTree:
                     "collected inside the dungeon."
                 ),
                 module_name=MODULE_NAME,
+            ),
+            BT.Move(Vec2f(-15198, 16839), log=True),
+            BT.MoveAndInteractWithGadget(
+            gadget_id=FENDI_CHEST_GADGET_ID,
+            pos=Vec2f(*FENDI_CHEST_POSITION),
+            search_distance=700.0,
+            interaction_distance=Range.Nearby.value,
+            interaction_count=2,
+            interaction_interval_ms=1000,
+            account_settle_ms=3_000,
+            timeout_ms=90_000,
+            multi_account=True,
+            include_self=True,
+            log=True,
             ),
             
             _inventory_statistics_node(after_chest=True),
