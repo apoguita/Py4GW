@@ -1,9 +1,16 @@
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 
 class BottingTreeUpkeepMixin:
+    if TYPE_CHECKING:
+        def PartyWipeRecoveryServiceTree(
+            self,
+            default_step_name: str | Callable[[], str | None] | None = None,
+            return_interval_ms: float = 1000.0,
+        ) -> BehaviorTree: ...
+
     def _coerce_runtime_tree(
         self, subtree_or_builder: Callable[[], object] | object
     ) -> BehaviorTree:
@@ -57,15 +64,6 @@ class BottingTreeUpkeepMixin:
 
     def GetUpkeepTreeNames(self) -> list[str]:
         return self.GetServiceTreeNames()
-
-    def PartyWipeRecoveryServiceTree(
-        self,
-        default_step_name: str | Callable[[], str | None] | None = None,
-        return_interval_ms: float = 1000.0,
-    ) -> BehaviorTree:
-        raise NotImplementedError(
-            'PartyWipeRecoveryServiceTree must be implemented by subclasses.'
-        )
 
     def AddPartyWipeRecoveryService(
         self,
