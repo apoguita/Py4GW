@@ -1,0 +1,17 @@
+{
+  "name": "LOOT pls.",
+  "steps": [
+    {"type": "route", "name": "Run to Chest", "points": [[-12332, -3539], [-9712, -4812], [-6595, -3453], [-4494, 3700], [1752, 5342], [266, 1273], [1857, 215]], "mode": "kill"},
+    {"type": "wait", "ms": 5000, "action": "wait"},
+    {"type": "interact", "gadget": "CHEST_OF_WOE", "target": "gadget"},
+    {"type": "route", "name": "reposition for Chest", "points": [[1869, 260]], "mode": "kill"},
+    {"type": "interact", "gadget": "CHEST_OF_WOE", "target": "gadget"},
+    {"type": "interact", "id": ["0x80CF06", "0x80CF07", "0x80E007"], "npc": "ETERNAL_FORGEMASTER", "name": "Dialog - Eternal Forgemaster", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "reposition for Chest", "points": [[1869, 260]], "mode": "kill"},
+    {"type": "interact", "id": ["0x80CF06", "0x80CF07", "0x80E007"], "npc": "ETERNAL_FORGEMASTER", "name": "Dialog - Eternal Forgemaster", "action": "dialog", "target": "npc"},
+    {"type": "wait", "ms": 5000, "action": "wait"},
+    {"type": "interact", "name": "Interact Chest", "gadget": "CHEST", "point": [1624, -540], "target": "gadget"},
+    {"type": "route", "name": "reposition for Chest", "points": [[1865, 216]], "mode": "kill"},
+    {"type": "party", "ms": 15000, "action": "resign"}
+  ]
+}

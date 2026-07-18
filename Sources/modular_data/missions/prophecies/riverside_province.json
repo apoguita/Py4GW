@@ -1,0 +1,26 @@
+{
+  "name": "Riverside Province",
+  "steps": [
+    {"type": "map", "name": "Travel to Mission Outpost", "target_map_id": 73, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "map", "name": "Enter Challenge", "delay_ms": 5000, "target_map_id": 73, "action": "enter_challenge"},
+    {"type": "route", "name": "initial Tower", "points": [[-25907, 2415], [-22571, -1381], [-22459, -3697], [-22459, -3697], [-24632, -4757]], "mode": "kill"},
+    {"type": "route", "name": "Saidra", "points": [[-26290, -5613], [-28578, -6824]], "mode": "kill"},
+    {"type": "interact", "ms": 100, "nearest": true, "target": "npc"},
+    {"type": "route", "name": "Watchtower 1", "points": [[-31466, -9199], [-31765, -10996]], "mode": "kill"},
+    {"type": "route", "name": "Watchtower 2", "points": [[-29608, -6932], [-26769, -7918], [-20339, -8094], [-15394, -9716], [-14066, -10608]], "mode": "kill"},
+    {"type": "route", "name": "Watchtower 3", "points": [[-13248, -11399], [-11014, -11875], [-9221, -8887], [-9366, -6279], [-7806, -4554]], "mode": "kill"},
+    {"type": "route", "name": "Watchtower 4", "points": [[-6234, -5782], [-2752, -7721], [-123, -6903]], "mode": "kill"},
+    {"type": "route", "name": "Watchtower 5", "points": [[-323, -4649], [-2989, -1072], [-3996, 1109], [-2021, 3098]], "mode": "kill"},
+    {"type": "route", "name": "Dinas", "points": [[-690, 3135], [1014, 5237], [1735, 6981], [1843, 5775], [3973, 7842], [5417, 8346]], "mode": "kill"},
+    {"type": "interact", "ms": 1000, "nearest": true, "target": "npc"},
+    {"type": "map", "map_id": 73, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To the Lever", "points": [[5610, 7184]], "mode": "kill"},
+    {"type": "interact", "ms": 1000, "target": "gadget", "nearest": true},
+    {"type": "route", "name": "Watchtower 6", "points": [[7039, 4923], [8039, 1188], [6048, -2469], [9513, -3484], [12655, -3199], [14073, -5774], [14700, -2793], [16760, -2441]], "mode": "kill"},
+    {"type": "route", "name": "Watchtower 7", "points": [[17510, -687], [18922, 4248], [16555, 5222], [20248, 7856], [22626, 7198]], "mode": "kill"},
+    {"type": "route", "name": "Watchtower 8", "points": [[20805, 8207], [20068, 10579]], "mode": "kill"},
+    {"type": "route", "name": "Final Escape", "points": [[22736, 11450]], "mode": "kill"},
+    {"type": "map", "target_map_id": 19, "action": "wait_for_map_load"}
+  ]
+}

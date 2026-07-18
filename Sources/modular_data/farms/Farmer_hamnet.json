@@ -1,0 +1,8 @@
+{
+  "name": "Farmer Hamnet",
+  "steps": [
+    {"type": "route", "name": "Leave Pre-Searing: Foibles Fair", "point": [392, 7782], "target_map_id": 161, "mode": "exit"},
+    {"type": "route", "name": "To Travel", "points": [[2353, 6219], [2683, 4302]], "mode": "kill"},
+    {"type": "map", "name": "Travel to Pre-Searing: Foibles Fair", "target_map_id": 165, "action": "travel"}
+  ]
+}

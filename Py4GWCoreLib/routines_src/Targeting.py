@@ -1,0 +1,754 @@
+import importlib
+
+class _RProxy:
+    def __getattr__(self, name: str):
+        root_pkg = importlib.import_module("Py4GWCoreLib")
+        return getattr(root_pkg.Routines, name)
+
+Routines = _RProxy()
+
+from ..enums_src.GameData_enums import Range
+from ..Player import Player
+
+#region Targetting
+class Targeting:
+
+    # Class-level shared HeroAI CacheData slot. Lazy-initialized on first
+    # _resolve_cached_data() call so the singleton instance pays its setup
+    # cost only once and is reused across every Targeting helper. Callers
+    # may still override per-call by passing a live cached_data into the
+    # individual methods.
+    _cached_data = None
+
+    @classmethod
+    def _resolve_cached_data(cls, override=None):
+        """Return the cached_data instance to use for this call.
+
+        Preference order:
+          1. Caller-supplied ``override`` (e.g. HeroAI's live cache - assumed
+             already refreshed by HeroAI's own update loop).
+          2. The class-level ``_cached_data`` singleton, instanced lazily
+             from ``HeroAI.cache_data.CacheData`` on first use, then
+             ``Update()``-ed each call so callers without a live cache get
+             current game state.
+        """
+        if override is not None:
+            return override
+        if cls._cached_data is None:
+            from HeroAI.cache_data import CacheData
+            cls._cached_data = CacheData()
+        cls._cached_data.Update()
+        return cls._cached_data
+
+    @staticmethod
+    def InteractTarget():
+        from ..GlobalCache import GLOBAL_CACHE
+        """Interact with the target"""
+        Player.Interact(Player.GetTargetID(), False)
+    
+    @staticmethod
+    def SafeChangeTarget( target_id):
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Agent import Agent
+        
+        if Agent.IsValid(target_id):
+            Player.ChangeTarget(target_id)
+        
+    @staticmethod
+    def HasArrivedToTarget():
+        from ..Py4GWcorelib import Utils
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Agent import Agent
+        """Check if the player has arrived at the target."""
+        player_x, player_y = Player.GetXY()
+        target_id = Player.GetTargetID()
+        target_x, target_y = Agent.GetXY(target_id)
+        return Utils.Distance((player_x, player_y), (target_x, target_y)) < 100
+    
+    @staticmethod
+    def GetAllAlliesArray(distance=Range.SafeCompass.value, ordered=True):
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Agent import Agent
+
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = AgentArray.Filter.ByDistance(ally_array, Player.GetXY(), distance)
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsAlive(agent_id))
+        
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
+        spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), distance)
+        spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+        ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+        
+        if ordered:
+            from ..Party import Party
+
+            player_order = {}
+            for index, player in enumerate(Party.GetPlayers() or []):
+                agent_id = int(Party.Players.GetAgentIDByLoginNumber(player.login_number) or 0)
+                if agent_id:
+                    player_order[agent_id] = index
+
+            hero_order = {}
+            hero_start = len(player_order)
+            for index, hero in enumerate(Party.GetHeroes() or []):
+                agent_id = int(getattr(hero, "agent_id", 0) or 0)
+                if agent_id:
+                    hero_order[agent_id] = hero_start + index
+
+            pet_owner_order = {}
+            for owner_agent_id, order in player_order.items():
+                pet_id = int(Party.Pets.GetPetID(owner_agent_id) or 0)
+                if pet_id:
+                    pet_owner_order[pet_id] = order
+
+            fallback_index = hero_start + len(hero_order)
+
+            def sort_key(agent_id):
+                if agent_id in player_order:
+                    return (0, player_order[agent_id], agent_id)
+                if agent_id in hero_order:
+                    return (1, hero_order[agent_id], agent_id)
+                if agent_id in pet_owner_order:
+                    return (2, pet_owner_order[agent_id], agent_id)
+                return (3, fallback_index, agent_id)
+
+            ally_array = sorted(ally_array or [], key=sort_key)
+
+        return ally_array
+    
+    @staticmethod
+    def GetNearestSpirit(distance=Range.Earshot.value):
+        from ..Routines import Routines
+        v_target = Routines.Agents.GetNearestSpirit(distance)
+        return v_target
+
+    @staticmethod
+    def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
+        from .Checks import Checks
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Agent import Agent
+
+        array = AgentArray.Filter.ByDistance(array, Player.GetXY(), distance)
+        array = AgentArray.Filter.ByCondition(array, lambda agent_id: Agent.IsAlive(agent_id))
+            
+        if other_ally:
+            array = AgentArray.Filter.ByCondition(array, lambda agent_id: Player.GetAgentID() != agent_id)
+        
+        if filter_skill_id != 0:
+            array = AgentArray.Filter.ByCondition(array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, filter_skill_id))
+        
+        return array
+
+    @staticmethod
+    def TargetLowestAlly(other_ally=False,filter_skill_id=0):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+
+        distance = Range.Spellcast.value
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
+        
+        
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
+        spirit_pet_array = Targeting.FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
+        spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+        ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+        
+        ally_array = AgentArray.Sort.ByHealth(ally_array)   
+        return Utils.GetFirstFromArray(ally_array)
+        
+    @staticmethod
+    def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
+        from ..Py4GWcorelib import Utils
+        from .Checks import Checks
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..GlobalCache.WhiteboardLocks import (
+            BLOOD_ENERGY_BUFF_LOCK_KEY,
+            filter_unlocked_buff_targets,
+        )
+        from ..Agent import Agent
+
+        BLOOD_IS_POWER = GLOBAL_CACHE.Skill.GetID("Blood_is_Power")
+        BLOOD_RITUAL = GLOBAL_CACHE.Skill.GetID("Blood_Ritual")
+
+        def GetEnergyValues(agent_id):
+            energy = Agent.GetEnergy(agent_id)
+            if energy is not None and energy >= 0.0 and energy <= 1.0:
+                return energy
+            return 1.0 #default return full energy to prevent issues
+        
+        distance = Range.Spellcast.value
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, BLOOD_IS_POWER))
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, BLOOD_RITUAL))
+        ally_array = filter_unlocked_buff_targets(ally_array, BLOOD_ENERGY_BUFF_LOCK_KEY)
+        
+        ally_array = AgentArray.Sort.ByCondition(ally_array, lambda agent_id: GetEnergyValues(agent_id))
+        return Utils.GetFirstFromArray(ally_array)
+
+    @staticmethod
+    def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from .Checks import Checks
+
+        distance = Range.Spellcast.value
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Checks.Agents.IsCaster(agent_id))
+
+        ally_array = AgentArray.Sort.ByHealth(ally_array)
+        return Utils.GetFirstFromArray(ally_array)
+
+    @staticmethod
+    def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from .Checks import Checks
+
+        distance = Range.Spellcast.value
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Checks.Agents.IsMartial(agent_id))
+        
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
+        spirit_pet_array = Targeting.FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
+        spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+        ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+        
+        ally_array = AgentArray.Sort.ByHealth(ally_array)
+        return Utils.GetFirstFromArray(ally_array)
+
+    @staticmethod
+    def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from .Checks import Checks
+
+        distance = Range.Spellcast.value
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Checks.Agents.IsMelee(agent_id))
+        
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
+        spirit_pet_array = Targeting.FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
+        spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
+        ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
+        
+        ally_array = AgentArray.Sort.ByHealth(ally_array)
+        return Utils.GetFirstFromArray(ally_array)
+
+    @staticmethod
+    def TargetLowestAllyRanged(other_ally=False, filter_skill_id=0):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from .Checks import Checks
+
+        distance = Range.Spellcast.value
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Checks.Agents.IsRanged(agent_id))
+        
+        ally_array = AgentArray.Sort.ByHealth(ally_array)
+        return Utils.GetFirstFromArray(ally_array)
+
+    @staticmethod
+    def TargetAllyByProfession(
+        profession,
+        *,
+        required_skill_id: int = 0,
+        include_secondary: bool = False,
+        other_ally: bool = False,
+        filter_skill_id: int = 0,
+        distance=Range.Spellcast.value,
+    ):
+        from ..Agent import Agent
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Py4GWcorelib import Utils
+        from ..enums_src.GameData_enums import Profession
+
+        try:
+            profession_id = int(profession)
+        except (TypeError, ValueError):
+            profession_id = int(Profession[profession].value)
+
+        ally_array = Targeting.GetAllAlliesArray(distance, ordered=True)
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        if not ally_array:
+            return 0
+
+        def _has_profession(agent_id: int) -> bool:
+            primary_profession, secondary_profession = Agent.GetProfessions(agent_id)
+            if int(primary_profession or 0) == profession_id:
+                return True
+            return bool(include_secondary and int(secondary_profession or 0) == profession_id)
+
+        matching_allies = [
+            agent_id
+            for agent_id in ally_array
+            if Agent.IsValid(agent_id) and Agent.IsAlive(agent_id) and _has_profession(agent_id)
+        ]
+        if not matching_allies:
+            return 0
+
+        if required_skill_id:
+            required_skill_id = int(required_skill_id)
+            skillbar_by_agent_id: dict[int, set[int]] = {}
+            for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData() or []:
+                agent_id = int(getattr(account.AgentData, "AgentID", 0) or 0)
+                if not agent_id:
+                    continue
+
+                try:
+                    skill_ids = {
+                        int(skill.Id)
+                        for skill in account.AgentData.Skillbar.Skills
+                        if int(skill.Id) != 0
+                    }
+                except Exception:
+                    skill_ids = set()
+
+                skillbar_by_agent_id[agent_id] = skill_ids
+
+            matching_allies = [
+                agent_id
+                for agent_id in matching_allies
+                if required_skill_id in skillbar_by_agent_id.get(agent_id, set())
+            ]
+
+        return Utils.GetFirstFromArray(matching_allies)
+
+    @staticmethod  
+    def TargetNearestItem():
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Agent import Agent
+
+        def IsValidItem(item_id):
+            if item_id == 0:
+                return False
+            
+            owner_id = Agent.GetItemAgentOwnerID(item_id)
+            
+            is_assigned = (owner_id == Player.GetAgentID()) or (owner_id == 0)
+            return is_assigned
+    
+        distance = Range.Spellcast.value
+        item_array = AgentArray.GetItemArray()
+        item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), distance)
+        item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: IsValidItem(item_id))
+        #IsPointValid implementation goes here
+        item_array = AgentArray.Sort.ByDistance(item_array, Player.GetXY())
+        return Utils.GetFirstFromArray(item_array)
+
+    @staticmethod
+    def TargetClusteredEnemy(area=4500.0, *, cluster_radius: float | None = None):
+        from ..Agent import Agent
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+
+        distance = area
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), distance)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+
+        effective_cluster_radius = float(cluster_radius if cluster_radius is not None else area)
+        clustered_agent = AgentArray.Routines.DetectLargestAgentCluster(enemy_array, effective_cluster_radius)
+        return clustered_agent
+
+
+    @staticmethod
+    def GetEnemyAttacking(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAttacking(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyCasting(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCasting(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyCastingSpell(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        def _filter_spells(enemy_array):
+            result_array = []
+            for enemy_id in enemy_array:
+                casting_skill_id = Agent.GetCastingSkillID(enemy_id)
+                if GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id):
+                    result_array.append(enemy_id)
+            return result_array
+
+                    
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCasting(agent_id))
+        enemy_array = _filter_spells(enemy_array)
+        
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyCastingSpellOrChant(max_distance=4500.0, aggressive_only=False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        def _filter_spells_or_chants(enemy_array):
+            result_array = []
+            for enemy_id in enemy_array:
+                casting_skill_id = Agent.GetCastingSkillID(enemy_id)
+                if GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id) or GLOBAL_CACHE.Skill.Flags.IsChant(casting_skill_id):
+                    result_array.append(enemy_id)
+            return result_array
+
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCasting(agent_id))
+        enemy_array = _filter_spells_or_chants(enemy_array)
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyInjured(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents 
+        from ..Agent import Agent
+        player_pos = Player.GetXY() 
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only) 
+        # sort by lowest HP, then by distance 
+        enemy_array = AgentArray.Sort.ByCondition( 
+            enemy_array, 
+            lambda agent_id: ( 
+                Agent.GetHealth(agent_id),
+                Utils.Distance(player_pos, Agent.GetXY(agent_id)) 
+                ) 
+        ) 
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyHealthy(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils 
+        from ..AgentArray import AgentArray 
+        from ..GlobalCache import GLOBAL_CACHE 
+        from .Agents import Agents 
+        from ..Agent import Agent
+        player_pos = Player.GetXY() 
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only) 
+        # sort by lowest HP, then by distance 
+        enemy_array = AgentArray.Sort.ByCondition( 
+            enemy_array, 
+            lambda agent_id: ( 
+                -Agent.GetHealth(agent_id),
+                Utils.Distance(player_pos, Agent.GetXY(agent_id)) 
+                ) 
+        ) 
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyConditioned(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsConditioned(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyBleeding(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsBleeding(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyPoisoned(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsPoisoned(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+     
+    @staticmethod   
+    def GetEnemyCrippled(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCrippled(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyHexed(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsHexed(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyDegenHexed(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsDegenHexed(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyEnchanted(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsEnchanted(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyMoving(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMoving(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyKnockedDown(max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsKnockedDown(agent_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def GetEnemyWithEffect(effect_skill_id, max_distance=4500.0, aggressive_only = False):
+        from ..Py4GWcorelib import Utils
+        from .Checks import Checks
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from .Agents import Agents
+        player_pos = Player.GetXY()
+        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Checks.Effects.HasEffect(agent_id, effect_skill_id))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
+        return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def PickClusteredEnemiesAroundCorpse(
+        cluster_radius,
+        *,
+        filter_radius=None,
+        min_enemy_targets=1,
+        cached_data=None,
+    ):
+        """Pick the exploitable corpse with the most alive enemy targets
+        within ``cluster_radius`` around the corpse.
+
+        Candidate corpses are restricted to ``filter_radius`` around the
+        player (defaults to ``cluster_radius`` when not set). Returns 0
+        when no corpse meets the ``min_enemy_targets`` floor.
+
+        Any exploitable corpse is fair game - this helper does not respect
+        whiteboard minion-master reservations. Suited to skills that
+        consume the corpse on cast (e.g. Putrid Explosion).
+
+        ``cached_data`` is the HeroAI live cache. When omitted the
+        class-level singleton is used (instanced once on first call).
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from .Agents import Agents
+
+        cached_data = Targeting._resolve_cached_data(cached_data)
+
+        if cluster_radius <= 0:
+            return 0
+
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
+        player_pos = Player.GetXY()
+        corpses = AgentArray.GetAgentArray()
+        corpses = AgentArray.Filter.ByDistance(corpses, player_pos, effective_filter_radius)
+        corpses = AgentArray.Filter.ByCondition(
+            corpses,
+            lambda agent_id: Agent.IsExploitableCorpse(agent_id),
+        )
+        if not corpses:
+            return 0
+
+        best_corpse_id = 0
+        best_count = -1
+        for corpse_id in corpses:
+            corpse_x, corpse_y = Agent.GetXY(corpse_id)
+            enemy_targets = Agents.GetFilteredEnemyArray(corpse_x, corpse_y, cluster_radius)
+            enemy_targets = AgentArray.Filter.ByCondition(
+                enemy_targets,
+                lambda eid: Agent.IsValid(eid) and Agent.IsAlive(eid),
+            )
+            count = len(enemy_targets) if enemy_targets else 0
+            if count < min_enemy_targets:
+                continue
+            if count > best_count:
+                best_count = count
+                best_corpse_id = corpse_id
+
+        return best_corpse_id
+
+    @staticmethod
+    def CountNearbyEnemies(agent_id, cluster_radius, *, cached_data=None):
+        """Count alive enemies within ``cluster_radius`` of ``agent_id``,
+        excluding ``agent_id`` itself. Returns 0 for invalid inputs.
+
+        ``cached_data`` follows the same convention as the rest of the
+        Targeting helpers - caller passes HeroAI's live cache when
+        available, otherwise the class-level singleton is used.
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from .Agents import Agents
+
+        cached_data = Targeting._resolve_cached_data(cached_data)
+
+        if not agent_id or cluster_radius <= 0:
+            return 0
+
+        target_x, target_y = Agent.GetXY(agent_id)
+        nearby = Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda nid: Agent.IsValid(nid) and not Agent.IsDead(nid),
+        )
+        return max(0, len(nearby) - 1)
+
+    @staticmethod
+    def PickClusteredTarget(
+        cluster_radius,
+        preferred_condition=None,
+        *,
+        filter_radius=None,
+        cached_data=None,
+    ):
+        """Pick the enemy with the most direct neighbors within
+        ``cluster_radius``.
+
+        Candidate pool is enemies within ``filter_radius`` (defaults to
+        ``cluster_radius``) of the player. When ``preferred_condition`` is
+        provided, candidates are restricted to matches; if none match,
+        returns 0 so the caller can drive its own fallback. Ties broken
+        by distance to player.
+
+        Suited to AoE-on-cast skills where the effect applies in a single
+        radius around the cast target (e.g. Panic, Painful Bond, Cry of
+        Frustration, Energy Surge).
+
+        ``cached_data`` is resolved once and forwarded into the per-
+        candidate ``CountNearbyEnemies`` calls so the sort doesn't
+        re-update the cache on every scored candidate.
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from ..Py4GWcorelib import Utils
+
+        cached_data = Targeting._resolve_cached_data(cached_data)
+
+        if cluster_radius <= 0:
+            return 0
+
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
+        player_pos = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+        if not enemy_array:
+            return 0
+
+        candidates = enemy_array
+        if preferred_condition is not None:
+            candidates = [agent_id for agent_id in enemy_array if preferred_condition(agent_id)]
+            if not candidates:
+                return 0
+
+        scored = sorted(
+            candidates,
+            key=lambda c: (
+                -Targeting.CountNearbyEnemies(c, cluster_radius, cached_data=cached_data),
+                Utils.Distance(player_pos, Agent.GetXY(c)),
+            ),
+        )
+        return scored[0]
+
+
+#endregion

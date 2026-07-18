@@ -1,0 +1,13 @@
+{
+  "name": "Wailing lord",
+  "steps": [
+    {"type": "route", "name": "Using the back Entrance", "points": [[-11294, 15897]], "mode": "kill"},
+    {"type": "behavior", "mode": "add", "enemy": "Wailing Lord", "action": "enemy_blacklist"},
+    {"type": "route", "name": "to wolfo", "points": [[-12225, 13500], [-13011, 12108], [-14922, 12513]], "mode": "kill"},
+    {"type": "route", "name": "To Wailing Lord", "points": [[-21254, 14651]], "mode": "kill"},
+    {"type": "route", "name": "sweep downstairs", "points": [[-19021, 11061], [-20432, 12077], [-19924, 9299], [-17795, 9806], [-14996, 8168]], "mode": "kill"},
+    {"type": "route", "name": "to Wailing Lord", "points": [[-18459, 9629], [-20705, 10996], [-21385, 15152]], "mode": "kill"},
+    {"type": "interact", "target": "gadget", "repeat": 2, "selector": "CHEST"},
+    {"type": "behavior", "mode": "remove", "enemy": "Wailing Lord", "action": "enemy_blacklist"}
+  ]
+}

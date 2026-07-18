@@ -1,0 +1,16 @@
+{
+  "name": "Report to the White Mantle",
+  "steps": [
+    {"type": "map", "name": "Travel to Quest Outpost", "target_map_id": 49, "action": "travel"},
+    {"type": "interact", "name": "Take Quest - Reach NPC", "point": [4981, -4354], "ms": 500, "target": "npc"},
+    {"type": "interact", "name": "Take Quest", "id": "0x806401", "ms": 500, "point": [4981, -4354], "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Get to Portal", "points": [[5464, -5216], [6364, -8267], [6415, -10538]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "point": [6200, -10650], "target_map_id": 48, "mode": "exit"},
+    {"type": "route", "name": "To Old Jones", "points": [[12566, 12158], [14655, 8635], [17417, 6812], [19783, 2474], [21057, -49], [22319, -4402], [24534, -5286], [25876, -7722], [23570, -9965]], "mode": "kill"},
+    {"type": "interact", "point": [23599, -10038], "id": ["0x2", "0x15", "0x3", "0x1F", "0x4"], "action": "dialog", "target": "npc"},
+    {"type": "map", "target_map_id": 73, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Derikk", "points": [[-24358, 10243], [-22209, 7665]], "mode": "kill"},
+    {"type": "interact", "point": [-22117, 7501], "id": "0x806407", "action": "dialog", "target": "npc"}
+  ]
+}

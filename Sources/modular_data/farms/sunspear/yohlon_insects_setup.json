@@ -1,0 +1,10 @@
+{
+  "name": "Yohlon Insects Setup",
+  "steps": [
+    {"type": "map", "name": "Travel to Yohlon Haven", "target_map_id": 381, "action": "travel"},
+    {"type": "route", "name": "To Exit", "points": [[-891, 1876], [2387, 362], [3896, 738]], "mode": "kill"},
+    {"type": "route", "name": "Leave Yohlon Haven", "point": [4425, 857], "target_map_id": 380, "mode": "exit"},
+    {"type": "route", "name": "Leave Arkjok Ward", "point": [-20133, -14568], "target_map_id": 381, "mode": "exit"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"}
+  ]
+}

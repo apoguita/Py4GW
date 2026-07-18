@@ -1,0 +1,24 @@
+{
+  "name": "War Preparations (Recruit Training)",
+  "steps": [
+    {"type": "map", "name": "Travel to Sunspear Great Hall", "target_map_id": 431, "action": "travel"},
+    {"type": "route", "name": "To Castellan Puuba", "points": [[-3915, 5352]], "mode": "kill"},
+    {"type": "interact", "id": ["0x828203", "0x828201"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449, "action": "travel"},
+    {"type": "route", "name": "To Load Party", "points": [[-9223, 16397]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 4, "action": "load"},
+    {"type": "route", "name": "Leave Kamadan Jewel of Istan", "point": [-9270, 16806], "target_map_id": 430, "mode": "exit"},
+    {"type": "route", "name": "To Kormir", "points": [[16504, 2244]], "mode": "kill"},
+    {"type": "interact", "id": "0x828204", "npc": "KORMIR", "name": "Dialog - Kormir", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Nerashi", "points": [[17238, 1677]], "mode": "kill"},
+    {"type": "interact", "id": "0x828204", "npc": "NERASHI", "name": "Dialog - Nerashi", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Clear mobss", "points": [[6297, -11273], [5615, -11959]], "mode": "kill"},
+    {"type": "route", "name": "To Ahtok", "points": [[6682, -9365], [16503, 926], [17845, 1421]], "mode": "kill"},
+    {"type": "interact", "id": "0x828204", "npc": "AHTOK", "name": "Dialog - Ahtok", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Rojis", "points": [[18211, 1439]], "mode": "kill"},
+    {"type": "interact", "id": "0x828204", "npc": "ROJIS", "name": "Dialog - Rojis", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Sunspear Great Hall", "target_map_id": 431, "action": "travel"},
+    {"type": "route", "name": "To Castellan Puuba", "points": [[-4126, 5338]], "mode": "kill"},
+    {"type": "interact", "id": "0x828207", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba", "action": "dialog", "target": "npc"}
+  ]
+}

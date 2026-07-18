@@ -1,0 +1,17 @@
+{
+  "name": "The Elementalist Path",
+  "steps": [
+    {"type": "map", "name": "Travel to Heroes Audience", "target_map_id": 152, "action": "travel"},
+    {"type": "route", "name": "To Cembrien", "points": [[-18390, -17652]], "mode": "kill"},
+    {"type": "interact", "id": "0x801F01", "npc": "CEMBRIEN", "name": "Dialog - Cembrien", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Augury Rock outpost", "target_map_id": 38, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-18966, -321]], "mode": "kill"},
+    {"type": "route", "name": "Leave Augury Rock outpost", "point": [-20011, -301], "target_map_id": 113, "mode": "exit"},
+    {"type": "route", "name": "To Item", "points": [[4166, -2345], [4328, -3822], [3903, -1628]], "mode": "kill"},
+    {"type": "interact", "name": "Pick Kree Minotaur Hide", "model_id": 2546, "action": "target", "target": "item"},
+    {"type": "map", "name": "Travel to Heroes Audience", "target_map_id": 152, "action": "travel"},
+    {"type": "route", "name": "To Cembrien", "points": [[-18442, -17662]], "mode": "kill"},
+    {"type": "interact", "id": "0x801F07", "npc": "CEMBRIEN", "name": "Dialog - Cembrien", "action": "dialog", "target": "npc"}
+  ]
+}

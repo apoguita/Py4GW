@@ -1,0 +1,28 @@
+{
+  "name": "All for One and One for Justice",
+  "steps": [
+    {"type": "map", "name": "Travel to Consulate Docks outpost", "target_map_id": 493, "action": "travel"},
+    {"type": "interact", "id": ["0x830E03", "0x830E01"], "point": [-2428, 16752], "npc": "DINJA", "name": "Dialog - Dinja", "action": "dialog", "target": "npc"},
+    {"type": "interact", "id": ["0x89"], "point": [-2540, 16210], "npc": "MHENLO", "name": "Dialog - Mhenlo", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 415, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Lionguard Neiro", "points": [[-1197, 983]], "mode": "kill"},
+    {"type": "interact", "id": "0x85", "npc": "LIONGUARD_NEIRO", "name": "Dialog - Lionguard Neiro", "action": "dialog", "target": "npc"},
+    {"type": "interact", "id": "0x85", "npc": "LIONGUARD_NEIRO", "name": "Dialog - Lionguard Neiro", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To gate", "points": [[-1961, 1460]], "mode": "kill"},
+    {"type": "route", "name": "Nudge into portal", "point": [-2000, 1500], "pulses": 2, "pulse_ms": 180, "mode": "nudge"},
+    {"type": "map", "map_id": 55, "action": "wait_for_map_load"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "interact", "id": ["0x830E04", "0x81", "0x84"], "npc": "LIONGUARD_FIGO", "point":[-432, 3486], "name": "Dialog - Lionguard Figo", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 471, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Olias", "points": [[5191, 10422]], "mode": "kill"},
+    {"type": "interact", "id": "0x830E04", "npc": "OLIAS", "name": "Dialog - Olias", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Target Erulai the Inimical", "points": [[7706, 2168]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[9959, 1595]], "mode": "kill"},
+    {"type": "wait", "ms": 15000, "action": "wait"},
+    {"type": "route", "name": "Path", "points": [[10251, 2292]], "mode": "kill"},
+    {"type": "map", "name": "Chilling till completion", "map_id": 55, "action": "wait_for_map_load"},
+    {"type": "map", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449, "action": "travel"},
+    {"type": "route", "name": "To Clerk Arlon", "points": [[-7446, 16370], [-6632, 16281]], "mode": "kill"},
+    {"type": "interact", "id": "0x830E07", "npc": "CLERK_ARLON", "name": "Dialog - Clerk Arlon", "action": "dialog", "target": "npc"}
+  ]
+}

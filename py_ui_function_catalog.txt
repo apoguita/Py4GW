@@ -1,0 +1,242 @@
+# py_ui.h — UIManager Class — Final Categorized Catalog
+# ===========================================================
+# After scanning every .py file in the repo for PyUIManager.UIManager.* calls.
+#
+# PRODUCTION = called from GWUI.py or Sources/ (real user code)
+# TEST       = called only from UI_RE/ or Widgets/Debug/ (RE validation)
+# RENAMED    = bound, ZERO callers OR deprecated DevText clone → rename to RE_TEST_*
+#
+# Python binding names shown.
+
+======================================================================
+PRODUCTION  (real user-facing code, NOT DevText-clone-related)
+======================================================================
+
+add_dropdown_option_by_frame_id
+add_frame_ui_interaction_callback_by_frame_id
+add_scrollable_item_by_frame_id
+add_tab_by_frame_id
+append_text_label_encoded_suffix_by_frame_id
+append_text_label_plain_suffix_by_frame_id
+button_click
+button_double_click
+button_mouse_action_by_frame_id
+choose_anchor_flags_for_desired_rect
+choose_tab_by_index_by_frame_id
+choose_tab_by_tab_frame_id
+clear_scrollable_items_by_frame_id
+collapse_window_by_frame_id
+create_button_frame_by_frame_id
+create_checkbox_frame_by_frame_id
+create_labeled_frame_by_frame_id
+create_scrollable_frame_by_frame_id
+create_text_label_frame_by_frame_id
+create_text_label_frame_from_template_by_frame_id
+create_text_label_frame_with_plain_text_by_frame_id
+create_ui_component_by_frame_id
+create_ui_component_raw_by_frame_id
+destroy_ui_component_by_frame_id
+disable_tab_by_frame_id
+dropdown_has_value_mapping_by_frame_id
+enable_tab_by_frame_id
+find_available_child_slot
+frame_content_invalidate
+frame_content_redraw
+get_button_label_by_frame_id
+get_checkbox_value_by_frame_id
+get_current_tab_by_frame_id
+get_current_tab_index_by_frame_id
+get_dropdown_count_by_frame_id
+get_dropdown_option_index_by_frame_id
+get_dropdown_option_value_by_frame_id
+get_dropdown_options_by_frame_id
+get_dropdown_selected_index_by_frame_id
+get_dropdown_value_by_frame_id
+get_editable_text_value_by_frame_id
+get_frame_array
+get_frame_label_by_frame_id
+get_is_tab_enabled_by_frame_id
+get_progress_bar_value_by_frame_id
+get_scrollable_count_by_frame_id
+get_scrollable_items_by_frame_id
+get_scrollable_page_by_frame_id
+get_slider_value_by_frame_id
+get_tab_by_label_by_frame_id
+get_tab_button_by_frame_id
+get_tab_frame_id_by_frame_id
+get_text_label_create_payload_diagnostics_by_template_frame_id
+get_text_label_decoded_by_frame_id
+get_text_label_encoded_by_frame_id
+get_text_label_encoded_bytes_by_frame_id
+get_text_label_literal_create_payload_diagnostics
+is_checkbox_checked_by_frame_id
+is_editable_text_read_only_by_frame_id
+is_read_only_by_frame_id
+process_frame_controller_update_by_frame_id
+queue_frame_controller_update_by_frame_id
+remove_scrollable_item_by_frame_id
+remove_tab_by_frame_id
+restore_window_rect_by_frame_id
+select_dropdown_index_by_frame_id
+select_dropdown_option_by_frame_id
+set_button_label_by_frame_id
+set_checkbox_checked_by_frame_id
+set_checkbox_value_by_frame_id
+set_dropdown_value_by_frame_id
+set_editable_text_max_length_by_frame_id
+set_editable_text_read_only_by_frame_id
+set_editable_text_value_by_frame_id
+set_frame_controller_anchor_margins_by_frame_id_ex
+set_frame_disabled_by_frame_id
+set_frame_margins_by_frame_id
+set_frame_title_and_invalidate
+set_frame_title_by_frame_id
+set_frame_visible_by_frame_id
+set_label_by_frame_id
+set_multiline_label_by_frame_id
+set_progress_bar_color_id_by_frame_id
+set_progress_bar_max_by_frame_id
+set_progress_bar_style_by_frame_id
+set_progress_bar_value_by_frame_id
+set_read_only_by_frame_id
+set_scrollable_page_by_frame_id
+set_slider_value_by_frame_id
+set_text_label_bytes_by_frame_id
+set_text_label_by_frame_id
+set_text_label_font_by_frame_id
+trigger_frame_redraw_by_frame_id
+test_mouse_action                       (used as production hack in frenkeyLib)
+
+======================================================================
+TEST  (only called from UI_RE/*.py or Widgets/Debug/)
+======================================================================
+
+create_container_window_with_title       (alias, only UI_RE)
+create_dialog_with_title                 (only UI_RE)
+create_titled_container_window           (only UI_RE)
+get_frame_base_address                   (only UI_RE)
+get_frame_resource_caption_text          (only UI_RE)
+get_frame_text_caption_text              (only UI_RE)
+get_root_frame_id                        (only UI_RE)
+send_title_msg_5e                        (only UI_RE)
+test_mouse_click_action                  (only Widgets/Debug)
+
+======================================================================
+RENAMED → RE_TEST_*  (zero callers OR deprecated DevText-clone)
+======================================================================
+
+--- DevText Clone — deprecated per RE docs (window_creation_architecture.md) ---
+clear_frame_children_recursive_by_frame_id → RE_TEST_clear_frame_children_recursive_by_frame_id
+clear_next_created_window_title            → RE_TEST_clear_next_created_window_title
+clear_window_contents_by_frame_id          → RE_TEST_clear_window_contents_by_frame_id
+create_empty_window                        → RE_TEST_create_empty_window
+create_titled_empty_window                 → RE_TEST_create_titled_empty_window
+create_titled_window_clone                 → RE_TEST_create_titled_window_clone
+create_window                              → RE_TEST_create_window
+ensure_devtext_source                      → RE_TEST_ensure_devtext_source
+get_devtext_frame_id                       → RE_TEST_get_devtext_frame_id
+get_last_applied_window_title              → RE_TEST_get_last_applied_window_title
+get_last_applied_window_title_frame_id     → RE_TEST_get_last_applied_window_title_frame_id
+has_next_created_window_title              → RE_TEST_has_next_created_window_title
+is_window_title_hook_installed             → RE_TEST_is_window_title_hook_installed
+key_press                                   → RE_TEST_key_press
+open_devtext_window                        → RE_TEST_open_devtext_window
+resolve_devtext_dialog_proc                → RE_TEST_resolve_devtext_dialog_proc
+resolve_observed_content_host_by_frame_id  → RE_TEST_resolve_observed_content_host_by_frame_id
+restore_devtext_source                     → RE_TEST_restore_devtext_source
+set_next_created_window_title              → RE_TEST_set_next_created_window_title
+
+--- Bound but never called (no callers in entire repo) ---
+async_decode_str                                    → RE_TEST_async_decode_str
+attach_composite_root_to_frame                      → RE_TEST_attach_composite_root_to_frame
+clear_frame_logs                                    → RE_TEST_clear_frame_logs
+clear_ui_message_logs                               → RE_TEST_clear_ui_message_logs
+create_container_window                             → RE_TEST_create_container_window
+create_window_by_frame_id                           → RE_TEST_create_window_by_frame_id
+draw_on_compass                                     → RE_TEST_draw_on_compass
+enc_str_to_uint32                                   → RE_TEST_enc_str_to_uint32
+get_child_frame_by_frame_id                         → RE_TEST_get_child_frame_by_frame_id
+get_child_frame_id_from_name_hash                   → RE_TEST_get_child_frame_id_from_name_hash
+get_child_frame_path_by_frame_id                    → RE_TEST_get_child_frame_path_by_frame_id
+get_enum_preference                                 → RE_TEST_get_enum_preference
+get_first_child_frame_id                            → RE_TEST_get_first_child_frame_id
+get_frame_client_border_by_frame_id                 → RE_TEST_get_frame_client_border_by_frame_id
+get_frame_clip_rect_by_frame_id                     → RE_TEST_get_frame_clip_rect_by_frame_id
+get_frame_code_by_frame_id                          → RE_TEST_get_frame_code_by_frame_id
+get_frame_context                                   → RE_TEST_get_frame_context
+get_frame_coords_by_hash                            → RE_TEST_get_frame_coords_by_hash
+get_frame_hierarchy                                 → RE_TEST_get_frame_hierarchy
+get_frame_id_by_hash                                → RE_TEST_get_frame_id_by_hash
+get_frame_id_by_label                               → RE_TEST_get_frame_id_by_label
+get_frame_layer_by_frame_id                         → RE_TEST_get_frame_layer_by_frame_id
+get_frame_limit                                     → RE_TEST_get_frame_limit
+get_frame_logs                                      → RE_TEST_get_frame_logs
+get_frame_min_size_by_frame_id                      → RE_TEST_get_frame_min_size_by_frame_id
+get_frame_native_size_by_frame_id                   → RE_TEST_get_frame_native_size_by_frame_id
+get_frame_opacity_by_frame_id                       → RE_TEST_get_frame_opacity_by_frame_id
+get_frame_position_ex_by_frame_id                   → RE_TEST_get_frame_position_ex_by_frame_id
+get_frame_state_bit_by_frame_id                     → RE_TEST_get_frame_state_bit_by_frame_id
+get_frame_title_by_frame_id                         → RE_TEST_get_frame_title_by_frame_id
+get_frame_user_param_by_frame_id                    → RE_TEST_get_frame_user_param_by_frame_id
+get_hash_by_label                                   → RE_TEST_get_hash_by_label
+get_int_preference                                  → RE_TEST_get_int_preference
+get_item_frame_id                                   → RE_TEST_get_item_frame_id
+get_key_mappings                                    → RE_TEST_get_key_mappings
+get_last_child_frame_id                             → RE_TEST_get_last_child_frame_id
+get_next_child_frame_id                             → RE_TEST_get_next_child_frame_id
+get_overlay_frame_ids                               → RE_TEST_get_overlay_frame_ids
+get_parent_frame_id                                 → RE_TEST_get_parent_frame_id
+get_parent_frame_id_direct                          → RE_TEST_get_parent_frame_id_direct
+get_popup_frame_ids                                 → RE_TEST_get_popup_frame_ids
+get_preference_options                              → RE_TEST_get_preference_options
+get_prev_child_frame_id                             → RE_TEST_get_prev_child_frame_id
+get_related_frame_id                                → RE_TEST_get_related_frame_id
+get_scrollable_first_child_frame_id_by_frame_id     → RE_TEST_get_scrollable_first_child_frame_id_by_frame_id
+get_scrollable_item_frame_id_by_frame_id            → RE_TEST_get_scrollable_item_frame_id_by_frame_id
+get_scrollable_item_rect_by_frame_id                → RE_TEST_get_scrollable_item_rect_by_frame_id
+get_scrollable_last_child_frame_id_by_frame_id      → RE_TEST_get_scrollable_last_child_frame_id_by_frame_id
+get_scrollable_next_child_frame_id_by_frame_id      → RE_TEST_get_scrollable_next_child_frame_id_by_frame_id
+get_scrollable_prev_child_frame_id_by_frame_id      → RE_TEST_get_scrollable_prev_child_frame_id_by_frame_id
+get_scrollable_selected_value_by_frame_id           → RE_TEST_get_scrollable_selected_value_by_frame_id
+get_scrollable_sort_handler_by_frame_id             → RE_TEST_get_scrollable_sort_handler_by_frame_id
+get_string_preference                               → RE_TEST_get_string_preference
+get_tab_frame_id                                    → RE_TEST_get_tab_frame_id
+get_text_language                                   → RE_TEST_get_text_language
+get_ui_message_logs                                 → RE_TEST_get_ui_message_logs
+get_bool_preference                                 → RE_TEST_get_bool_preference
+is_ancestor_of_by_frame_id                          → RE_TEST_is_ancestor_of_by_frame_id
+is_dialog_title_hook_installed                      → RE_TEST_is_dialog_title_hook_installed
+is_shift_screen_shot                                → RE_TEST_is_shift_screen_shot
+is_ui_drawn                                         → RE_TEST_is_ui_drawn
+is_valid_enc_bytes                                  → RE_TEST_is_valid_enc_bytes
+is_valid_enc_str                                    → RE_TEST_is_valid_enc_str
+is_world_map_showing                                → RE_TEST_is_world_map_showing
+resolve_composite_root_control_proc                 → RE_TEST_resolve_composite_root_control_proc
+resolve_container_frame_proc                        → RE_TEST_resolve_container_frame_proc
+resolve_frame_content_invalidate                    → RE_TEST_resolve_frame_content_invalidate
+resolve_frame_mouse_enable                          → RE_TEST_resolve_frame_mouse_enable
+resolve_frame_new_subclass                          → RE_TEST_resolve_frame_new_subclass
+SendFrameUIMessage                                  → RE_TEST_SendFrameUIMessage
+SendFrameUIMessageWString                           → RE_TEST_SendFrameUIMessageWString
+SendUIMessage                                       → RE_TEST_SendUIMessage
+SendUIMessageRaw                                    → RE_TEST_SendUIMessageRaw
+set_bool_preference                                 → RE_TEST_set_bool_preference
+set_enum_preference                                 → RE_TEST_set_enum_preference
+set_frame_layer_by_frame_id                         → RE_TEST_set_frame_layer_by_frame_id
+set_frame_limit                                     → RE_TEST_set_frame_limit
+set_frame_opacity_by_frame_id                       → RE_TEST_set_frame_opacity_by_frame_id
+set_int_preference                                  → RE_TEST_set_int_preference
+set_key_mappings                                    → RE_TEST_set_key_mappings
+set_open_links                                      → RE_TEST_set_open_links
+set_scrollable_sort_handler_by_frame_id             → RE_TEST_set_scrollable_sort_handler_by_frame_id
+set_string_preference                               → RE_TEST_set_string_preference
+show_frame_by_frame_id                              → RE_TEST_show_frame_by_frame_id
+uint32_to_enc_str                                   → RE_TEST_uint32_to_enc_str
+
+======================================================================
+COUNTS
+======================================================================
+PRODUCTION:  76
+TEST:         9
+RENAMED:     99   (19 DevText-clone + 80 never-called)
+TOTAL:      184

@@ -1,0 +1,27 @@
+{
+  "name": "frostmaws burrows (22)",
+  "steps": [
+    {"type": "wait", "ms": 100, "anchor": true, "action": "wait"},
+    {"type": "inventory", "mode": "all", "multibox": true, "action": "use_consumables"},
+    {"type": "route", "name": "shrine", "points": [[-13752, 16705]], "anchor": true, "mode": "kill"},
+    {"type": "route", "name": "initial room", "points": [[-12971, 15661], [-11749, 15556], [-18248, 3941]], "mode": "kill"},
+    {"type": "route", "name": "Siege wurms", "points": [[-17805, 1737], [-14518, 4200], [-14519, 2422]], "mode": "kill"},
+    {"type": "route", "name": "shrine", "points": [[-12141, -1354]], "anchor": true, "mode": "kill"},
+    {"type": "route", "name": "To Exit", "points": [[-15729, -12074]], "mode": "kill"},
+    {"type": "route", "name": "Leave Frostmaw's Burrows (level 4)", "point": [-17200, -14700], "target_map_id": 634, "mode": "exit"},
+    {"type": "inventory", "mode": "conset", "multibox": false, "action": "use_consumables"},
+    {"type": "route", "name": "shrine", "points": [[3940, -18094]], "anchor": true, "mode": "kill"},
+    {"type": "route", "name": "initial snow balls", "points": [[3546, -16541], [3589, -15324]], "mode": "kill"},
+    {"type": "route", "name": "yotun to door", "points": [[4362, -14108], [6677, -14882], [7753, -14333], [9047, -14931]], "mode": "kill"},
+    {"type": "route", "name": "boss tour", "points": [[15088, -14850], [13309, -17431], [18185, -16267], [15325, -15016]], "mode": "kill"},
+    {"type": "route", "name": "boss tour", "points": [[15088, -14850], [13309, -17431], [18185, -16267], [15325, -15016]], "mode": "kill"},
+    {"type": "route", "name": "To Chest Of Burrows", "points": [[15675, -16330]], "mode": "kill"},
+    {"type": "interact", "name": "Interact Chest of Burrows", "gadget": "CHEST_OF_BURROWS", "point": [15514, -16373], "target": "gadget"},
+    {"type": "interact", "gadget": "CHEST_OF_BURROWS", "target": "gadget"},
+    {"type": "interact", "gadget": "CHEST_OF_BURROWS", "target": "gadget"},
+    {"type": "interact", "gadget": "CHEST_OF_BURROWS", "target": "gadget"},
+    {"type": "interact", "id": "0x832A07", "npc": "LATHAM", "name": "Dialog - Latham", "action": "dialog", "target": "npc"},
+    {"type": "interact", "id": "0x832A07", "npc": "LATHAM", "name": "Dialog - Latham", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 546, "action": "wait_for_map_load"}
+  ]
+}

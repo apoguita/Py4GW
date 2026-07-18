@@ -1,0 +1,18 @@
+{
+  "name": "To Kill a Demon",
+  "steps": [
+    {"type": "route", "name": "To Master Of Whispers", "points": [[-6397, 17116]], "mode": "kill"},
+    {"type": "interact", "id": "0x822B01", "npc": "MASTER_OF_WHISPERS", "name": "Dialog - Master of Whispers", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 424, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[469, 1495], [3484, 3567]], "mode": "kill"},
+    {"type": "route", "name": "Leave Kodonur Crossroads outpost", "point": [4862, 4408], "target_map_id": 384, "mode": "exit"},
+    {"type": "route", "name": "To Master Of Whispers", "points": [[-18894, -13512]], "mode": "kill"},
+    {"type": "interact", "id": "0x822B04", "npc": "MASTER_OF_WHISPERS", "name": "Dialog - Master of Whispers", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Dehjah", "points": [[-15662, -7617], [-14242, -5346], [-13974, -5072], [-14178, -5295]], "mode": "kill"},
+    {"type": "interact", "id": "0x85", "npc": "DEHJAH", "name": "Dialog - Dehjah", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 425, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Dehjah", "points": [[-15858, 11098]], "mode": "kill"},
+    {"type": "interact", "id": "0x822B07", "npc": "DEHJAH", "name": "Dialog - Dehjah", "action": "dialog", "target": "npc"}
+  ]
+}

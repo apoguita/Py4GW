@@ -1,0 +1,19 @@
+{
+  "name": "Zaishen Elite",
+  "steps": [
+    {"type": "map", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449, "action": "travel"},
+    {"type": "route", "name": "To Exit", "points": [[-7894, 14739]], "mode": "kill"},
+    {"type": "route", "name": "Leave Kamadan Jewel of Istan", "point": [-5939, 14953], "target_map_id": 543, "mode": "exit"},
+    {"type": "route", "name": "To Field General Hayao", "points": [[-3593, 14687]], "mode": "kill"},
+    {"type": "interact", "id": "0x826601", "npc": "FIELD_GENERAL_HAYAO", "name": "Dialog - Field General Hayao", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 4, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-9056, 16121]], "mode": "kill"},
+    {"type": "route", "name": "Leave Kamadan Jewel of Istan", "point": [-9242, 16816], "target_map_id": 430, "mode": "exit"},
+    {"type": "route", "name": "Path", "points": [[13488, 3279]], "mode": "kill"},
+    {"type": "wait", "ms": 10000, "action": "wait"},
+    {"type": "map", "map_id": 430, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Field General Hayao", "points": [[13033, 3537]], "mode": "kill"},
+    {"type": "interact", "id": "0x826607", "npc": "FIELD_GENERAL_HAYAO", "name": "Dialog - Field General Hayao", "action": "dialog", "target": "npc"}
+  ]
+}

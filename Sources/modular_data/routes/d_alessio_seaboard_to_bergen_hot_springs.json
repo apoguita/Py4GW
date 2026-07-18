@@ -1,0 +1,13 @@
+{
+  "name": "D'Alessio Seaboard to Bergen Hot Springs",
+  "steps": [
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 15, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "name": "Leave D'Alessio", "points": [[16000, 17080], [16030, 17200]], "mode": "kill"},
+    {"type": "map", "map_id": 58, "action": "wait_for_map_load"},
+    {"type": "route", "name": "North Kryta to Nebo", "points": [[-11453, -18065], [-10558, -9708], [-10958, -1009], [-12931, 6726], [-16653, 16226], [-19550, 15625]], "mode": "kill"},
+    {"type": "map", "map_id": 59, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Nebo to Bergen", "points": [[19271, 5207], [17801, 2710], [14927, -8731], [15425, -15035]], "mode": "kill"},
+    {"type": "map", "map_id": 57, "action": "wait_for_map_load"}
+  ]
+}

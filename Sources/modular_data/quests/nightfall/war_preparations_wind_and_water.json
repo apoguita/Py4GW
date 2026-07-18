@@ -1,0 +1,22 @@
+{
+  "name": "War Preparations (Wind and Water)",
+  "steps": [
+    {"type": "map", "name": "Travel to Sunspear Great Hall", "target_map_id": 431, "action": "travel"},
+    {"type": "route", "name": "To Castellan Puuba", "points": [[-4018, 5311]], "mode": "kill"},
+    {"type": "interact", "id": ["0x828303", "0x828301"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Kodlonu Hamlet", "target_map_id": 489, "action": "travel"},
+    {"type": "route", "name": "To Captain Bolduhr", "points": [[-3460, 2108]], "mode": "kill"},
+    {"type": "interact", "id": "0x828304", "npc": "CAPTAIN_BOLDUHR", "name": "Dialog - Captain Bolduhr", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Load Party", "points": [[3731, -3955]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "Leave Kodlonu Hamlet", "point": [4343, -3686], "target_map_id": 488, "mode": "exit"},
+    {"type": "route", "name": "Path", "points": [[-15203, 8261]], "mode": "kill"},
+    {"type": "wait", "ms": 20000, "action": "wait"},
+    {"type": "route", "name": "To Kinya Kela", "points": [[-15405, 8144], [-14826, 8499], [-15535, 7993], [-14913, 8371], [-15419, 8030]], "mode": "kill"},
+    {"type": "interact", "id": "0x828304", "npc": "KINYA_KELA", "name": "Dialog - Kinya Kela", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 489, "action": "travel"},
+    {"type": "map", "name": "Travel to Sunspear Great Hall", "target_map_id": 431, "action": "travel"},
+    {"type": "route", "name": "To Castellan Puuba", "points": [[-4004, 5335]], "mode": "kill"},
+    {"type": "interact", "id": "0x828307", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba", "action": "dialog", "target": "npc"}
+  ]
+}

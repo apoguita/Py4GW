@@ -1,0 +1,566 @@
+[
+  {
+    "Week": "4/21/25",
+    "Item": "Gloom Seed"
+  },
+  {
+    "Week": "4/28/25",
+    "Item": "Charr Hide"
+  },
+  {
+    "Week": "5/5/25",
+    "Item": "Ruby Djinn Essence"
+  },
+  {
+    "Week": "5/12/25",
+    "Item": "Thorny Carapace"
+  },
+  {
+    "Week": "5/19/25",
+    "Item": "Bone Charm"
+  },
+  {
+    "Week": "5/26/25",
+    "Item": "Modnir Mane"
+  },
+  {
+    "Week": "6/2/25",
+    "Item": "Superb Charr Carving"
+  },
+  {
+    "Week": "6/9/25",
+    "Item": "Roll Of Parchment"
+  },
+  {
+    "Week": "6/16/25",
+    "Item": "Roaring Ether Claw"
+  },
+  {
+    "Week": "6/23/25",
+    "Item": "Branch of Juni Berries"
+  },
+  {
+    "Week": "6/30/25",
+    "Item": "Shiverpeak Mane"
+  },
+  {
+    "Week": "7/7/25",
+    "Item": "Fetid Carapace"
+  },
+  {
+    "Week": "7/14/25",
+    "Item": "Moon Shell"
+  },
+  {
+    "Week": "7/21/25",
+    "Item": "Massive Jawbone"
+  },
+  {
+    "Week": "7/28/25",
+    "Item": "Chromatic Scale"
+  },
+  {
+    "Week": "8/4/25",
+    "Item": "Mursaat Tokens"
+  },
+  {
+    "Week": "8/11/25",
+    "Item": "Sentient Lodestone"
+  },
+  {
+    "Week": "8/18/25",
+    "Item": "Jungle Troll Tusk"
+  },
+  {
+    "Week": "8/25/25",
+    "Item": "Sapphire Djinn Essence"
+  },
+  {
+    "Week": "9/1/25",
+    "Item": "Stone Carving"
+  },
+  {
+    "Week": "9/8/25",
+    "Item": "Feathered Caromi Scalp"
+  },
+  {
+    "Week": "9/15/25",
+    "Item": "Pillaged Goods"
+  },
+  {
+    "Week": "9/22/25",
+    "Item": "Gold Crimson Skull Coin"
+  },
+  {
+    "Week": "9/29/25",
+    "Item": "Jade Bracelet"
+  },
+  {
+    "Week": "10/6/25",
+    "Item": "Minotaur Horn"
+  },
+  {
+    "Week": "10/13/25",
+    "Item": "Frosted Griffon Wing"
+  },
+  {
+    "Week": "10/20/25",
+    "Item": "Silver Bullion Coin"
+  },
+  {
+    "Week": "10/27/25",
+    "Item": "Truffle"
+  },
+  {
+    "Week": "11/3/25",
+    "Item": "Skelk Claw"
+  },
+  {
+    "Week": "11/10/25",
+    "Item": "Dessicated Hydra Claw"
+  },
+  {
+    "Week": "11/17/25",
+    "Item": "Frigid Heart"
+  },
+  {
+    "Week": "11/24/25",
+    "Item": "Celestial Essence"
+  },
+  {
+    "Week": "12/1/25",
+    "Item": "Phantom Residue"
+  },
+  {
+    "Week": "12/8/25",
+    "Item": "Drake Kabob"
+  },
+  {
+    "Week": "12/15/25",
+    "Item": "Amber Chunk"
+  },
+  {
+    "Week": "12/22/25",
+    "Item": "Glowing Heart"
+  },
+  {
+    "Week": "12/29/25",
+    "Item": "Saurian Bones"
+  },
+  {
+    "Week": "1/5/26",
+    "Item": "Behemoth Hide"
+  },
+  {
+    "Week": "1/12/26",
+    "Item": "Luminous Stone"
+  },
+  {
+    "Week": "1/19/26",
+    "Item": "Intricate Grawl Necklace"
+  },
+  {
+    "Week": "1/26/26",
+    "Item": "Jadeite Shard"
+  },
+  {
+    "Week": "2/2/26",
+    "Item": "Gold Doubloon"
+  },
+  {
+    "Week": "2/9/26",
+    "Item": "Shriveled Eye"
+  },
+  {
+    "Week": "2/16/26",
+    "Item": "Icy Lodestone"
+  },
+  {
+    "Week": "2/23/26",
+    "Item": "Keen Oni Talon"
+  },
+  {
+    "Week": "3/2/26",
+    "Item": "Hardened Hump"
+  },
+  {
+    "Week": "3/9/26",
+    "Item": "Pile Of Elemental Dust"
+  },
+  {
+    "Week": "3/16/26",
+    "Item": "Naga Hide"
+  },
+  {
+    "Week": "3/23/26",
+    "Item": "Spiritwood Plank"
+  },
+  {
+    "Week": "3/30/26",
+    "Item": "Stormy Eye"
+  },
+  {
+    "Week": "4/6/26",
+    "Item": "Skree Wing"
+  },
+  {
+    "Week": "4/13/26",
+    "Item": "Soul Stone"
+  },
+  {
+    "Week": "4/20/26",
+    "Item": "Spiked Crest"
+  },
+  {
+    "Week": "4/27/26",
+    "Item": "Dragon Root"
+  },
+  {
+    "Week": "5/4/26",
+    "Item": "Berserker Horn"
+  },
+  {
+    "Week": "5/11/26",
+    "Item": "Behemoth Jaw"
+  },
+  {
+    "Week": "5/18/26",
+    "Item": "Bowl of Skalefin Soup"
+  },
+  {
+    "Week": "5/25/26",
+    "Item": "Forest Minotaur Horn"
+  },
+  {
+    "Week": "6/1/26",
+    "Item": "Putrid Cyst"
+  },
+  {
+    "Week": "6/8/26",
+    "Item": "Jade Mandible"
+  },
+  {
+    "Week": "6/15/26",
+    "Item": "Maguuma Mane"
+  },
+  {
+    "Week": "6/22/26",
+    "Item": "Skull Juju"
+  },
+  {
+    "Week": "6/29/26",
+    "Item": "Mandragor Swamproot"
+  },
+  {
+    "Week": "7/6/26",
+    "Item": "Bottle Of Vabbian Wine"
+  },
+  {
+    "Week": "7/13/26",
+    "Item": "Weaver Leg"
+  },
+  {
+    "Week": "7/20/26",
+    "Item": "Topaz Crest"
+  },
+  {
+    "Week": "7/27/26",
+    "Item": "Rot Wallow Tusk"
+  },
+  {
+    "Week": "8/3/26",
+    "Item": "Frostfire Fang"
+  },
+  {
+    "Week": "8/10/26",
+    "Item": "Demonic Relic"
+  },
+  {
+    "Week": "8/17/26",
+    "Item": "Abnormal Seed"
+  },
+  {
+    "Week": "8/24/26",
+    "Item": "Diamond Djinn Essence"
+  },
+  {
+    "Week": "8/31/26",
+    "Item": "Forgotten Seal"
+  },
+  {
+    "Week": "9/7/26",
+    "Item": "Copper Chrimson Skull Coin"
+  },
+  {
+    "Week": "9/14/26",
+    "Item": "Mossy Mandibles"
+  },
+  {
+    "Week": "9/21/26",
+    "Item": "Enslavement Stone"
+  },
+  {
+    "Week": "9/28/26",
+    "Item": "Elonian Leather Square"
+  },
+  {
+    "Week": "10/5/26",
+    "Item": "Cobalt Talon"
+  },
+  {
+    "Week": "10/12/26",
+    "Item": "Maguuma Spider Web"
+  },
+  {
+    "Week": "10/19/26",
+    "Item": "Forgotten Trinket Box"
+  },
+  {
+    "Week": "10/26/26",
+    "Item": "Icy Hump"
+  },
+  {
+    "Week": "11/2/26",
+    "Item": "Sandblasted Lodestone"
+  },
+  {
+    "Week": "11/9/26",
+    "Item": "Black Pearl"
+  },
+  {
+    "Week": "11/16/26",
+    "Item": "Insect Carapace"
+  },
+  {
+    "Week": "11/23/26",
+    "Item": "Mergoyle Skull"
+  },
+  {
+    "Week": "11/30/26",
+    "Item": "Decayed Orr Emblem"
+  },
+  {
+    "Week": "12/7/26",
+    "Item": "Tempered Glass Vial"
+  },
+  {
+    "Week": "12/14/26",
+    "Item": "Scorched Lodestones"
+  },
+  {
+    "Week": "12/21/26",
+    "Item": "Water Djinn Essence"
+  },
+  {
+    "Week": "12/28/26",
+    "Item": "Guardian Moss"
+  },
+  {
+    "Week": "1/4/27",
+    "Item": "6 Dwarven Ales"
+  },
+  {
+    "Week": "1/11/27",
+    "Item": "Amphibian Tongue"
+  },
+  {
+    "Week": "1/18/27",
+    "Item": "Alpine Seed"
+  },
+  {
+    "Week": "1/25/27",
+    "Item": "Tangled Seed"
+  },
+  {
+    "Week": "2/1/27",
+    "Item": "Stolen Supplies"
+  },
+  {
+    "Week": "2/8/27",
+    "Item": "Pahnai Salad"
+  },
+  {
+    "Week": "2/15/27",
+    "Item": "Vermin Hide"
+  },
+  {
+    "Week": "2/22/27",
+    "Item": "Roaring Ether Heart"
+  },
+  {
+    "Week": "3/1/27",
+    "Item": "Leathery Claw"
+  },
+  {
+    "Week": "3/8/27",
+    "Item": "Azure Crest"
+  },
+  {
+    "Week": "3/15/27",
+    "Item": "Jotun Pelt"
+  },
+  {
+    "Week": "3/22/27",
+    "Item": "Heket Tongue"
+  },
+  {
+    "Week": "3/29/27",
+    "Item": "Mountain Troll Tusks"
+  },
+  {
+    "Week": "4/5/27",
+    "Item": "Vial Of Ink"
+  },
+  {
+    "Week": "4/12/27",
+    "Item": "Kournan Pendant"
+  },
+  {
+    "Week": "4/19/27",
+    "Item": "Singed Gargoyle Skull"
+  },
+  {
+    "Week": "4/26/27",
+    "Item": "Dredge Incisor"
+  },
+  {
+    "Week": "5/3/27",
+    "Item": "Stone Summit Badge"
+  },
+  {
+    "Week": "5/10/27",
+    "Item": "Krait Skin"
+  },
+  {
+    "Week": "5/17/27",
+    "Item": "Inscribed Shard"
+  },
+  {
+    "Week": "5/24/27",
+    "Item": "Feathered Scalp"
+  },
+  {
+    "Week": "5/31/27",
+    "Item": "Mummy Wrappings"
+  },
+  {
+    "Week": "6/7/27",
+    "Item": "Shadowy Remnants"
+  },
+  {
+    "Week": "6/14/27",
+    "Item": "Ancient Kappa Shell"
+  },
+  {
+    "Week": "6/21/27",
+    "Item": "Geode"
+  },
+  {
+    "Week": "6/28/27",
+    "Item": "Fibrous Mandragor Root"
+  },
+  {
+    "Week": "7/5/27",
+    "Item": "Gruesome Ribcage"
+  },
+  {
+    "Week": "7/12/27",
+    "Item": "Kraken Eye"
+  },
+  {
+    "Week": "7/19/27",
+    "Item": "Bog Skale Fin"
+  },
+  {
+    "Week": "7/26/27",
+    "Item": "Sentient Spores"
+  },
+  {
+    "Week": "8/2/27",
+    "Item": "Ancient Eye"
+  },
+  {
+    "Week": "8/9/27",
+    "Item": "Copper Shilling"
+  },
+  {
+    "Week": "8/16/27",
+    "Item": "Frigid Mandragor Husk"
+  },
+  {
+    "Week": "8/23/27",
+    "Item": "Bolt Of Linen"
+  },
+  {
+    "Week": "8/30/27",
+    "Item": "Charr Carving"
+  },
+  {
+    "Week": "9/6/27",
+    "Item": "Red Iris Flower"
+  },
+  {
+    "Week": "9/13/27",
+    "Item": "Feathered Avicara Scalp"
+  },
+  {
+    "Week": "9/20/27",
+    "Item": "Margonite Mask"
+  },
+  {
+    "Week": "9/27/27",
+    "Item": "Quetzal Crest"
+  },
+  {
+    "Week": "10/4/27",
+    "Item": "Plague Idol"
+  },
+  {
+    "Week": "10/11/27",
+    "Item": "Azure Remains"
+  },
+  {
+    "Week": "10/18/27",
+    "Item": "Mandragor Root Cake"
+  },
+  {
+    "Week": "10/25/27",
+    "Item": "Mahgo Claw"
+  },
+  {
+    "Week": "11/1/27",
+    "Item": "Mantid Pincer"
+  },
+  {
+    "Week": "11/8/27",
+    "Item": "Sentient Seeds"
+  },
+  {
+    "Week": "11/15/27",
+    "Item": "Stone Grawl Necklace"
+  },
+  {
+    "Week": "11/22/27",
+    "Item": "Herring"
+  },
+  {
+    "Week": "11/29/27",
+    "Item": "Naga Skin"
+  },
+  {
+    "Week": "12/6/27",
+    "Item": "Gloom Seed"
+  },
+  {
+    "Week": "12/13/27",
+    "Item": "Charr Hide"
+  },
+  {
+    "Week": "12/20/27",
+    "Item": "Ruby Djinn Essence"
+  },
+  {
+    "Week": "12/27/27",
+    "Item": "Thorny Carapace"
+  }
+]

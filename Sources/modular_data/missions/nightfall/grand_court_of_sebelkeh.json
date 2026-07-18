@@ -1,0 +1,26 @@
+{
+  "name": "Grand Court of Sebelkeh",
+  "required_hero": ["Tahlkora"],
+  "steps": [
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 435, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "required_hero": ["Tahlkora"], "action": "load"},
+    {"type": "route", "name": "Path", "points": [[1436, 6906]], "mode": "kill"},
+    {"type": "interact", "id": ["0x81", "0x84"], "npc": "HEAD_PRIEST_VAHMANI", "name": "Dialog - Head Priest Vahmani", "action": "dialog", "target": "npc"},
+    {"type": "wait", "ms": 7000, "action": "wait"},
+    {"type": "map", "map_id": 435, "action": "wait_for_map_load"},
+    {"type": "party", "point": [1456, 2767], "action": "flag_heroes"},
+    {"type": "route", "name": "Path", "points": [[1456, 2767]], "mode": "kill"},
+    {"type": "party", "action": "unflag_heroes"},
+    {"type": "route", "name": "Path", "points": [[1456, 2767]], "mode": "kill"},
+    {"type": "route", "name": "1st point", "points": [[1430, -441]], "mode": "kill"},
+    {"type": "route", "name": "secure mid", "points": [[1446, 2837]], "ms": 2000, "mode": "kill"},
+    {"type": "route", "name": "1st point", "points": [[1430, -441]], "ms": 9000, "mode": "kill"},
+    {"type": "route", "name": "secure mid", "points": [[1446, 2837]], "ms": 2000, "mode": "kill"},
+    {"type": "route", "name": "2nd point", "points": [[3560, 4874]], "ms": 7000, "mode": "kill"},
+    {"type": "route", "name": "secure mid", "points": [[1446, 2837]], "ms": 2000, "mode": "kill"},
+    {"type": "route", "name": "2nd point", "points": [[3560, 4874]], "ms": 5000, "mode": "kill"},
+    {"type": "route", "name": "secure mid", "points": [[1446, 2837]], "ms": 2000, "mode": "kill"},
+    {"type": "route", "name": "last point", "points": [[-844, 4870]], "mode": "kill"},
+    {"type": "map", "map_id": 414, "action": "wait_for_map_load"}
+  ]
+}

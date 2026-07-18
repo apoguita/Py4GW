@@ -1,0 +1,17 @@
+{
+  "name": "Nundu Bay",
+  "required_hero": ["Melonni"],
+  "steps": [
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 477, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "required_hero": ["Melonni"], "action": "load"},
+    {"type": "route", "name": "Path", "points": [[-15809, -7668]], "mode": "kill"},
+    {"type": "interact", "id": ["0x81", "0x84"], "npc": "DREAMER_RAJA", "name": "Dialog - Dreamer Raja", "action": "dialog", "target": "npc"},
+    {"type": "wait", "ms": 7000, "action": "wait"},
+    {"type": "map", "map_id": 477, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Jonah", "points": [[8356, 12851]], "mode": "kill"},
+    {"type": "wait", "ms": 60000, "action": "wait"},
+    {"type": "interact", "id": "0x1", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[4623, 12080], [2368, 10290], [3400, 8547], [1477, 6492], [-443, 5369], [-943, 1143], [-2299, -527], [-2199, 1292], [-2785, 5242]], "mode": "kill"},
+    {"type": "map", "map_id": 387, "action": "wait_for_map_load"}
+  ]
+}

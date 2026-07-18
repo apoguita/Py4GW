@@ -1,0 +1,14 @@
+{
+  "name": "Report to the White Mantle",
+  "steps": [
+    {"type": "map", "name": "Travel to Quest Outpost", "target_map_id": 55, "action": "travel"},
+    {"type": "interact", "name": "Take Quest - Reach NPC", "point": [2376, 9268], "ms": 2000, "target": "npc"},
+    {"type": "interact", "name": "Take Quest", "id": ["0x801303", "0x801301"], "interval_ms": 2000, "ms": 2000, "point": [2376, 9268], "action": "dialog", "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "point": [200, 12400], "target_map_id": 58, "mode": "exit"},
+    {"type": "route", "name": "To D'allesio ", "points": [[5294, -16988], [1043, -16842], [-3345, -16503], [-8249, -15776], [-10616, -16863], [-11547, -19370]], "mode": "kill"},
+    {"type": "route", "point": [-11700, -19700], "target_map_id": 15, "mode": "exit"},
+    {"type": "route", "name": "To Quest reward ", "points": [[16506, 15402], [18592, 12867], [21877, 9855]], "mode": "kill"},
+    {"type": "interact", "point": [21771, 9699], "id": "0x801307", "action": "dialog", "target": "npc"}
+  ]
+}

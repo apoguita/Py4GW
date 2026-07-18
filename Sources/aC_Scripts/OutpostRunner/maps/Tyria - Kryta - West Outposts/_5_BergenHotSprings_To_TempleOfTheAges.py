@@ -1,0 +1,77 @@
+from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
+
+# 1) IDs
+_5_bergenhotsprings_to_templeoftheages_ids = {
+    "outpost_id": outpost_name_to_id["Bergen Hot Springs"],
+}
+
+# 2) Outpost exit path
+_5_bergenhotsprings_to_templeoftheages_outpost_path = [
+    (15521, -15378),
+    (15450, -15050),
+]
+
+# 3) Segments
+_5_bergenhotsprings_to_templeoftheages_segments = [
+    {
+        "map_id": explorable_name_to_id["Nebo Terrace"],
+        "path": [
+            (13276.0, -14317.0),
+            (10761.0, -14522.0),
+            (8660.0, -12109.0),
+            (6637.0, -9216.0),
+            (4995.0, -7951.0),
+            (1522.0, -7990.0),
+            (-924.0, -10670.0),
+            (-3489.0, -11607.0),
+            (-4086.0, -11692.0),
+            (-4290.0, -11599.0)
+        ],
+    },
+    {
+        "map_id": explorable_name_to_id["Cursed Lands"],
+        "path": [
+            (-4523.0, -9755.0),
+            (-4067.0, -8786.0),
+            (-4207.0, -7806.0),
+            (-5497.0, -6137.0),
+            (-7331.0, -6178.0),
+            (-8784.0, -4598.0),
+            (-9053.0, -2929.0),
+            (-9610.0, -2136.0),
+            (-10879.0, -1685.0),
+            (-10731.0, -760.0),
+            (-12517.0, 5459.0),
+            (-15510.0, 7154.0),
+            (-18010.0, 7033.0),
+            (-18717.0, 7537.0),
+            (-19896.0, 8964.0),
+            (-20100.0, 9025.0)
+        ], 
+    },
+    {
+        "map_id": explorable_name_to_id["The Black Curtain"],
+        "path": [
+            (18552,17073),
+            (16796,15541),
+            (14438,17156),
+            (11124,19090),
+            (8716,18587),
+            (5616,17732),
+            (3795,17750),
+            (1938,16994),
+            (592,16243),
+            (-686,14967),
+            (-1968,14407),
+            (-3398,14730),
+            (-4340,14938),
+            (-5004,15424),
+            (-5207,15882),
+            (-5180,16000),
+        ], 
+    },
+    {
+        "map_id": outpost_name_to_id["Temple of the Ages"],
+        "path": [],  # no further walking once you arrive
+    },
+]

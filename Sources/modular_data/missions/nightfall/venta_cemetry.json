@@ -1,0 +1,32 @@
+{
+  "name": "Venta Cemetery",
+  "required_hero": ["Koss"],
+  "steps": [
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 421, "action": "travel"},
+    {"type": "route", "name": "Path", "points": [[25351, 14922]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "required_hero": ["Koss"], "action": "load"},
+    {"type": "interact", "id": ["0x81", "0x84"], "npc": "ROJIS", "name": "Dialog - Rojis", "action": "dialog", "target": "npc"},
+    {"type": "wait", "ms": 6400, "action": "wait"},
+    {"type": "map", "map_id": 421, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Path", "points": [[21776, 13123]], "mode": "kill"},
+    {"type": "interact", "id": "0x84", "npc": "ROJIS", "name": "Dialog - Rojis", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[21167, 12587], [19473, 5603]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[17641, -633], [17402, -2474]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[17523, 514], [13107, 4879], [7600, 4950]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[6248, 8055], [6845, 10454], [7053, 11647], [5526, 11607]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[3087, 14262], [70, 13740], [-1435, 12151]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-4956, 12396], [-10078, 9400], [-8936, 8168], [-14375, 8009]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-8985, 7473], [-5935, 7968], [-4058, 6947]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-6641, 8067], [-7720, 5809], [-7353, 3132]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-9455, 6759], [-12164, 6240], [-12069, 2023], [-12292, -404]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-11070, -4148], [-10580, -6933], [-8705, -5624], [-7616, -5386]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-6123, -7131], [-3420, -9428], [-2292, -9912]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[1343, -11903], [3617, -10774]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-1021, -10991], [-4580, -8381], [-10190, -7394]], "mode": "kill"},
+    {"type": "wait", "ms": 10000, "action": "wait"},
+    {"type": "route", "name": "Path", "points": [[-15439, -7585], [-17060, -8484], [-21180, -8247], [-22540, -8289]], "mode": "kill"},
+    {"type": "wait", "ms": 11200, "action": "wait"},
+    {"type": "interact", "name": "Interact Margrid The Sly", "npc": "MARGRID_THE_SLY", "target": "npc"},
+    {"type": "map", "map_id": 449, "action": "wait_for_map_load"}
+  ]
+}

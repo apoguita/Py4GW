@@ -1,0 +1,14 @@
+{
+  "name": "The Way is blocked",
+  "steps": [
+    {"type": "map", "name": "Travel to Quest Outpost", "target_map_id": 134, "action": "travel"},
+    {"type": "interact", "name": "Take Quest - Reach NPC", "point": [9086, 5816], "ms": 500, "target": "npc"},
+    {"type": "interact", "name": "Take Quest", "id": ["0x80C603", "0x80C601"], "interval_ms": 500, "ms": 500, "point": [9086, 5816], "action": "dialog", "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "point": [9200, 4000], "target_map_id": 99, "mode": "exit"},
+    {"type": "route", "name": "Killing path", "points": [[7508, -1496], [3061, -4286], [2134, -9007], [135, -11701], [-1453, -12890], [-5887, -12414], [-8536, -9960], [-10752, -8461]], "mode": "kill"},
+    {"type": "route", "point": [-11100, -8500], "target_map_id": 25, "mode": "exit"},
+    {"type": "route", "name": "Quest npc", "points": [[24274, -2211]], "mode": "kill"},
+    {"type": "interact", "point": [23672, -2776], "id": "0x80C607", "action": "dialog", "target": "npc"}
+  ]
+}

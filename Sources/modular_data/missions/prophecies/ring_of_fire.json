@@ -1,0 +1,20 @@
+{
+  "name": "Ring of Fire",
+  "steps": [
+    {"type": "map", "name": "Travel to Mission Outpost", "target_map_id": 122, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "map", "name": "Enter Challenge", "delay_ms": 6000, "target_map_id": 122, "action": "enter_challenge"},
+    {"type": "inventory", "name": "Prep consumables", "ms": 1000, "mode": "all", "action": "use_consumables"},
+    {"type": "route", "name": "Seal route", "points": [[18118, -2086], [17515, 4197], [11605, 11759], [11498, 7711], [1679, 7158], [0, 7766]], "mode": "kill"},
+    {"type": "party", "point": [-2382, 6756], "action": "flag_heroes"},
+    {"type": "wait", "ms": 5000, "action": "wait"},
+    {"type": "party", "point": [-2335, 8972], "action": "flag_heroes"},
+    {"type": "wait", "ms": 5000, "action": "wait"},
+    {"type": "party", "action": "unflag_heroes"},
+    {"type": "route", "name": "Open central path", "points": [[-3441, 6381], [-3551, 7891], [-6238, 4257], [-8638, 1750]], "mode": "kill"},
+    {"type": "interact", "point": [-3441, 6381], "ms": 500, "target": "gadget"},
+    {"type": "interact", "point": [-8554, 2252], "ms": 500, "target": "gadget"},
+    {"type": "route", "name": "Finish route", "points": [[-10158, 1905], [-10834, 2981]], "mode": "kill"},
+    {"type": "map", "target_map_id": 123, "action": "wait_for_map_load"}
+  ]
+}

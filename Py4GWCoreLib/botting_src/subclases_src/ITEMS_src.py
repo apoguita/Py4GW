@@ -1,0 +1,313 @@
+#region STATES
+from typing import TYPE_CHECKING, List
+
+if TYPE_CHECKING:
+    from Py4GWCoreLib.botting_src.helpers import BottingClass
+
+from ...enums import ModelID
+
+#region ITEMS
+class _ITEMS:
+    def __init__(self, parent: "BottingClass"):
+        self.parent = parent
+        self._config = parent.config
+        self._helpers = parent.helpers
+        self.Restock = _ITEMS._RESTOCK(parent)
+        
+    def AutoIdentifyItems(self):
+        "Uses the AutoLoot Handler to identify items automatically."
+        self._helpers.Items.auto_identify_items()
+
+    def AutoSalvageItems(self):
+        "Uses the AutoLoot Handler to salvage items automatically."
+        self._helpers.Items.auto_salvage_items()
+
+    def AutoDepositItems(self):
+        "Uses the AutoLoot Handler to deposit items automatically."
+        self._helpers.Items.auto_deposit_items()
+
+    def WithdrawGold(self, target_gold: int = 20000, deposit_all: bool = True):
+        """Ensure the character has exactly target_gold on hand.
+        Deposits excess first (if deposit_all=True), then withdraws the shortfall from storage."""
+        self._helpers.Items.withdraw_gold(target_gold, deposit_all)
+
+    def AutoDepositGold(self):
+        "Uses the AutoLoot Handler to deposit gold automatically."
+        self._helpers.Items.auto_deposit_gold()
+        
+    def AutoIDAndSalvageItems(self):
+        "Uses the AutoLoot Handler to identify and salvage items automatically."
+        self._helpers.Items.auto_id_and_salvage()
+        
+    def AutoIDAndSalvageAndDepositItems(self):
+        "Uses the AutoLoot Handler to identify, salvage, and deposit items automatically."
+        self._helpers.Items.auto_id_and_salvage_and_deposit()
+        
+    def LootItems(self, pickup_timeout = 5000 ):
+        self._helpers.Items.loot(pickup_timeout)
+
+    def Craft(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
+        self._helpers.Items.craft(model_id, value, trade_items_models, quantity_list)
+
+    def Withdraw(self, model_id:int, quantity:int):
+        self._helpers.Items.withdraw(model_id, quantity)
+
+    def WithdrawUpTo(self, model_id: int, max_quantity: int):
+        "Withdraw up to max_quantity of model_id from storage. No-op if none available."
+        self._helpers.Items.withdraw_up_to(model_id, max_quantity)
+
+    def WithdrawFirstAvailable(self, model_ids: list, max_quantity: int):
+        "Withdraw up to max_quantity from the first model_id in the list that has stock in storage."
+        self._helpers.Items.withdraw_first_available(model_ids, max_quantity)
+
+    def Deposit(self, model_id: int):
+        "Deposit the first matching item (by model_id) from inventory to storage."
+        self._helpers.Items.deposit_item(model_id)
+
+    def DepositConset(self):
+        "Deposit all conset items from inventory to storage."
+        self._helpers.Items.deposit_conset()
+
+    def DepositPcons(self):
+        "Deposit all pcons items from inventory to storage."
+        self._helpers.Items.deposit_pcons()
+
+    def DepositSummoningStones(self):
+        "Deposit all summoning stones from inventory to storage."
+        self._helpers.Items.deposit_summoning_stones()
+
+    def DepositCitySpeedBoost(self):
+        "Deposit all city speed boost items from inventory to storage."
+        self._helpers.Items.deposit_city_speed_boost()
+
+    def Deposit_Conset_Pcons_Summoning_Stones_CitySpeed(self):
+        "Deposit conset, pcons, summoning stones, and city speed boost items."
+        self._helpers.Items.deposit_conset_pcons_summoning_stones_city_speed()
+
+    def DepositAll(self):
+        "Deposit all items from inventory bags (Backpack, Belt Pouch, Bag 1, Bag 2) to storage."
+        self._helpers.Items.deposit_all_inventory()
+
+    def Equip(self, model_id: int):
+        self._helpers.Items.equip(model_id)
+
+    def EquipInventoryBag(self, model_id: int, target_bag: int, timeout_ms: int = 2500):
+        self._helpers.Items.equip_inventory_bag(model_id, target_bag, timeout_ms)
+
+    def EquipOnHero(self, hero_type, model_id: int):
+        """Equip item (by model_id) on the hero matching hero_type (HeroType enum)."""
+        self._helpers.Items.equip_on_hero(hero_type, model_id)
+
+    def Destroy(self, model_id: int):
+        self._helpers.Items.destroy(model_id)
+
+    def UseItem(self, model_id: int):
+        """Find the first item with the given model_id in inventory and use it."""
+        self._helpers.Items.use_item_by_model_id(model_id)
+
+    def UseSummoningStone(self):
+        """
+        Uses a summoning stone from inventory with priority:
+        1. Legionnaire Summoning Crystal (always first)
+        2. Igneous Summoning Stone (if player level < 20)
+        3. Any other available summoning stone
+        """
+        self._helpers.Items.use_summoning_stone()
+
+    def UseConset(self):
+        """Uses only conset items (Essence of Celerity, Grail of Might, Armor of Salvation). Skips any already active."""
+        self._helpers.Items.use_conset()
+
+    def UsePcons(self):
+        """Uses only pcon items (Cupcake, Golden Egg, Candy Corn, Candy Apple, Pumpkin Pie, Drake Kabob, Skalefin Soup, Pahnai Salad, War Supplies). Skips any already active."""
+        self._helpers.Items.use_pcons()
+
+    def UseEssenceOfCelerity(self):
+        self._helpers.Items.use_essence_of_celerity()
+
+    def UseGrailOfMight(self):
+        self._helpers.Items.use_grail_of_might()
+
+    def UseArmorOfSalvation(self):
+        self._helpers.Items.use_armor_of_salvation()
+
+    def UseBirthdayCupcake(self):
+        self._helpers.Items.use_birthday_cupcake()
+
+    def UseGoldenEgg(self):
+        self._helpers.Items.use_golden_egg()
+
+    def UseCandyCorn(self):
+        self._helpers.Items.use_candy_corn()
+
+    def UseCandyApple(self):
+        self._helpers.Items.use_candy_apple()
+
+    def UsePumpkinPie(self):
+        self._helpers.Items.use_slice_of_pumpkin_pie()
+
+    def UseDrakeKabob(self):
+        self._helpers.Items.use_drake_kabob()
+
+    def UseBowlOfSkalefinSoup(self):
+        self._helpers.Items.use_bowl_of_skalefin_soup()
+
+    def UsePahnaiSalad(self):
+        self._helpers.Items.use_pahnai_salad()
+
+    def UseWarSupplies(self):
+        self._helpers.Items.use_war_supplies()
+
+    def UseAllConsumables(self):
+        """
+        Uses all consumables for the current player only (not multibox).
+        Includes: Essence of Celerity, Grail of Might, Armor of Salvation,
+        Birthday Cupcake, Golden Egg, Candy Corn, Candy Apple, Pumpkin Pie,
+        Drake Kabob, Skalefin Soup, Pahnai Salad, and War Supplies.
+        """
+        self._helpers.Items.use_all_consumables()
+
+    def DestroyBonusItems(self,
+                            exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
+                                                        ModelID.Bonus_Nevermore_Flatbow.value]):
+        self._helpers.Items.destroy_bonus_items(exclude_list)
+
+    def SpawnBonusItems(self):
+        self._helpers.Items.spawn_bonus_items()
+        
+    def SpawnAndDestroyBonusItems(self,
+                                    exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
+                                                                ModelID.Bonus_Nevermore_Flatbow.value]):
+        self._helpers.Items.spawn_bonus_items()
+        self._helpers.Items.destroy_bonus_items(exclude_list)
+        
+    def MoveModelToBagSlot(self, model_id:int, target_bag:int, slot:int):
+        self._helpers.Items.move_model_to_bag_slot(model_id, target_bag, slot)
+
+    #region Lootcofigs
+    #whitelist
+    def AddModelToLootWhitelist(self, model_id:int):
+        self._helpers.Items.add_model_to_whitelist(model_id)
+        
+    def RemoveModelFromLootWhitelist(self, model_id:int):
+        self._helpers.Items.remove_model_from_whitelist(model_id)
+        
+    def ClearLootWhitelist(self):
+        self._helpers.Items.clear_whitelist()
+        
+    #blacklist
+    def AddModelToLootBlacklist(self, model_id:int):
+        self._helpers.Items.add_model_to_blacklist(model_id)
+    
+    def RemoveModelFromLootBlacklist(self, model_id:int):
+        self._helpers.Items.remove_model_from_blacklist(model_id)
+    
+    def ClearLootBlacklist(self):
+        self._helpers.Items.clear_blacklist()
+        
+    #item id whitelist
+    def AddItemIDToLootWhitelist(self, item_id:int):
+        self._helpers.Items.add_item_id_to_whitelist(item_id)
+        
+    def RemoveItemIDFromLootWhitelist(self, item_id:int):
+        self._helpers.Items.remove_item_id_from_whitelist(item_id)
+        
+    def ClearItemIDLootWhitelist(self):      
+        self._helpers.Items.clear_item_id_whitelist()
+        
+    #item id blacklist
+    def AddItemIDToLootBlacklist(self, item_id:int):
+        self._helpers.Items.add_item_id_to_blacklist(item_id)
+        
+    def RemoveItemIDFromLootBlacklist(self, item_id:int):
+        self._helpers.Items.remove_item_id_from_blacklist(item_id)
+        
+    def ClearItemIDLootBlacklist(self):
+        self._helpers.Items.clear_item_id_blacklist()
+        
+    #dye whitelist
+    def AddDyeToLootWhitelist(self, model_id:int):
+        self._helpers.Items.add_dye_to_whitelist(model_id)
+        
+    def RemoveDyeFromLootWhitelist(self, model_id:int):
+        self._helpers.Items.remove_dye_from_whitelist(model_id)
+        
+    def ClearDyeLootWhitelist(self):
+        self._helpers.Items.clear_dye_whitelist()
+        
+    class _RESTOCK:
+        def __init__(self, parent: "BottingClass"):
+            self.parent = parent
+            self._config = parent.config
+            self._helpers = parent.helpers
+
+        def BirthdayCupcake(self):
+            self._helpers.Restock.restock_birthday_cupcake()
+
+        def CandyApple(self):
+            self._helpers.Restock.restock_candy_apple()
+
+        def Honeycomb(self):
+            self._helpers.Restock.restock_honeycomb()
+
+        def WarSupplies(self):
+            self._helpers.Restock.restock_war_supplies()
+
+        def EssenceOfCelerity(self):
+            self._helpers.Restock.restock_essence_of_celerity()
+
+        def GrailOfMight(self):
+            self._helpers.Restock.restock_grail_of_might()
+
+        def ArmorOfSalvation(self):
+            self._helpers.Restock.restock_armor_of_salvation()
+
+        def GoldenEgg(self):
+            self._helpers.Restock.restock_golden_egg()
+
+        def CandyCorn(self):
+            self._helpers.Restock.restock_candy_corn()
+
+        def SliceOfPumpkinPie(self):
+            self._helpers.Restock.restock_slice_of_pumpkin_pie()
+
+        def DrakeKabob(self):
+            self._helpers.Restock.restock_drake_kabob()
+
+        def BowlOfSkalefinSoup(self):
+            self._helpers.Restock.restock_bowl_of_skalefin_soup()
+
+        def PahnaiSalad(self):
+            self._helpers.Restock.restock_pahnai_salad()
+
+        def AllPcons(self, quantity: int = 250):
+            self._helpers.Restock.force_restock_item(ModelID.Birthday_Cupcake.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Candy_Apple.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Golden_Egg.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Candy_Corn.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Honeycomb.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.War_Supplies.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Slice_Of_Pumpkin_Pie.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Drake_Kabob.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Bowl_Of_Skalefin_Soup.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Pahnai_Salad.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Scroll_Of_Resurrection.value, quantity)
+
+        def Conset(self, quantity: int = 250):
+            self._helpers.Restock.force_restock_item(ModelID.Essence_Of_Celerity.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Grail_Of_Might.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Armor_Of_Salvation.value, quantity)
+
+        def CitySpeed(self, quantity: int = 250):
+            self._helpers.Restock.restock_city_speed(quantity)
+
+        def SummoningStones(self, quantity: int = 250):
+            self._helpers.Restock.restock_summoning_stones(quantity)
+
+        def Restock_Conset_Pcons_Summoning_Stones_CitySpeed(self, quantity: int = 250):
+            self._helpers.Restock.restock_conset_pcons_summoning_stones_city_speed(quantity)
+
+        def ResurrectionScroll(self, quantity: int = 250):
+            self._helpers.Restock.force_restock_item(ModelID.Scroll_Of_Resurrection.value, quantity)
+
+

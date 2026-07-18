@@ -1,0 +1,23 @@
+{
+  "name": "The Time is Nigh",
+  "steps": [
+    {"type": "map", "name": "Travel to Sunspear Great Hall", "target_map_id": 431, "action": "travel"},
+    {"type": "route", "name": "To Castellan Puuba", "points": [[-4043, 5316]], "mode": "kill"},
+    {"type": "interact", "id": ["0x828503", "0x828501"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449, "action": "travel"},
+    {"type": "route", "name": "To Load Party", "points": [[-7447, 6474]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 4, "action": "load"},
+    {"type": "interact", "id": ["0x81", "0x84"], "npc": "SECOND_SPEAR_BINAH", "name": "Dialog - Second Spear Binah", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[-1277, 1099]], "mode": "kill"},
+    {"type": "wait", "ms": 42000, "action": "wait"},
+    {"type": "interact", "id": "0x828504", "npc": "KORMIR", "name": "Dialog - Kormir", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449, "action": "travel"},
+    {"type": "route", "name": "To Exit", "points": [[-7464, 16387]], "mode": "kill"},
+    {"type": "route", "name": "Leave Kamadan Jewel of Istan", "point": [-5954, 16721], "target_map_id": 429, "mode": "exit"},
+    {"type": "route", "name": "To Assistant Hahnna", "points": [[-4746, 16739]], "mode": "kill"},
+    {"type": "interact", "id": ["0x828504", "0x84", "0x85"], "npc": "ASSISTANT_HAHNNA", "name": "Dialog - Assistant Hahnna", "action": "dialog", "target": "npc"},
+    {"type": "map", "map_id": 493, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Raidmarshal Mehdara", "points": [[-1631, 16737]], "mode": "kill"},
+    {"type": "interact", "id": "0x82E207", "npc": "RAIDMARSHAL_MEHDARA", "name": "Dialog - Raidmarshal Mehdara", "action": "dialog", "target": "npc"}
+  ]
+}

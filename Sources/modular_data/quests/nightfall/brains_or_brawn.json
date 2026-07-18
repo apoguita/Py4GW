@@ -1,0 +1,16 @@
+{
+  "name": "dialog_recorded",
+  "steps": [
+    {"type": "map", "name": "Travel to The Kodash Bazaar", "target_map_id": 414, "action": "travel"},
+    {"type": "route", "name": "To Zerai The Learner", "points": [[-2593, -2192]], "mode": "kill"},
+    {"type": "interact", "id": ["0x82D203", "0x82D201"], "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai the Learner", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Honur Hill", "target_map_id": 403, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-18798, 14323]], "mode": "kill"},
+    {"type": "route", "name": "Leave Honur Hill", "point": [-18753, 13565], "target_map_id": 402, "mode": "exit"},
+    {"type": "route", "name": "To Zerai The Learner", "points": [[-12488, 5983]], "mode": "kill"},
+    {"type": "interact", "id": ["0x82D204", "0x9"], "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai the Learner", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Norgu", "points": [[-12669, 5480]], "mode": "kill"},
+    {"type": "interact", "id": "0x82D207", "npc": "NORGU", "name": "Dialog - Norgu", "action": "dialog", "target": "npc"}
+  ]
+}

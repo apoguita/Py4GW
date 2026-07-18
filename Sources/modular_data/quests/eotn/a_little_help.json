@@ -1,0 +1,25 @@
+{
+  "name": "A Little Help",
+  "steps": [
+    {"type": "map", "name": "Travel to Vlox's Falls", "target_map_id": 624, "action": "travel"},
+    {"type": "route", "name": "To Plaxx", "points": [[16569, 15999]], "mode": "kill"},
+    {"type": "interact", "id": "0x833401", "npc": "PLAXX", "name": "Dialog - Plaxx", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Rata Sum", "target_map_id": 640, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[18915, 16758]], "mode": "kill"},
+    {"type": "route", "name": "Leave Rata Sum", "point": [20051, 16797], "target_map_id": 501, "mode": "exit"},
+    {"type": "route", "name": "To Sky Krewe Member", "points": [[-24231, -5562]], "mode": "kill"},
+    {"type": "interact", "id": "0x84", "npc": "SKY_KREWE_MEMBER", "name": "Dialog - Sky Krewe Member", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Renk", "points": [[-10529, -11988], [-3596, -10821], [17413, -9350]], "mode": "kill"},
+    {"type": "interact", "id": "0x833404", "npc": "RENK", "name": "Dialog - Renk", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[-5210, -11643], [-7698, -12251], [-8439, -13153]], "mode": "kill"},
+    {"type": "route", "name": "Leave Riven Earth", "point": [-8569, -13698], "target_map_id": 572, "mode": "exit"},
+    {"type": "route", "name": "To Machine Krewe Member", "points": [[-5387, 16137]], "mode": "kill"},
+    {"type": "interact", "id": "0x84", "npc": "MACHINE_KREWE_MEMBER", "name": "Dialog - Machine Krewe Member", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Renk", "points": [[-21948, -9462], [-23997, -10397]], "mode": "kill"},
+    {"type": "interact", "id": "0x833404", "npc": "RENK", "name": "Dialog - Renk", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Rata Sum", "target_map_id": 640, "action": "travel"},
+    {"type": "route", "name": "To Mamp", "points": [[16093, 15293]], "mode": "kill"},
+    {"type": "interact", "id": "0x833407", "npc": "MAMP", "name": "Dialog - Mamp", "action": "dialog", "target": "npc"}
+  ]
+}

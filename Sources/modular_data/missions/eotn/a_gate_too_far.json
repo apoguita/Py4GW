@@ -1,0 +1,27 @@
+{
+  "name": "A Gate too Far",
+  "steps": [
+    {"type": "route", "name": "To Olaf Olafson", "points": [[-15236, 8653]], "mode": "kill"},
+    {"type": "interact", "npc": "OLAF_OLAFSON", "name": "Dialog - Olaf Olafson", "action": "dialog", "ids": ["0x81", "0x86"], "target": "npc"},
+    {"type": "map", "map_id": 655, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Path", "points": [[-6251, 6310], [-4971, 7878], [-6273, 6457]], "mode": "kill"},
+    {"type": "wait", "ms": 12000},
+    {"type": "route", "name": "Path", "points": [[-7593, 7340], [-6445, 6617]], "mode": "kill"},
+    {"type": "wait", "ms": 12000},
+    {"type": "route", "name": "Path", "points": [[-8254, 5089], [-6316, 6433]], "mode": "kill"},
+    {"type": "wait", "ms": 12000},
+    {"type": "route", "name": "Path", "points": [[-5259, 3959], [-6269, 6352]], "mode": "kill"},
+    {"type": "wait", "ms": 12000},
+    {"type": "interact", "name": "Take Raven from Shrine of the Raven Spirit", "npc": "SHRINE_OF_THE_RAVEN_SPIRIT", "action": "target", "target": "npc"},
+    {"type": "wait", "ms": 30300},
+    {"type": "route", "name": "To Exit", "points": [[-6354, 1149], [-18283, 9595]], "mode": "kill"},
+    {"type": "route", "name": "Leave A Gate Too Far (level 1)", "point": [-19801, 9620], "target_map_id": 656, "mode": "exit"},
+    {"type": "interact", "name": "Take Raven from Olaf Olafson", "npc": "OLAF_OLAFSON", "action": "target", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[15085, 9549], [11311, 11893], [8222, 12208], [6034, 16187], [4236, 17188]], "mode": "kill"},
+    {"type": "route", "name": "Leave A Gate Too Far (level 2)", "point": [3416, 17728], "target_map_id": 657, "mode": "exit"},
+    {"type": "interact", "name": "Take Raven from Olaf Olafson", "npc": "OLAF_OLAFSON", "action": "target", "target": "npc"},
+    {"type": "route", "name": "To Target Asura Undergate", "points": [[4897, 13358], [6625, 8526], [7209, 6096]], "mode": "kill"},
+    {"type": "route", "name": "Target Asura Undergate", "enemy": "ASURA_UNDERGATE", "mode": "target", "target": "enemy"},
+    {"type": "map", "map_id": 645, "action": "wait_for_map_load"}
+  ]
+}

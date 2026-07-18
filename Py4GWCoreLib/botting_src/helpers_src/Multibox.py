@@ -1,0 +1,875 @@
+from functools import wraps
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Py4GWCoreLib.botting_src.helpers import BottingHelpers
+    
+from .decorators import _yield_step, _fsm_step
+from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callable
+from Py4GWCoreLib.enums import SharedCommandType 
+
+from Py4GWCoreLib import ConsoleLog, Console
+from Py4GWCoreLib.Player import Player
+from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.GlobalCache.SharedMemory import (
+    AccountStruct,
+)
+
+#region Multibox
+class _Multibox:
+    def __init__(self, parent: "BottingHelpers"):
+        from ...GlobalCache import GLOBAL_CACHE
+        self.parent = parent.parent
+        self._helpers = parent
+        self._config = parent._config
+        self._Events = parent.Events   
+        
+
+    class _AccountData:
+        def __init__(self, account_data:AccountStruct):
+            self.SlotNumber = account_data.SlotNumber
+            self.IsSlotActive = account_data.IsSlotActive
+            self.AccountEmail = account_data.AccountEmail
+            self.AccountName = account_data.AccountName
+            self.CharacterName = account_data.AgentData.CharacterName
+            self.IsAccount = account_data.IsAccount
+            self.IsHero = account_data.IsHero
+            self.IsPet = account_data.IsPet
+            self.IsNPC = account_data.IsNPC
+            self.OwnerPlayerID = account_data.AgentData.OwnerAgentID
+            self.HeroID = account_data.AgentData.HeroID
+            self.MapID = account_data.AgentData.Map.MapID
+            self.MapRegion = account_data.AgentData.Map.Region
+            self.MapDistrict = account_data.AgentData.Map.District
+            self.MapLanguage = account_data.AgentData.Map.Language
+            self.PlayerID = account_data.AgentData.AgentID
+            self.PlayerHP = account_data.AgentData.Health.Current
+            self.PlayerMaxHP = account_data.AgentData.Health.Max
+            self.PlayerHealthRegen = account_data.AgentData.Health.Regen
+            self.PlayerEnergy = account_data.AgentData.Energy.Current
+            self.PlayerMaxEnergy = account_data.AgentData.Energy.Max
+            self.PlayerEnergyRegen = account_data.AgentData.Energy.Regen
+            self.PlayerPosX = account_data.AgentData.Pos.x
+            self.PlayerPosY = account_data.AgentData.Pos.y
+            self.PlayerPosZ = account_data.AgentData.Pos.z
+            self.PlayerFacingAngle = account_data.AgentData.RotationAngle
+            self.PlayerTargetID = account_data.AgentData.TargetID
+            self.PlayerLoginNumber = account_data.AgentData.LoginNumber
+            self.PlayerPrimaryProfession = int(account_data.AgentData.Profession[0]) if account_data.AgentData.Profession else 0
+            self.PlayerIsTicked = account_data.AgentPartyData.IsTicked
+            self.PartyID = account_data.AgentPartyData.PartyID
+            self.PartyPosition = account_data.AgentPartyData.PartyPosition
+            self.PlayerIsPartyLeader = account_data.AgentPartyData.IsPartyLeader            
+            self.PlayerBuffs = account_data.AgentData.Buffs.Buffs
+            self.LastUpdated = account_data.LastUpdated
+
+        
+    class _HeroAI:
+        class HeroAIOptions:
+            def __init__(self, email: str):
+                from ...GlobalCache import GLOBAL_CACHE
+                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(email)
+
+                self.email = hero_ai_options.Email if hero_ai_options else email
+                self.Following = hero_ai_options.Following if hero_ai_options else False
+                self.Avoidance = hero_ai_options.Avoidance if hero_ai_options else False
+                self.Looting = hero_ai_options.Looting if hero_ai_options else False
+                self.Targeting = hero_ai_options.Targeting if hero_ai_options else False
+                self.Combat = hero_ai_options.Combat if hero_ai_options else False
+                self.Skills = list(hero_ai_options.Skills) if hero_ai_options else []
+                self.IsFlagged = hero_ai_options.IsFlagged if hero_ai_options else False
+                self.FlagPosX = hero_ai_options.FlagPosX if hero_ai_options else 0.0
+                self.FlagPosY = hero_ai_options.FlagPosY if hero_ai_options else 0.0
+                self.FlagFacingAngle = hero_ai_options.FlagFacingAngle if hero_ai_options else 0.0
+
+            
+        def __init__(self, parent: "_Multibox"):
+            self.parent = parent.parent
+            self._config = parent._config
+            self._Events = parent._Events 
+
+            
+        def _get_hero_ai_options_by_email(self, email: str):
+            from ...GlobalCache import GLOBAL_CACHE
+            hero_ai_options = self.HeroAIOptions(email)
+            return hero_ai_options
+
+        def _set_hero_ai_options_by_email(self, email: str, option: str, value: Any, skill_index:int =0):
+            from ...GlobalCache import GLOBAL_CACHE
+            current_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(email)
+            if not current_options:
+                return
+
+            current_options.Email = email
+            current_options.Following = value if option == "Following" else current_options.Following
+            current_options.Avoidance = value if option == "Avoidance" else current_options.Avoidance
+            current_options.Looting = value if option == "Looting" else current_options.Looting
+            current_options.Targeting = value if option == "Targeting" else current_options.Targeting
+            current_options.Combat = value if option == "Combat" else current_options.Combat
+            current_options.Skills
+            current_options.Skills[skill_index] = bool(value if ((option == "Skills") and (skill_index >=1) and (skill_index < 8)) else current_options.Skills[skill_index])
+            current_options.IsFlagged = value if option == "IsFlagged" else current_options.IsFlagged
+            current_options.FlagPosX = value if option == "FlagPosX" else current_options.FlagPosX
+            current_options.FlagPosY = value if option == "FlagPosY" else current_options.FlagPosY
+            current_options.FlagFacingAngle = value if option == "FlagFacingAngle" else current_options.FlagFacingAngle
+
+            result = GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(email, current_options)
+            return result
+        
+    def _get_all_account_data(self) -> List[_AccountData]:
+        from ...GlobalCache import GLOBAL_CACHE
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        account_list = []
+        for account in accounts:
+            account_list.append(self._AccountData(account))
+        return account_list
+    
+    def _get_all_account_emails(self) -> List[str]:
+        from ...GlobalCache import GLOBAL_CACHE
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        account_list = []
+        for account in accounts:
+            account_list.append(account.AccountEmail)
+        return account_list
+    
+    def _get_account_data_from_email(self, email: str) -> Optional[_AccountData]:
+        from ...GlobalCache import GLOBAL_CACHE
+        account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(email)
+        if account is None:
+            return None
+        return self._AccountData(account)
+    
+    def _get_player_data(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        player_email = Player.GetAccountEmail()
+        return self._get_account_data_from_email(player_email)
+
+    def _set_account_isolation(self, isolated: bool, account_email: str = ""):
+        from ...GlobalCache import GLOBAL_CACHE
+
+        target_email = str(account_email or Player.GetAccountEmail() or "").strip()
+        if not target_email:
+            ConsoleLog("Messaging", "SetAccountIsolation failed: no account email available.", Console.MessageType.Warning, log=True)
+            return
+
+        GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(target_email, bool(isolated))
+        yield
+
+    def _summon_all_accounts(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        player_data = self._get_player_data()
+        all_accounts = self._get_all_account_data()
+        
+        if not player_data:
+            return
+
+        district_number = max(0, int(player_data.MapDistrict) - 1)
+        
+        for account in all_accounts:
+            if (player_data.MapID == account.MapID and
+                player_data.MapRegion == account.MapRegion and
+                player_data.MapDistrict == account.MapDistrict and
+                player_data.MapLanguage == account.MapLanguage):
+                continue
+
+            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage))
+            yield from Routines.Yield.wait(500)
+        yield
+
+    def _summon_account_by_email(self, email: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        player_data = self._get_player_data()
+        account = self._get_account_data_from_email(email)
+        
+        if not player_data or not account:
+            return
+
+        district_number = max(0, int(player_data.MapDistrict) - 1)
+        
+        if (player_data.MapID == account.MapID and
+            player_data.MapRegion == account.MapRegion and
+            player_data.MapDistrict == account.MapDistrict and
+            player_data.MapLanguage == account.MapLanguage):
+            return
+
+        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage))
+        yield from  Routines.Yield.wait(500)
+        
+    def _invite_all_accounts(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        player_data = self._get_player_data()
+        all_accounts = self._get_all_account_data()
+        
+        if not player_data:
+            return
+
+        # Invite order priority:
+        # 1) melee-like first (R/W/A/D), 2) Mesmer, 3) Paragon, 4) Necro, 5) Ritualist, 6) others.
+        melee_professions = {1, 2, 7, 10}
+        priority_by_profession = {
+            5: 1,  # Mesmer
+            9: 2,  # Paragon
+            4: 3,  # Necromancer
+            8: 4,  # Ritualist
+        }
+
+        def _invite_priority(account: "_Multibox._AccountData") -> tuple[int, str]:
+            prof = int(getattr(account, "PlayerPrimaryProfession", 0) or 0)
+            if prof in melee_professions:
+                return (0, str(getattr(account, "CharacterName", "") or ""))
+            return (priority_by_profession.get(prof, 5), str(getattr(account, "CharacterName", "") or ""))
+
+        all_accounts.sort(key=_invite_priority)
+        
+        for account in all_accounts:
+            if (player_data.MapID == account.MapID and
+                player_data.MapRegion == account.MapRegion and
+                player_data.MapDistrict == account.MapDistrict and
+                player_data.MapLanguage == account.MapLanguage and
+                player_data.PartyID != account.PartyID):
+                GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
+                GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
+                yield from Routines.Yield.wait(500)
+        yield
+        
+    def _invite_account_by_email(self, email: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        player_data = self._get_player_data()
+        account = self._get_account_data_from_email(email)
+        
+        if not player_data or not account:
+            return
+        
+        if (player_data.MapID == account.MapID and
+            player_data.MapRegion == account.MapRegion and
+            player_data.MapDistrict == account.MapDistrict and
+            player_data.MapLanguage == account.MapLanguage and
+            player_data.PartyID != account.PartyID):
+            GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
+            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
+            yield from Routines.Yield.wait(500)
+        yield
+        
+    def _kick_account_by_email(self, email: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        player_data = self._get_player_data()
+        account = self._get_account_data_from_email(email)
+        
+        if not player_data or not account:
+            return
+        
+        if player_data.PartyID == account.PartyID and player_data.AccountEmail != account.AccountEmail:
+            GLOBAL_CACHE.Party.Players.KickPlayer(account.CharacterName)
+            yield from Routines.Yield.wait(500)
+        yield
+        
+    def _kick_all_accounts(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        player_data = self._get_player_data()
+        all_accounts = self._get_all_account_data()
+        
+        if not player_data:
+            return
+        
+        for account in all_accounts:
+            if player_data.PartyID == account.PartyID and player_data.AccountEmail != account.AccountEmail:
+                GLOBAL_CACHE.Party.Players.KickPlayer(account.CharacterName)
+                yield from Routines.Yield.wait(500)
+
+    def _leave_party_on_all_accounts(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        for account in accounts:
+            if sender_email == account.AccountEmail:
+                continue
+
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.LeaveParty,
+                (0, 0, 0, 0),
+                ("", "", "", ""),
+            )
+            yield from Routines.Yield.wait(250)
+        
+    def _resignParty(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = Player.GetAccountEmail()
+        for account in accounts:
+            ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail, log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))
+        yield from Routines.Yield.wait(500)
+        
+    def _pixel_stack(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Agent import Agent
+        from ...import Range
+        sender_email = Player.GetAccountEmail()
+        x, y = Player.GetXY()
+
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        current_map = Map.GetMapID()
+        player_names = []
+
+        for player in players:
+            agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            agent = Agent.GetAgentByID(agent_id)
+            if not agent:
+                continue
+            dx, dy = x - agent.pos.x, y - agent.pos.y
+            players_dist_sq = dx * dx + dy * dy
+            max_dist_sq = Range.Earshot.value ** 2
+
+            if agent_name != "" and players_dist_sq > max_dist_sq:
+                player_names.append(agent_name)
+        
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = sender_email
+        for account in accounts:
+            if sender_email == account.AccountEmail:
+                continue
+            
+            if not current_map == account.AgentData.Map.MapID:
+                continue
+            
+            account_name = account.AgentData.CharacterName
+            if account_name not in player_names:
+                continue 
+            
+            ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail, log= False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (x,y,0,0))
+        yield
+        
+    def _brute_force_unstuck(self):
+        from ...GlobalCache import GLOBAL_CACHE
+
+        sender_email = Player.GetAccountEmail()
+        x, y = Player.GetXY()
+
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        current_map = Map.GetMapID()
+        player_names = []
+
+        for player in players:
+            agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
+            if agent_name != "":
+                player_names.append(agent_name)
+
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if sender_email == account.AccountEmail:
+                continue
+
+            if not current_map == account.AgentData.Map.MapID:
+                continue
+
+            account_name = account.AgentData.CharacterName
+            if account_name not in player_names:
+                continue
+
+            ConsoleLog("Messaging", "BruteForcing account: " + account.AccountEmail, log=False)
+            # send same-shaped payload as pixel stack (x, y, 0, 0) — adjust if your handler expects different
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.BruteForceUnstuck, (x, y, 0, 0))
+
+        yield
+
+        
+    def _interact_with_target(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        target = Player.GetTargetID()
+        if target == 0:
+            ConsoleLog("Messaging", "No target to interact with.")
+            return
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        for account in accounts:
+            if sender_email == account.AccountEmail:
+                continue
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
+        yield
+        
+    def _take_dialog_with_target(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...UIManager import UIManager
+        target = Player.GetTargetID()
+        if target == 0:
+            ConsoleLog("Messaging", "No target to interact with.")
+            return
+        if not UIManager.IsNPCDialogVisible():
+            ConsoleLog("Messaging", "No dialog is open.")
+            return
+        
+        sender_email = Player.GetAccountEmail()
+
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
+        if not self_account:
+            return
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if self_account.AccountEmail == account.AccountEmail:
+                continue
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,0,0,0))
+        yield
+
+    @staticmethod
+    def _is_partywide_consumable(params: tuple) -> bool:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...enums import ModelID
+
+        if len(params) < 4:
+            return False
+
+        conset_effect_ids = {
+            int(GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+            int(GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+            int(GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+        }
+        effect_ids = {int(params[1]), int(params[3])}
+        effect_ids.discard(0)
+        if any(effect_id in conset_effect_ids for effect_id in effect_ids):
+            return True
+
+        model_ids = {int(params[0]), int(params[2])}
+        model_ids.discard(0)
+        return int(ModelID.Honeycomb.value) in model_ids
+
+    def _use_partywide_consumable_message(self, params):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        primary_model_id = int(params[0]) if len(params) > 0 else 0
+        primary_skill_id = int(params[1]) if len(params) > 1 else 0
+        secondary_model_id = int(params[2]) if len(params) > 2 else 0
+        secondary_skill_id = int(params[3]) if len(params) > 3 else 0
+        effect_ids = [skill_id for skill_id in (primary_skill_id, secondary_skill_id) if skill_id != 0]
+        sender_agent_id = Player.GetAgentID()
+        is_partywide_consumable = self._is_partywide_consumable(params)
+        remote_wait_ms = 1200 if is_partywide_consumable else 150
+
+        if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
+            return
+
+        # For party-wide consumables such as consets, consume on exactly one account.
+        # Prefer the local account when possible, then probe remote accounts one at a time
+        # and stop as soon as the party-wide effect shows up locally.
+        for model_id in (primary_model_id, secondary_model_id):
+            if model_id == 0:
+                continue
+            if self._can_use_local_consumable_model(model_id):
+                ConsoleLog("Messaging", f"Using party-wide consumable locally from model {model_id}", log=False)
+                yield from self._use_local_consumable_models(model_id)
+                return
+
+        for account in accounts:
+            if account.AccountEmail == sender_email:
+                continue
+
+            ConsoleLog("Messaging", f"Sending party-wide consumable message to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+            yield from Routines.Yield.wait(remote_wait_ms)
+
+            # Party-wide consumables without a reliable visible effect check
+            # (for example Honeycomb) should not be sprayed across every alt.
+            if is_partywide_consumable and not effect_ids:
+                return
+
+            if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
+                return
+        
+    def _use_consumable_message(self, params):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        primary_model_id = int(params[0]) if len(params) > 0 else 0
+        primary_skill_id = int(params[1]) if len(params) > 1 else 0
+        secondary_model_id = int(params[2]) if len(params) > 2 else 0
+        secondary_skill_id = int(params[3]) if len(params) > 3 else 0
+
+        if self._is_partywide_consumable(params):
+            yield from self._use_partywide_consumable_message(params)
+            return
+
+        if primary_model_id or secondary_model_id:
+            ConsoleLog(
+                "Messaging",
+                f"Using personal consumable from models {(primary_model_id, secondary_model_id)} on leader and followers",
+                log=False,
+            )
+            yield from self._use_local_consumable_models(primary_model_id, secondary_model_id)
+
+            sender_email = Player.GetAccountEmail()
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if account.AccountEmail == sender_email:
+                    continue
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+            yield from Routines.Yield.wait(100)
+
+    def _can_use_local_consumable_model(self, model_id: int) -> bool:
+        from ...GlobalCache import GLOBAL_CACHE
+
+        return bool(model_id and GLOBAL_CACHE.Inventory.GetFirstModelID(model_id))
+
+    def _use_local_consumable_models(self, primary_model_id: int, secondary_model_id: int = 0):
+        from ...enums_src.Model_enums import ModelID
+        from ...routines_src.BehaviourTrees import BT
+        from ...routines_src.yield_src.helpers import _run_bt_tree
+
+        single_consumable_effects = {
+            ModelID.Essence_Of_Celerity.value: "Essence_of_Celerity_item_effect",
+            ModelID.Grail_Of_Might.value: "Grail_of_Might_item_effect",
+            ModelID.Armor_Of_Salvation.value: "Armor_of_Salvation_item_effect",
+            ModelID.Birthday_Cupcake.value: "Birthday_Cupcake_skill",
+            ModelID.Golden_Egg.value: "Golden_Egg_skill",
+            ModelID.Candy_Corn.value: "Candy_Corn_skill",
+            ModelID.Candy_Apple.value: "Candy_Apple_skill",
+            ModelID.Slice_Of_Pumpkin_Pie.value: "Pie_Induced_Ecstasy",
+            ModelID.Drake_Kabob.value: "Drake_Skin",
+            ModelID.Bowl_Of_Skalefin_Soup.value: "Skale_Vigor",
+            ModelID.Pahnai_Salad.value: "Pahnai_Salad_item_effect",
+            ModelID.War_Supplies.value: "Well_Supplied",
+        }
+
+        model_ids = [model_id for model_id in (primary_model_id, secondary_model_id) if model_id]
+        consumable_effects = [
+            (model_id, single_consumable_effects.get(model_id, ""))
+            for model_id in model_ids
+        ]
+        if not consumable_effects:
+            return
+
+        tree = BT.Items.UseConsumables(consumable_effects, aftercast_ms=100)
+        yield from _run_bt_tree(tree, throttle_ms=100)
+
+    def _use_summoning_stone_message(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            ConsoleLog("Messaging", f"Sending UseSummoningStone message to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.UseSummoningStone, (0, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+        
+    def _donate_faction(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        sender_email = Player.GetAccountEmail()
+        for account in accounts:
+            ConsoleLog("Messaging", "Donating to guild from account: " + account.AccountEmail, log= False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.DonateToGuild, (0,0,0,0))
+        yield
+        
+    def _send_dialog_with_target(self, dialog_id: int, wait_time: int=3000):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        target = Player.GetTargetID()
+        if target == 0:
+            ConsoleLog("Messaging", "No target to interact with.")
+            return
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        for account in accounts:
+            ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to send dialog {dialog_id} to target: {target}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialogToTarget, (target, dialog_id,0,0))
+        yield from Routines.Yield.wait(wait_time)
+        
+    @_yield_step(label="ResignParty", counter_key="RESIGN_PARTY")
+    def resign_party(self):
+        yield from self._resignParty()
+        
+    @_yield_step(label="DonateFaction", counter_key="DONATE_FACTION")
+    def donate_faction(self):
+        yield from self._donate_faction()
+
+    @_yield_step(label="SendDialogToTarget", counter_key="SEND_DIALOG_TO_TARGET")
+    def send_dialog_to_target(self, dialog_id: int):
+        yield from self._send_dialog_with_target(dialog_id)
+
+    @_yield_step(label="PixelStack", counter_key="PIXEL_STACK")
+    def pixel_stack(self):
+        yield from self._pixel_stack()
+        
+    @_yield_step(label="InteractWithTarget", counter_key="INTERACT_WITH_TARGET")
+    def interact_with_target(self):
+        yield from self._interact_with_target()
+
+    @_yield_step(label="TakeDialogWithTarget", counter_key="TAKE_DIALOG_WITH_TARGET")
+    def take_dialog_with_target(self):
+        yield from self._take_dialog_with_target()
+        
+    @_yield_step(label="UseConsumable", counter_key="USE_CONSUMABLE")
+    def use_consumable(self, params):
+        yield from self._use_consumable_message(params)
+
+    @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
+    def use_summoning_stone(self):
+        yield from self._use_summoning_stone_message()
+        
+    @_yield_step(label="SummonAllAccounts", counter_key="SUMMON_ALL_ACCOUNTS")
+    def summon_all_accounts(self):
+        yield from self._summon_all_accounts()
+        
+    @_yield_step(label="SummonAccountByEmail", counter_key="SUMMON_ACCOUNT_BY_EMAIL")
+    def summon_account_by_email(self, email: str):
+        yield from self._summon_account_by_email(email)
+        
+    @_yield_step(label="InviteAllAccounts", counter_key="INVITE_ALL_ACCOUNTS")
+    def invite_all_accounts(self):
+        yield from self._invite_all_accounts()
+        
+    @_yield_step(label="InviteAccountByEmail", counter_key="INVITE_ACCOUNT_BY_EMAIL")
+    def invite_account_by_email(self, email: str):
+        yield from self._invite_account_by_email(email)
+        
+    @_yield_step(label="KickAllAccounts", counter_key="KICK_ALL_ACCOUNTS")
+    def kick_all_accounts(self):
+        yield from self._kick_all_accounts()
+
+    @_yield_step(label="LeavePartyOnAllAccounts", counter_key="LEAVE_PARTY_ON_ALL_ACCOUNTS")
+    def leave_party_on_all_accounts(self):
+        yield from self._leave_party_on_all_accounts()
+
+    @_yield_step(label="KickAccountByEmail", counter_key="KICK_ACCOUNT_BY_EMAIL")
+    def kick_account_by_email(self, email: str):
+        yield from self._kick_account_by_email(email)
+
+    @_yield_step(label="SetAccountIsolation", counter_key="SET_ACCOUNT_ISOLATION")
+    def set_account_isolation(self, isolated: bool, account_email: str = ""):
+        yield from self._set_account_isolation(isolated, account_email)
+
+    def _restock_all_pcons_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockAllPcons, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _restock_conset_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockConset, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _restock_resurrection_scroll_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockResurrectionScroll, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _restock_summoning_stones_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockSummoningStones, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _enable_widget_message(self, widget_name: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.EnableWidget,
+                (0, 0, 0, 0),
+                (widget_name, "", "", ""),
+            )
+        yield from Routines.Yield.wait(500)
+
+    def _disable_widget_message(self, widget_name: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.DisableWidget,
+                (0, 0, 0, 0),
+                (widget_name, "", "", ""),
+            )
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="RestockAllPcons", counter_key="RESTOCK_ALL_PCONS")
+    def restock_all_pcons(self, quantity: int = 250):
+        yield from self._restock_all_pcons_message(quantity)
+
+    @_yield_step(label="RestockConset", counter_key="RESTOCK_CONSET")
+    def restock_conset(self, quantity: int = 250):
+        yield from self._restock_conset_message(quantity)
+
+    @_yield_step(label="RestockResurrectionScroll", counter_key="RESTOCK_RESURRECTION_SCROLL")
+    def restock_resurrection_scroll(self, quantity: int = 250):
+        yield from self._restock_resurrection_scroll_message(quantity)
+
+    @_yield_step(label="RestockSummoningStones", counter_key="RESTOCK_SUMMONING_STONES")
+    def restock_summoning_stones(self, quantity: int = 250):
+        yield from self._restock_summoning_stones_message(quantity)
+
+
+    def _withdraw_gold_message(self, target_gold: int, deposit_all: bool):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.WithdrawGold, (target_gold, int(deposit_all), 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="WithdrawGold", counter_key="WITHDRAW_GOLD")
+    def withdraw_gold(self, target_gold: int = 20000, deposit_all: bool = True):
+        yield from self._withdraw_gold_message(target_gold, deposit_all)
+
+    @_yield_step(label="EnableWidget", counter_key="ENABLE_WIDGET")
+    def enable_widget(self, widget_name: str):
+        yield from self._enable_widget_message(widget_name)
+
+    @_yield_step(label="DisableWidget", counter_key="DISABLE_WIDGET")
+    def disable_widget(self, widget_name: str):
+        yield from self._disable_widget_message(widget_name)
+
+    def _abandon_quest_message(self, quest_id: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        from ...Quest import Quest
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        # Abandon locally for the leader
+        Quest.AbandonQuest(quest_id)
+        ConsoleLog("Messaging", f"AbandonQuest ({quest_id}) executed locally", log=False)
+        # Broadcast to all other accounts
+        for account in accounts:
+            if account.AccountEmail == sender_email:
+                continue
+            ConsoleLog("Messaging", f"Sending AbandonQuest ({quest_id}) to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.AbandonQuest,
+                (float(quest_id), 0.0, 0.0, 0.0),
+            )
+            yield from Routines.Yield.wait(300)
+        yield
+
+    @_yield_step(label="AbandonQuest", counter_key="ABANDON_QUEST")
+    def abandon_quest(self, quest_id: int):
+        yield from self._abandon_quest_message(quest_id)
+
+    def _get_email_from_char_name(self, char_name: str) -> Optional[str]:
+        for account in self._get_all_account_data():
+            if account.CharacterName == char_name:
+                return account.AccountEmail
+        return None
+
+    def _equip_item_message(self, email: str, model_id: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        ConsoleLog("Messaging", f"Sending EquipItem ({model_id}) to {email}", log=False)
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.EquipItem, (float(model_id), 0.0, 0.0, 0.0))
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="EquipItemOnAccount", counter_key="EQUIP_ITEM_ON_ACCOUNT")
+    def equip_item_on_account(self, char_name: str, model_id: int):
+        email = self._get_email_from_char_name(char_name)
+        if not email:
+            ConsoleLog("Messaging", f"EquipItemOnAccount: no account found for char '{char_name}'", log=True)
+            return
+        yield from self._equip_item_message(email, model_id)
+
+    def _equip_item_on_all_accounts_message(self, char_name_to_model_id: dict):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        for char_name, model_id in char_name_to_model_id.items():
+            email = self._get_email_from_char_name(char_name)
+            if not email:
+                ConsoleLog("Messaging", f"EquipItemOnAllAccounts: no account found for char '{char_name}', skipping", log=True)
+                continue
+            ConsoleLog("Messaging", f"Sending EquipItem ({model_id}) to {char_name} ({email})", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.EquipItem, (float(model_id), 0.0, 0.0, 0.0))
+            yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="EquipItemOnAllAccounts", counter_key="EQUIP_ITEM_ON_ALL_ACCOUNTS")
+    def equip_item_on_all_accounts(self, char_name_to_model_id: dict):
+        yield from self._equip_item_on_all_accounts_message(char_name_to_model_id)
+
+    def _load_skill_template_message(self, email: str, template: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        extra_data = (template, "", "", "")
+        ConsoleLog("Messaging", f"Sending LoadSkillTemplate to {email}", log=False)
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.LoadSkillTemplate, (0.0, 0.0, 0.0, 0.0), extra_data)
+        yield from Routines.Yield.wait(500)
+
+    def _load_skill_template_on_all_accounts_message(self, char_name_to_template: dict):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        for char_name, template in char_name_to_template.items():
+            email = self._get_email_from_char_name(char_name)
+            if not email:
+                ConsoleLog("Messaging", f"LoadSkillTemplateOnAllAccounts: no account found for char '{char_name}', skipping", log=True)
+                continue
+            extra_data = (template, "", "", "")
+            ConsoleLog("Messaging", f"Sending LoadSkillTemplate ({template}) to {char_name} ({email})", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.LoadSkillTemplate, (0.0, 0.0, 0.0, 0.0), extra_data)
+            yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="LoadSkillTemplateOnAccount", counter_key="LOAD_SKILL_TEMPLATE_ON_ACCOUNT")
+    def load_skill_template_on_account(self, char_name: str, template: str):
+        email = self._get_email_from_char_name(char_name)
+        if not email:
+            ConsoleLog("Messaging", f"LoadSkillTemplateOnAccount: no account found for char '{char_name}'", log=True)
+            return
+        yield from self._load_skill_template_message(email, template)
+
+    @_yield_step(label="LoadSkillTemplateOnAllAccounts", counter_key="LOAD_SKILL_TEMPLATE_ON_ALL_ACCOUNTS")
+    def load_skill_template_on_all_accounts(self, char_name_to_template: dict):
+        yield from self._load_skill_template_on_all_accounts_message(char_name_to_template)
+
+    def get_all_account_data(self) -> List[_AccountData]:
+        return self._get_all_account_data()
+
+    def get_all_account_emails(self) -> List[str]:
+        return self._get_all_account_emails()
+    
+    def get_account_data_from_email(self, email: str) -> Optional[_AccountData]:
+        return self._get_account_data_from_email(email)
+    
+    def get_player_data(self) -> Optional[_AccountData]:
+        return self._get_player_data()

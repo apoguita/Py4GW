@@ -1,0 +1,27 @@
+{
+  "name": "What Must be Done",
+  "steps": [
+    {"type": "map", "name": "Travel to Doomlore Shrine", "target_map_id": 648, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Bonwor Fierceblade", "points": [[-14462, 17060]], "mode": "kill"},
+    {"type": "interact", "id": "0x838D01", "npc": "BONWOR_FIERCEBLADE", "name": "Dialog - Bonwor Fierceblade", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[-15842, 14281]], "mode": "kill"},
+    {"type": "route", "name": "Leave Doomlore Shrine", "point": [-15303, 13602], "target_map_id": 647, "mode": "exit"},
+    {"type": "route", "name": "To Seer Fiercereign", "points": [[-2616, 6456]], "mode": "kill"},
+    {"type": "interact", "id": "0x838D04", "npc": "SEER_FIERCEREIGN", "name": "Dialog - Seer Fiercereign", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[8888, 6497], [9995, 4300], [10755, 8875], [14723, 5059]], "mode": "kill"},
+    {"type": "wait", "ms": 30300},
+    {"type": "route", "name": "To Gron Fierceclaw", "points": [[-9201, -662]], "mode": "kill"},
+    {"type": "interact", "id": "0x838D04", "npc": "GRON_FIERCECLAW", "name": "Dialog - Gron Fierceclaw", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Target Armored Saurus", "points": [[-6579, -7723]], "mode": "kill"},
+    {"type": "route", "name": "Target Armored Saurus", "enemy": "ARMORED_SAURUS", "mode": "target", "target": "enemy"},
+    {"type": "map", "name": "Travel to Doomlore Shrine", "target_map_id": 648, "action": "travel"},
+    {"type": "route", "name": "To Bonwor Fierceblade", "points": [[-14384, 17107]], "mode": "kill"},
+    {"type": "interact", "npc": "BONWOR_FIERCEBLADE", "name": "Dialog - Bonwor Fierceblade", "action": "dialog", "ids": ["0x838D04", "0x84"], "target": "npc"},
+    {"type": "map", "map_id": 674, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Path", "points": [[-16532, 16929]], "mode": "kill"},
+    {"type": "map", "map_id": 648, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Bonwor Fierceblade", "points": [[-14397, 17097]], "mode": "kill"},
+    {"type": "interact", "id": "0x838D07", "npc": "BONWOR_FIERCEBLADE", "name": "Dialog - Bonwor Fierceblade", "action": "dialog", "target": "npc"}
+  ]
+}

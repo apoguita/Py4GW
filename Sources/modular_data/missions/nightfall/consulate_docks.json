@@ -1,0 +1,22 @@
+{
+  "name": "Consulate Docks",
+  "required_hero": ["Dunkoro"],
+  "steps": [
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 493, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "required_hero": ["Dunkoro"], "action": "load"},
+    {"type": "route", "name": "Path", "points": [[-1664, 16760]], "mode": "kill"},
+    {"type": "interact", "id": ["0x81", "0x84"], "npc": "RAIDMARSHAL_MEHDARA", "name": "Dialog - Raidmarshal Mehdara", "action": "dialog", "target": "npc"},
+    {"type": "wait", "ms": 8000, "action": "wait"},
+    {"type": "map", "map_id": 493, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Path", "points": [[-15366, -6597]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[-12826, -4983], [-9033, -3993], [-7996, -2981], [-9111, -2954], [-9039, -4130], [-8078, -4147]], "mode": "kill"},
+    {"type": "interact", "name": "Interact Nerashi", "npc": "NERASHI", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[-8194, -3511], [-3867, -4301], [-1001, -5759], [-480, -7011], [1090, -7631], [236, -9489]], "mode": "kill"},
+    {"type": "wait", "ms": 5000, "action": "wait"},
+    {"type": "map", "map_id": 493, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Path", "points": [[1509, -11013]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[1321, -8309], [3440, -6005], [5094, -3933]], "mode": "kill"},
+    {"type": "route", "name": "Path", "points": [[2778, -4544], [2552, -4062]], "mode": "kill"},
+    {"type": "map", "map_id": 381, "action": "wait_for_map_load"}
+  ]
+}

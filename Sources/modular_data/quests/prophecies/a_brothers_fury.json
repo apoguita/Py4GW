@@ -1,0 +1,25 @@
+{
+  "name": "Report to the White Mantle",
+  "steps": [
+    {"type": "map", "name": "Travel to Quest Outpost", "target_map_id": 140, "action": "travel"},
+    {"type": "interact", "name": "Take Quest - Reach NPC", "point": [4575, -9946], "ms": 500, "target": "npc"},
+    {"type": "interact", "name": "Take Quest", "id": ["0x805F03", "0x805F01"], "interval_ms": 500, "ms": 500, "point": [4575, -9946], "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Safety sidestep", "points": [[4330, -10225]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "point": [3150, -9450], "target_map_id": 41, "mode": "exit"},
+    {"type": "map", "target_map_id": 41, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Thommis", "points": [[1520, -8305], [1269, -6183]], "mode": "kill"},
+    {"type": "interact", "point": [1520, -8305], "id": "0x805F04", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Amon", "points": [[2817, -5953]], "mode": "kill"},
+    {"type": "interact", "point": [2817, -5953], "id": "0x805F04", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Lanalt", "points": [[638, -3198], [166, -2255], [0, -1750]], "mode": "kill"},
+    {"type": "interact", "point": [-40, -1859], "id": "0x805F04", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Rionel ", "points": [[-945.82, 1488.35], [-4336.98, 2136.03], [-6339.26, 3538.42]], "mode": "kill"},
+    {"type": "interact", "point": [-6438, 3482], "id": "0x805F04", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To the Wilds ", "points": [[-5413.57, 6429.74], [-7885.27, 7606.53], [-10742.32, 11073.03], [-13928.21, 9754.99], [-16479.97, 10136.52]], "mode": "kill"},
+    {"type": "route", "point": [-16900, 9900], "target_map_id": 11, "mode": "exit"},
+    {"type": "map", "target_map_id": 11, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Giselle", "points": [[24314, -11233], [24042, -11911]], "mode": "kill"},
+    {"type": "interact", "point": [24113, -12030], "id": "0x805F07", "action": "dialog", "target": "npc"}
+  ]
+}

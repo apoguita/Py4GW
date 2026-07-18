@@ -1,0 +1,12 @@
+{
+  "name": "Cleanse da forge",
+  "steps": [
+    {"type": "route", "name": "To Nimros", "points": [[2766, -14730]], "mode": "kill"},
+    {"type": "interact", "name": "Start Hunt", "npc": "NIMROS_THE_HUNTER", "id": "0x80D001", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Nimros", "points": [[2766, -14730]], "mode": "kill"},
+    {"type": "interact", "name": "Start Hunt", "npc": "NIMROS_THE_HUNTER", "id": "0x80D001", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Through cave", "points": [[-9126, -18554]], "mode": "kill"},
+    {"type": "route", "name": "to Beach Wolfo", "points": [[-11222, -18382]], "mode": "kill"},
+    {"type": "route", "name": "Backtrack cave", "points": [[1749, -6954]], "mode": "kill"}
+  ]
+}

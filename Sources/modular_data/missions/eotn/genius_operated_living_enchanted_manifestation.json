@@ -1,0 +1,21 @@
+{
+  "name": "Genius Operated Living Enchanted Manifestation",
+  "steps": [
+    {"type": "map", "name": "Travel to Rata Sum", "target_map_id": 640, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Mamp", "points": [[16109, 15251]], "mode": "kill"},
+    {"type": "interact", "npc": "MAMP", "name": "Dialog - Mamp", "action": "dialog", "ids": ["0x81", "0x84"], "target": "npc"},
+    {"type": "map", "map_id": 664, "action": "wait_for_map_load"},
+    {"type": "route", "name": "Path", "points": [[-20477, 8497], [-18454, 11236], [-16538, 14435], [-11017, 12502], [-9218, 11874], [-7822, 13260]], "mode": "kill"},
+    {"type": "party", "point": [-7822, 13260], "action": "flag_heroes"},
+    {"type": "route", "name": "trigger kilns", "points": [[-16410, 14331], [-17709, 10878], [-16464, 9059]], "mode": "kill"},
+    {"type": "wait", "ms": 3100},
+    {"type": "route", "name": "Back to Hero", "points": [[-17866, 11514], [-16301, 14454], [-13433, 14038], [-7787, 13260], [-8632, 12975]], "mode": "kill"},
+    {"type": "wait", "ms": 300000},
+    {"type": "party", "action": "unflag_heroes"},
+    {"type": "route", "name": "To Destroyers", "points": [[-5942, 15794]], "mode": "kill"},
+    {"type": "map", "map_id": 640, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Mamp", "points": [[16082, 15252]], "mode": "kill"},
+    {"type": "interact", "id": "0x839307", "npc": "MAMP", "name": "Dialog - Mamp", "action": "dialog", "target": "npc"}
+  ]
+}

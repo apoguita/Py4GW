@@ -1,0 +1,9 @@
+{
+  "name": "Tower of Strength",
+  "steps": [
+    {"type": "route", "name": "To the Entrance", "points": [[11077, -5531], [12993, -4084], [15425, -1647], [17165, 930], [14415, -893]], "mode": "kill"},
+    {"type": "route", "name": "Fetch Da Mage", "points": [[13241, -4485], [1770, -4690]], "mode": "kill"},
+    {"type": "route", "name": "Back to Tos", "points": [[11062, -5421], [14169, -3101], [15635, -1324]], "mode": "kill"},
+    {"type": "route", "name": "clear the darkest boy", "points": [[13440, -738], [16729, -1837]], "ms": 5000, "mode": "kill"}
+  ]
+}

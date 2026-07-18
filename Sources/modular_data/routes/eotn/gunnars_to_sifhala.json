@@ -1,0 +1,13 @@
+{
+  "name": "Gunnar's Hold to Sifhalla",
+  "steps": [
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 644, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[16004, -6544]], "mode": "kill"},
+    {"type": "route", "name": "Leave Gunnar's Hold", "point": [15193, -6387], "target_map_id": 548, "mode": "exit"},
+    {"type": "route", "name": "Norrhart Domains to Drakkar Lake", "points": [[13410, -3952], [10150, -323], [8119, 2417], [5626, 2300], [1010, 1936], [-500, 2100], [-1200, 3400], [-2013, 3261], [-3767, 3390], [-7325, 2670], [-9556, 5570], [-11109, 6200], [-14153, 5198], [-18538, 7080], [-22718, 8758], [-25531, 10925]], "mode": "kill"},
+    {"type": "route", "name": "Leave Norrhart Domains", "point": [-26333, 11242], "target_map_id": 513, "mode": "exit"},
+    {"type": "route", "name": "Drakkar Lake to Sifhalla", "points": [[14399, -16963], [12510, -13414], [12012, -9633], [11484, -5569], [12457, -412], [13399, 4328], [14001, 8677], [14211, 12433], [13847, 15850], [13596, 18951]], "mode": "kill"},
+    {"type": "route", "name": "Leave Drakkar Lake", "point": [13568, 19432], "target_map_id": 643, "mode": "exit"}
+  ]
+}

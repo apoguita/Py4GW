@@ -1,0 +1,657 @@
+# Arbitrary Window Creation — WASM Architecture Analysis
+
+> **Canonical API (2026-06-03):** `CreateTitledContainerWindow` (C++) / `create_container_window_with_title` (Python).
+> The CContainerFrame + FrameNewSubclass approach is now the recommended path for new window creation.
+> The DevText clone approach documented below is the legacy path.
+
+Date: 2026-05-30
+Source: `/Gw.wasm` via Ghidra MCP
+Context: Existing Python path clones DevText; goal is to find a cleaner or more direct way.
+
+## Current Approach: DevText Clone
+
+The Python `CreateWindowClone()` works by:
+1. Opening DevText temporarily (keypress 0x25) to "warm up" its global state
+2. Resolving `DlgDevTextProc` @ WASM ram:81393b1b via string xref
+3. Calling `CreateUIComponent` → `FrameCreate` with DevText's proc
+4. DevText's proc receives msg 9 → creates debug text content
+5. Clearing children of child 0 to remove unwanted content
+6. Redrawing
+
+**Problems:**
+- Requires DevText to be open first (global state dependency)
+- Creates unwanted content that must be cleared
+- Inherits DevText's lifecycle behavior
+- The proc assumes certain global state (string table, etc.)
+
+## Recommendation: CContainerFrame + FrameNewSubclass (Approach B)
+
+**This is the canonical approach for new window creation.** It uses `CContainerFrame::FrameProc` 
+(a minimal container with no content or state dependencies) combined with 
+`Ui_CompositeRootControlProc` (installed via `FrameNewSubclass` with flags `0x59`) 
+for full window chrome: title bar, close button, resize handles, and mouse interaction.
+
+No DevText dependency — works cold without requiring DevText to be open.
+
+Python API:
+```python
+# Canonical: one-call titled container window with chrome
+frame_id = PyUIManager.UIManager.create_container_window_with_title(
+    x=100, y=100, width=400, height=300, title="My Window"
+)
+
+# Or the older equivalent:
+frame_id = PyUIManager.UIManager.create_titled_container_window(
+    x=100, y=100, width=400, height=300, title="My Window"
+)
+```
+
+C++ API:
+```cpp
+auto frame_id = UIManager::CreateTitledContainerWindow(100, 100, 400, 300, L"My Window");
+```
+
+Internal pipeline:
+1. `CreateContainerWindow()` — bare CContainerFrame (no side effects)
+2. `FrameNewSubclass(frame, CRProc, 0x59)` — window chrome (title bar, close, resize)
+3. `FrameMouseEnable(frame, 0xFFFFFFFF, 0)` — mouse interaction
+4. `Ui_SetFrameText` + `PerFrameInvalidate` — title text storage + render invalidation
+
+All native function addresses resolved via assertion-based Scanner patterns at runtime — 
+no hardcoded addresses. The shared `ResolveCreateEncodedText()` resolver is the single 
+source of truth for the `Ui_CreateEncodedText` pattern.
+
+The older `create_window` (DevText clone path) remains available for backward compatibility 
+but is deprecated for new code.
+
+## The Real Window Factory: DialogShow
+
+`IUi::Game::DialogShow(parent, EFloatingDialog, flags, create_param)` @ ram:815cdb8c
+
+This is the game's native window factory. From its callee list:
+
+```
+DialogShow(parent, dialog_enum, flags, create_param)
+  │
+  ├─ 1. Resolve descriptor from compiled table
+  │      dialog_enum → {FrameProc*, title, size, layer, ...}
+  │
+  ├─ 2. FrameGetChild(parent, dialog_enum + 0x13) → destroy if exists
+  │
+  ├─ 3. FrameCreate(parent, flags, child, proc, param, label)
+  ├─ 4. FrameNewSubclass(frame, subclass_proc, flags)
+  ├─ 5. FrameSetTitle(frame, title)
+  ├─ 6. FrameSetTitleHotkey(frame, hotkey)
+  ├─ 7. FrameGamepadEnable / FrameGamepadEnterCursorMode
+  ├─ 8. FramePlaceChildren(frame, L"GmView-Dialog")
+  ├─ 9. PrefGetWindow → FrameSetPosition (saved position restore)
+  ├─10. FrameSetHeight / FrameSetWidth
+  ├─11. FrameSetLayer
+  ├─12. FrameShow(frame, 1)
+  └─13. FrameActivate(frame)
+```
+
+### FrameNewSubclass — The Window Chrome Installer
+
+`FrameNewSubclass` @ WASM `ram:809a2ebf` = EXE `Ui_AttachCurrentHandlerSlot` @ `0x00610340` is the function that installs window chrome on a bare frame.
+
+**Signature:** `void*(__cdecl*)(uint32_t frame_id, void* subclass_proc, void* subclass_flags)` — returns pointer to the handler slot (can be ignored). Calls `Ui_SelectFrameContext` → `Ui_GetCurrentHandlerTailSlot` → `Ui_SetHandlerSlot(frame_ctx+0xA8, slot, subclass_proc, subclass_flags)`.
+
+**Scanner patterns (in order of preference):**
+1. **Assertion-based** (GWCA convention): `FindAssertion("\\Code\\Engine\\Frame\\FrApi.cpp", "frameId", 0x467, 0)` + `ToFunctionStart(addr, 0x210)`
+2. **Fallback byte pattern**: `\xFF\x75\x10\x8B\xF0\x8B\xCF\xFF\x75\x0C\x56` — PUSH subclass_flags; MOV ESI,EAX; MOV ECX,EDI; PUSH subclass_proc; PUSH ESI (Ui_SetHandlerSlot argument setup — unique to this function)
+3. **WARNING**: Simple prologue patterns like `\x55\x8B\xEC\x8B\x45\x08\x85\xC0\x75\x18` match thousands of functions. Always use assertion-based or unique internal-instruction patterns.
+
+### Subclass Flags 0x59 — Confirmed
+
+From decompilation of `Ui_CompositeRootControlProc` @ EXE `0x00851180`, subclass flags `0x59 = 0x01 | 0x08 | 0x10 | 0x40`:
+
+| Bit | Value | Effect |
+|-----|-------|--------|
+| 0 | 0x01 | Title bar + `[X]` close button + drag-to-move hit-test |
+| 3 | 0x08 | Right/bottom resize handles |
+| 4 | 0x10 | Left/top resize handles |
+| 6 | 0x40 | Chrome rendering flag — enables ALL chrome drawing (title bar background, borders, close button image). Auto-set when 0x18 is present via `if (pvVar4 & 0x18) pvVar13 \|= 0x40` |
+
+Bits NOT set by 0x59 (and not needed for a basic titled window): `0x200` (gamepad mode), `0x100` (bottom exit button), `0x20` (layout override), `0x04` (focus broadcast).
+
+### Mouse Interaction via Ui_CompositeRootControlProc
+
+Mouse handling lives in `Ui_CompositeRootControlProc` @ EXE `0x00851180`, NOT in `CContainerFrame::FrameProc`:
+
+- **msg 0x08** (paint): Renders title bar background, borders, close button image, resize handles. Checks bit `0x40` (chrome rendering flag) and bit `0x01` to draw title bar text and `[X]` close button.
+- **msg 0x17** (hit-test): Resolves click targets — title bar region → drag cursor, border regions → resize cursors, close button region → close action.
+- **Critical dependency**: These only work AFTER `FrameNewSubclass` installs `Ui_CompositeRootControlProc`. A bare `CContainerFrame` has no chrome-hit logic.
+
+### The Descriptor Table Problem
+
+`IUi::Game::DialogToggle(parent, dialog_enum, param)` @ ram:815ead1e:
+
+```
+child = FrameGetChild(parent, dialog_enum + 0x13)
+if child exists:
+    return  // already open — caller would destroy to toggle off
+else:
+    DialogShow(parent, dialog_enum, 0, param)  // open with visible flag
+```
+
+### Child Slot Convention
+
+Each floating dialog has a fixed child slot: `child_index = dialog_enum + 0x13`
+The dialog host container is at child 0x5C.
+
+## The Descriptor Table Problem
+
+The compiled-in descriptor table maps each `EFloatingDialog` value to window parameters.
+We currently don't have the WASM address of this table, but each entry likely contains:
+
+```c
+struct FloatingDialogDescriptor {
+    void*    frame_proc;        // FrameProc function pointer
+    wchar_t* title;             // or uint32 title_string_id
+    float    default_width;
+    float    default_height;
+    int      default_layer;
+    uint32_t flags;             // creation flags
+    wchar_t* hotkey_text;       // optional hotkey for title bar
+    void*    subclass_proc;     // optional subclass proc
+};
+```
+
+## Minimal Window Proc Requirements
+
+`FrameCreate` takes any proc address. The proc receives FrameMsgHdr messages.
+For a minimal working window, the proc only needs to handle:
+
+```
+Message 0x09 (Create):
+  - Enable mouse: FrameTestStyles + bit set
+  - Enable gamepad: FrameGamepadEnable
+  - Create child 0 as content host: FrameCreate(parent, 0, 0, host_proc, NULL, L"")
+  - Set min/max size: FrameSetMinSize / FrameSetMaxSize
+  - Register for desired messages: FrameMsgRegister
+
+Message 0x0A (Destroy):
+  - Clean up children/resources
+
+Message 0x24 (Mouse down):
+  - Forward or ignore
+
+Message 0x0C (Show):
+  - Propagate to children
+
+Message 0x0D (Hide):
+  - Propagate to children
+```
+
+## Potential Cleaner Approaches
+
+### Approach A: Use CContainerFrame::FrameProc — ★ CONFIRMED & IMPLEMENTED
+
+`IUi::Game::CContainerFrame::FrameProc` @ ram:812a7233 / EXE `0x00871b40` is a generic container
+that handles basic window lifecycle without creating unwanted content. This approach has been
+validated through implementation as `CreateTitledContainerWindow()` in `py_ui.h`. The complete
+pipeline: `CreateContainerWindow` → `FrameNewSubclass(Ui_CompositeRootControlProc, 0x59)` → `SetFrameTitleByFrameId` → show/redraw. See `UI_RE/container_window_poc.py` for the Python test harness.
+
+### Approach B: Call DialogShow Pipeline Steps Manually
+
+Since we know all the steps, we could replicate them in C++:
+```c
+uint32_t CreateMinimalWindow(parent, x, y, w, h, title) {
+    // 1. Find free child slot (same as current FindAvailableChildSlot)
+    child = FindAvailableChildSlot(parent);
+    
+    // 2. FrameCreate with minimal proc
+    frame = FrameCreate(parent, 0x20, child, MinimalProc, create_param, title);
+    
+    // 3. Title — already set by FrameCreate's label param
+    // 4. Position
+    FrameSetPosition(frame, x, y);
+    
+    // 5. Size
+    FrameSetWidth(frame, w);
+    FrameSetHeight(frame, h);
+    
+    // 6. Layout
+    FramePlaceChildren(frame, L"GmView-Dialog");
+    
+    // 7. Show
+    FrameShow(frame, 1);
+    
+    return frame;
+}
+```
+
+### Approach C: Find a No-Op Proc
+
+Search for a frame proc in the WASM that:
+- Handles msg 9 with minimal setup
+- Does NOT create content (unlike DevText which creates debug text)
+- Does NOT depend on global state (unlike DevText which needs string table)
+
+Candidates:
+- `CContainerFrame::FrameProc` @ ram:812a7233
+- A simple button/label proc that just passes through
+- Any proc from the `Ctl*` family that's known to be minimal
+
+### Approach D: Continue Improving DevText Clone
+
+The current approach works. Improvements:
+- Find a proc that doesn't create content → skip the "clear children" step
+- Cache the proc address → skip the "open DevText temporarily" step
+- Find a window spec that has the right frame flags (title bar, resizable, etc.)
+
+## Key WASM Addresses for Window Creation
+
+| Function | WASM Address | Role |
+|----------|-------------|------|
+| `FrameCreate` | ram:809a13ea | Low-level frame constructor |
+| `FrameDestroy` | ram:809a1b36 | Frame destruction |
+| `FrameNewSubclass` (= `Ui_AttachCurrentHandlerSlot`) | ram:809a2ebf, EXE:0x00610340 | Install subclass proc (window chrome). Scanner: `FindAssertion("FrApi.cpp","frameId",0x467,0)` |
+| `Ui_CompositeRootControlProc` | EXE:0x00851180 | Window chrome proc. Scanner: `\x81\xEC\x1C\x01\x00\x00\xA1????\x33\xC5...` |
+| `FrameSetTitle` | ram:809b0a9b | Set title text |
+| `FrameSetTitleHotkey` | ram:809b0c8d | Set title with hotkey |
+| `FrameShow` | ram:809a5e39 | Show frame |
+| `FrameActivate` | ram:809b0e7f | Activate frame |
+| `FramePlaceChildren` | ram:809a7f5e | Layout with policy name |
+| `FrameSetPosition` | ram:809a9f40 | Set position |
+| `FrameSetSize` | ram:809a9c3e | Set size |
+| `FrameSetLayer` | ram:809b060f | Set Z-layer |
+| `FrameGamepadEnable` | ram:809a4c8d | Gamepad support |
+| `DialogShow` | ram:815cdb8c | Full window factory |
+| `DialogToggle` | ram:815ead1e | Toggle pattern |
+| `IUi::DlgDevTextProc` | ram:81393b1b | DevText frame proc |
+| `CContainerFrame::FrameProc` | ram:812a7233 | Generic container proc |
+| `InventoryAggregateFrameProc` | ram:8154ac7f | Inventory aggregate proc |
+| `CAggregateInv::FrameProc` | ram:8154ad67 | Inner inventory proc |
+| `CAggregateInv::OnFrameCreate` | ram:81549948 | Inventory create handler |
+
+## ★ Solution Found: CContainerFrame::FrameProc
+
+### Verification
+
+Decompiled `CContainerFrame::FrameProc` @ WASM `ram:812a7233`. Result: **ideal minimal proc.**
+
+Message dispatch behavior:
+
+| Message | WASM Code Path | Effect |
+|---------|---------------|--------|
+| `0x09` (Create) | `FrameMouseEnable(frame, 0, 0xFFFFFFFF)` | Enables mouse input — **only action, no side effects** |
+| `0x34` | Position lock calculation → `FrameScheduleSize` | Layout lock |
+| `0x35-0x36` | Returns immediately | No-op |
+| `0x37` (Size) | `CContainerFrame::OnFrameSize(frame, flags, size)` | Repositions children based on alignment (left/right/center/top/bottom) |
+| `0x38` | Copies size data | Size passthrough |
+| `0x39-0x55` | Returns immediately | No-op (20+ messages ignored) |
+| `0x56` | `FrameCreate(parent, flags, child, proc, param, label)` | Creates child frames on demand |
+| `0x57` | `FrameGetChild(frame, child_index)` then `FrameDestroy(child)` | Destroys a child |
+| `0x58` | `FrameGetChild(frame, child_index)` | Returns child frame ID |
+| All others | Returns immediately | No-op |
+
+**`OnFrameSize`** @ ram:812a660d iterates all child frames and repositions them:
+- `flags & 2` → right-aligned
+- `flags & 4` → vertically centered
+- `flags & 8` → right-aligned variant  
+- `flags & 0x10` → bottom-aligned
+- Gets native size → `FrameSetPosition(child, x, y)` → enumerates next child
+- **Pure layout logic — no state dependencies, no content creation.**
+
+### Confirmed Addresses
+
+| Layer | Function | Address |
+|-------|----------|---------|
+| WASM | `IUi::CContainerFrame::FrameProc` | `ram:812a7233` |
+| EXE | `FUN_00871b40` (CContainerFrame::FrameProc) | `0x00871b40` |
+| WASM | `IUi::CContainerFrame::OnFrameSize` | `ram:812a660d` |
+| WASM | `IUi::PlacementContainerFrameProc` (caller) | `ram:812a714b` |
+
+**Address confirmed via string anchoring:**
+- WASM string `"../../../../Gw/Ui/UiPlacementContainer.cpp"` @ `ram:00109e6b`
+- EXE string `"P:\\Code\\Gw\\Ui\\UiPlacementContainer.cpp"` @ `0x00b6600c`
+- Both referenced by assertions in CContainerFrame::FrameProc
+
+### How to Use in Python/GWCA
+
+```python
+# Modern API (recommended):
+frame_id = PyUIManager.UIManager.create_container_window_with_title(
+    x=100, y=100, width=400, height=300, title="My Window"
+)
+
+# Legacy DevText-clone approach (deprecated):
+# frame_id = UIManager.CreateWindowByFrameId(
+#     parent_frame_id=9, child_index=child_slot,
+#     frame_callback=0x00871b40,  # CContainerFrame::FrameProc
+#     x=100, y=100, width=400, height=300,
+#     frame_flags=0x20, frame_label="My Window"
+# )
+```
+
+### Comparison: DevText Clone vs. CContainerFrame
+
+| Aspect | DevText Clone | CContainerFrame |
+|--------|-------------|-----------------|
+| Needs source window open first | Yes (keypress 0x25) | **No** |
+| Creates unwanted content | Yes (debug text, child 0 content) | **No** |
+| Requires ClearChildren after | Yes | **No** |
+| Handles child sizing | Manual | **Automatic (OnFrameSize)** |
+| Proc address stability | Resolved at runtime via string xref | **Fixed at 0x00871b40** |
+| Cold-startable | No (needs warm global state) | **Yes** |
+| Child creation | Manual via FrameCreate | Via msg 0x56 or direct FrameCreate |
+| Can set title | Via hook | **Via FrameCreate label or FrameSetTitle** |
+
+### Remaining Unknowns
+
+1. **`[X]` close button** — KNOWN UNKNOWN. No evidence the CNonclient handles msg 0x0A (Destroy). The title bar's `[X]` button may not work. Test at runtime; fall back to Python-side `DestroyUIComponentByFrameId`.
+2. **Byte pattern stability** — `Ui_CompositeRootControlProc`'s primary byte pattern will break if the `SUB ESP` immediate changes between patches. A fallback callee-anchor scan exists.
+3. **Title rendering** — `SetFrameTitleByFrameId` must be called AFTER `FrameNewSubclass` installs the CNonclient (which reads the text payload in msg 0x08). The deferred lambda enforces this ordering.
+
+### Resolved (Previously Unknown)
+
+- ~~Does CContainerFrame need any special create_param?~~ → No — passes through to CreateUIComponent. Verified.
+- ~~What frame_flags?~~ → Use `0` for chrome-free; subclass_flags `0x59` provides all chrome.
+- ~~Does it need FramePlaceChildren?~~ → No — CContainerFrame::FrameProc handles msg 0x37 child layout directly.
+
+## Positioning and Chrome (2026-06-03)
+
+Complete window polish after 4+ rounds of RE. Covers Z-ordering, coordinate conversion, chrome dimensions, scale handling, and click-to-raise focus.
+
+### Chrome Dimensions
+
+From CRProc disassembly (subclass 0x59, bit 9 NOT set):
+
+| Dimension | Value | Source (EXE) |
+|-----------|-------|-------------|
+| Title bar height | **20 px** | `0x00876E05`: `AND EBX,0x12; ADD EBX,0x14` |
+| Left border | **32 px** | `0x00877148`: `AND EAX,0x200; OR EAX,0x400; SHR EAX,5` |
+| Right border | **32 px** | Same |
+| Bottom border | **32 px** | Same |
+| Close button width | **28 px** | Rightmost 28px of title bar |
+
+Frame size from content size:
+```
+frame_w = content_w + 64   // LEFT + RIGHT
+frame_h = content_h + 52   // TOP + BOTTOM
+```
+
+### Coordinate System
+
+Three coordinate spaces:
+
+1. **Overlay space** (PIXEL): top-left origin, (0,0) = top-left of render target
+2. **Game engine space** (LOGICAL): CRect stores in top-left convention (flags=0x06), but **BuildRect inverts Y during rendering**
+3. **Viewport scale**: `pixels / logical` from `IScaleSetWindowDims` — NOT always 1.0 (windowed mode, DPI scaling)
+
+**Critical**: CRect flags 0x06 (Normal mode) describe STORAGE convention, not rendering convention. BuildRect independently inverts Y for screen rendering. **Y-inversion IS required despite Normal mode flags.**
+
+### Correct Coordinate Conversion Formula
+
+```python
+pixel_w, pixel_h = Overlay().GetDisplaySize()
+scale_x, scale_y = UIManager.GetViewPortScale(root_id)
+
+# Engine-pixel coordinates (physical screen pixels):
+engine_px_x = content_x - LEFT_BORDER                          # 32
+engine_px_y = pixel_h - content_y - content_h - BOTTOM_BORDER   # 32
+
+# Frame pixel dimensions:
+frame_px_w = content_w + LEFT_BORDER + RIGHT_BORDER             # +64
+frame_px_h = content_h + TOP_TITLE + BOTTOM_BORDER              # +52
+
+# Convert pixel → logical (divide by viewport scale):
+engine_x = engine_px_x / scale_x
+engine_y = engine_px_y / scale_y
+engine_w = frame_px_w / scale_x
+engine_h = frame_px_h / scale_y
+```
+
+### Subclass and Frame Flags
+
+| Flag | Value | Effect |
+|------|-------|--------|
+| Subclass 0x59 | `0x01\|0x08\|0x10\|0x40` | Title bar, resize handles, chrome rendering |
+| frame_flags=0x20 | bit 5 | Enables popup registration in `CRelation::Create()` — required for click-to-raise |
+| frame_flags=0 | (default) | NO popup registration → click-to-raise silently fails |
+
+### Lambda Creation Order (game thread)
+
+```
+FrameNewSubclass → FrameMouseEnable → SetFrameText →
+ProcessFrameControllerUpdateByFrameId → FrameSetPosition →
+FrameSetLayer → FrameActivate → ShowFrame → TriggerFrameRedraw
+```
+
+### New Functions Bridged (05-30-2026 EXE)
+
+| Function | EXE Address | Prototype | Assertion Line |
+|----------|-------------|-----------|---------------|
+| FrameSetLayer | `0x0062f5a0` | `void(uint frameId, int layer)` | FrApi.cpp line 0xbfb |
+| FrameSetPosition | `0x0062f7f0` | `void(uint frameId, Coord2f* pos)` | FrApi.cpp line 0x85c |
+| FrameSetSize | `0x0062f9a0` | `void(uint frameId, Coord2f* size)` | FrApi.cpp line 0x880 |
+| FrameGetClientBorder | `0x0062D000` | `Rect4f*(Rect4f* out, uint frameId)` | FrApi.cpp line 0x7dd |
+| FrameActivate | `0x0062b000` | `void(uint frameId)` | FrApi.cpp line 0xC3E |
+
+All resolved via `FindAssertion("P:\\Code\\Engine\\Frame\\FrApi.cpp", "frameId", <line>, 0)` + `ToFunctionStart`.
+
+### Pitfall Notes
+
+1. **FrameSetPosition takes `Coord2f*`** (pointer to packed `{float x, float y}`), NOT two separate float arguments
+2. **BuildRect inverts Y during rendering** — Y-inversion in application code IS required despite CRect Normal-mode flags
+3. **Viewport scale ≠ 1.0 in windowed mode** — must divide pixel coordinates by scale to get logical coordinates
+4. **CRect flags 0x06 are STORAGE convention**, not rendering convention — don't use them to decide Y-inversion
+5. **UiGenerateFramePositionLockFlags dynamically removes TOP anchor** — bypass with direct `FrameSetPosition`
+6. **Without `frame_flags=0x20`**, click-to-raise silently fails — frame is never registered in the popup hash table (`DAT_005a040c`)
+
+---
+
+## Filling Windows with Content (2026-06-04)
+
+After the window-contents RE cycle, we now understand how native game windows populate their interiors beyond the chrome shell. The key insight: **scrollable content is a separate component**, not baked into `CreateWindow()`.
+
+### The Core Problem
+
+`CContainerFrame::OnFrameSize` positions children with **independent coordinates** (center, top-left, corners, etc.) — it has NO vertical stacking logic. Inserting text labels directly into a CContainerFrame causes them to overlap.
+
+**The fix**: Insert a **frame list** (type `0xAEA`, `CCtlFrameList::FrameProc`) as a child of the CContainerFrame, then add text labels as **items** of the frame list. The frame list's `OnFrameMsgSize` (msg 0x37) handles vertical stacking automatically.
+
+```
+❌ BROKEN:                        ✅ CORRECT:
+CContainerFrame                    CContainerFrame
+  ├─ TextLabel (0,0)                ├─ ScrollableFrameList (child N, type 0xAEA)
+  ├─ TextLabel (0,0)                │   ├─ TextLabel (stacked item 0)
+  └─ TextLabel (0,0)                │   ├─ TextLabel (stacked item 1)
+  (all overlap!)                    │   └─ TextLabel (stacked item N)
+                                    └─ [scrollbars auto-managed]
+```
+
+### High-Level Python API
+
+Implemented in `Py4GWCoreLib/GWUI.py` (204 lines):
+
+```python
+# One-step: window + scrollable + items
+window_id = GWUI.CreateScrollableWindow(100, 100, 280, 220, "Title", ["Item 1", "Item 2"])
+
+# Step-by-step:
+window_id = GWUI.CreateWindow(100, 100, 300, 200, "My Window")
+framelist_id = GWUI.CreateScrollableContent(window_id)
+item_id = GWUI.AddTextItem(framelist_id, "Hello World")
+```
+
+### Lower-Level Functions
+
+| Function | Prototype | EXE Address | Resolution |
+|----------|-----------|-------------|------------|
+| `CtlFrameListCreateItem` | `U32_U32_U32_U32_U32_U32` | `0x00612900` | Byte pattern offset -0x25 |
+| `FrameNewSubclass` | `U32_U32_U32_U32` | `0x0062f150` | Byte pattern offset -0x2D |
+| `CtlTextProc` | — | `0x00610c40` | Assertion `"FrameTestStyles(hdr.frameId, CTLTEXT_STYLE_MODEL)"` |
+| `CCtlFrameList::FrameProc` | — | `0x00612c80` | Assertion `"No valid case for switch variable 'msg.relation'"` |
+
+### C++ Bindings Added
+
+In `py_ui.h` / `py_ui.cpp`:
+
+```cpp
+// Low-level
+UIManager::CtlFrameListCreateItemByFrameId(parentId, flags, index, proc, userData)
+UIManager::FrameNewSubclassByFrameId(frameId, proc, msgId)
+
+// High-level
+UIManager::CreateScrollableContentByFrameId(windowId)       → framelist_id
+UIManager::AddTextItemToFrameListByFrameId(framelistId, text) → item_id
+UIManager::CreateScrollableTextWindow(x, y, w, h, title, items)
+```
+
+### Auto-Stacking vs Manual Positioning
+
+**Auto-stacking** (default): The frame list's `OnFrameMsgSize` positions items bottom-to-top. Each item's Y = parent_height - sum_of_heights_so_far, X = 0. Works automatically — no additional calls needed.
+
+**Manual positioning**: Set style `0x2000` on the frame list child. `OnFrameMsgSize` skips that child entirely. Use `FrameSetPosition` directly.
+
+```python
+# Manual positioning (style 0x2000)
+item_id = GWUI.CtlFrameListCreateItem(framelist_id, 0x2000, 0, text_proc, payload)
+FrameSetPosition(item_id, {x, y}, {0, 0})  # custom position
+```
+
+### Size Propagation
+
+```
+Text label content change
+  → CtlTextProc msg 0x4C (TextResolved)
+    → FrameContentInvalidate + FrameNativeSizeChanged
+      → Propagates to parent frame list
+        → FrameScheduleSize → msg 0x37 → OnFrameMsgSize (restack!)
+```
+
+After bulk insertion, call `FrameScheduleSize(framelist_id)` to trigger immediate layout.
+
+### Scroll Configuration
+
+The InventoryAggregate reference model configures scrolling explicitly:
+
+```python
+CtlViewSetIncrement(framelist_id, 2)  # pixels per scroll step
+CtlViewSetPage(framelist_id, 0, &page_size_handler, 0)  # page size handler
+CtlFrameListSetSizeHandler(framelist_id, &size_handler)
+```
+
+DevText omits all of these — relies on default scroll stepping.
+
+### Known Limitations
+
+| # | Issue | Mitigation |
+|---|-------|-----------|
+| 1 | **Scrollbar chrome proc unresolved** (proc_0xAED). DevText uses `FrameNewSubclass(list, &proc_0xAED, 0x59)`. Without it, scrollbars may not render. | Use GWCA's `CreateScrollableFrameByFrameId` which uses `CtlViewProc` wrapper — handles scrollbars automatically. |
+| 2 | **Async return values**: `Game.enqueue()` returns 0 until the lambda processes. | Use C++ bindings for synchronous return values, or poll with `FrameGetChild`. |
+| 3 | **Style 0x2000** for manual positioning is not in the convenience API. | Use low-level `CtlFrameListCreateItem` directly. |
+| 4 | **C++ rebuild required** after adding bindings. | Rebuild DLL with `cmake -B build -A Win32`, restart injected client. |
+| 5 | **Pattern rot**: byte patterns may break across EXE patches. | Patterns use structurally stable function-body internals (function prologue and unique instruction sequences). |
+
+### Test Widget
+
+`UI_RE/window_contents_test.py` (249 lines) — creates a window with scrollable content and multiple text items. Demonstrates the complete pipeline: window creation → frame list insertion → text label stacking → scroll configuration.
+
+### Architecture Investigation
+
+Full RE context: `.opencode/projects/re/window-contents/context_pool.md` (800 lines covering 3 phases of analysis across DevText, InventoryAggregate, PartySearch, and 81 window catalog).
+
+---
+
+## Typed Component Architecture — Three Registration Layers (2026-06-05)
+
+After the UI Elements Universe Discovery project (39 FrameProc types cataloged), the typed component creation architecture is fully understood.
+
+### How Components Are Created
+
+The engine uses a **three-registration-layers** approach:
+
+| Layer | Function | Role |
+|-------|----------|------|
+| **FrameProc (Callback)** | `CtlBtnProc`, `CtlDropListProc`, `CtlSliderProc`, etc. | Message handler that paints, handles mouse, and creates the internal control instance on msg 0x09 |
+| **Universal Factory** | `CreateUIComponent` (native) / `FrameCreate` @ `ram:809a13ea` | Allocates a 0x1C8-byte `Frame` struct, registers the FrameProc, sends lifecycle messages |
+| **High-Level Wrapper** | `IUi::UiCtlBtnProc`, `IUi::UiCtlDropListProc`, etc. | Adds default styling, sizing, and configuration before delegating to the low-level FrameProc |
+
+### component_flags Reference Table
+
+Component type is encoded in `component_flags` — the second argument to `CreateUIComponent` / `FrameCreate`:
+
+| Flag Value | Frame Type | Source |
+|------------|------------|--------|
+| (none) / 0x300 | ButtonFrame (base default, F_VISIBLE\|F_ENABLED) | UIMgr.cpp default |
+| 0x8000 | CheckboxFrame (toggle behavior) | UIMgr.cpp `flags \| 0x8000` |
+| 0x20000 | ScrollableFrame | UIMgr.cpp `flags \| 0x20000` |
+| 0x128 | Dropdown list (internal child listbox) | `CtlDropList::CreateList` @ `ram:80e42d11` |
+| 0xA0000 | Text label (GroupHeader child) | `IUi::CGroupHeaderFrame::OnFrameCreate` @ `ram:811921df` |
+| 0x0AFD | Checkbox callback (GroupHeader child) | callback address, not flag |
+
+**Key insight**: The callback (FrameProc) is the **primary type determinant**. `component_flags` add behavior modifiers — `0x300` is the base default, not type-identifying.
+
+### The Existing GWCA Pattern
+
+GWCA creates typed components via:
+```cpp
+// 1. Resolve callback via scanner  
+ButtonFrame_Callback = Scanner::FindAssertion("UiCtlBtn.cpp", "!s_btnCheckImageList");
+// 2. Call universal factory with type-specific flags
+CreateUIComponent(parent_id, component_flags | TYPE_FLAG, child_index, CALLBACK, name, label);
+```
+
+This pattern works for 4 types (Button, Checkbox, Scrollable, TextLabel).
+
+### GroupHeader — Composite Control Architecture
+
+**EXE FrameProc**: `0x0087ddc0`  
+**WASM FrameProc**: `IUi::CGroupHeaderFrame::FrameProc` @ `ram:81192c89`  
+**WASM OnFrameCreate**: `IUi::CGroupHeaderFrame::OnFrameCreate` @ `ram:811921df`  
+**Assertion**: `"P:\\Code\\Gw\\Ui\\Controls\\UiCtlGroupHeader.cpp"` @ `0x00b96100`
+
+GroupHeader is a **composite control** — it creates children internally during `OnFrameCreate` (msg 0x09 handler):
+
+```
+GroupHeader::OnFrameCreate(frame, param, label)
+  ├─ Child 0: Checkbox (callback 0x0AFD) — expand/collapse toggle button
+  │   Uses BtnToggle message protocol (0x57=SetExpanded, 0x58=GetExpanded)
+  └─ Child 1: Text label (callback 0x0A56, flags 0xA0000) — section title text
+```
+
+**Custom message protocol** (sent to the GroupHeader, forwarded to children):
+
+| Message ID | Handler | Command | Direction |
+|-----------|---------|---------|-----------|
+| 0x56 | OnFrameMsgGetIsOpen | GetIsOpen | Query |
+| 0x57 | OnFrameMsgSetIsOpen | SetIsOpen | Command |
+| 0x58 | OnFrameMsgGetText | GetText | Query |
+| 0x59 | OnFrameMsgSetText | SetText | Command |
+
+**Priority**: HIGHEST — most useful unwrapped control for custom injected UI panels (collapsible sections). Requires a new GWCA struct (`GroupHeaderFrame`).
+
+### CreateUIComponent / FrameCreate API Details
+
+**CreateUIComponent** (GWCA wrapper / Python binding):
+```cpp
+uint32_t CreateUIComponent(
+    uint32_t parent_frame_id,    // Parent frame to attach to
+    uint32_t component_flags,     // Type flags + F_VISIBLE|F_ENABLED
+    uint32_t child_offset_id,     // Child slot (0xFF = auto)
+    uint32_t frame_callback,      // FrameProc function pointer
+    const wchar_t* create_param,  // Optional param struct
+    const wchar_t* frame_label    // Optional label
+);
+```
+
+**FrameCreate** (native engine function @ `ram:809a13ea`):
+- Allocates 0x1C8-byte `Frame` struct via `MemAlloc(0x1C8)`
+- Initializes `CState` at `frame+0x18C`
+- Initializes `CMsg` at `frame+0xA8`
+- Calls FrameProc with msg 0x09 (WM_CREATE equivalent)
+- Returns `frame_id` from `frame+0xBC`
+
+### Implementation Status — Phase 3 Crash
+
+During Phase 3 of the UI Elements project, Create functions for 5 Tier 2 types (DropdownFrame, SliderFrame, EditableTextFrame, ProgressBar, TabsFrame) were implemented across the full GWCA C++ + Python stack but **ALL crashed the client**. The research (addresses, assertion strings, struct layouts, component_flags) is verified correct. Possible causes:
+
+1. **component_flags may be wrong** — 0x300 was inferred/inherited for Slider/EditBox/ProgressBar/Tabs, not verified from FrameCreate callers
+2. **Context struct initialization** — some types (like CtlSliderProc) allocate internal structs on msg 0x09 that may need pre-initialization
+3. **Call pattern differs** — the CreateUIComponent call pattern for these types may differ from what GWCA uses for Button/Checkbox/Scrollable/TextLabel
+
+**DO NOT reuse the Phase 3 C++ code as-is.** Full details in `docs/RE/ui_controls_catalog.md`.

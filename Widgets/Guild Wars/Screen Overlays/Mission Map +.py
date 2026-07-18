@@ -1,0 +1,2167 @@
+from Py4GWCoreLib import PetModelID, SpiritModelID
+from Py4GWCoreLib import Color
+from Py4GWCoreLib import GLOBAL_CACHE
+import PyImGui
+from Py4GWCoreLib import ImGui, Color
+from Py4GWCoreLib import DXOverlay
+from Py4GWCoreLib.IniManager import IniManager
+from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Range
+from Py4GWCoreLib import Rarity
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Map, Player, AutoPathing, Item
+from Py4GWCoreLib import Agent, AgentArray
+from Py4GWCoreLib.BottingTree import BottingTree
+from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
+from Py4GWCoreLib.Pathing import NavMesh
+from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct
+
+from typing import Any, Union, cast
+import math
+import sys
+
+#region CONSTANTS
+MODULE_NAME = "Mission Map+"
+MODULE_ICON = "Textures\\Module_Icons\\Mission Map+.png"
+INI_PATH = "Widgets/Guild Wars/Screen Overlays"
+INI_FILENAME = "Mission Map +.ini"
+MATH_PI = math.pi
+BASE_ANGLE = (-MATH_PI / 2)
+SQRT_2 = math.sqrt(2)
+GWINCHES = 96.0
+POLY_SEGMENTS = 16
+PET_MODEL_IDS = set(e.value for e in PetModelID)
+AREA_SPIRIT_MODELS = [SpiritModelID.DESTRUCTION, SpiritModelID.PRESERVATION]
+EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
+CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
+
+# NavMesh right-click snap constants
+_SNAP_ARRIVAL_RADIUS   = 200.0
+_SNAP_WAYPOINT_RADIUS  = 140.0
+_SNAP_RESUME_REISSUE_MS = 1000
+_SNAP_USE_BT_MOVETO = True
+_SNAP_PAUSE_ON_DANGER = True
+_SNAP_DANGER_RADIUS = Range.Earshot.value
+INI_KEY = ""
+_INI_READY = False
+
+#end region
+
+#region ENUMS
+class SpiritBuff:
+    def __init__ (self, spirit_name:str, model_id: int, skill_id: int, color: Color = Color(96, 128, 0, 255)):
+        self.spirit_name = spirit_name
+        self.model_id = model_id
+        self.skill_id = skill_id
+        self.color = color
+        
+    def __repr__(self):
+        return f"SpiritBuff(model_id={self.model_id}, skill_id={self.skill_id}, color={self.color})"
+
+RANGER_SPIRIT_COLOR = Color(r=204, g=255, b=153, a=255)
+RITUALIST_SPIRIT_COLOR = Color(r=187, g=255, b=255, a=255)
+EBON_VANGUARD_COLOR = Color(r=66, g=3, b=1, a=255)
+SPIRIT_BUFFS = [
+    SpiritBuff("Frozen Soil", SpiritModelID.FROZEN_SOIL, GLOBAL_CACHE.Skill.GetID("Frozen_Soil"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Life", SpiritModelID.LIFE, GLOBAL_CACHE.Skill.GetID("Life"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Bloodsong", SpiritModelID.BLOODSONG, GLOBAL_CACHE.Skill.GetID("Bloodsong"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Anger", SpiritModelID.ANGER, GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Hate", SpiritModelID.HATE, GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Suffering", SpiritModelID.SUFFERING, GLOBAL_CACHE.Skill.GetID("Signet_of_Spirits"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Anguish", SpiritModelID.ANGUISH, GLOBAL_CACHE.Skill.GetID("Anguish"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Disenchantment", SpiritModelID.DISENCHANTMENT, GLOBAL_CACHE.Skill.GetID("Disenchantment"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Dissonance", SpiritModelID.DISSONANCE, GLOBAL_CACHE.Skill.GetID("Dissonance"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Pain", SpiritModelID.PAIN, GLOBAL_CACHE.Skill.GetID("Pain"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Shadowsong", SpiritModelID.SHADOWSONG, GLOBAL_CACHE.Skill.GetID("Shadowsong"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Wanderlust", SpiritModelID.WANDERLUST, GLOBAL_CACHE.Skill.GetID("Wanderlust"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Vampirism", SpiritModelID.VAMPIRISM, GLOBAL_CACHE.Skill.GetID("Vampirism"), EBON_VANGUARD_COLOR),
+    SpiritBuff("Agony", SpiritModelID.AGONY, GLOBAL_CACHE.Skill.GetID("Agony"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Displacement", SpiritModelID.DISPLACEMENT, GLOBAL_CACHE.Skill.GetID("Displacement"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Earthbind", SpiritModelID.EARTHBIND, GLOBAL_CACHE.Skill.GetID("Earthbind"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Empowerment", SpiritModelID.EMPOWERMENT, GLOBAL_CACHE.Skill.GetID("Empowerment"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Preservation", SpiritModelID.PRESERVATION, GLOBAL_CACHE.Skill.GetID("Preservation"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Recovery", SpiritModelID.RECOVERY, GLOBAL_CACHE.Skill.GetID("Recovery"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Recuperation", SpiritModelID.RECUPERATION, GLOBAL_CACHE.Skill.GetID("Recuperation"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Rejuvenation", SpiritModelID.REJUVENATION, GLOBAL_CACHE.Skill.GetID("Rejuvenation"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Shelter", SpiritModelID.SHELTER, GLOBAL_CACHE.Skill.GetID("Shelter"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Soothing", SpiritModelID.SOOTHING, GLOBAL_CACHE.Skill.GetID("Soothing"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Union", SpiritModelID.UNION, GLOBAL_CACHE.Skill.GetID("Union"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Destruction", SpiritModelID.DESTRUCTION, GLOBAL_CACHE.Skill.GetID("Destruction"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Restoration", SpiritModelID.RESTORATION, GLOBAL_CACHE.Skill.GetID("Restoration"), RITUALIST_SPIRIT_COLOR),
+    SpiritBuff("Winds", SpiritModelID.WINDS, GLOBAL_CACHE.Skill.GetID("Winds"),EBON_VANGUARD_COLOR),
+    SpiritBuff("Brambles", SpiritModelID.BRAMBLES, GLOBAL_CACHE.Skill.GetID("Brambles"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Conflagration", SpiritModelID.CONFLAGRATION, GLOBAL_CACHE.Skill.GetID("Conflagration"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Energizing Wind", SpiritModelID.ENERGIZING_WIND, GLOBAL_CACHE.Skill.GetID("Energizing_Wind"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Equinox", SpiritModelID.EQUINOX, GLOBAL_CACHE.Skill.GetID("Equinox"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Edge of Extinction", SpiritModelID.EDGE_OF_EXTINCTION, GLOBAL_CACHE.Skill.GetID("Edge_of_Extinction"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Famine", SpiritModelID.FAMINE, GLOBAL_CACHE.Skill.GetID("Famine"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Favorable Winds", SpiritModelID.FAVORABLE_WINDS, GLOBAL_CACHE.Skill.GetID("Favorable_Winds"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Fertile Season", SpiritModelID.FERTILE_SEASON, GLOBAL_CACHE.Skill.GetID("Fertile_Season"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Greater Conflagration", SpiritModelID.GREATER_CONFLAGRATION, GLOBAL_CACHE.Skill.GetID("Greater_Conflagration"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Infuriating Heat", SpiritModelID.INFURIATING_HEAT, GLOBAL_CACHE.Skill.GetID("Infuriating_Heat"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Lacerate", SpiritModelID.LACERATE, GLOBAL_CACHE.Skill.GetID("Lacerate"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Muddy Terrain", SpiritModelID.MUDDY_TERRAIN, GLOBAL_CACHE.Skill.GetID("Muddy_Terrain"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Nature's Renewal", SpiritModelID.NATURES_RENEWAL, GLOBAL_CACHE.Skill.GetID("Natures_Renewal"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Pestilence", SpiritModelID.PESTILENCE, GLOBAL_CACHE.Skill.GetID("Pestilence"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Predatory Season", SpiritModelID.PREDATORY_SEASON, GLOBAL_CACHE.Skill.GetID("Predatory_Season"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Primal Echoes", SpiritModelID.PRIMAL_ECHOES, GLOBAL_CACHE.Skill.GetID("Primal_Echoes"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Quickening Zephyr", SpiritModelID.QUICKENING_ZEPHYR, GLOBAL_CACHE.Skill.GetID("Quickening_Zephyr"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Quicksand", SpiritModelID.QUICKSAND, GLOBAL_CACHE.Skill.GetID("Quicksand"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Roaring Winds", SpiritModelID.ROARING_WINDS, GLOBAL_CACHE.Skill.GetID("Roaring_Winds"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Symbiosis", SpiritModelID.SYMBIOSIS, GLOBAL_CACHE.Skill.GetID("Symbiosis"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Toxicity", SpiritModelID.TOXICITY, GLOBAL_CACHE.Skill.GetID("Toxicity"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Tranquility", SpiritModelID.TRANQUILITY, GLOBAL_CACHE.Skill.GetID("Tranquility"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Winter", SpiritModelID.WINTER, GLOBAL_CACHE.Skill.GetID("Winter"), RANGER_SPIRIT_COLOR),
+    SpiritBuff("Winnowing", SpiritModelID.WINNOWING, GLOBAL_CACHE.Skill.GetID("Winnowing"), RANGER_SPIRIT_COLOR),
+]
+
+def get_spirit_name(model_id: int) -> str:
+    for buff in SPIRIT_BUFFS:
+        if buff.model_id == model_id:
+            return buff.spirit_name
+    return "Unknown"
+
+
+#endregion
+
+#region HELPERS
+
+def FloatingSlider(caption, value,x,y,min_value, max_value, color:Color):
+    width=20
+    height=25
+    # Set the position and size of the floating button
+    PyImGui.set_next_window_pos(x, y)
+    PyImGui.set_next_window_size(0, height)
+    
+
+    flags=( PyImGui.WindowFlags.NoCollapse | 
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.AlwaysAutoResize  ) 
+    
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding,0.0,0.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding,0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, color.to_tuple())
+       
+    result = value
+    if PyImGui.begin(f"##invisible_window{caption}", flags):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrab, (0.7, 0.7, 0.7, 1.0))  # Slider grab color
+        PyImGui.push_style_color(PyImGui.ImGuiCol.SliderGrabActive, (0.9, 0.9, 0.9, 1.0))
+
+        result = PyImGui.slider_float(f"##floating_slider{caption}", value, min_value, max_value)
+        ImGui.show_tooltip(f"Enhance the zoom level of the map.")
+        PyImGui.pop_style_color(2)
+    PyImGui.end()
+    PyImGui.pop_style_var(2)
+    PyImGui.pop_style_color(1)
+    return result
+
+def RawGamePosToScreen(x:float, y:float, zoom:float, zoom_offset:float, left_bound:float, top_bound:float, boundaries:tuple[float, float, float, float],
+                       pan_offset_x:float, pan_offset_y:float, scale_x:float, scale_y:float,
+                       mission_map_screen_center_x:float, mission_map_screen_center_y:float) -> tuple[float, float]:
+
+    global GWINCHES
+
+    if len(boundaries) < 4:
+        return 0.0, 0.0  # fail-safe
+
+    min_x = boundaries[0]
+    max_y = boundaries[3]
+
+    # Step 3: Compute origin on the world map based on boundary distances
+    origin_x = left_bound + abs(min_x) / GWINCHES
+    origin_y = top_bound + abs(max_y) / GWINCHES
+
+    # Step 4: Convert game-space (gwinches) to world map space (screen)
+    screen_x = (x / GWINCHES) + origin_x
+    screen_y = (-y / GWINCHES) + origin_y  # Inverted Y
+
+    offset_x = screen_x - pan_offset_x
+    offset_y = screen_y - pan_offset_y
+
+    scaled_x = offset_x * scale_x
+    scaled_y = offset_y * scale_y
+
+    zoom_total = zoom + zoom_offset
+
+    screen_x = scaled_x * zoom_total + mission_map_screen_center_x
+    screen_y = scaled_y * zoom_total + mission_map_screen_center_y
+
+    return screen_x, screen_y
+
+def RawScreenToRawGamePos(screen_x: float, screen_y: float, zoom: float, zoom_offset: float,
+                       left_bound: float, top_bound: float, boundaries: tuple[float, float, float, float],
+                       pan_offset_x: float, pan_offset_y: float,
+                       scale_x: float, scale_y: float,
+                       mission_map_screen_center_x: float, mission_map_screen_center_y: float) -> tuple[float, float]:
+    global GWINCHES
+
+    if len(boundaries) < 4:
+        return 0.0, 0.0  # fail-safe
+
+    min_x = boundaries[0]
+    max_y = boundaries[3]
+
+    # Compute origin same as before
+    origin_x = left_bound + abs(min_x) / GWINCHES
+    origin_y = top_bound + abs(max_y) / GWINCHES
+
+    zoom_total = zoom + zoom_offset
+    if zoom_total == 0:
+        zoom_total = 1.0
+
+    # Reverse zoom and center offset
+    scaled_x = (screen_x - mission_map_screen_center_x) / zoom_total
+    scaled_y = (screen_y - mission_map_screen_center_y) / zoom_total
+
+    # Reverse scaling
+    offset_x = scaled_x / (scale_x if scale_x != 0 else 1)
+    offset_y = scaled_y / (scale_y if scale_y != 0 else 1)
+
+    # Apply pan offset
+    world_x = offset_x + pan_offset_x
+    world_y = offset_y + pan_offset_y
+
+    # Convert from world map space to game-space (gwinches)
+    game_x = (world_x - origin_x) * GWINCHES
+    game_y = -(world_y - origin_y) * GWINCHES  # Invert Y back
+
+    return game_x, game_y
+
+
+def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_x) -> float:
+    global GWINCHES
+    pixels_per_gwinch = (scale_x * (zoom + zoom_offset)) / GWINCHES
+    return gwinch_value * pixels_per_gwinch
+
+
+def FloatingMoveToggle(x: float, y: float, enabled: bool, show_stop: bool = False, margin: int = 8) -> tuple[bool, bool]:
+    """Draw Move toggle and Stop button; returns (move_enabled, stop_requested)."""
+    win_x = x + margin + 2
+    win_y = y + margin + 20
+    PyImGui.set_next_window_pos(win_x, win_y)
+
+    flags = (
+        PyImGui.WindowFlags.NoCollapse |
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.NoMove |
+        PyImGui.WindowFlags.AlwaysAutoResize |
+        PyImGui.WindowFlags.NoBackground
+    )
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 2.0, 2.0)
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 1.0, 1.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.0, 0.0, 0.0, 0.0))
+
+    result = enabled
+    stop_requested = False
+    if PyImGui.begin("##mm_move_toggle", flags):
+        cb = PyImGui.checkbox("Move", bool(enabled))
+        if isinstance(cb, tuple) and len(cb) == 2:
+            result = bool(cb[1])
+        else:
+            result = bool(cb)
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Right-click on map moves player to nearest NavMesh point. Hold Shift + Right-click to queue waypoints.")
+
+        if show_stop:
+            PyImGui.same_line(0, 6)
+            if PyImGui.button("Stop", 44, 16):
+                stop_requested = True
+            if PyImGui.is_item_hovered():
+                ImGui.show_tooltip("Stop current movement and clear queued waypoints.")
+    PyImGui.end()
+
+    PyImGui.pop_style_color(1)
+    PyImGui.pop_style_var(3)
+    return result, stop_requested
+
+
+def FloatingMapIdStrip(x: float, y: float, map_id: int, margin: int = 8) -> None:
+    win_x = x + margin + 2
+    win_y = y + margin + 76
+    PyImGui.set_next_window_pos(win_x, win_y)
+
+    flags = (
+        PyImGui.WindowFlags.NoCollapse |
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.NoMove |
+        PyImGui.WindowFlags.AlwaysAutoResize |
+        PyImGui.WindowFlags.NoBackground
+    )
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 2.0, 2.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.0, 0.0, 0.0, 0.0))
+
+    if PyImGui.begin("##mm_map_id_strip", flags):
+        PyImGui.text(f"Map ID: {int(map_id)}")
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Current Map ID")
+    PyImGui.end()
+
+    PyImGui.pop_style_color(1)
+    PyImGui.pop_style_var(2)
+
+
+def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label="Cords"):
+    # place just above the bottom edge with a small margin
+    win_x = x + margin
+    win_y = y + 15 - margin
+    PyImGui.set_next_window_pos(win_x, win_y)
+    if width is not None:
+        PyImGui.set_next_window_size(width - (margin * 2), 25)
+
+    flags = (PyImGui.WindowFlags.NoCollapse |
+             PyImGui.WindowFlags.NoTitleBar |
+             PyImGui.WindowFlags.NoScrollbar |
+             PyImGui.WindowFlags.NoMove |
+             PyImGui.WindowFlags.AlwaysAutoResize |
+             PyImGui.WindowFlags.NoBackground)
+
+    # clean, overlay look
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 4.0, 4.0)
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 2.0, 2.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0, 0, 0, 0))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Border, color.to_tuple())
+
+    if PyImGui.begin("##mm_coords_strip", flags):
+        if PyImGui.button("Copy"):
+            PyImGui.set_clipboard_text(f"{int(last_x)}, {int(last_y)}")
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Copy the last clicked coordinates.")
+        PyImGui.same_line(0, 6)
+        PyImGui.text(f"{label}: ({int(last_x)}, {int(last_y)})")
+    PyImGui.end()
+
+    PyImGui.pop_style_color(2)
+    PyImGui.pop_style_var(3)
+
+# ── NavMesh snap helpers ──────────────────────────────────────────────
+
+def _snap_get_navmesh(mm: "MissionMap") -> "NavMesh | None":
+    map_id = int(Map.GetMapID())
+    if map_id == 0:
+        return None
+    if mm.snap_navmesh is not None and mm.snap_navmesh_map_id == map_id:
+        return mm.snap_navmesh
+    try:
+        pathing_maps = Map.Pathing.GetPathingMaps()
+        if not pathing_maps:
+            return None
+        mm.snap_navmesh = NavMesh(pathing_maps, map_id)
+        mm.snap_navmesh_map_id = map_id
+    except Exception:
+        return None
+    return mm.snap_navmesh
+
+
+def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
+    """Coroutine: compute AutoPathing path to goal and store in mm.snap_current_path."""
+    mm.snap_path_computing = True
+    mm.snap_current_path = []
+    try:
+        path = yield from AutoPathing().get_path_to(goal_x, goal_y)
+        computed_path = list(path) if path else []
+        if len(computed_path) == 0:
+            # Ensure movement/draw logic has at least one waypoint even when planner returns empty.
+            mm.snap_current_path = [(float(goal_x), float(goal_y))]
+            import Py4GW
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Snap path was empty; using direct fallback waypoint at ({goal_x:.1f}, {goal_y:.1f}).",
+                Py4GW.Console.MessageType.Warning,
+            )
+        else:
+            mm.snap_current_path = computed_path
+    except Exception as e:
+        mm.snap_current_path = [(float(goal_x), float(goal_y))]
+        import Py4GW
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Snap path computation failed ({goal_x:.1f}, {goal_y:.1f}): {e}",
+            Py4GW.Console.MessageType.Error,
+        )
+    finally:
+        mm.snap_path_computing = False
+
+
+def _snap_launch_bt_move_coroutine(goal_x: float, goal_y: float, mm: "MissionMap", generation: int):
+    """Coroutine: run BottingTree MoveTo and allow cancellation via generation token."""
+    mm.snap_move_running = True
+    move_tree = None
+    try:
+        move_tree = RoutinesBT.Movement.Move(goal_x, goal_y, log=False)
+        mm.snap_bt_move_tree = move_tree
+        while generation == mm.snap_move_generation:
+            pause_for_danger = mm._snap_is_danger_nearby()
+            move_tree.blackboard["PAUSE_MOVEMENT"] = pause_for_danger
+            if pause_for_danger != mm.snap_paused_for_danger:
+                mm.snap_paused_for_danger = pause_for_danger
+            state = BehaviorTree.Node._normalize_state(move_tree.tick())
+            if state in (RoutinesBT.NodeState.SUCCESS, RoutinesBT.NodeState.FAILURE):
+                break
+            yield from Routines.Yield.wait(100)
+    except Exception as e:
+        import Py4GW
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Snap movement failed to start or tick ({goal_x:.1f}, {goal_y:.1f}): {e}",
+            Py4GW.Console.MessageType.Error,
+        )
+    finally:
+        if move_tree is not None:
+            move_tree.blackboard["PAUSE_MOVEMENT"] = False
+        if generation == mm.snap_move_generation:
+            mm.snap_bt_move_tree = None
+        if generation == mm.snap_move_generation:
+            mm.snap_move_running = False
+            mm.snap_paused_for_danger = False
+
+
+def _snap_launch_queue_preview_path_coroutine(
+    start_x: float,
+    start_y: float,
+    goal_x: float,
+    goal_y: float,
+    mm: "MissionMap",
+    generation: int,
+    queue_index: int,
+):
+    """Compute and cache a minimap preview path for one queued target segment."""
+    try:
+        zplane = 0.0
+        _player = Player.GetAgent()
+        if _player:
+            zplane = float(_player.pos.zplane)
+
+        path3d = yield from AutoPathing().get_path(
+            (float(start_x), float(start_y), zplane),
+            (float(goal_x), float(goal_y), zplane),
+        )
+        preview_path = [(float(x), float(y)) for (x, y, _) in path3d] if path3d else []
+        if len(preview_path) == 0:
+            preview_path = [(float(start_x), float(start_y)), (float(goal_x), float(goal_y))]
+
+        if generation == mm.snap_queue_preview_generation and 0 <= queue_index < len(mm.snap_target_queue_paths):
+            mm.snap_target_queue_paths[queue_index] = preview_path
+    except Exception:
+        if generation == mm.snap_queue_preview_generation and 0 <= queue_index < len(mm.snap_target_queue_paths):
+            mm.snap_target_queue_paths[queue_index] = [(float(start_x), float(start_y)), (float(goal_x), float(goal_y))]
+
+#endregion
+#region MARKERS
+def DLLine(x1, y1, x2, y2, color, thickness=1.0):
+    PyImGui.draw_list_add_line(float(x1), float(y1), float(x2), float(y2), color, float(thickness))
+
+def DLCircle(x, y, radius, color, numsegments=16, thickness=1.0):
+    PyImGui.draw_list_add_circle(float(x), float(y), float(radius), color, int(numsegments), float(thickness))
+
+def DLCircleFilled(x, y, radius, color, numsegments=16):
+    PyImGui.draw_list_add_circle_filled(float(x), float(y), float(radius), color, int(numsegments))
+
+def DLTriangle(x1, y1, x2, y2, x3, y3, color, thickness=1.0):
+    PyImGui.draw_list_add_triangle(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), color, float(thickness))
+
+def DLTriangleFilled(x1, y1, x2, y2, x3, y3, color):
+    PyImGui.draw_list_add_triangle_filled(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), color)
+
+def DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color, thickness=1.0):
+    PyImGui.draw_list_add_quad(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), float(x4), float(y4), color, float(thickness))
+
+def DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color):
+    PyImGui.draw_list_add_quad_filled(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), float(x4), float(y4), color)
+
+_COLOR_INT_CACHE: dict[tuple[int, int, int, int], int] = {}
+def ColorToIntCached(color: Color) -> int:
+    key = color.get_rgba()
+    cached = _COLOR_INT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    packed = color.to_color()
+    _COLOR_INT_CACHE[key] = packed
+    return packed
+
+class Shape:
+    def __init__(self, name: str, color: Color,accent_color: Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
+        self.name: str = name
+        self.color: Color = color
+        self.accent_color:Color = accent_color
+        self.x: float = x
+        self.y: float = y
+        self.size: float = size
+        self.base_angle: float = 0.0
+        self.offset_angle: float = offset_angle
+        
+
+    def draw(self) -> None:
+        print(f"Drawing {self.name} at ({self.x}, {self.y}) with size {self.size} and color {self.color}")
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y}, size={self.size}, color={self.color})"
+
+class Triangle(Shape):
+    global BASE_ANGLE
+    UNIT_POINTS = tuple(
+        (math.cos(i * (2 * MATH_PI / 3)), math.sin(i * (2 * MATH_PI / 3)))
+        for i in range(3)
+    )
+    def __init__(self, color: Color, accent_color:Color,x: float, y:float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("Triangle", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+        self.offset_angle: float = offset_angle
+        self.base_angle:float = 0.0 # + Utils.DegToRad(self.offset_angle)
+
+    def draw(self) -> None:
+        angle_offset = self.base_angle + self.offset_angle
+        cos_o = math.cos(angle_offset)
+        sin_o = math.sin(angle_offset)
+        points = []
+        for ux, uy in Triangle.UNIT_POINTS:
+            rx = ux * cos_o - uy * sin_o
+            ry = ux * sin_o + uy * cos_o
+            points.append((self.x + (rx * self.size), self.y + (ry * self.size)))
+
+
+        DLTriangleFilled(
+            points[0][0], points[0][1],
+            points[1][0], points[1][1],
+            points[2][0], points[2][1],
+            ColorToIntCached(self.color)
+        )
+        # Draw the triangle outline     
+        DLTriangle(
+            points[0][0], points[0][1],
+            points[1][0], points[1][1],
+            points[2][0], points[2][1],
+            ColorToIntCached(self.accent_color),
+            thickness=2.0
+        )
+ 
+class Circle(Shape):
+    def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float, segments: int = 16, offset_angle= 0.0):
+        self.segments: int = segments
+        super().__init__("Circle", color, accent_color, x, y, size, offset_angle)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        DLCircleFilled(self.x, self.y, radius=self.size, color=ColorToIntCached(self.color), numsegments=self.segments)
+        DLCircle(self.x, self.y, radius=self.size, color=ColorToIntCached(self.accent_color), numsegments=self.segments, thickness=2)
+        
+class Teardrop(Shape):
+    ARROW_LOCAL_POINTS_UNIT = (
+        (0.0, -SQRT_2),
+        (-SQRT_2 / 2, -SQRT_2 / 2),
+        (SQRT_2 / 2, -SQRT_2 / 2),
+    )
+    def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float, offset_angle: float = 0.0, segments: int = 16):
+        self.segments: int = segments
+        super().__init__("Teardrop", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+        self.base_angle: float = BASE_ANGLE
+        self.offset_angle: float = offset_angle
+
+    def draw(self) -> None:
+        # 1. Draw unrotated circle
+        DLCircleFilled(self.x, self.y, radius=self.size, color=ColorToIntCached(self.color), numsegments=self.segments)
+        DLCircle(self.x, self.y, radius=self.size, color=ColorToIntCached(self.accent_color), numsegments=self.segments, thickness=2)
+
+        # 2. Calculate rotation angle (negated for in-game rotation match)
+        angle = -(self.base_angle + self.offset_angle)
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+
+        # 4. Rotate + translate points
+        def rotate(px, py):
+            rx = px * cos_a - py * sin_a + self.x
+            ry = px * sin_a + py * cos_a + self.y
+            return (rx, ry)
+
+        p1 = rotate(self.ARROW_LOCAL_POINTS_UNIT[0][0] * self.size, self.ARROW_LOCAL_POINTS_UNIT[0][1] * self.size)
+        p2 = rotate(self.ARROW_LOCAL_POINTS_UNIT[1][0] * self.size, self.ARROW_LOCAL_POINTS_UNIT[1][1] * self.size)
+        p4 = rotate(self.ARROW_LOCAL_POINTS_UNIT[2][0] * self.size, self.ARROW_LOCAL_POINTS_UNIT[2][1] * self.size)
+        
+        # 5. Draw the arrow
+        DLTriangleFilled(p1[0], p1[1], p2[0], p2[1], p4[0], p4[1], color=ColorToIntCached(self.color))
+        DLLine(p1[0], p1[1], p2[0], p2[1], color=ColorToIntCached(self.accent_color), thickness=2.0)
+        DLLine(p1[0], p1[1], p4[0], p4[1], color=ColorToIntCached(self.accent_color), thickness=2.0)
+     
+class Penta(Shape):
+    def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float):
+        self.segments: int = 5
+        super().__init__("Penta", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        DLCircleFilled(self.x, self.y, radius=self.size, color=ColorToIntCached(self.color), numsegments=self.segments)
+        DLCircle(self.x, self.y, radius=self.size, color=ColorToIntCached(self.accent_color), numsegments=self.segments, thickness=2)
+        
+class Square(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("Square", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        # Inscribed square inside a circle of radius = self.size
+        half_side = (self.size * SQRT_2) / 2
+
+        # Corner coordinates
+        x1, y1 = self.x - half_side, self.y - half_side  # top-left
+        x2, y2 = self.x + half_side, self.y - half_side  # top-right
+        x3, y3 = self.x + half_side, self.y + half_side  # bottom-right
+        x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
+
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
+        
+class Lock(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("Lock", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        # Inscribed square inside a circle of radius = self.size
+        half_side = (self.size * SQRT_2) / 2
+        eighth_side = half_side / 4
+
+        # Corner coordinates
+        x1, y1 = self.x - half_side, self.y - half_side  # top-left
+        x2, y2 = self.x + half_side, self.y - half_side  # top-right
+        x3, y3 = self.x + half_side, self.y + half_side  # bottom-right
+        x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
+
+        DLCircle(self.x, self.y -half_side - eighth_side, radius=self.size / 2, color=ColorToIntCached(self.accent_color), numsegments=12, thickness=3)
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
+        DLQuadFilled(self.x- eighth_side, self.y- eighth_side, self.x+eighth_side, self.y-eighth_side, self.x+eighth_side, self.y+eighth_side, self.x-eighth_side, self.y+eighth_side, color=ColorToIntCached(self.accent_color))
+        
+class SignPost(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
+        super().__init__("SignPost", color, accent_color, x, y, size)
+        self.accent_color: Color = accent_color
+
+    def draw(self) -> None:
+        def _draw_text_line (x1, y1, x2, y2, color: Color):
+            DLLine(x1, y1, x2, y2, color=ColorToIntCached(color), thickness=1.0)
+            DLLine(x1, y1, x2, y2, color=ColorToIntCached(color), thickness=1.0)
+            
+        half_side = (self.size * SQRT_2) / 2
+        quarter_side = half_side / 2
+        eighth_side = half_side / 4
+        three_quarter_side = half_side + quarter_side
+
+        # Corner coordinates
+        x1, y1 = self.x - three_quarter_side, self.y - half_side  # top-left
+        x2, y2 = self.x + three_quarter_side, self.y - half_side  # top-right
+        x3, y3 = self.x + three_quarter_side, self.y + half_side  # bottom-right
+        x4, y4 = self.x - three_quarter_side, self.y + half_side  # bottom-left
+
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
+        
+        l1_x1, l1_y1 = self.x - half_side, self.y - quarter_side  # top-left
+        l1_x2, l1_y2 = self.x + half_side, self.y - quarter_side  # top-right
+        
+        _draw_text_line(l1_x1, l1_y1, l1_x2, l1_y2, self.accent_color)
+        y = self.y
+        _draw_text_line(l1_x1, y, l1_x2, y, self.accent_color)
+
+        
+    
+
+class Tear(Shape):
+    LOCAL_POINTS_UNIT = (
+        (0.0, -SQRT_2),
+        (SQRT_2 / 2, 0.0),
+        (0.0, SQRT_2 / 2),
+        (-SQRT_2 / 2, 0.0),
+    )
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
+        super().__init__("Tear", color, accent_color, x, y, size)
+        self.base_angle: float = BASE_ANGLE
+        self.offset_angle: float = offset_angle
+
+    def draw(self) -> None:
+        # Compute total rotation angle
+        angle = -(self.base_angle + self.offset_angle)
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+
+        # Rotate and translate points
+        rotated = []
+        for ux, uy in self.LOCAL_POINTS_UNIT:
+            px = ux * self.size
+            py = uy * self.size
+            rx = px * cos_a - py * sin_a + self.x
+            ry = px * sin_a + py * cos_a + self.y
+            rotated.append((rx, ry))
+
+        # Unpack rotated points
+        (x1, y1), (x2, y2), (x3, y3), (x4, y4) = rotated
+
+        # Draw filled and outlined quad
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
+        
+class Scale(Shape):
+    def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
+        super().__init__("Scale", color, accent_color, x, y, size)
+        self.base_angle: float = BASE_ANGLE
+        self.offset_angle: float = offset_angle
+
+    def draw(self) -> None:
+        half_side = (self.size * SQRT_2) / 2
+        
+        x1, y1 = self.x, self.y + half_side 
+        x2, y2 = self.x, self.y - half_side 
+        
+        DLLine(x1, y1, x2, y2, color=ColorToIntCached(self.color), thickness=2.0)
+        
+        x1, y1 = self.x - half_side, self.y - half_side
+        x2, y2 = self.x + half_side, self.y - half_side
+
+        DLLine(x1, y1, x2, y2, color=ColorToIntCached(self.color), thickness=2.0)
+        
+        
+
+        
+               
+shapes: dict[str, type[Shape]] = {
+    "Triangle": Triangle,
+    "Circle": Circle,
+    "Teardrop": Teardrop,
+    "Square": Square,
+    "Penta": Penta,
+    "Tear": Tear,
+    "SignPost": SignPost,
+    "Lock": Lock,
+    "Scale": Scale,
+}
+       
+class Marker:
+    def __init__(
+        self,
+        shape_type: Union[str, Shape],
+        color: Color,
+        accent_color: Color,
+        x:float = 0.0,
+        y:float = 0.0,
+        size: float = 5.0,
+        **kwargs
+    ):
+        self.color: Color = color
+        self.accent_color: Color = accent_color
+        self.x = x
+        self.y = y
+        self.size = size
+
+        # Build the shape
+        if isinstance(shape_type, Shape):
+            self.shape: Shape = shape_type
+            self.shape.x = x
+            self.shape.y = y
+        else:
+            shape_cls = shapes.get(shape_type)
+            if shape_cls is None:
+                raise ValueError(f"Unknown shape type: {shape_type}")
+            self.shape = shape_cls(x=x, y=y, color=color, accent_color=accent_color, size=size, **kwargs)
+
+
+    def draw(self) -> None:
+        self.shape.draw()
+
+
+_SHAPE_INSTANCE_CACHE: dict[str, Shape] = {}
+def DrawMarkerCached(shape_type: str, color: Color, accent_color: Color, x: float, y: float, size: float, **kwargs) -> None:
+    shape = _SHAPE_INSTANCE_CACHE.get(shape_type)
+    if shape is None:
+        shape_cls = shapes.get(shape_type)
+        if shape_cls is None:
+            raise ValueError(f"Unknown shape type: {shape_type}")
+        shape_ctor = cast(Any, shape_cls)
+        shape = shape_ctor(x=x, y=y, color=color, accent_color=accent_color, size=size, **kwargs)
+        _SHAPE_INSTANCE_CACHE[shape_type] = shape
+    else:
+        shape.x = x
+        shape.y = y
+        shape.size = size
+        shape.color = color
+        shape.accent_color = accent_color
+        if hasattr(shape, "offset_angle") and "offset_angle" in kwargs:
+            shape.offset_angle = kwargs["offset_angle"]
+    shape.draw()
+
+#endregion
+
+#Marker("Tear", Color(255,128,0,255), accent_color, x,y, size=10.0 + size_offset, offset_angle=agent.rotation_angle).draw()
+#region CONFIGS
+class ConfigItem:
+    def __init__(self, name: str, marker_name: str, color: Color, alternate_color: Color, marker_size :float, visible: bool = True):
+        self.Name:str = name
+        self.Marker:str = marker_name
+        self.Color:Color = color
+        self.AlternateColor:Color = alternate_color
+        self.size :float = marker_size
+        self.visible: bool = visible
+        
+    def __repr__(self) -> str:
+        return f"ConfigItem(Name={self.Name}, Marker={self.Marker}, Color={self.Color}, AlternateColor={self.AlternateColor}, size={self.size})"
+       
+class Config:
+    def __init__(self, name: str):
+        self.Name: str = name
+        self.ConfigItems: list[ConfigItem] = []
+        
+    def add(self, config_item: ConfigItem) -> None:
+        self.ConfigItems.append(config_item)
+        
+    def get(self, name: str) -> ConfigItem:
+        for item in self.ConfigItems:
+            if item.Name == name:
+                return item
+        return ConfigItem(name, "Circle", Color(0, 0, 0, 255), Color(0, 0, 0, 255), 5.0)
+    
+    def remove(self, name: str) -> None:
+        for item in self.ConfigItems:
+            if item.Name == name:
+                self.ConfigItems.remove(item)
+                break
+            
+    def update(self, name: str, new_config_item: ConfigItem) -> None:
+        for index, item in enumerate(self.ConfigItems):
+            if item.Name == name:
+                self.ConfigItems[index] = new_config_item
+                break
+        
+    def __repr__(self) -> str:
+        return f"Config(Name={self.Name}, ConfigItems={self.ConfigItems})"
+    
+
+GLOBAL_CONFIGS: Config = Config("Global")
+accent_color = Color(0, 0, 0, 200)
+player_color = Color(5, 190, 5, 255)
+object_player = ConfigItem("Player", marker_name="Tear", color=player_color, alternate_color=accent_color, marker_size=10.0)
+GLOBAL_CONFIGS.add(object_player)
+ally_color = Color(0,179,0,255)
+object_ally = ConfigItem("Ally", marker_name="Tear", color=ally_color, alternate_color=accent_color, marker_size=8.0)
+GLOBAL_CONFIGS.add(object_ally)
+players_color = Color(100,100,255,255)
+object_players = ConfigItem("Players", marker_name="Tear", color=players_color, alternate_color=accent_color, marker_size=8.0)
+GLOBAL_CONFIGS.add(object_players)
+neutral_color = Color(0,220,220,255)
+object_neutral = ConfigItem("Neutral", marker_name="Circle", color=neutral_color, alternate_color=accent_color, marker_size=4.0)
+GLOBAL_CONFIGS.add(object_neutral)
+enemy_color = Color(255,0,0,255)
+object_enemy = ConfigItem("Enemy", marker_name="Tear", color=enemy_color, alternate_color=accent_color, marker_size=8.0)
+GLOBAL_CONFIGS.add(object_enemy)
+
+for spirit_buff in SPIRIT_BUFFS:
+    buff_color = spirit_buff.color
+    r,g,b,a = buff_color.get_rgba()
+    aura_color = Color(r, g, b, int(a * 0.17))
+    object_buff = ConfigItem(f"{spirit_buff.spirit_name}", marker_name="Circle", color=buff_color, alternate_color=aura_color, marker_size=4.0)
+    GLOBAL_CONFIGS.add(object_buff)
+
+pet_color = Color(0,179,0,255)
+object_pet = ConfigItem("Pet", marker_name="Circle", color=pet_color, alternate_color=accent_color, marker_size=4.0)
+GLOBAL_CONFIGS.add(object_pet)
+enemy_pet_color = Color(255,255,0,255)
+object_enemy_pet = ConfigItem("Enemy Pet", marker_name="Circle", color=enemy_pet_color, alternate_color=accent_color, marker_size=4.0)
+GLOBAL_CONFIGS.add(object_enemy_pet)
+minion_color = Color(0,128,93,255)
+object_minion = ConfigItem("Minion", marker_name="Circle", color=minion_color, alternate_color=accent_color, marker_size=4.0)
+GLOBAL_CONFIGS.add(object_minion)
+npc_color = Color(153,255,153,255)
+object_npc = ConfigItem("NPC", marker_name="Triangle", color=npc_color, alternate_color=accent_color, marker_size=8.0)
+GLOBAL_CONFIGS.add(object_npc)
+merchant_color = Color(153,255,153,255)
+object_merchant = ConfigItem("Merchant", marker_name="Scale", color=merchant_color, alternate_color=accent_color, marker_size=8.0)
+GLOBAL_CONFIGS.add(object_merchant)
+minipet_color =  Color(153,255,153,255)
+object_minipet = ConfigItem("Minipet", marker_name="Circle", color=minipet_color, alternate_color=accent_color, marker_size=2.0)
+GLOBAL_CONFIGS.add(object_minipet)
+default_color = Color(70,70,70,255)
+object_default = ConfigItem("Default", marker_name="Circle", color=default_color, alternate_color=accent_color, marker_size=4.0)
+GLOBAL_CONFIGS.add(object_default)
+gadget_color = Color(165,135,75,255)
+object_gadget = ConfigItem("Gadget", marker_name="SignPost", color=gadget_color, alternate_color=accent_color, marker_size=6.0)
+GLOBAL_CONFIGS.add(object_gadget)
+chest_color = Color(165,135,75,255)
+object_chest = ConfigItem("Chest", marker_name="Lock", color=chest_color, alternate_color=accent_color, marker_size=6.0)
+GLOBAL_CONFIGS.add(object_chest)
+item_color = Color(200,200,0,255)
+object_item = ConfigItem("Item", marker_name="Square", color=item_color, alternate_color=accent_color, marker_size=6.0)
+GLOBAL_CONFIGS.add(object_item)
+
+
+def _ini_marker_slug(name: str) -> str:
+    return "".join(ch.lower() if ch.isalnum() else "_" for ch in name).strip("_")
+
+
+def _ini_marker_section(name: str) -> str:
+    return f"Marker.{_ini_marker_slug(name)}"
+
+
+def _color_from_ini(value: int) -> Color:
+    color = Color()
+    color.from_color(int(value))
+    return color
+
+
+def _marker_groups() -> dict[str, list[str]]:
+    return {
+        "Party": ["Player", "Ally", "Players", "Pet"],
+        "Hostile": ["Enemy", "Enemy Pet", "Minion"],
+        "World": ["Neutral", "NPC", "Merchant", "Minipet", "Gadget", "Chest", "Item", "Default"],
+        "Spirits": [buff.spirit_name for buff in SPIRIT_BUFFS],
+    }
+
+
+def _config_items_by_name() -> dict[str, ConfigItem]:
+    return {item.Name: item for item in GLOBAL_CONFIGS.ConfigItems}
+
+
+def _add_config_vars() -> None:
+    global INI_KEY
+    ini = IniManager()
+    ini.add_bool(INI_KEY, "snap_enabled", "Map", "snap_enabled", default=False)
+    ini.add_bool(INI_KEY, "snap_pause_on_danger", "Map", "snap_pause_on_danger", default=_SNAP_PAUSE_ON_DANGER)
+    ini.add_float(INI_KEY, "snap_danger_radius", "Map", "snap_danger_radius", default=float(_SNAP_DANGER_RADIUS))
+    ini.add_bool(INI_KEY, "terrain_enabled", "Terrain", "enabled", default=True)
+    ini.add_bool(INI_KEY, "terrain_inverted", "Terrain", "inverted", default=False)
+    ini.add_int(INI_KEY, "terrain_color", "Terrain", "color", default=Color(200, 200, 200, 80).to_color())
+    ini.add_int(
+        INI_KEY,
+        "terrain_zoom_fill_color",
+        "Terrain",
+        "zoom_fill_color",
+        default=Color(75, 75, 75, 200).to_color(),
+    )
+    for item in GLOBAL_CONFIGS.ConfigItems:
+        slug = _ini_marker_slug(item.Name)
+        section = _ini_marker_section(item.Name)
+        ini.add_bool(INI_KEY, f"{slug}_visible", section, "visible", default=item.visible)
+        ini.add_str(INI_KEY, f"{slug}_marker", section, "marker", default=item.Marker)
+        ini.add_int(INI_KEY, f"{slug}_color", section, "color", default=item.Color.to_color())
+        ini.add_int(INI_KEY, f"{slug}_alternate_color", section, "alternate_color", default=item.AlternateColor.to_color())
+        ini.add_float(INI_KEY, f"{slug}_size", section, "size", default=item.size)
+
+
+def _apply_config() -> None:
+    global mission_map
+    ini = IniManager()
+    mission_map.snap_enabled = ini.getBool(INI_KEY, "snap_enabled", mission_map.snap_enabled, "Map")
+    mission_map.snap_pause_on_danger = ini.getBool(
+        INI_KEY,
+        "snap_pause_on_danger",
+        mission_map.snap_pause_on_danger,
+        "Map",
+    )
+    mission_map.snap_danger_radius = ini.getFloat(
+        INI_KEY,
+        "snap_danger_radius",
+        mission_map.snap_danger_radius,
+        "Map",
+    )
+    mission_map.terrain_enabled = ini.getBool(INI_KEY, "terrain_enabled", mission_map.terrain_enabled, "Terrain")
+    mission_map.terrain_inverted = ini.getBool(INI_KEY, "terrain_inverted", mission_map.terrain_inverted, "Terrain")
+    mission_map.terrain_color = _color_from_ini(
+        ini.getInt(INI_KEY, "terrain_color", mission_map.terrain_color.to_color(), "Terrain")
+    )
+    mission_map.terrain_zoom_fill_color = _color_from_ini(
+        ini.getInt(
+            INI_KEY,
+            "terrain_zoom_fill_color",
+            mission_map.terrain_zoom_fill_color.to_color(),
+            "Terrain",
+        )
+    )
+    for item in GLOBAL_CONFIGS.ConfigItems:
+        slug = _ini_marker_slug(item.Name)
+        section = _ini_marker_section(item.Name)
+        item.visible = ini.getBool(INI_KEY, f"{slug}_visible", item.visible, section)
+        item.Marker = ini.getStr(INI_KEY, f"{slug}_marker", item.Marker, section)
+        item.Color = _color_from_ini(ini.getInt(INI_KEY, f"{slug}_color", item.Color.to_color(), section))
+        item.AlternateColor = _color_from_ini(
+            ini.getInt(INI_KEY, f"{slug}_alternate_color", item.AlternateColor.to_color(), section)
+        )
+        item.size = ini.getFloat(INI_KEY, f"{slug}_size", item.size, section)
+    mission_map.apply_terrain_settings()
+
+
+def _ensure_ini() -> bool:
+    global INI_KEY, _INI_READY
+    if _INI_READY:
+        return True
+    if not INI_KEY:
+        INI_KEY = IniManager().ensure_key(INI_PATH, INI_FILENAME)
+        if not INI_KEY:
+            return False
+        _add_config_vars()
+        IniManager().load_once(INI_KEY)
+        _apply_config()
+        _INI_READY = True
+    return _INI_READY
+
+
+#region MISSIONMAP
+class MissionMap:
+    def __init__(self):
+        self.left = 0
+        self.top = 0
+        self.right = 0
+        self.bottom = 0
+        self.width = 0
+        self.height = 0
+
+        self.player_screen_x, self.player_screen_y = 0, 0
+        self.player_x, self.player_y = 0.0, 0.0
+        self.player_agent_id = 0
+        self.player_target_id = 0
+        
+        self.zoom = 0.0
+        
+        self.last_click_x = 0
+        self.last_click_y = 0
+        
+        self.boundaries:tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+        self.geometry = []
+        self.renderer = DXOverlay()
+        self.mega_zoom_renderer = DXOverlay()
+        self.mega_zoom = 0.0
+        self.map_origin = (0.0, 0.0)
+        self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = 0.0, 0.0, 0.0, 0.0
+        self.cached_map_id = 0
+        self.map_boundaries_by_map_id: dict[int, tuple[float, float, float, float]] = {}
+        self.world_bounds_by_map_id: dict[int, tuple[float, float, float, float]] = {}
+        self.pathing_geometry_built_by_map_id: dict[int, bool] = {}
+        self._mask_enabled = False
+        self._last_mission_map_coords: tuple[int, int, int, int] | None = None
+        self._last_transform_signature: tuple | None = None
+        
+        self.pan_offset_x, self.pan_offset_y = 0.0, 0.0
+        self.scale_x, self.scale_y = 1.0, 1.0
+        self.zoom =  0.0
+        self.mission_map_screen_center_x, self.mission_map_screen_center_y = 0.0, 0.0
+        
+        self.throttle_timer = ThrottledTimer(34) # every 4 frames 1000/60 = 16.67ms * 4 = 66.67ms
+        self.agent_array = []
+        self.Map_load_timer = Timer()
+        self.Map_load_timer.Start()
+        
+        self.aggro_bubble_color = Utils.RGBToColor(255, 255, 255, 40)
+        self.item_rarity_white_color = Color(225, 225, 225, 255)
+        self.item_rarity_blue_color = Color(0, 170, 255, 255)
+        self.item_rarity_green_color = Color(25, 200, 0, 255)
+        self.item_rarity_gold_color = Color(225, 150, 0, 255)
+        self.item_rarity_purple_color = Color(110, 65, 200, 255)
+        self.terrain_enabled = True
+        self.terrain_inverted = True
+        self.terrain_color = Color(0, 0, 0, 200)
+        self.terrain_zoom_fill_color = Color(75, 75, 75, 200)
+        
+        self.target_accent_color = Color(235, 235, 50, 255)
+        self.boss_glow_accent_color = Color(0, 200, 45, 255)
+
+        # NavMesh right-click snap state
+        self.snap_navmesh: NavMesh | None = None
+        self.snap_navmesh_map_id: int = 0
+        self.snap_clicked_target: tuple[float, float] | None = None
+        self.snap_snapped_target: tuple[float, float] | None = None
+        self.snap_target_queue: list[tuple[float, float]] = []
+        self.snap_target_queue_paths: list[list[tuple[float, float]]] = []
+        self.snap_queue_preview_generation: int = 0
+        self.snap_current_path: list[tuple[float, float]] = []
+        self.snap_path_computing: bool = False
+        self.snap_path_index: int = 0
+        self.snap_path_following: bool = False
+        self.snap_move_generation: int = 0
+        self.snap_move_running: bool = False
+        self.snap_enabled: bool = False
+        self.snap_pause_on_danger: bool = _SNAP_PAUSE_ON_DANGER
+        self.snap_danger_radius: float = float(_SNAP_DANGER_RADIUS)
+        self.snap_paused_for_danger: bool = False
+        self.snap_bt_move_tree: BehaviorTree | None = None
+        self.snap_bt_draw_helper = BottingTree("MissionMap+ Snap Draw")
+        self.snap_move_retry_timer = Timer()
+        self.snap_move_retry_timer.Start()
+
+        self.ally_marker = GLOBAL_CONFIGS.get("Ally")
+        self.player_marker = GLOBAL_CONFIGS.get("Player")
+        self.players_marker = GLOBAL_CONFIGS.get("Players")
+        self.neutral_marker = GLOBAL_CONFIGS.get("Neutral")
+        self.enemy_marker = GLOBAL_CONFIGS.get("Enemy")
+        self.enemy_pet_marker = GLOBAL_CONFIGS.get("Enemy Pet")
+        self.minion_marker = GLOBAL_CONFIGS.get("Minion")
+        self.npc_marker = GLOBAL_CONFIGS.get("NPC")
+        self.minipet_marker = GLOBAL_CONFIGS.get("Minipet")
+        self.gadget_marker = GLOBAL_CONFIGS.get("Gadget")
+        self.item_marker = GLOBAL_CONFIGS.get("Item")
+        self.pet_marker = GLOBAL_CONFIGS.get("Pet")
+        self.default_marker = GLOBAL_CONFIGS.get("Default")
+        self.chest_marker = GLOBAL_CONFIGS.get("Chest")
+        self.merchant_marker = GLOBAL_CONFIGS.get("Merchant")
+        
+        self.renderer.mask.set_rectangle_mask(True)
+        self.mega_zoom_renderer.mask.set_rectangle_mask(True)
+        self.renderer.world_space.set_world_space(True)
+        self.mega_zoom_renderer.world_space.set_world_space(True)
+        self.apply_terrain_settings()
+        self._mask_enabled = True
+
+    def apply_terrain_settings(self) -> None:
+        self.renderer.inverse_rendering(self.terrain_inverted)
+        self.mega_zoom_renderer.inverse_rendering(self.terrain_inverted)
+
+    def _clear_snap_bt_draw_state(self) -> None:
+        bb = self.snap_bt_draw_helper.blackboard
+        bb["move_state"] = ""
+        bb["move_reason"] = ""
+        bb["move_target"] = None
+        bb["move_path_points"] = []
+        bb["move_path_index"] = 0
+        bb["move_path_count"] = 0
+        bb["move_current_waypoint"] = None
+        bb["move_current_waypoint_index"] = -1
+
+    def DrawSnapPath3D(self) -> None:
+        if not Routines.Checks.Map.MapValid():
+            return
+
+        # Prefer live movement data from the running BT move tree.
+        if self.snap_bt_move_tree is not None:
+            src_bb = self.snap_bt_move_tree.blackboard
+            src_state = str(src_bb.get("move_state", ""))
+            src_points_raw = src_bb.get("move_path_points", [])
+            if src_state in ("running", "paused") and isinstance(src_points_raw, list) and len(src_points_raw) > 0:
+                bb = self.snap_bt_draw_helper.blackboard
+                bb["move_state"] = src_state
+                bb["move_reason"] = str(src_bb.get("move_reason", "mission_map_snap"))
+                bb["move_target"] = src_bb.get("move_target")
+                bb["move_path_points"] = src_points_raw
+                bb["move_path_index"] = int(src_bb.get("move_path_index", 0) or 0)
+                bb["move_path_count"] = int(src_bb.get("move_path_count", len(src_points_raw)) or len(src_points_raw))
+                bb["move_current_waypoint"] = src_bb.get("move_current_waypoint")
+                bb["move_current_waypoint_index"] = int(src_bb.get("move_current_waypoint_index", -1) or -1)
+                self.snap_bt_draw_helper.DrawMovePath(
+                    draw_labels=False,
+                    path_thickness=3.0,
+                    waypoint_radius=15.0,
+                    current_waypoint_radius=20.0,
+                )
+                return
+
+        move_points = [(float(x), float(y)) for x, y in self.snap_current_path]
+        if len(move_points) == 0 and self.snap_snapped_target is not None:
+            move_points = [
+                (float(self.snap_snapped_target[0]), float(self.snap_snapped_target[1]))
+            ]
+
+        if len(move_points) == 0:
+            self._clear_snap_bt_draw_state()
+            return
+
+        # Compute a draw index from live player position so already reached waypoints are hidden.
+        player_x, player_y = Player.GetXY()
+        current_index = int(self.snap_path_index)
+        if current_index < 0:
+            current_index = 0
+        if current_index >= len(move_points):
+            current_index = len(move_points) - 1
+
+        while current_index < (len(move_points) - 1):
+            wp_x, wp_y = move_points[current_index]
+            dx = player_x - wp_x
+            dy = player_y - wp_y
+            if (dx * dx + dy * dy) <= (_SNAP_WAYPOINT_RADIUS * _SNAP_WAYPOINT_RADIUS):
+                current_index += 1
+                continue
+            break
+
+        current_waypoint = move_points[current_index] if len(move_points) > 0 else None
+        move_target = (
+            (float(self.snap_snapped_target[0]), float(self.snap_snapped_target[1]))
+            if self.snap_snapped_target is not None
+            else move_points[-1]
+        )
+
+        bb = self.snap_bt_draw_helper.blackboard
+        bb["move_state"] = "running"
+        bb["move_reason"] = "mission_map_snap"
+        bb["move_target"] = move_target
+        bb["move_path_points"] = move_points
+        bb["move_path_index"] = current_index
+        bb["move_path_count"] = len(move_points)
+        bb["move_current_waypoint"] = current_waypoint
+        bb["move_current_waypoint_index"] = current_index if current_waypoint is not None else -1
+
+        self.snap_bt_draw_helper.DrawMovePath(
+            draw_labels=False,
+            path_thickness=3.0,
+            waypoint_radius=15.0,
+            current_waypoint_radius=20.0,
+        )
+
+    def snap_clear(self) -> None:
+        """Clear snap markers, path, and stop any running movement."""
+        self.snap_move_generation += 1
+        self.snap_move_running = False
+        self.snap_paused_for_danger = False
+        self.snap_bt_move_tree = None
+        self.snap_clicked_target = None
+        self.snap_snapped_target = None
+        self.snap_target_queue = []
+        self.snap_target_queue_paths = []
+        self.snap_queue_preview_generation += 1
+        self.snap_current_path   = []
+        self._clear_snap_bt_draw_state()
+        self.snap_path_index = 0
+        self.snap_path_following = False
+        self.snap_move_retry_timer.Reset()
+        Player.Move(self.player_x, self.player_y)
+
+    def _snap_is_danger_nearby(self) -> bool:
+        if not self.snap_pause_on_danger:
+            return False
+        if not Player.IsPlayerLoaded():
+            return False
+        try:
+            px, py = Player.GetXY()
+            enemies = Routines.Agents.GetFilteredEnemyArray(px, py, self.snap_danger_radius)
+            return len(enemies) > 0
+        except Exception:
+            return False
+
+    def _snap_start_navigation(self, snapped_target: tuple[float, float]) -> None:
+        self.snap_move_generation += 1
+        _move_generation = self.snap_move_generation
+        self.snap_move_running = False
+        self.snap_bt_move_tree = None
+        self.snap_snapped_target = snapped_target
+        self.snap_current_path = []
+        self._clear_snap_bt_draw_state()
+        self.snap_path_index = 0
+        self.snap_path_following = False
+        self.snap_move_retry_timer.Reset()
+        if _SNAP_USE_BT_MOVETO:
+            GLOBAL_CACHE.Coroutines.append(
+                _snap_launch_path_coroutine(snapped_target[0], snapped_target[1], self)
+            )
+            GLOBAL_CACHE.Coroutines.append(
+                _snap_launch_bt_move_coroutine(snapped_target[0], snapped_target[1], self, _move_generation)
+            )
+        else:
+            GLOBAL_CACHE.Coroutines.append(
+                _snap_launch_path_coroutine(snapped_target[0], snapped_target[1], self)
+            )
+
+    def _snap_can_resume_move(self) -> bool:
+        if not Player.IsPlayerLoaded():
+            return False
+        if self.player_agent_id == 0:
+            return False
+        if Agent.IsDead(self.player_agent_id):
+            return False
+        if Agent.IsKnockedDown(self.player_agent_id):
+            return False
+        if Agent.IsCasting(self.player_agent_id):
+            return False
+        if Agent.IsAttacking(self.player_agent_id):
+            return False
+        return True
+
+    def _snap_issue_move(self, x: float, y: float) -> None:
+        Player.Move(x, y)
+        self.snap_move_retry_timer.Reset()
+        self.snap_path_following = True
+        
+
+    def update(self):
+
+        #if not self.throttle_timer.IsExpired():
+        #    return
+        #self.throttle_timer.Reset()    
+
+        
+        map_id = Map.GetMapID()
+        if self.cached_map_id != map_id:
+            self.cached_map_id = map_id
+            self.map_boundaries_by_map_id.clear()
+            self.world_bounds_by_map_id.clear()
+            self.pathing_geometry_built_by_map_id.clear()
+            self._last_mission_map_coords = None
+            self._last_transform_signature = None
+            # Reset NavMesh snap state on map change
+            self.snap_navmesh = None
+            self.snap_navmesh_map_id = 0
+            self.snap_clicked_target = None
+            self.snap_snapped_target = None
+            self.snap_target_queue = []
+            self.snap_target_queue_paths = []
+            self.snap_queue_preview_generation += 1
+            self.snap_current_path = []
+            self._clear_snap_bt_draw_state()
+            self.snap_path_computing = False
+            self.snap_path_index = 0
+            self.snap_path_following = False
+            self.snap_move_generation += 1
+            self.snap_move_running = False
+            self.snap_paused_for_danger = False
+            self.snap_bt_move_tree = None
+            self.snap_move_retry_timer.Reset()
+
+        if map_id in self.map_boundaries_by_map_id:
+            self.boundaries = self.map_boundaries_by_map_id[map_id]
+        else:
+            self.boundaries = Map.GetMapBoundaries()
+            self.map_boundaries_by_map_id[map_id] = self.boundaries
+
+        if map_id in self.world_bounds_by_map_id:
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = self.world_bounds_by_map_id[map_id]
+        else:
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
+            self.world_bounds_by_map_id[map_id] = (self.left_bound, self.top_bound, self.right_bound, self.bottom_bound)
+        
+        #self.geometry = Map.Pathing.GetComputedGeometry()
+        #self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
+        #self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
+        if not self.pathing_geometry_built_by_map_id.get(map_id, False):
+            self.renderer.build_pathing_trapezoid_geometry(self.terrain_color.to_dx_color())
+            self.mega_zoom_renderer.build_pathing_trapezoid_geometry(self.terrain_color.to_dx_color())
+            self.apply_terrain_settings()
+            self.pathing_geometry_built_by_map_id[map_id] = True
+        
+        coords = Map.MissionMap.GetMissionMapContentsCoords()
+        coords_i = (int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3]))
+        if self._last_mission_map_coords != coords_i:
+            self._last_mission_map_coords = coords_i
+            self.left, self.top, self.right, self.bottom = coords_i
+            self.width = self.right - self.left
+            self.height = self.bottom - self.top
+            self.renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
+            self.mega_zoom_renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
+        
+        self.pan_offset_x, self.pan_offset_y = Map.MissionMap.GetPanOffset()
+        self.scale_x, self.scale_y = Map.MissionMap.GetScale()
+
+        self.zoom = Map.MissionMap.GetZoom()
+        self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetCenter()
+
+        transform_signature = (
+            self.left, self.top, self.right, self.bottom,
+            self.zoom, self.mega_zoom,
+            self.pan_offset_x, self.pan_offset_y,
+            self.scale_x, self.scale_y,
+            self.mission_map_screen_center_x, self.mission_map_screen_center_y,
+            self.boundaries,
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound,
+        )
+        if self._last_transform_signature != transform_signature:
+            self._last_transform_signature = transform_signature
+            self.left_world, self.top_world = RawScreenToRawGamePos(self.left, self.top, 
+                                                                    self.zoom, self.mega_zoom,
+                                                                    self.left_bound, self.top_bound, self.boundaries,
+                                                                    self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                    self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+            self.right_world, self.bottom_world = RawScreenToRawGamePos(self.right, self.bottom, self.zoom, self.mega_zoom,
+                                                                    self.left_bound, self.top_bound, self.boundaries,
+                                                                    self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                    self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+            self.map_origin = RawGamePosToScreen(0.0, 0.0, 
+                                                self.zoom, self.mega_zoom,
+                                                self.left_bound, self.top_bound, self.boundaries,
+                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+            self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+            self.mega_zoom_renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+            zoom = Map.MissionMap.GetAdjustedZoom(self.zoom, zoom_offset=self.mega_zoom)
+            self.renderer.world_space.set_zoom(zoom/100.0)
+            self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
+            self.renderer.world_space.set_scale(self.scale_x)
+            self.mega_zoom_renderer.world_space.set_scale(self.scale_x)
+
+        
+        self.player_agent_id = Player.GetAgentID()
+        self.player_target_id = Player.GetTargetID()
+        
+        
+        self.player_x, self.player_y = Player.GetXY()
+        self.player_screen_x, self.player_screen_y = RawGamePosToScreen(self.player_x, self.player_y, 
+                                                    self.zoom, self.mega_zoom,
+                                                    self.left_bound, self.top_bound, self.boundaries,
+                                                    self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                    self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+        
+        # aC  ---
+        io = PyImGui.get_io()
+        mx, my = io.mouse_pos_x, io.mouse_pos_y   # screen coords
+
+        LEFT = 0
+        if PyImGui.is_mouse_clicked(LEFT) and not io.want_capture_mouse:
+            if self.left <= mx <= self.right and self.top <= my <= self.bottom:
+                gx, gy = RawScreenToRawGamePos(
+                    mx, my,
+                    self.zoom, self.mega_zoom,
+                    self.left_bound, self.top_bound, self.boundaries,
+                    self.pan_offset_x, self.pan_offset_y,
+                    self.scale_x, self.scale_y,
+                    self.mission_map_screen_center_x, self.mission_map_screen_center_y
+                )
+                self.last_click_x, self.last_click_y = gx, gy
+        # aC  ---
+
+        # NavMesh right-click snap (when enabled)
+        # Detect right-clicks directly via ImGui (IO events callback was disabled)
+        RIGHT = 1
+        if PyImGui.is_mouse_clicked(RIGHT) and not io.want_capture_mouse:
+            if self.left <= mx <= self.right and self.top <= my <= self.bottom:
+                _gx, _gy = RawScreenToRawGamePos(
+                    mx, my,
+                    self.zoom, self.mega_zoom,
+                    self.left_bound, self.top_bound, self.boundaries,
+                    self.pan_offset_x, self.pan_offset_y,
+                    self.scale_x, self.scale_y,
+                    self.mission_map_screen_center_x, self.mission_map_screen_center_y
+                )
+                if self.snap_enabled:
+                    shift_pressed = bool(io.key_shift)
+                    click_game: tuple[float, float] = (float(_gx), float(_gy))
+                    self.snap_clicked_target = click_game
+                    _nav = _snap_get_navmesh(self)
+                    snapped = _nav.find_nearest_reachable(click_game) if _nav else None
+                    if snapped is not None:
+                        if shift_pressed and (self.snap_snapped_target is not None or len(self.snap_target_queue) > 0):
+                            if len(self.snap_target_queue) > 0:
+                                _start_x, _start_y = self.snap_target_queue[-1]
+                            elif self.snap_snapped_target is not None:
+                                _start_x, _start_y = self.snap_snapped_target
+                            else:
+                                _start_x, _start_y = self.player_x, self.player_y
+
+                            self.snap_target_queue.append(snapped)
+                            self.snap_target_queue_paths.append([])
+                            _queue_index = len(self.snap_target_queue_paths) - 1
+                            _queue_generation = self.snap_queue_preview_generation
+                            GLOBAL_CACHE.Coroutines.append(
+                                _snap_launch_queue_preview_path_coroutine(
+                                    _start_x,
+                                    _start_y,
+                                    snapped[0],
+                                    snapped[1],
+                                    self,
+                                    _queue_generation,
+                                    _queue_index,
+                                )
+                            )
+                        else:
+                            self.snap_target_queue = []
+                            self.snap_target_queue_paths = []
+                            self.snap_queue_preview_generation += 1
+                            self._snap_start_navigation(snapped)
+                else:
+                    self.snap_clicked_target = None
+                    self.snap_snapped_target = None
+                    self.snap_target_queue = []
+                    self.snap_target_queue_paths = []
+                    self.snap_queue_preview_generation += 1
+                    self.snap_current_path = []
+                    self._clear_snap_bt_draw_state()
+                    self.snap_path_index = 0
+                    self.snap_path_following = False
+                    self.snap_move_generation += 1
+                    self.snap_move_running = False
+                    self.snap_bt_move_tree = None
+                    self.snap_move_retry_timer.Reset()
+
+        # Follow computed AutoPathing path waypoint-by-waypoint
+        if (not _SNAP_USE_BT_MOVETO) and self.snap_snapped_target is not None and not self.snap_path_computing:
+            if len(self.snap_current_path) == 0:
+                # Pathfinding returned empty - fall back to direct move
+                self._snap_issue_move(self.snap_snapped_target[0], self.snap_snapped_target[1])
+                self.snap_current_path = [self.snap_snapped_target]
+            if len(self.snap_current_path) > 0:
+                if not self.snap_path_following:
+                    self.snap_path_index = 0
+                    while self.snap_path_index < (len(self.snap_current_path) - 1):
+                        _wx, _wy = self.snap_current_path[self.snap_path_index]
+                        _wdx = self.player_x - _wx
+                        _wdy = self.player_y - _wy
+                        if (_wdx * _wdx + _wdy * _wdy) <= (_SNAP_WAYPOINT_RADIUS * _SNAP_WAYPOINT_RADIUS):
+                            self.snap_path_index += 1
+                            continue
+                        break
+                    _nx, _ny = self.snap_current_path[self.snap_path_index]
+                    self._snap_issue_move(_nx, _ny)
+                else:
+                    if self.snap_path_index < len(self.snap_current_path):
+                        _cx, _cy = self.snap_current_path[self.snap_path_index]
+                        _dx_wp = self.player_x - _cx
+                        _dy_wp = self.player_y - _cy
+                        if (_dx_wp * _dx_wp + _dy_wp * _dy_wp) <= (_SNAP_WAYPOINT_RADIUS * _SNAP_WAYPOINT_RADIUS):
+                            self.snap_path_index += 1
+                            if self.snap_path_index < len(self.snap_current_path):
+                                _nx, _ny = self.snap_current_path[self.snap_path_index]
+                                self._snap_issue_move(_nx, _ny)
+                            else:
+                                self.snap_path_following = False
+                                self.snap_move_retry_timer.Reset()
+                        elif (
+                            self._snap_can_resume_move()
+                            and not Agent.IsMoving(self.player_agent_id)
+                            and self.snap_move_retry_timer.HasElapsed(_SNAP_RESUME_REISSUE_MS)
+                        ):
+                            self._snap_issue_move(_cx, _cy)
+
+        # Arrival check: clear snap markers once the player reaches the snapped point
+        if self.snap_snapped_target is not None and not self.snap_path_computing:
+            _dx = self.player_x - self.snap_snapped_target[0]
+            _dy = self.player_y - self.snap_snapped_target[1]
+            if (_dx * _dx + _dy * _dy) <= (_SNAP_ARRIVAL_RADIUS * _SNAP_ARRIVAL_RADIUS):
+                if len(self.snap_target_queue) > 0:
+                    next_target = self.snap_target_queue.pop(0)
+                    if len(self.snap_target_queue_paths) > 0:
+                        self.snap_target_queue_paths.pop(0)
+                    self._snap_start_navigation(next_target)
+                else:
+                    self.snap_clear()
+
+        if not self._mask_enabled:
+            self.renderer.mask.set_rectangle_mask(True)
+            self.mega_zoom_renderer.mask.set_rectangle_mask(True)
+            self.renderer.world_space.set_world_space(True)
+            self.mega_zoom_renderer.world_space.set_world_space(True)
+            self._mask_enabled = True
+mission_map = MissionMap()
+
+#endregion
+
+#region DRAWING
+def DrawFrame():
+    global mission_map
+    def _get_agent_xy_from_obj(agent_obj: AgentStruct):
+        x,y = RawGamePosToScreen(agent_obj.pos.x, agent_obj.pos.y, 
+                                 mission_map.zoom, mission_map.mega_zoom,
+                                 mission_map.left_bound, mission_map.top_bound,
+                                 mission_map.boundaries, 
+                                 mission_map.pan_offset_x, mission_map.pan_offset_y,
+                                 mission_map.scale_x, mission_map.scale_y,
+                                 mission_map.mission_map_screen_center_x, mission_map.mission_map_screen_center_y)
+        return x,y
+    
+    def _get_alternate_color(agent_id):
+        if mission_map.player_target_id == agent_id:
+            accent_color = mission_map.target_accent_color
+            size_offset =2.0
+            return accent_color, size_offset
+        return mission_map.default_marker.AlternateColor, 0.0
+
+    def _begin_imgui_draw_window() -> bool:
+        PyImGui.set_next_window_pos(mission_map.left, mission_map.top)
+        PyImGui.set_next_window_size(mission_map.width, mission_map.height)
+        flags = (
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoMove |
+            PyImGui.WindowFlags.NoSavedSettings |
+            PyImGui.WindowFlags.NoBackground |
+            PyImGui.WindowFlags.NoInputs
+        )
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 0.0)
+        return PyImGui.begin("##mission_map_imgui_drawlist", flags)
+
+    def _end_imgui_draw_window() -> None:
+        PyImGui.end()
+        PyImGui.pop_style_var(2)
+
+    def _draw_circle_stroke(x: float, y: float, radius: float, color: int, segments: int, thickness: float) -> None:
+        PyImGui.draw_list_add_circle(x, y, radius, color, segments, thickness)
+
+    def _draw_circle_fill(x: float, y: float, radius: float, color: int, segments: int) -> None:
+        PyImGui.draw_list_add_circle_filled(x, y, radius, color, segments)
+
+    def _segments_for_radius(radius: float) -> int:
+        if radius < 18:
+            return 12
+        if radius < 35:
+            return 16
+        if radius < 70:
+            return 24
+        if radius < 130:
+            return 32
+        if radius < 220:
+            return 48
+        return 64
+    
+    def _draw_aggro_bubble():
+        radius = aggro_radius_px
+        color = aggro_bubble_color
+        segments = _segments_for_radius(radius)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius-2, color, segments, 4.0)
+        _draw_circle_fill(mission_map.player_screen_x, mission_map.player_screen_y, radius, color, segments)
+        
+    def _draw_terrain(zoom):
+        if not mission_map.terrain_enabled:
+            return
+        if zoom >3.5:
+            mission_map.mega_zoom_renderer.DrawQuadFilled(
+                mission_map.left,
+                mission_map.top,
+                mission_map.right,
+                mission_map.top,
+                mission_map.right,
+                mission_map.bottom,
+                mission_map.left,
+                mission_map.bottom,
+                color=mission_map.terrain_zoom_fill_color.to_color(),
+            )
+            mission_map.mega_zoom_renderer.render()
+        else:
+            mission_map.renderer.render()
+            
+    def _draw_compass_range(zoom):
+        radius = compass_radius_px
+        color = aggro_bubble_color
+        segments = _segments_for_radius(radius)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius, compass_outline_color, segments, 1.0)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius-(2.85*zoom), color, segments, (5.7*zoom))
+
+    #terrain 
+    zoom = mission_map.zoom + mission_map.mega_zoom
+    aggro_bubble_color = mission_map.aggro_bubble_color
+    compass_outline_color = Utils.RGBToColor(0, 0, 0, 255)
+    aggro_radius_px = RawGwinchToPixels(Range.Earshot.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+    compass_radius_px = RawGwinchToPixels(Range.Compass.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+    spirit_range_radius_px = {
+        Range.Spirit.value: RawGwinchToPixels(Range.Spirit.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x),
+        Range.Area.value: RawGwinchToPixels(Range.Area.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x),
+        Range.Earshot.value: RawGwinchToPixels(Range.Earshot.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x),
+    }
+    _draw_terrain(zoom)    
+    imgui_draw_window_open = _begin_imgui_draw_window()
+    if imgui_draw_window_open:
+        _draw_aggro_bubble()
+        _draw_compass_range(zoom)
+     
+    neutral_array = AgentArray.GetNeutralArray()
+    minion_array = AgentArray.GetMinionArray()
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
+    enemy_array = AgentArray.GetEnemyArray()
+    ally_array = AgentArray.GetAllyArray()
+    npc_minipet_array = AgentArray.GetNPCMinipetArray()
+    for agent_id in neutral_array:
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        marker = mission_map.neutral_marker
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+
+    for agent_id in minion_array:
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        marker = mission_map.minion_marker
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()  
+            
+    for agent_id in spirit_pet_array:
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if living.is_spawned and not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        if not living.is_spawned:
+               marker = mission_map.pet_marker
+        else:
+            model_id = living.player_number
+            spirit_name = get_spirit_name(model_id)
+            if spirit_name == "Unknown":
+                marker = mission_map.neutral_marker
+            else:
+                marker = GLOBAL_CONFIGS.get(spirit_name)
+                area = Range.Spirit.value
+                if model_id in AREA_SPIRIT_MODELS:
+                    area = Range.Area.value
+                if model_id in EARSHOT_SPIRIT_MODELS:
+                    area = Range.Earshot.value
+                spirit_area = spirit_range_radius_px.get(area, spirit_range_radius_px[Range.Spirit.value])
+                aura_color = ColorToIntCached(marker.AlternateColor)
+                aura_segments = _segments_for_radius(spirit_area)
+            
+                _draw_circle_stroke(x, y, spirit_area-2, aura_color, aura_segments, 1.0)
+                _draw_circle_fill(x, y, spirit_area, aura_color, aura_segments)
+                
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+    for agent_id in enemy_array:
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        model_id = living.player_number
+        if not living.is_spawned:
+            if model_id in PET_MODEL_IDS:
+                marker = mission_map.enemy_pet_marker
+            else:
+                marker = mission_map.enemy_marker
+        else:
+            spirit_name = get_spirit_name(model_id)
+            if spirit_name == "Unknown":
+                marker = mission_map.enemy_marker
+            else:
+                marker = GLOBAL_CONFIGS.get(spirit_name)
+                area = Range.Spirit.value
+                if model_id in AREA_SPIRIT_MODELS:
+                    area = Range.Area.value
+                if model_id in EARSHOT_SPIRIT_MODELS:
+                    area = Range.Earshot.value
+                    
+                enemy_marker = mission_map.enemy_marker
+                shifted_color = marker.Color.shift(enemy_marker.Color, 0.55)
+                shifted_color.set_a(int(shifted_color.get_a() * 0.25))
+                    
+                spirit_area = spirit_range_radius_px.get(area, spirit_range_radius_px[Range.Spirit.value])
+                shifted_color_dx = ColorToIntCached(shifted_color)
+                aura_segments = _segments_for_radius(spirit_area)
+            
+                _draw_circle_stroke(x, y, spirit_area-2, shifted_color_dx, aura_segments, 1.0)
+                _draw_circle_fill(x, y, spirit_area, shifted_color_dx, aura_segments)
+                
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+      
+
+    for agent_id in ally_array:
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        if living.is_npc:
+            marker = mission_map.npc_marker
+        else:    
+            marker = mission_map.players_marker  
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw() 
+     
+    if Player.IsPlayerLoaded():
+        agent_id = Player.GetAgentID()
+        obj = Agent.GetAgentByID(agent_id)
+        if obj:
+            living = obj.GetAsAgentLiving()
+        else:
+            living = None
+        if living:
+            if obj is None:
+                return
+            x,y = _get_agent_xy_from_obj(obj)
+            rotation_angle = obj.rotation_angle
+            marker = mission_map.player_marker
+            alternate_color, size = _get_alternate_color(agent_id)
+            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+     
+     
+        
+    for agent_id in npc_minipet_array:
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        level = living.level
+        if level > 1:
+            agent_name = Agent.GetNameByID(agent_id)
+            if "MERCHANT" in agent_name.upper():
+                marker = mission_map.merchant_marker
+            else:
+                marker = mission_map.npc_marker   
+        else: 
+            marker = mission_map.minipet_marker     
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+    for agent_id in AgentArray.GetGadgetArray():
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        gadget = obj.GetAsAgentGadget()
+        if not gadget:
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        gadget_id = gadget.gadget_id
+        if gadget_id in CHEST_GADGET_IDS:
+            marker = mission_map.chest_marker
+        else:
+            marker = mission_map.gadget_marker
+            
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+    for agent_id in AgentArray.GetItemArray():
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        item_agent = obj.GetAsAgentItem()
+        if not item_agent:
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        marker = mission_map.item_marker
+        item_color = mission_map.item_rarity_white_color
+
+        try:
+            item_rarity = Item.item_instance(item_agent.item_id).rarity.value
+        except Exception:
+            item_rarity = 0
+
+        if item_rarity == 1:
+            item_color = mission_map.item_rarity_blue_color
+        elif item_rarity == 2:
+            item_color = mission_map.item_rarity_purple_color
+        elif item_rarity == 3:
+            item_color = mission_map.item_rarity_gold_color
+        elif item_rarity == 4:
+            item_color = mission_map.item_rarity_green_color
+
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, item_color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+
+    # ── NavMesh snap overlay ────────────────────────────────────────────
+    def _snap_to_screen(gx: float, gy: float) -> tuple[float, float]:
+        return RawGamePosToScreen(
+            gx, gy,
+            mission_map.zoom, mission_map.mega_zoom,
+            mission_map.left_bound, mission_map.top_bound,
+            mission_map.boundaries,
+            mission_map.pan_offset_x, mission_map.pan_offset_y,
+            mission_map.scale_x, mission_map.scale_y,
+            mission_map.mission_map_screen_center_x, mission_map.mission_map_screen_center_y,
+        )
+
+    _snap_click_screen:  tuple[float, float] | None = None
+    _snap_snapped_screen: tuple[float, float] | None = None
+
+    if mission_map.snap_clicked_target is not None:
+        _snap_click_screen = _snap_to_screen(*mission_map.snap_clicked_target)
+
+    if mission_map.snap_snapped_target is not None:
+        _snap_snapped_screen = _snap_to_screen(*mission_map.snap_snapped_target)
+
+    # Computed path (blue polyline)
+    if len(mission_map.snap_current_path) >= 2:
+        _path_color = Utils.RGBToColor(80, 160, 255, 210)
+        _prev_s: tuple[float, float] | None = None
+        for _px, _py in mission_map.snap_current_path:
+            _cur_s = _snap_to_screen(_px, _py)
+            if _prev_s is not None:
+                DLLine(_prev_s[0], _prev_s[1], _cur_s[0], _cur_s[1], _path_color, 2.5)
+            _prev_s = _cur_s
+
+    # Queued paths (lighter blue polylines)
+    if len(mission_map.snap_target_queue_paths) > 0:
+        _queue_path_color = Utils.RGBToColor(120, 190, 255, 170)
+        for _queue_path in mission_map.snap_target_queue_paths:
+            if len(_queue_path) < 2:
+                continue
+            _prev_qs: tuple[float, float] | None = None
+            for _qpx, _qpy in _queue_path:
+                _cur_qs = _snap_to_screen(_qpx, _qpy)
+                if _prev_qs is not None:
+                    DLLine(_prev_qs[0], _prev_qs[1], _cur_qs[0], _cur_qs[1], _queue_path_color, 1.8)
+                _prev_qs = _cur_qs
+
+    # Click marker (small white ring) – hide when nearly on top of snap marker
+    _draw_click = _snap_click_screen is not None
+    if _snap_click_screen is not None and _snap_snapped_screen is not None:
+        if math.hypot(_snap_click_screen[0] - _snap_snapped_screen[0],
+                      _snap_click_screen[1] - _snap_snapped_screen[1]) <= 12.0:
+            _draw_click = False
+    if _draw_click and _snap_click_screen is not None:
+        _c_col = Utils.RGBToColor(220, 220, 220, 200)
+        DLCircleFilled(_snap_click_screen[0], _snap_click_screen[1], 2.5, _c_col, 12)
+        DLCircle(_snap_click_screen[0], _snap_click_screen[1], 4.0, _c_col, 12, 1.0)
+
+    # Snap marker (red crosshair)
+    if _snap_snapped_screen is not None:
+        _sx, _sy = _snap_snapped_screen
+        _red     = Utils.RGBToColor(255,   0,   0, 255)
+        _redring = Utils.RGBToColor(255,  50,  50, 255)
+        _cross   = 15.0
+        _r_inner =  6.0
+        _r_outer = 11.0
+        DLCircleFilled(_sx, _sy, _r_inner, _red, 20)
+        DLCircle(_sx, _sy, _r_outer, _redring, 24, 2.5)
+        DLLine(_sx - _cross, _sy, _sx - _r_outer, _sy, _redring, 1.5)
+        DLLine(_sx + _r_outer, _sy, _sx + _cross, _sy, _redring, 1.5)
+        DLLine(_sx, _sy - _cross, _sx, _sy - _r_outer, _redring, 1.5)
+        DLLine(_sx, _sy + _r_outer, _sx, _sy + _cross, _redring, 1.5)
+
+    # Queued target point markers (ordered)
+    if len(mission_map.snap_target_queue) > 0:
+        _q_ring = Utils.RGBToColor(255, 220, 80, 230)
+        _q_fill = Utils.RGBToColor(255, 220, 80, 140)
+        _q_text = Utils.RGBToColor(255, 245, 170, 255)
+        for _qi, (_qx, _qy) in enumerate(mission_map.snap_target_queue, start=1):
+            _qxs, _qys = _snap_to_screen(_qx, _qy)
+            DLCircleFilled(_qxs, _qys, 3.0, _q_fill, 12)
+            DLCircle(_qxs, _qys, 6.0, _q_ring, 14, 1.5)
+            PyImGui.draw_list_add_text(_qxs + 8.0, _qys - 9.0, _q_text, str(_qi))
+    # ── end NavMesh snap overlay ────────────────────────────────────────
+
+    _end_imgui_draw_window()
+               
+def tooltip():
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.push_font("Regular", 20)
+    PyImGui.text_colored("Mission Map +", title_color.to_tuple_normalized())
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.separator()
+
+    # Description
+    #ellaborate a better description 
+    PyImGui.text("Misison Map + enhances the in-game mission map with additional features")
+    PyImGui.text("and functionalities to improve your gameplay experience.")
+
+    
+    PyImGui.spacing()
+
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Enhanced Map Visualization")
+    PyImGui.bullet_text("Customizable Markers")
+    PyImGui.bullet_text("Zoom Functionality")
+    PyImGui.bullet_text("Coordinate Display")
+    PyImGui.bullet_text("Agent tracking")
+
+    PyImGui.spacing()
+    PyImGui.separator()
+    PyImGui.spacing()
+
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Apo")
+    PyImGui.bullet_text("Contributors: Searinox, Dharmantrix, aC")
+
+    PyImGui.end_tooltip()
+
+
+def configure():
+    if not _ensure_ini():
+        return
+
+    ini = IniManager()
+    marker_names = list(shapes.keys())
+    grouped_items = _config_items_by_name()
+
+    def _draw_marker_editor(item: ConfigItem) -> None:
+        slug = _ini_marker_slug(item.Name)
+        section = _ini_marker_section(item.Name)
+
+        PyImGui.text(item.Name)
+        visible = PyImGui.checkbox(f"Visible##{slug}", item.visible)
+        if visible != item.visible:
+            item.visible = visible
+            ini.set(INI_KEY, f"{slug}_visible", visible, section)
+
+        current_marker_index = marker_names.index(item.Marker) if item.Marker in marker_names else 0
+        marker_index = PyImGui.combo(f"Marker##{slug}", current_marker_index, marker_names)
+        if marker_index != current_marker_index:
+            item.Marker = marker_names[marker_index]
+            ini.set(INI_KEY, f"{slug}_marker", item.Marker, section)
+
+        size = PyImGui.slider_float(f"Size##{slug}", float(item.size), 1.0, 20.0)
+        if size != item.size:
+            item.size = float(size)
+            ini.set(INI_KEY, f"{slug}_size", item.size, section)
+
+        color_tuple = PyImGui.color_edit4(f"Color##{slug}", item.Color.to_tuple_normalized())
+        color = Color.from_tuple_normalized(color_tuple)
+        if color != item.Color:
+            item.Color = color
+            ini.set(INI_KEY, f"{slug}_color", item.Color.to_color(), section)
+
+        accent_tuple = PyImGui.color_edit4(f"Accent##{slug}", item.AlternateColor.to_tuple_normalized())
+        accent_color = Color.from_tuple_normalized(accent_tuple)
+        if accent_color != item.AlternateColor:
+            item.AlternateColor = accent_color
+            ini.set(INI_KEY, f"{slug}_alternate_color", item.AlternateColor.to_color(), section)
+
+        PyImGui.separator()
+
+    ini.begin_window_config(INI_KEY)
+    PyImGui.set_next_window_size((520.0, 680.0), PyImGui.ImGuiCond.FirstUseEver)
+
+    expanded = PyImGui.begin(f"{MODULE_NAME} Config")
+    ini.track_window_collapsed(INI_KEY, expanded)
+
+    if expanded:
+        ini.mark_begin_success(INI_KEY)
+
+        if PyImGui.collapsing_header("Terrain"):
+            terrain_enabled = PyImGui.checkbox("Show terrain", mission_map.terrain_enabled)
+            if terrain_enabled != mission_map.terrain_enabled:
+                mission_map.terrain_enabled = terrain_enabled
+                ini.set(INI_KEY, "terrain_enabled", terrain_enabled, "Terrain")
+
+            terrain_inverted = PyImGui.checkbox("Invert terrain", mission_map.terrain_inverted)
+            if terrain_inverted != mission_map.terrain_inverted:
+                mission_map.terrain_inverted = terrain_inverted
+                mission_map.apply_terrain_settings()
+                ini.set(INI_KEY, "terrain_inverted", terrain_inverted, "Terrain")
+
+            terrain_color_tuple = PyImGui.color_edit4("Terrain color", mission_map.terrain_color.to_tuple_normalized())
+            terrain_color = Color.from_tuple_normalized(terrain_color_tuple)
+            if terrain_color != mission_map.terrain_color:
+                mission_map.terrain_color = terrain_color
+                mission_map.pathing_geometry_built_by_map_id.clear()
+                ini.set(INI_KEY, "terrain_color", terrain_color.to_color(), "Terrain")
+
+            terrain_zoom_fill_tuple = PyImGui.color_edit4(
+                "Mega zoom fill",
+                mission_map.terrain_zoom_fill_color.to_tuple_normalized(),
+            )
+            terrain_zoom_fill_color = Color.from_tuple_normalized(terrain_zoom_fill_tuple)
+            if terrain_zoom_fill_color != mission_map.terrain_zoom_fill_color:
+                mission_map.terrain_zoom_fill_color = terrain_zoom_fill_color
+                ini.set(INI_KEY, "terrain_zoom_fill_color", terrain_zoom_fill_color.to_color(), "Terrain")
+
+            PyImGui.separator()
+
+        if PyImGui.collapsing_header("Movement"):
+            snap_enabled = PyImGui.checkbox("Enable snap movement", mission_map.snap_enabled)
+            if snap_enabled != mission_map.snap_enabled:
+                mission_map.snap_enabled = snap_enabled
+                ini.set(INI_KEY, "snap_enabled", snap_enabled, "Map")
+
+            snap_pause_on_danger = PyImGui.checkbox("Pause snap on danger", mission_map.snap_pause_on_danger)
+            if snap_pause_on_danger != mission_map.snap_pause_on_danger:
+                mission_map.snap_pause_on_danger = snap_pause_on_danger
+                ini.set(INI_KEY, "snap_pause_on_danger", snap_pause_on_danger, "Map")
+
+            snap_danger_radius = PyImGui.slider_float(
+                "Danger radius",
+                mission_map.snap_danger_radius,
+                0.0,
+                float(Range.Spirit.value * 2),
+            )
+            if snap_danger_radius != mission_map.snap_danger_radius:
+                mission_map.snap_danger_radius = float(snap_danger_radius)
+                ini.set(INI_KEY, "snap_danger_radius", mission_map.snap_danger_radius, "Map")
+
+            PyImGui.separator()
+
+        for group_name, item_names in _marker_groups().items():
+            if not PyImGui.collapsing_header(group_name):
+                continue
+            for item_name in item_names:
+                item = grouped_items.get(item_name)
+                if item is not None:
+                    _draw_marker_editor(item)
+
+    PyImGui.end()
+    ini.end_window_config(INI_KEY)
+    ini.save_vars(INI_KEY)
+
+
+def main():
+    _ensure_ini()
+
+
+def draw():  
+    try:  
+        main()
+        if not Routines.Checks.Map.MapValid():
+            mission_map.geometry = [] 
+            mission_map.Map_load_timer.Reset()
+            return
+
+        mission_map.DrawSnapPath3D()
+        
+        #if not mission_map.Map_load_timer.HasElapsed(1000):
+        #    return
+        
+        if Map.MissionMap.IsWindowOpen():
+            mission_map.update()
+            DrawFrame()
+            _show_stop_button = (
+                mission_map.snap_snapped_target is not None
+                or mission_map.snap_path_computing
+                or mission_map.snap_move_running
+                or len(mission_map.snap_target_queue) > 0
+                or len(mission_map.snap_current_path) > 0
+            )
+            mission_map.snap_enabled, _snap_stop_requested = FloatingMoveToggle(
+                mission_map.left, mission_map.top,
+                mission_map.snap_enabled,
+                _show_stop_button,
+            )
+            if _snap_stop_requested:
+                mission_map.snap_clear()
+            FloatingMapIdStrip(
+                mission_map.left,
+                mission_map.top,
+                Map.GetMapID(),
+            )
+            FloatingCoordsStrip(
+                mission_map.left,
+                mission_map.top,
+                mission_map.last_click_x,
+                mission_map.last_click_y,
+                Color(255, 255, 255, 255),
+                width=mission_map.width,
+                margin=8,
+                label="Coords"
+            )
+            if mission_map.zoom >= 3.5:
+                    mission_map.mega_zoom = FloatingSlider("Mega Zoom", mission_map.mega_zoom, mission_map.left, mission_map.bottom-27, 0.0, 15.0, Color(255, 255, 255, 255))
+            else:
+                mission_map.mega_zoom = 0.0 
+    
+    except Exception as e:
+        import Py4GW
+        Py4GW.Console.Log("Mission Map +", str(e), Py4GW.Console.MessageType.Error)
+    finally:
+        if INI_KEY:
+            IniManager().save_vars(INI_KEY)
+
+        
+    
+if __name__ == "__main__":
+    draw()

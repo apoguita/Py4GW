@@ -1,0 +1,16 @@
+GWUI native control test results
+saved: 2026-07-01 18:30:55
+============================================================
+CONTROL       VERDICT LIVE STATE
+------------------------------------------------------------
+button        ?      (not created)
+checkbox      ?      (not created)
+radio         ?      selection=0
+hyperlink     ?      ?
+edit          ?      (not created)
+progress      ?      (not created)
+tabs          ?      (not created)
+slider        ?      (not created)
+groupheader   ?      (not created)
+============================================================
+marked 0/9  |  OK=0 PART=0 FAIL=0 CRASH=0

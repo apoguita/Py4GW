@@ -1,0 +1,19 @@
+{
+  "name": "Finding The Oracle",
+  "steps": [
+    {"type": "map", "name": "Travel to Quest Outpost", "target_map_id": 274, "action": "travel"},
+    {"type": "interact", "name": "Take Quest - Reach NPC", "point": [-11925, 5841], "ms": 500, "target": "npc"},
+    {"type": "interact", "name": "Take Quest", "id": "0x816401", "ms": 500, "point": [-11925, 5841], "action": "dialog", "target": "npc"},
+    {"type": "wait", "ms": 0, "name": "Set Anchor: Finding The Oracle", "action": "wait", "anchor": true},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "Leave map", "point": [-12083, 9886], "target_map_id": 232, "mode": "exit"},
+    {"type": "interact", "name": "Chat with Mhenlo", "npc": "BROTHER_MHENLO", "id": "0x816404", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To portal", "points": [[-13016, 15540]], "mode": "kill"},
+    {"type": "route", "name": "Leave map", "point": [-16176, -15826], "target_map_id": 240, "mode": "exit"},
+    {"type": "wait", "ms": 0, "name": "Set Anchor: Bukdek byway", "action": "wait", "anchor": true},
+    {"type": "route", "name": "To Nika", "points": [[7364, -4304]], "mode": "kill"},
+    {"type": "wait", "name": "Nika talking", "ms": 10000, "action": "wait"},
+    {"type": "route", "name": "To Nika", "points": [[7364, -4304]], "mode": "kill"},
+    {"type": "interact", "name": "Reward Time", "npc": "NIKA", "id": ["0x816407"], "action": "dialog", "target": "npc"}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Lion's Arch to D'Alessio Seaboard",
+  "steps": [
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 55, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "name": "Leave Lion's Arch", "points": [[1219, 7222], [1021, 10651], [250, 12350]], "mode": "kill"},
+    {"type": "map", "map_id": 58, "action": "wait_for_map_load"},
+    {"type": "route", "name": "North Kryta to D'Alessio", "points": [[5116, -17415], [757, -16768], [-6042, -16126], [-9893, -17625], [-11600, -19500], [-11708, -19957]], "mode": "kill"},
+    {"type": "map", "map_id": 15, "action": "wait_for_map_load"}
+  ]
+}

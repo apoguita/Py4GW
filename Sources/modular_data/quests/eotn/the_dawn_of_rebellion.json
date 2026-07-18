@@ -1,0 +1,13 @@
+{
+  "name": "The Dawn of Rebellion",
+  "steps": [
+    {"type": "route", "name": "To Pyre Fierceshot", "points": [[19009, 589]], "mode": "kill"},
+    {"type": "interact", "id": "0x838C01", "npc": "PYRE_FIERCESHOT", "name": "Dialog - Pyre Fierceshot", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[14319, -3778], [11180, 4001], [24292, 15195]], "mode": "kill"},
+    {"type": "route", "name": "Leave Grothmar Wardowns", "point": [25058, 15327], "target_map_id": 647, "mode": "exit"},
+    {"type": "route", "name": "Path", "points": [[-16405, 6898], [-14933, 10870], [-15468, 13454], [-17616, 14913], [-16927, 16674]], "mode": "kill"},
+    {"type": "map", "map_id": 648, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Gron Fierceclaw Merchant", "points": [[-19024, 17888]], "mode": "kill"},
+    {"type": "interact", "id": "0x838C07", "npc": "GRON_FIERCECLAW_MERCHANT", "name": "Dialog - Gron Fierceclaw [Merchant]", "action": "dialog", "target": "npc"}
+  ]
+}

@@ -1,0 +1,47 @@
+#region A
+ASCALON_CITY_PRESEARING = 148
+ASPENWOOD_GATE_LUXON = 389
+#region B
+BOREAL_STATION = 675
+#region C
+CAVALON = 193
+#region D
+#region E
+EMBARK_BEACH = 857
+#region F
+#region G
+#region H
+HOLDINGS_OF_CHOKHIN = 395
+#region I
+#region J
+#region K
+KAINENG_CENTER = 194
+KINYA_PROVINCE = 236
+#region L
+LAKESIDE_COUNTY_PRESEARING = 146
+#region M
+MIHANU_TOWNSHIP = 396
+MINISTER_CHO_STATE = 214
+MOUNT_QINKAI = 200
+#region N
+#region O
+#region P
+PANJIAN_PENINSULA = 235
+#region Q
+#region R
+REGENT_VALLEY_PRESEARING = 162
+#region S
+SEITUNG_HARBOR = 250
+SHING_JEA_MONASTERY = 242
+SUNQUA_VALE = 238
+#region T
+TIHARK_ORCHARD = 428
+THE_MARKETPLACE = 303
+TSUMEI_VILLAGE = 249
+#region U
+#region V
+#region W
+#region X
+#region Y
+#region Z
+ZEN_DAIJUN = 213

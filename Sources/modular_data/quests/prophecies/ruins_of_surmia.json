@@ -1,0 +1,13 @@
+{
+  "name": "Ruins of Surmia",
+  "steps": [
+    {"type": "map", "name": "Travel to Quest Outpost", "target_map_id": 135, "action": "travel"},
+    {"type": "interact", "name": "Take Ruins Of Surmia Quest - Reach NPC", "point": [-16475, 3899], "ms": 2000, "target": "npc"},
+    {"type": "interact", "name": "Take Ruins Of Surmia Quest", "id": ["0x80A503", "0x80A501"], "interval_ms": 2000, "ms": 2000, "point": [-16475, 3899], "action": "dialog", "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 4, "action": "load"},
+    {"type": "route", "point": [-14000, 4350], "target_map_id": 107, "mode": "exit"},
+    {"type": "route", "name": "Path 4", "points": [[-10719, 4271], [-8020, 9803], [-12602, 11498], [-13260, 14111], [-17824, 11671], [-19766, 10999]], "mode": "kill"},
+    {"type": "route", "point": [-19990, 10900], "target_map_id": 30, "mode": "exit"},
+    {"type": "interact", "point": [-3503, -13764], "id": "0x80A507", "action": "dialog", "target": "npc"}
+  ]
+}

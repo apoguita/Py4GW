@@ -1,0 +1,13 @@
+{
+  "name": "A Time for Heroes",
+  "steps": [
+    {"type": "map", "name": "Travel to Central Transfer Chamber", "target_map_id": 652, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To High Priest Alkar", "points": [[17, -820]], "mode": "kill"},
+    {"type": "interact", "npc": "HIGH_PRIEST_ALKAR", "name": "Dialog - High Priest Alkar", "action": "dialog", "ids": ["0x86", "0x84"], "target": "npc"},
+    {"type": "map", "map_id": 673, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Target The Great Destroyer", "points": [[-15488, 19062], [-14486, 16187]], "mode": "kill"},
+    {"type": "route", "name": "Target The Great Destroyer", "enemy": "THE_GREAT_DESTROYER", "mode": "target", "target": "enemy"},
+    {"type": "map", "map_id": 710, "action": "wait_for_map_load"}
+  ]
+}

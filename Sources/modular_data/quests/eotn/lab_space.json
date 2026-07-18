@@ -1,0 +1,23 @@
+{
+  "name": "Lab Space",
+  "steps": [
+    {"type": "map", "name": "Travel to Vlox's Falls", "target_map_id": 624, "action": "travel"},
+    {"type": "route", "name": "To Lork", "points": [[16313, 16016]], "mode": "kill"},
+    {"type": "interact", "id": "0x832C01", "npc": "LORK", "name": "Dialog - Lork", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Rata Sum", "target_map_id": 640, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Blimm", "points": [[16064, 18401]], "mode": "kill"},
+    {"type": "interact", "id": "0x832C04", "npc": "BLIMM", "name": "Dialog - Blimm", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[16532, 14408]], "mode": "kill"},
+    {"type": "route", "name": "Leave Rata Sum", "point": [16407, 13739], "target_map_id": 569, "mode": "exit"},
+    {"type": "route", "name": "To Experiment Krewe Member", "points": [[14811, 13087]], "mode": "kill"},
+    {"type": "interact", "id": "0x84", "npc": "EXPERIMENT_KREWE_MEMBER", "name": "Dialog - Experiment Krewe Member", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Blimm", "points": [[10371, 11459]], "mode": "kill"},
+    {"type": "interact", "id": "0x832C04", "npc": "BLIMM", "name": "Dialog - Blimm", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Item", "points": [[-17395, 14998]], "mode": "kill"},
+    {"type": "interact", "name": "Pick Vine Seed", "model_id": 24628, "action": "target", "target": "item"},
+    {"type": "route", "name": "To Blimm", "points": [[-16325, 14284]], "mode": "kill"},
+    {"type": "interact", "name": "Interact Blimm", "npc": "BLIMM", "action": "target", "target": "npc"},
+    {"type": "interact", "id": "0x832C07", "npc": "BLIMM", "name": "Dialog - Blimm", "action": "dialog", "target": "npc"}
+  ]
+}

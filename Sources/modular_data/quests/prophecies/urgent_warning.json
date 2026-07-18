@@ -1,0 +1,16 @@
+{
+  "name": "White Mantle Wrath: Demagogue's Vanguard",
+  "steps": [
+    {"type": "interact", "name": "Take Quest - Reach NPC", "point": [-15405, 7], "ms": 500, "target": "npc"},
+    {"type": "interact", "name": "Take Quest", "id": ["0x805C03", "0x805C01"], "interval_ms": 500, "ms": 500, "point": [-15405, 7], "action": "dialog", "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 6, "action": "load"},
+    {"type": "route", "point": [-15000, 450], "target_map_id": 139, "mode": "exit"},
+    {"type": "route", "point": [-15050, 400], "target_map_id": 44, "mode": "exit"},
+    {"type": "route", "name": "To Snakebite", "points": [[-16720, -742], [-14675, -4311], [-13116, -7296], [-11331, -5355], [-7797, 354], [-2891, -1380], [1567, 877], [7402, 1212], [10711, 2856], [13645, 4237], [17275, 792], [22096, 2278]], "mode": "kill"},
+    {"type": "interact", "point": [22279, 2186], "id": "0x805C04", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Aurora Glade", "points": [[22064, 2698], [21552, 6952], [22353, 10167], [24571, 10041], [24471, 11819], [23356, 12579]], "mode": "kill"},
+    {"type": "route", "point": [23200, 12650], "target_map_id": 12, "mode": "exit"},
+    {"type": "route", "name": "Reward npc", "points": [[-17637, -1477], [-16575, 562], [-19652, 1390], [-19652, 1390], [-16814, 4909]], "mode": "kill"},
+    {"type": "interact", "point": [-16848, 5092], "id": "0x805C07", "action": "dialog", "target": "npc"}
+  ]
+}

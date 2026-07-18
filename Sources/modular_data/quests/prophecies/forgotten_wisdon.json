@@ -1,0 +1,11 @@
+{
+  "name": "Forgotten Wisdon",
+  "steps": [
+    {"type": "route", "name": "To Yods", "points": [[6449, -6568]], "mode": "kill"},
+    {"type": "interact", "id": "0x801801", "npc": "YODS", "name": "Dialog - Yods", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[6856, -18390]], "mode": "kill"},
+    {"type": "route", "name": "Leave Skyward Reach", "point": [7093, -19256], "target_map_id": 112, "mode": "exit"},
+    {"type": "route", "name": "To Siliss Yassith", "points": [[14190, -7863], [7525, -7063], [773, -6599]], "mode": "kill"},
+    {"type": "interact", "id": "0x801807", "npc": "SILISS_YASSITH", "name": "Dialog - Siliss Yassith", "action": "dialog", "target": "npc"}
+  ]
+}

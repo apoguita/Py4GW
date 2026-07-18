@@ -1,0 +1,23 @@
+{
+  "name": "Attack at the Kodash",
+  "required_hero": ["Koss", "Melonni"],
+  "steps": [
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 414, "action": "travel"},
+    {"type": "route", "name": "Path", "points": [[-2625, -2221]], "mode": "kill"},
+    {"type": "interact", "id": ["0x82A803", "0x82A801"], "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai The Learner", "action": "dialog", "target": "npc"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "required_hero": ["Koss", "Melonni"], "action": "load"},
+    {"type": "route", "name": "Path", "points": [[-4549, -4487]], "mode": "kill"},
+    {"type": "route", "name": "Exit Map", "point": [-4973, -4964], "target_map_id": 399, "mode": "exit"},
+    {"type": "route", "name": "Path", "points": [[11373, 10492]], "mode": "kill"},
+    {"type": "interact", "id": "0x82A804", "npc": "BUTOH_THE_BOLD", "name": "Dialog - Butoh The Bold", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "Path", "points": [[11752, 10883]], "mode": "kill"},
+    {"type": "wait", "ms": 10000, "action": "wait"},
+    {"type": "route", "name": "patrol", "points": [[10921, 8196], [8666, 7240], [7653, 9658], [8599, 10885], [10418, 13317], [14175, 13442], [11991, 9973], [11505, 10683]], "mode": "kill"},
+    {"type": "route", "name": "patrol", "points": [[10921, 8196], [8666, 7240], [7653, 9658], [8599, 10885], [10418, 13317], [14175, 13442], [11991, 9973], [11505, 10683]], "mode": "kill"},
+    {"type": "route", "name": "patrol", "points": [[10921, 8196], [8666, 7240], [7653, 9658], [8599, 10885], [10418, 13317], [14175, 13442], [11991, 9973], [11505, 10683]], "mode": "kill"},
+    {"type": "interact", "id": "0x82A804", "npc": "BUTOH_THE_BOLD", "name": "Dialog - Butoh The Bold", "action": "dialog", "target": "npc"},
+    {"type": "map", "name": "Travel to Outpost", "target_map_id": 414, "action": "travel"},
+    {"type": "route", "name": "Path", "points": [[-2530, -2236]], "mode": "kill"},
+    {"type": "interact", "id": "0x82A807", "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai The Learner", "action": "dialog", "target": "npc"}
+  ]
+}

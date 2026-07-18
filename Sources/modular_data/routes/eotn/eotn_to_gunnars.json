@@ -1,0 +1,13 @@
+{
+  "name": "Eye of the North to Gunnar's Hold",
+  "steps": [
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 642, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-1814, 2917], [-964, 2270], [-115, 1677], [718, 1060]], "mode": "kill"},
+    {"type": "route", "name": "Leave Eye of the North", "point": [1522, 464], "target_map_id": 499, "mode": "exit"},
+    {"type": "route", "name": "Ice Cliff Chasms to Norrhart Domains", "points": [[2233, 77], [2586, 2100], [2547, 4173], [2588, 6226], [1481, 7941], [498, 9692], [661, 11769], [1021, 13809], [800, 15865], [465, 17890], [375, 19935], [-912, 21480], [-1995, 23186], [-2682, 25118], [-3591, 26974]], "mode": "kill"},
+    {"type": "route", "name": "Leave Ice Cliff Chasms", "point": [-4031, 27872], "target_map_id": 548, "mode": "exit"},
+    {"type": "route", "name": "Norrhart Domains to Gunnar's Hold", "points": [[11007, -13090], [12261, -11439], [11975, -9409], [11775, -7333], [13639, -6465], [14546, -6043]], "mode": "kill"},
+    {"type": "route", "name": "Leave Norrhart Domains", "point": [15578, -6548], "target_map_id": 644, "mode": "exit"}
+  ]
+}

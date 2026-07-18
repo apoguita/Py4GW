@@ -1,0 +1,13 @@
+{
+  "name": "Olafstead to Umbral Grotto",
+  "steps": [
+    {"type": "map", "name": "Travel to Route Outpost", "target_map_id": 645, "action": "travel"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "To Exit", "points": [[-883, 1212]], "mode": "kill"},
+    {"type": "route", "name": "Leave Olafstead", "point": [-1452, 1178], "target_map_id": 553, "mode": "exit"},
+    {"type": "route", "name": "Varajar Fells to Verdant Cascades", "points": [[-3272, -730], [-3173, -2716], [-3166, -3963], [-4055, -4363], [-6963, -3716], [-11110, -5252], [-14969, -6789], [-19739, -9123], [-22088, -10958], [-24811, -12084]], "mode": "kill"},
+    {"type": "route", "name": "Leave Varajar Fells", "point": [-25980, -13109], "target_map_id": 566, "mode": "exit"},
+    {"type": "route", "name": "Verdant Cascades to Umbral Grotto", "points": [[22596, 12732], [18976, 11094], [16437, 9139], [15407, 7549], [14353, 7411], [13416, 4369], [13585, 156], [14162, -1488], [13520, -3782], [11266, -4885], [7803, -2784], [6405, 1634], [6023, 4174], [3499, 7248], [3548, 7485], [1051, 7097], [-1762, 5021], [-4137, 4404], [-5300, 1686], [-7645, 1717], [-8373, 2406], [-11244, 3637], [-14829, 4883], [-18093, 5580], [-20727, 5951], [-22424, 6340]], "mode": "kill"},
+    {"type": "route", "name": "Leave Verdant Cascades", "point": [-22985, 6893], "target_map_id": 639, "mode": "exit"}
+  ]
+}

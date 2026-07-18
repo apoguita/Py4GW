@@ -1,0 +1,24 @@
+{
+  "name": "Hunted!",
+  "steps": [
+    {"type": "map", "name": "Travel to Yohlon Haven", "target_map_id": 381, "action": "travel"},
+    {"type": "route", "name": "To Sunspear Modiki", "points": [[2095, 307]], "mode": "kill"},
+    {"type": "interact", "id": ["0x84", "0x85", "0x86", "0x822401"], "npc": "SUNSPEAR_MODIKI", "name": "Dialog - Sunspear Modiki", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Zudash Dejarin", "points": [[-976, 1524]], "mode": "kill"},
+    {"type": "interact", "id": "0x822404", "npc": "ZUDASH_DEJARIN", "name": "Dialog - Zudash Dejarin", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Exit", "points": [[-3765, 4583]], "mode": "kill"},
+    {"type": "party", "name": "Load Party", "max_heroes": 8, "action": "load"},
+    {"type": "route", "name": "Leave Yohlon Haven", "point": [-5001, 4859], "target_map_id": 371, "mode": "exit"},
+    {"type": "route", "name": "To Elder Jonah", "points": [[8252, 12668]], "mode": "kill"},
+    {"type": "interact", "id": "0x822404", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Elder Jonah", "points": [[8252, 12668]], "mode": "kill"},
+    {"type": "interact", "id": "0x822404", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah", "action": "dialog", "target": "npc"},
+    {"type": "route", "name": "To Guardsman Bahsi", "points": [[11927, 14638]], "mode": "kill"},
+    {"type": "interact", "name": "Interact Guardsman Bahsi", "npc": "GUARDSMAN_BAHSI", "target": "npc"},
+    {"type": "route", "name": "Leave Marga Coast", "point": [12858, 14874], "target_map_id": 420, "mode": "exit"},
+    {"type": "route", "name": "Clear the sanctuary", "points": [[1402, -1952], [2870, 1221], [-567, 810], [-3804, 1821], [-3432, -2436]], "mode": "kill"},
+    {"type": "map", "map_id": 387, "ms": 2000, "action": "wait_for_map_load"},
+    {"type": "route", "name": "To Lonai", "points": [[-840, 1572]], "mode": "kill"},
+    {"type": "interact", "id": "0x822407", "npc": "LONAI", "name": "Dialog - Lonai", "action": "dialog", "target": "npc"}
+  ]
+}
