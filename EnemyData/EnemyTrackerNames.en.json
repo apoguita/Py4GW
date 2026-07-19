@@ -160,6 +160,18 @@
     "enc:\\\\x0F9A\\\\xD398\\\\x831E\\\\x6C46": [
       "Spirit of Muddy Terrain"
     ],
+    "enc:\\\\x0FDD\\\\x8151\\\\xB863\\\\x5020": [
+      "Ghast Ashpyre"
+    ],
+    "enc:\\\\x0FDE\\\\xCAF0\\\\x8330\\\\x4141": [
+      "Red Eye the Unholy"
+    ],
+    "enc:\\\\x0FDF\\\\x98A4\\\\x81FD\\\\x4F66": [
+      "Jaw Smokeskin"
+    ],
+    "enc:\\\\x0FE1\\\\xB3BC\\\\xAA96\\\\x72C0": [
+      "Brand the Brawler"
+    ],
     "enc:\\\\x0FE3\\\\xCA14\\\\xF86A\\\\x19B3": [
       "Scint the Malign"
     ],
@@ -168,6 +180,12 @@
     ],
     "enc:\\\\x0FE5\\\\xC2B8\\\\xEAD4\\\\x1B2E": [
       "Slaug Firehide"
+    ],
+    "enc:\\\\x0FE6\\\\xB94F\\\\x9DAA\\\\x1D5F": [
+      "Scaar Sternclaw"
+    ],
+    "enc:\\\\x0FE7\\\\x9A99\\\\xE266\\\\x1B87": [
+      "Puugh the Slasher"
     ],
     "enc:\\\\x0FE8\\\\xF7E5\\\\x83D7\\\\x5153": [
       "Fling Bloodpelt"
@@ -198,6 +216,9 @@
     ],
     "enc:\\\\x0FFA\\\\xE8BA\\\\xBC8B\\\\x2ACF": [
       "Klaww FeatherStorm"
+    ],
+    "enc:\\\\x1001\\\\x82B4\\\\xF081\\\\x07D7": [
+      "Bonfaaz Burntfur"
     ],
     "enc:\\\\x1015\\\\xA8EA\\\\xC66A\\\\x59C9": [
       "Charr Chaot"
@@ -460,6 +481,9 @@
     "enc:\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9": [
       "Carrion Devourer"
     ],
+    "enc:\\\\x12E7\\\\xB0B1\\\\x8DD9\\\\x7B84": [
+      "Stank Reekfoul"
+    ],
     "enc:\\\\x12EA\\\\xCA7C\\\\xB9EC\\\\x0D76": [
       "Gnash Underfoot"
     ],
@@ -493,8 +517,14 @@
     "enc:\\\\x12FD\\\\x9BA5\\\\xFC06\\\\x0878": [
       "Claw Fleshfixer"
     ],
+    "enc:\\\\x1300\\\\xF320\\\\xEC2B\\\\x4766": [
+      "Shatter Gargoyle"
+    ],
     "enc:\\\\x1301\\\\xCE50\\\\x7AC8": [
       "Shatter Gargoyle"
+    ],
+    "enc:\\\\x1302\\\\xC334\\\\xC366\\\\x581B": [
+      "Flash Gargoyle"
     ],
     "enc:\\\\x1303\\\\xD589\\\\xA1F3\\\\x61C7": [
       "Flash Gargoyle"
@@ -513,6 +543,15 @@
     ],
     "enc:\\\\x1335\\\\xFF1A\\\\x81F2\\\\x7C07": [
       "Grawl"
+    ],
+    "enc:\\\\x1345\\\\xF1BB\\\\xC13D\\\\x195B": [
+      "Shiverpeak Warrior"
+    ],
+    "enc:\\\\x1346\\\\x8BE6\\\\xBAA6\\\\x2D9F": [
+      "Shiverpeak Longbow"
+    ],
+    "enc:\\\\x1351\\\\x8E38\\\\xD156\\\\x134E": [
+      "Snow Ettin"
     ],
     "enc:\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406": [
       "Blessed Griffon"
@@ -535,6 +574,9 @@
     "enc:\\\\x137B\\\\x93EE\\\\xE78F\\\\x73EB": [
       "Azure Shadow"
     ],
+    "enc:\\\\x137D\\\\xE21B\\\\xBB80\\\\x4F02": [
+      "Juniper Bark"
+    ],
     "enc:\\\\x138A\\\\xAA6B\\\\xEE5E\\\\x0A90": [
       "Pinesoul"
     ],
@@ -546,6 +588,12 @@
     ],
     "enc:\\\\x13A7\\\\x8239\\\\xABCE\\\\x0D26": [
       "Mountain Troll"
+    ],
+    "enc:\\\\x13E7\\\\x9315\\\\xA006\\\\x18C9": [
+      "The Judge"
+    ],
+    "enc:\\\\x13E8\\\\xB483\\\\xEBD9\\\\x54BD": [
+      "Hussar Ironfeast"
     ],
     "enc:\\\\x13FA\\\\xC3B1\\\\xAC60\\\\x320F": [
       "Jonar Stonebender"
@@ -559,14 +607,32 @@
     "enc:\\\\x1412\\\\x8CFE\\\\xBE02\\\\x56FE": [
       "Dolyak Master"
     ],
+    "enc:\\\\x1414\\\\xE68D\\\\xCD82\\\\x308A": [
+      "Stone Summit Sage"
+    ],
+    "enc:\\\\x1415\\\\x83CB\\\\xAB78\\\\x6672": [
+      "Stone Summit Howler"
+    ],
+    "enc:\\\\x1417\\\\x83A8\\\\xA51D\\\\x7422": [
+      "Summit Axe Wielder"
+    ],
+    "enc:\\\\x1419\\\\xE340\\\\x925C\\\\x46F6": [
+      "Stone Summit Crusher"
+    ],
     "enc:\\\\x141A\\\\x9334\\\\x8FF0\\\\x5853": [
       "Stone Summit Carver"
+    ],
+    "enc:\\\\x141B\\\\xD73D\\\\xB0A9\\\\x68C8": [
+      "Stone Summit Scout"
     ],
     "enc:\\\\x141F\\\\xE840\\\\xEFA3\\\\x3FD8": [
       "Summit Beastmaster"
     ],
     "enc:\\\\x1420\\\\xFD6E\\\\x7A35": [
       "Summit Giant Herder"
+    ],
+    "enc:\\\\x1422\\\\xB325\\\\xC9A7\\\\x3416": [
+      "Ice Golem"
     ],
     "enc:\\\\x1432\\\\xE497\\\\xE499\\\\x18F1": [
       "Moles Quibus"
@@ -766,8 +832,14 @@
     "enc:\\\\x14DF\\\\x9EA7\\\\xD567\\\\x3343": [
       "Skeletal Impaler"
     ],
+    "enc:\\\\x1D89\\\\x9502\\\\xB7A8\\\\x6C62": [
+      "Inar Frostbite"
+    ],
     "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": [
       "Shadow Lord Vogris"
+    ],
+    "enc:\\\\x36CC\\\\xD61C\\\\xCFA4\\\\x264D": [
+      "Spirit of the Fallen"
     ],
     "enc:\\\\x3778\\\\xC79B\\\\xE9A9\\\\x7937": [
       "Flame Brazier"
@@ -775,8 +847,41 @@
     "enc:\\\\x3779\\\\xC517\\\\xCDEC\\\\x61E9": [
       "Ember Bearer"
     ],
+    "enc:\\\\x377A\\\\xF953\\\\xA018\\\\x147B": [
+      "Flame Keeper"
+    ],
     "enc:\\\\x377B\\\\xD58B\\\\xF45D\\\\x6130": [
       "Flame Keeper"
+    ],
+    "enc:\\\\x377C\\\\xEF2E\\\\x9C0E\\\\x63EB": [
+      "Flame Keeper"
+    ],
+    "enc:\\\\x377D\\\\x99CF\\\\xA0C1\\\\x0444": [
+      "Flame Keeper"
+    ],
+    "enc:\\\\x37DB\\\\x9971\\\\xBC77\\\\x5B67": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37DC\\\\xE1D1\\\\xE5DE\\\\x3472": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37DD\\\\x8C2B\\\\x8126\\\\x2DAF": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37DE\\\\xAB81\\\\x87DA\\\\x022D": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37DF\\\\x883D\\\\xA9FF\\\\x2E38": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37E0\\\\xBD88\\\\xF14C\\\\x7FAE": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37E1\\\\xE470\\\\xF3A5\\\\x7560": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x37E2\\\\xB387\\\\x91E3\\\\x5089": [
+      "Charr Warrior"
     ],
     "enc:\\\\x386A\\\\xD4C8\\\\xAC24\\\\x3986": [
       "Bonfaaz Burntfur"

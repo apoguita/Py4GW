@@ -1297,6 +1297,12 @@
           "id": 625,
           "instance_type": "Explorable",
           "name": "Battledepths"
+        },
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
         }
       },
       "observed_skills": {}
@@ -1586,6 +1592,95 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x0FDD\\\\x8151\\\\xB863\\\\x5020": {
+      "encoded_names": [
+        "\\\\x0FDD\\\\x8151\\\\xB863\\\\x5020"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1605
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x0FDE\\\\xCAF0\\\\x8330\\\\x4141": {
+      "encoded_names": [
+        "\\\\x0FDE\\\\xCAF0\\\\x8330\\\\x4141"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1606
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0FDF\\\\x98A4\\\\x81FD\\\\x4F66": {
+      "encoded_names": [
+        "\\\\x0FDF\\\\x98A4\\\\x81FD\\\\x4F66"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1607
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0FE1\\\\xB3BC\\\\xAA96\\\\x72C0": {
+      "encoded_names": [
+        "\\\\x0FE1\\\\xB3BC\\\\xAA96\\\\x72C0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1609
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x0FE3\\\\xCA14\\\\xF86A\\\\x19B3": {
       "encoded_names": [
         "\\\\x0FE3\\\\xCA14\\\\xF86A\\\\x19B3"
@@ -1703,6 +1798,76 @@
           "name": "Lava Font",
           "profession": "Elementalist",
           "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x0FE6\\\\xB94F\\\\x9DAA\\\\x1D5F": {
+      "encoded_names": [
+        "\\\\x0FE6\\\\xB94F\\\\x9DAA\\\\x1D5F"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        1614
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "252": {
+          "id": 252,
+          "name": "Banish",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "280": {
+          "id": 280,
+          "name": "Heal Area",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "296": {
+          "id": 296,
+          "name": "Bane Signet",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x0FE7\\\\x9A99\\\\xE266\\\\x1B87": {
+      "encoded_names": [
+        "\\\\x0FE7\\\\x9A99\\\\xE266\\\\x1B87"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1615
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -2048,6 +2213,38 @@
         }
       }
     },
+    "enc:\\\\x1001\\\\x82B4\\\\xF081\\\\x07D7": {
+      "encoded_names": [
+        "\\\\x1001\\\\x82B4\\\\xF081\\\\x07D7"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1629
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
     "enc:\\\\x1015\\\\xA8EA\\\\xC66A\\\\x59C9": {
       "encoded_names": [
         "\\\\x1015\\\\xA8EA\\\\xC66A\\\\x59C9"
@@ -2063,12 +2260,24 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
         "42": {
           "id": 42,
           "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "67": {
+          "id": 67,
+          "name": "Shatter Hex",
           "profession": "Mesmer",
           "profession_id": 5
         },
@@ -2145,6 +2354,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -2221,6 +2436,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -2309,6 +2530,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -2429,6 +2656,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -2499,6 +2732,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -2569,6 +2808,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -2613,6 +2858,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -5683,6 +5934,12 @@
           "id": 29,
           "instance_type": "Explorable",
           "name": "Fort Ranik outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {}
@@ -5702,6 +5959,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {}
@@ -5743,6 +6006,25 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x12E7\\\\xB0B1\\\\x8DD9\\\\x7B84": {
+      "encoded_names": [
+        "\\\\x12E7\\\\xB0B1\\\\x8DD9\\\\x7B84"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2431
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x12EA\\\\xCA7C\\\\xB9EC\\\\x0D76": {
       "encoded_names": [
         "\\\\x12EA\\\\xCA7C\\\\xB9EC\\\\x0D76"
@@ -5780,6 +6062,12 @@
         }
       },
       "observed_skills": {
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
         "159": {
           "id": 159,
           "name": "Weaken Armor",
@@ -5892,6 +6180,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -5974,6 +6268,12 @@
           "id": 30,
           "instance_type": "Explorable",
           "name": "Ruins of Surmia outpost"
+        },
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
         }
       },
       "observed_skills": {
@@ -5995,6 +6295,12 @@
         2486
       ],
       "observed_maps": {
+        "107": {
+          "base_id": 107,
+          "id": 107,
+          "instance_type": "Explorable",
+          "name": "Eastern Frontier"
+        },
         "28": {
           "base_id": 28,
           "id": 28,
@@ -6087,6 +6393,44 @@
         }
       }
     },
+    "enc:\\\\x1300\\\\xF320\\\\xEC2B\\\\x4766": {
+      "encoded_names": [
+        "\\\\x1300\\\\xF320\\\\xEC2B\\\\x4766"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2496
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "76": {
+          "id": 76,
+          "name": "Imagined Burden",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "80": {
+          "id": 80,
+          "name": "Energy Tap",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
     "enc:\\\\x1301\\\\xCE50\\\\x7AC8": {
       "encoded_names": [
         "\\\\x1301\\\\xCE50\\\\x7AC8"
@@ -6122,6 +6466,38 @@
           "name": "Imagined Burden",
           "profession": "Mesmer",
           "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x1302\\\\xC334\\\\xC366\\\\x581B": {
+      "encoded_names": [
+        "\\\\x1302\\\\xC334\\\\xC366\\\\x581B"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2498
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {
+        "222": {
+          "id": 222,
+          "name": "Lightning Strike",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
         }
       }
     },
@@ -6296,9 +6672,98 @@
         }
       },
       "observed_skills": {
+        "351": {
+          "id": 351,
+          "name": "Mighty Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
         "357": {
           "id": 357,
           "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x1345\\\\xF1BB\\\\xC13D\\\\x195B": {
+      "encoded_names": [
+        "\\\\x1345\\\\xF1BB\\\\xC13D\\\\x195B"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2539
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1346\\\\x8BE6\\\\xBAA6\\\\x2D9F": {
+      "encoded_names": [
+        "\\\\x1346\\\\x8BE6\\\\xBAA6\\\\x2D9F"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2540
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {
+        "399": {
+          "id": 399,
+          "name": "Distracting Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "462": {
+          "id": 462,
+          "name": "Winter",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x1351\\\\x8E38\\\\xD156\\\\x134E": {
+      "encoded_names": [
+        "\\\\x1351\\\\x8E38\\\\xD156\\\\x134E"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2542
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {
+        "322": {
+          "id": 322,
+          "name": "Power Attack",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "360": {
+          "id": 360,
+          "name": "Staggering Blow",
           "profession": "Warrior",
           "profession_id": 1
         }
@@ -6588,6 +7053,38 @@
         }
       }
     },
+    "enc:\\\\x137D\\\\xE21B\\\\xBB80\\\\x4F02": {
+      "encoded_names": [
+        "\\\\x137D\\\\xE21B\\\\xBB80\\\\x4F02"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2545
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {
+        "264": {
+          "id": 264,
+          "name": "Pacifism",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "290": {
+          "id": 290,
+          "name": "Mending",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x138A\\\\xAA6B\\\\xEE5E\\\\x0A90": {
       "encoded_names": [
         "\\\\x138A\\\\xAA6B\\\\xEE5E\\\\x0A90"
@@ -6679,6 +7176,44 @@
           "id": 91,
           "instance_type": "Explorable",
           "name": "Snake Dance"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x13E7\\\\x9315\\\\xA006\\\\x18C9": {
+      "encoded_names": [
+        "\\\\x13E7\\\\x9315\\\\xA006\\\\x18C9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2665
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x13E8\\\\xB483\\\\xEBD9\\\\x54BD": {
+      "encoded_names": [
+        "\\\\x13E8\\\\xB483\\\\xEBD9\\\\x54BD"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2666
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
         }
       },
       "observed_skills": {}
@@ -6859,6 +7394,82 @@
         }
       }
     },
+    "enc:\\\\x1414\\\\xE68D\\\\xCD82\\\\x308A": {
+      "encoded_names": [
+        "\\\\x1414\\\\xE68D\\\\xCD82\\\\x308A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2692
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1415\\\\x83CB\\\\xAB78\\\\x6672": {
+      "encoded_names": [
+        "\\\\x1415\\\\x83CB\\\\xAB78\\\\x6672"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2693
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1417\\\\x83A8\\\\xA51D\\\\x7422": {
+      "encoded_names": [
+        "\\\\x1417\\\\x83A8\\\\xA51D\\\\x7422"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2694
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1419\\\\xE340\\\\x925C\\\\x46F6": {
+      "encoded_names": [
+        "\\\\x1419\\\\xE340\\\\x925C\\\\x46F6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x141A\\\\x9334\\\\x8FF0\\\\x5853": {
       "encoded_names": [
         "\\\\x141A\\\\x9334\\\\x8FF0\\\\x5853"
@@ -6890,6 +7501,25 @@
           "profession_id": 1
         }
       }
+    },
+    "enc:\\\\x141B\\\\xD73D\\\\xB0A9\\\\x68C8": {
+      "encoded_names": [
+        "\\\\x141B\\\\xD73D\\\\xB0A9\\\\x68C8"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2697
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x141F\\\\xE840\\\\xEFA3\\\\x3FD8": {
       "encoded_names": [
@@ -6954,6 +7584,25 @@
           "profession_id": 0
         }
       }
+    },
+    "enc:\\\\x1422\\\\xB325\\\\xC9A7\\\\x3416": {
+      "encoded_names": [
+        "\\\\x1422\\\\xB325\\\\xC9A7\\\\x3416"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2698
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x1432\\\\xE497\\\\xE499\\\\x18F1": {
       "encoded_names": [
@@ -9585,6 +10234,50 @@
         }
       }
     },
+    "enc:\\\\x1D89\\\\x9502\\\\xB7A8\\\\x6C62": {
+      "encoded_names": [
+        "\\\\x1D89\\\\x9502\\\\xB7A8\\\\x6C62"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2670
+      ],
+      "observed_maps": {
+        "99": {
+          "base_id": 99,
+          "id": 99,
+          "instance_type": "Explorable",
+          "name": "Traveler's Vale"
+        }
+      },
+      "observed_skills": {
+        "26": {
+          "id": 26,
+          "name": "Empathy",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "38": {
+          "id": 38,
+          "name": "Channeling",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
     "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": {
       "encoded_names": [
         "\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605"
@@ -9629,6 +10322,32 @@
         }
       }
     },
+    "enc:\\\\x36CC\\\\xD61C\\\\xCFA4\\\\x264D": {
+      "encoded_names": [
+        "\\\\x36CC\\\\xD61C\\\\xCFA4\\\\x264D"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2503
+      ],
+      "observed_maps": {
+        "32": {
+          "base_id": 32,
+          "id": 32,
+          "instance_type": "Explorable",
+          "name": "Nolani Academy outpost"
+        }
+      },
+      "observed_skills": {
+        "320": {
+          "id": 320,
+          "name": "Hamstring",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
     "enc:\\\\x3778\\\\xC79B\\\\xE9A9\\\\x7937": {
       "encoded_names": [
         "\\\\x3778\\\\xC79B\\\\xE9A9\\\\x7937"
@@ -9652,7 +10371,7 @@
       "encoded_names": [
         "\\\\x3779\\\\xC517\\\\xCDEC\\\\x61E9"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Warrior",
       "inferred_secondary": "",
       "model_ids": [
         1654
@@ -9665,16 +10384,253 @@
           "name": "Ruins of Surmia outpost"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x377A\\\\xF953\\\\xA018\\\\x147B": {
+      "encoded_names": [
+        "\\\\x377A\\\\xF953\\\\xA018\\\\x147B"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1645
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x377B\\\\xD58B\\\\xF45D\\\\x6130": {
       "encoded_names": [
         "\\\\x377B\\\\xD58B\\\\xF45D\\\\x6130"
       ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1645
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x377C\\\\xEF2E\\\\x9C0E\\\\x63EB": {
+      "encoded_names": [
+        "\\\\x377C\\\\xEF2E\\\\x9C0E\\\\x63EB"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1645
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "197": {
+          "id": 197,
+          "name": "Fire Storm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x377D\\\\x99CF\\\\xA0C1\\\\x0444": {
+      "encoded_names": [
+        "\\\\x377D\\\\x99CF\\\\xA0C1\\\\x0444"
+      ],
       "inferred_primary": "",
       "inferred_secondary": "",
       "model_ids": [
         1645
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37DB\\\\x9971\\\\xBC77\\\\x5B67": {
+      "encoded_names": [
+        "\\\\x37DB\\\\x9971\\\\xBC77\\\\x5B67"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1661
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37DC\\\\xE1D1\\\\xE5DE\\\\x3472": {
+      "encoded_names": [
+        "\\\\x37DC\\\\xE1D1\\\\xE5DE\\\\x3472"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37DD\\\\x8C2B\\\\x8126\\\\x2DAF": {
+      "encoded_names": [
+        "\\\\x37DD\\\\x8C2B\\\\x8126\\\\x2DAF"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1661
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37DE\\\\xAB81\\\\x87DA\\\\x022D": {
+      "encoded_names": [
+        "\\\\x37DE\\\\xAB81\\\\x87DA\\\\x022D"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37DF\\\\x883D\\\\xA9FF\\\\x2E38": {
+      "encoded_names": [
+        "\\\\x37DF\\\\x883D\\\\xA9FF\\\\x2E38"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1661
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37E0\\\\xBD88\\\\xF14C\\\\x7FAE": {
+      "encoded_names": [
+        "\\\\x37E0\\\\xBD88\\\\xF14C\\\\x7FAE"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37E1\\\\xE470\\\\xF3A5\\\\x7560": {
+      "encoded_names": [
+        "\\\\x37E1\\\\xE470\\\\xF3A5\\\\x7560"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x37E2\\\\xB387\\\\x91E3\\\\x5089": {
+      "encoded_names": [
+        "\\\\x37E2\\\\xB387\\\\x91E3\\\\x5089"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
       ],
       "observed_maps": {
         "30": {

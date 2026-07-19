@@ -305,6 +305,46 @@ def interact_player_number(
     )
 
 
+def wait_for_player_number(
+    player_number: int,
+    name: str,
+    max_range: float = 2500.0,
+    timeout_ms: int = 120000,
+) -> BehaviorTree:
+    deadline = [0.0]
+
+    def _wait() -> BehaviorTree.NodeState:
+        if deadline[0] == 0.0:
+            deadline[0] = time.monotonic() + (timeout_ms / 1000.0)
+
+        try:
+            player_x, player_y = Player.GetXY()
+            candidate_ids = set(AgentArray.GetNPCMinipetArray())
+            candidate_ids.update(AgentArray.GetAllyArray())
+            for agent_id in candidate_ids:
+                if Agent.GetPlayerNumber(agent_id) != player_number or Agent.IsDead(agent_id):
+                    continue
+                agent_x, agent_y = Agent.GetXY(agent_id)
+                if (agent_x - player_x) ** 2 + (agent_y - player_y) ** 2 <= max_range * max_range:
+                    deadline[0] = 0.0
+                    return BehaviorTree.NodeState.SUCCESS
+        except Exception:
+            pass
+
+        if time.monotonic() >= deadline[0]:
+            deadline[0] = 0.0
+            return BehaviorTree.NodeState.FAILURE
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name=name,
+            action_fn=_wait,
+            aftercast_ms=100,
+        )
+    )
+
+
 def interact_nearest_npc(
     pos: tuple[float, float],
     name: str,

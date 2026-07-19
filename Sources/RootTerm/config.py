@@ -9,6 +9,7 @@ MAP_GREAT_NORTHERN_WALL = 28
 MAP_FORT_RANIK = 29
 MAP_RUINS_OF_SURMIA = 30
 MAP_NOLANI_ACADEMY = 32
+MAP_YAKS_BEND = 134
 MAP_FRONTIER_GATE = 135
 MAP_CHAHBEK_VILLAGE = 544
 MAP_CHURRHIR_FIELDS = 456
@@ -26,6 +27,13 @@ MAP_GATE_TOO_FAR_3 = 657
 MAP_AGAINST_THE_CHARR = 665
 MAP_A_TIME_FOR_HEROES = 673
 MAP_EPILOGUE = 710
+MAP_VIZUNAH_SQUARE_LOCAL = 291
+MAP_VIZUNAH_SQUARE_MISSION = 215
+MAP_DRAGONS_THROAT = 274
+MAP_NAHPUI_QUARTER = 216
+MAP_SENJIS_CORNER = 51
+MAP_TAHNNAKAI_TEMPLE = 217
+MAP_ZIN_KU_CORRIDOR = 284
 
 # Hero IDs used by Nightfall missions (from GwAu3 / HeroType)
 HERO_KOSS = 6
@@ -83,6 +91,24 @@ MISSION_CONFIG: dict[int, MissionConfig] = {
         required_hero=0,
         completion_map=MAP_NOLANI_ACADEMY,
     ),
+    939: MissionConfig(
+        quest_id=939,
+        town_map=MAP_NOLANI_ACADEMY,
+        town_label='Nolani Academy',
+        mission_map=MAP_NOLANI_ACADEMY,
+        map2=MAP_YAKS_BEND,
+        map3=0,
+        map4=0,
+        party_size=4,
+        required_hero=0,
+        completion_map=MAP_YAKS_BEND,
+    ),
+    962: MissionConfig(962, MAP_VIZUNAH_SQUARE_LOCAL, 'Vizunah Square', MAP_VIZUNAH_SQUARE_MISSION,
+                       0, 0, 0, 8, 0, MAP_DRAGONS_THROAT),
+    963: MissionConfig(963, MAP_NAHPUI_QUARTER, 'Nahpui Quarter', MAP_NAHPUI_QUARTER,
+                       0, 0, 0, 8, 0, MAP_SENJIS_CORNER),
+    964: MissionConfig(964, MAP_TAHNNAKAI_TEMPLE, 'Tahnnakai Temple', MAP_TAHNNAKAI_TEMPLE,
+                       0, 0, 0, 8, 0, MAP_ZIN_KU_CORRIDOR),
     978: MissionConfig(
         quest_id=978,
         town_map=MAP_CHAHBEK_VILLAGE,

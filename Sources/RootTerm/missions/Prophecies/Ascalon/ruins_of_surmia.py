@@ -77,10 +77,13 @@ def build(cfg: MissionConfig) -> BehaviorTree:
                     (6059.02, 17504.67), (7908.88, 18600.33), (7978.23, 20093.47),
                 ],
             ),
-            BT.Move((7735.03, 20278.41), pause_on_combat=False, tolerance=150.0),
-            H.interact_player_number(5995, 'Surmia Accept Breena Bonus', aftercast_ms=10000),
-            BT.Move((8333.32, 19411.73), pause_on_combat=False),
-            BT.Wait(5000),
+            BT.Move((7657, 20355), pause_on_combat=False, tolerance=150.0),
+            BT.MoveAndInteractByModelID(2111, log=True),
+            BT.Wait(10000),
+            BT.Move((8092, 18926), pause_on_combat=False, tolerance=150.0),
+            BT.Wait(120000),
+            BT.Move((-5752, 21790), pause_on_combat=True, tolerance=150.0),
+            BT.Wait(60000),
             _combat_route(
                 'Surmia Flame Keepers',
                 [

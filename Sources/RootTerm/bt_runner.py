@@ -17,9 +17,13 @@ from Sources.RootTerm.missions.EOTN.CentralStorylines import curse_of_the_nornbe
 from Sources.RootTerm.missions.EOTN.FinalEncounters import a_time_for_heroes
 from Sources.RootTerm.missions.EOTN.TheShiverpeaks import a_gate_too_far
 from Sources.RootTerm.missions.EOTN.TheShiverpeaks import blood_washes_blood
+from Sources.RootTerm.missions.Factions.KainengCity import nahpui_quarter
+from Sources.RootTerm.missions.Factions.KainengCity import tahnnakai_temple
+from Sources.RootTerm.missions.Factions.KainengCity import vizunah_square
 from Sources.RootTerm.missions.Nightfall.Istan import chahbek_village
 from Sources.RootTerm.missions.Prophecies.Ascalon import fort_ranik
 from Sources.RootTerm.missions.Prophecies.Ascalon import great_northern_wall
+from Sources.RootTerm.missions.Prophecies.Ascalon import nolani_academy
 from Sources.RootTerm.missions.Prophecies.Ascalon import ruins_of_surmia
 from Sources.RootTerm.options import OPTIONS
 
@@ -34,9 +38,13 @@ importlib.reload(curse_of_the_nornbear)
 importlib.reload(blood_washes_blood)
 importlib.reload(a_gate_too_far)
 importlib.reload(a_time_for_heroes)
+importlib.reload(vizunah_square)
+importlib.reload(nahpui_quarter)
+importlib.reload(tahnnakai_temple)
 importlib.reload(chahbek_village)
 importlib.reload(fort_ranik)
 importlib.reload(great_northern_wall)
+importlib.reload(nolani_academy)
 importlib.reload(ruins_of_surmia)
 
 MissionBuilder = Callable[[object], BehaviorTree]
@@ -46,6 +54,10 @@ DISPATCH: dict[int, MissionBuilder] = {
     936: great_northern_wall.build,
     937: fort_ranik.build,
     938: ruins_of_surmia.build,
+    939: nolani_academy.build,
+    962: vizunah_square.build,
+    963: nahpui_quarter.build,
+    964: tahnnakai_temple.build,
     978: chahbek_village.build,
     1003: against_the_charr.build,
     1006: curse_of_the_nornbear.build,
