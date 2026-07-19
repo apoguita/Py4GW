@@ -1292,6 +1292,12 @@
         2925
       ],
       "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "625": {
           "base_id": 625,
           "id": 625,
@@ -1359,6 +1365,25 @@
           "id": 124,
           "instance_type": "Explorable",
           "name": "Hell's Precipice outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0F90\\\\xAA02\\\\xB8F4\\\\x7461": {
+      "encoded_names": [
+        "\\\\x0F90\\\\xAA02\\\\xB8F4\\\\x7461"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2929
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
         }
       },
       "observed_skills": {}
@@ -6686,16 +6711,200 @@
         }
       }
     },
+    "enc:\\\\x133B\\\\xACF7\\\\x9962\\\\x17BE": {
+      "encoded_names": [
+        "\\\\x133B\\\\xACF7\\\\x9962\\\\x17BE"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2530
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "163": {
+          "id": 163,
+          "name": "Whirlwind",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "210": {
+          "id": 210,
+          "name": "Ice Prison",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x133D\\\\xEA60\\\\xE4A0\\\\x1D82": {
+      "encoded_names": [
+        "\\\\x133D\\\\xEA60\\\\xE4A0\\\\x1D82"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1350
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x133F\\\\xB2E6\\\\x4D8F": {
+      "encoded_names": [
+        "\\\\x133F\\\\xB2E6\\\\x4D8F"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2525
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x1341\\\\xAD28\\\\xF753\\\\x5FE9": {
+      "encoded_names": [
+        "\\\\x1341\\\\xAD28\\\\xF753\\\\x5FE9"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2527
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "254": {
+          "id": 254,
+          "name": "Vigorous Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "277": {
+          "id": 277,
+          "name": "Mend Ailment",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x1342\\\\xD39A\\\\xFAFB\\\\x70EB": {
+      "encoded_names": [
+        "\\\\x1342\\\\xD39A\\\\xFAFB\\\\x70EB"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2528
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "337": {
+          "id": 337,
+          "name": "Dismember",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x1344\\\\xAB2B\\\\xD2A7\\\\x0369": {
+      "encoded_names": [
+        "\\\\x1344\\\\xAB2B\\\\xD2A7\\\\x0369"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2538
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "254": {
+          "id": 254,
+          "name": "Vigorous Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "277": {
+          "id": 277,
+          "name": "Mend Ailment",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "278": {
+          "id": 278,
+          "name": "Purge Conditions",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x1345\\\\xF1BB\\\\xC13D\\\\x195B": {
       "encoded_names": [
         "\\\\x1345\\\\xF1BB\\\\xC13D\\\\x195B"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Warrior",
       "inferred_secondary": "",
       "model_ids": [
         2539
       ],
       "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -6703,7 +6912,20 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "337": {
+          "id": 337,
+          "name": "Dismember",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "382": {
+          "id": 382,
+          "name": "Sever Artery",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x1346\\\\x8BE6\\\\xBAA6\\\\x2D9F": {
       "encoded_names": [
@@ -6715,6 +6937,12 @@
         2540
       ],
       "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -6737,6 +6965,56 @@
         }
       }
     },
+    "enc:\\\\x134E\\\\xC90B\\\\xC007\\\\x27FA": {
+      "encoded_names": [
+        "\\\\x134E\\\\xC90B\\\\xC007\\\\x27FA"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2541
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "102": {
+          "id": 102,
+          "name": "Shadow Strike",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "108": {
+          "id": 108,
+          "name": "Suffering",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "129": {
+          "id": 129,
+          "name": "Defile Flesh",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
     "enc:\\\\x1351\\\\x8E38\\\\xD156\\\\x134E": {
       "encoded_names": [
         "\\\\x1351\\\\x8E38\\\\xD156\\\\x134E"
@@ -6747,6 +7025,12 @@
         2542
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -6936,6 +7220,51 @@
           "name": "Maelstrom",
           "profession": "Elementalist",
           "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x136E\\\\xB756\\\\x89DF\\\\x1042": {
+      "encoded_names": [
+        "\\\\x136E\\\\xB756\\\\x89DF\\\\x1042"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2537
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x136F\\\\xBE06\\\\xE183\\\\x1C7D": {
+      "encoded_names": [
+        "\\\\x136F\\\\xBE06\\\\xE183\\\\x1C7D"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2544
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {
+        "332": {
+          "id": 332,
+          "name": "Bull's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },
@@ -7218,6 +7547,297 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x13E9\\\\xEBC4\\\\xC61C\\\\x5D0F": {
+      "encoded_names": [
+        "\\\\x13E9\\\\xEBC4\\\\xC61C\\\\x5D0F"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2663
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "26": {
+          "id": 26,
+          "name": "Empathy",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x13EA\\\\xC539\\\\xB909\\\\x6771": {
+      "encoded_names": [
+        "\\\\x13EA\\\\xC539\\\\xB909\\\\x6771"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2664
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x13EB\\\\xB250\\\\xB811\\\\x5ED1": {
+      "encoded_names": [
+        "\\\\x13EB\\\\xB250\\\\xB811\\\\x5ED1"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2667
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "351": {
+          "id": 351,
+          "name": "Mighty Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "361": {
+          "id": 361,
+          "name": "Dolyak Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x13ED\\\\xCBE4\\\\xE073\\\\x64D2": {
+      "encoded_names": [
+        "\\\\x13ED\\\\xCBE4\\\\xE073\\\\x64D2"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2669
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "230": {
+          "id": 230,
+          "name": "Lightning Javelin",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x13EE\\\\xE7E4\\\\xFFCE\\\\x0CAD": {
+      "encoded_names": [
+        "\\\\x13EE\\\\xE7E4\\\\xFFCE\\\\x0CAD"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2672
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "208": {
+          "id": 208,
+          "name": "Water Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "211": {
+          "id": 211,
+          "name": "Ice Spikes",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x13EF\\\\xF0F7\\\\xB93C\\\\x25C1": {
+      "encoded_names": [
+        "\\\\x13EF\\\\xF0F7\\\\xB93C\\\\x25C1"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2673
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {
+        "243": {
+          "id": 243,
+          "name": "Strength of Honor",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "286": {
+          "id": 286,
+          "name": "Heal Other",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "299": {
+          "id": 299,
+          "name": "Shielding Hands",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "301": {
+          "id": 301,
+          "name": "Remove Hex",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x13F1\\\\xA755\\\\xA65C\\\\x6905": {
+      "encoded_names": [
+        "\\\\x13F1\\\\xA755\\\\xA65C\\\\x6905"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2671
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {
+        "143": {
+          "id": 143,
+          "name": "Strip Enchantment",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x13F3\\\\xF5C6\\\\xA2C9\\\\x59BD": {
+      "encoded_names": [
+        "\\\\x13F3\\\\xF5C6\\\\xA2C9\\\\x59BD"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2675
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {
+        "392": {
+          "id": 392,
+          "name": "Pin Down",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "400": {
+          "id": 400,
+          "name": "Precision Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "467": {
+          "id": 467,
+          "name": "Fertile Season",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
     "enc:\\\\x13FA\\\\xC3B1\\\\xAC60\\\\x320F": {
       "encoded_names": [
         "\\\\x13FA\\\\xC3B1\\\\xAC60\\\\x320F"
@@ -7344,6 +7964,56 @@
         }
       }
     },
+    "enc:\\\\x1411\\\\xC8CB\\\\x1C6C": {
+      "encoded_names": [
+        "\\\\x1411\\\\xC8CB\\\\x1C6C"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2691
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {
+        "243": {
+          "id": 243,
+          "name": "Strength of Honor",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "286": {
+          "id": 286,
+          "name": "Heal Other",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "299": {
+          "id": 299,
+          "name": "Shielding Hands",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "301": {
+          "id": 301,
+          "name": "Remove Hex",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
     "enc:\\\\x1412\\\\x8CFE\\\\xBE02\\\\x56FE": {
       "encoded_names": [
         "\\\\x1412\\\\x8CFE\\\\xBE02\\\\x56FE"
@@ -7398,12 +8068,24 @@
       "encoded_names": [
         "\\\\x1414\\\\xE68D\\\\xCD82\\\\x308A"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Mesmer",
       "inferred_secondary": "",
       "model_ids": [
         2692
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -7411,18 +8093,55 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "26": {
+          "id": 26,
+          "name": "Empathy",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "38": {
+          "id": 38,
+          "name": "Channeling",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
     },
     "enc:\\\\x1415\\\\x83CB\\\\xAB78\\\\x6672": {
       "encoded_names": [
         "\\\\x1415\\\\x83CB\\\\xAB78\\\\x6672"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Necromancer",
       "inferred_secondary": "",
       "model_ids": [
         2693
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -7430,18 +8149,61 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "143": {
+          "id": 143,
+          "name": "Strip Enchantment",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "154": {
+          "id": 154,
+          "name": "Plague Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "155": {
+          "id": 155,
+          "name": "Vile Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "156": {
+          "id": 156,
+          "name": "Vampiric Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "96": {
+          "id": 96,
+          "name": "Soul Feast",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
     },
     "enc:\\\\x1417\\\\x83A8\\\\xA51D\\\\x7422": {
       "encoded_names": [
         "\\\\x1417\\\\x83A8\\\\xA51D\\\\x7422"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Warrior",
       "inferred_secondary": "",
       "model_ids": [
         2694
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -7449,18 +8211,43 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "339": {
+          "id": 339,
+          "name": "Penetrating Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "340": {
+          "id": 340,
+          "name": "Disrupting Chop",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x1419\\\\xE340\\\\x925C\\\\x46F6": {
       "encoded_names": [
         "\\\\x1419\\\\xE340\\\\x925C\\\\x46F6"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Warrior",
       "inferred_secondary": "",
       "model_ids": [
         2696
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -7468,7 +8255,20 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "326": {
+          "id": 326,
+          "name": "Protector's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "327": {
+          "id": 327,
+          "name": "Griffon's Sweep",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x141A\\\\x9334\\\\x8FF0\\\\x5853": {
       "encoded_names": [
@@ -7506,12 +8306,24 @@
       "encoded_names": [
         "\\\\x141B\\\\xD73D\\\\xB0A9\\\\x68C8"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Ranger",
       "inferred_secondary": "",
       "model_ids": [
         2697
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -7519,14 +8331,27 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "392": {
+          "id": 392,
+          "name": "Pin Down",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "403": {
+          "id": 403,
+          "name": "Called Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
     },
     "enc:\\\\x141F\\\\xE840\\\\xEFA3\\\\x3FD8": {
       "encoded_names": [
         "\\\\x141F\\\\xE840\\\\xEFA3\\\\x3FD8"
       ],
       "inferred_primary": "None",
-      "inferred_secondary": "",
+      "inferred_secondary": "Warrior",
       "model_ids": [
         2699
       ],
@@ -7536,9 +8361,21 @@
           "id": 22,
           "instance_type": "Explorable",
           "name": "Ice Caves of Sorrow outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
         }
       },
       "observed_skills": {
+        "332": {
+          "id": 332,
+          "name": "Bull's Strike",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
         "530": {
           "id": 530,
           "name": "Giant_Stomp",
@@ -7589,12 +8426,24 @@
       "encoded_names": [
         "\\\\x1422\\\\xB325\\\\xC9A7\\\\x3416"
       ],
-      "inferred_primary": "",
+      "inferred_primary": "Elementalist",
       "inferred_secondary": "",
       "model_ids": [
         2698
       ],
       "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        },
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        },
         "99": {
           "base_id": 99,
           "id": 99,
@@ -7602,7 +8451,26 @@
           "name": "Traveler's Vale"
         }
       },
-      "observed_skills": {}
+      "observed_skills": {
+        "208": {
+          "id": 208,
+          "name": "Water Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "211": {
+          "id": 211,
+          "name": "Ice Spikes",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "212": {
+          "id": 212,
+          "name": "Frozen Burst",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x1432\\\\xE497\\\\xE499\\\\x18F1": {
       "encoded_names": [
@@ -10859,6 +11727,197 @@
           "profession_id": 1
         }
       }
+    },
+    "enc:\\\\x3A0C\\\\xB882\\\\x9B8A\\\\x4469": {
+      "encoded_names": [
+        "\\\\x3A0C\\\\xB882\\\\x9B8A\\\\x4469"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2697,
+        2692
+      ],
+      "observed_maps": {
+        "25": {
+          "base_id": 25,
+          "id": 25,
+          "instance_type": "Explorable",
+          "name": "Borlis Pass outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A73\\\\xD111\\\\xBDB6\\\\x117E": {
+      "encoded_names": [
+        "\\\\x3A73\\\\xD111\\\\xBDB6\\\\x117E"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A7E\\\\x89FC\\\\x5F79": {
+      "encoded_names": [
+        "\\\\x3A7E\\\\x89FC\\\\x5F79"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2687
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A7F\\\\xCB01\\\\xEA2B\\\\x331D": {
+      "encoded_names": [
+        "\\\\x3A7F\\\\xCB01\\\\xEA2B\\\\x331D"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A80\\\\xF947\\\\xA0D2\\\\x4F38": {
+      "encoded_names": [
+        "\\\\x3A80\\\\xF947\\\\xA0D2\\\\x4F38"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A81\\\\xA04C\\\\xD211\\\\x2B4B": {
+      "encoded_names": [
+        "\\\\x3A81\\\\xA04C\\\\xD211\\\\x2B4B"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A82\\\\x8934\\\\xEC3D\\\\x6028": {
+      "encoded_names": [
+        "\\\\x3A82\\\\x8934\\\\xEC3D\\\\x6028"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A84\\\\xBF70\\\\xA07D\\\\x42DE": {
+      "encoded_names": [
+        "\\\\x3A84\\\\xBF70\\\\xA07D\\\\x42DE"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A85\\\\x8210\\\\xAFDA\\\\x2AD4": {
+      "encoded_names": [
+        "\\\\x3A85\\\\x8210\\\\xAFDA\\\\x2AD4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3A86\\\\x9CC5\\\\xA21B\\\\x243F": {
+      "encoded_names": [
+        "\\\\x3A86\\\\x9CC5\\\\xA21B\\\\x243F"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2696
+      ],
+      "observed_maps": {
+        "21": {
+          "base_id": 21,
+          "id": 21,
+          "instance_type": "Explorable",
+          "name": "The Frost Gate outpost"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x3ADF\\\\x8273\\\\xEA13\\\\x3437": {
       "encoded_names": [

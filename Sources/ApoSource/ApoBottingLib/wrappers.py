@@ -1202,6 +1202,7 @@ def MoveAndKill(
     pause_on_combat: bool | None = None,
     flag_heroes_to_waypoint: bool = False,
     timeout_ms: int = 15000,
+    tolerance: float = 50.0,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "MoveAndKill",
@@ -1211,6 +1212,7 @@ def MoveAndKill(
             pause_on_combat=resolved_pause,
             flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             timeout_ms=timeout_ms,
+            tolerance=tolerance,
         ),
         pause_on_combat=pause_on_combat,
     )
@@ -1223,6 +1225,7 @@ def VanquishNode(
     flag_heroes_to_waypoint: bool = False,
     name: str = 'VanquishNode',
     timeout_ms: int = 15000,
+    move_tolerance: float = 250.0,
 ) -> BehaviorTree:
     resolved_children: list[BehaviorTree | BehaviorTree.Node] = []
 
@@ -1241,6 +1244,7 @@ def VanquishNode(
                 pause_on_combat=step_pause_on_combat,
                 flag_heroes_to_waypoint=step_flag_heroes_to_waypoint,
                 timeout_ms=timeout_ms,
+                tolerance=move_tolerance,
             )
         )
 

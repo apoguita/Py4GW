@@ -139,6 +139,9 @@
     "enc:\\\\x0F8F\\\\x9E4D\\\\xD31E\\\\x10F3": [
       "Spirit of Greater Conflagration"
     ],
+    "enc:\\\\x0F90\\\\xAA02\\\\xB8F4\\\\x7461": [
+      "Spirit of Fertile Season"
+    ],
     "enc:\\\\x0F92\\\\xD03B\\\\x864A\\\\x4901": [
       "Spirit of Primal Echoes"
     ],
@@ -544,11 +547,32 @@
     "enc:\\\\x1335\\\\xFF1A\\\\x81F2\\\\x7C07": [
       "Grawl"
     ],
+    "enc:\\\\x133B\\\\xACF7\\\\x9962\\\\x17BE": [
+      "Whiskar Featherstorm"
+    ],
+    "enc:\\\\x133D\\\\xEA60\\\\xE4A0\\\\x1D82": [
+      "Snow Wolf"
+    ],
+    "enc:\\\\x133F\\\\xB2E6\\\\x4D8F": [
+      "Geno Darkheart"
+    ],
+    "enc:\\\\x1341\\\\xAD28\\\\xF753\\\\x5FE9": [
+      "Jolo Lighthaunch"
+    ],
+    "enc:\\\\x1342\\\\xD39A\\\\xFAFB\\\\x70EB": [
+      "Yino Burlyhaunch"
+    ],
+    "enc:\\\\x1344\\\\xAB2B\\\\xD2A7\\\\x0369": [
+      "Shiverpeak Protector"
+    ],
     "enc:\\\\x1345\\\\xF1BB\\\\xC13D\\\\x195B": [
       "Shiverpeak Warrior"
     ],
     "enc:\\\\x1346\\\\x8BE6\\\\xBAA6\\\\x2D9F": [
       "Shiverpeak Longbow"
+    ],
+    "enc:\\\\x134E\\\\xC90B\\\\xC007\\\\x27FA": [
+      "Frostfire Dryder"
     ],
     "enc:\\\\x1351\\\\x8E38\\\\xD156\\\\x134E": [
       "Snow Ettin"
@@ -564,6 +588,12 @@
     ],
     "enc:\\\\x136C\\\\xC184\\\\xCF88\\\\x440B": [
       "Ice Imp"
+    ],
+    "enc:\\\\x136E\\\\xB756\\\\x89DF\\\\x1042": [
+      "Minotaur"
+    ],
+    "enc:\\\\x136F\\\\xBE06\\\\xE183\\\\x1C7D": [
+      "Minotaur"
     ],
     "enc:\\\\x1370\\\\xFE18\\\\xAFCB\\\\x45C1": [
       "Seear Windlash"
@@ -595,6 +625,30 @@
     "enc:\\\\x13E8\\\\xB483\\\\xEBD9\\\\x54BD": [
       "Hussar Ironfeast"
     ],
+    "enc:\\\\x13E9\\\\xEBC4\\\\xC61C\\\\x5D0F": [
+      "Saris Headstaver"
+    ],
+    "enc:\\\\x13EA\\\\xC539\\\\xB909\\\\x6771": [
+      "Riine Windrot"
+    ],
+    "enc:\\\\x13EB\\\\xB250\\\\xB811\\\\x5ED1": [
+      "Toris Stonehammer"
+    ],
+    "enc:\\\\x13ED\\\\xCBE4\\\\xE073\\\\x64D2": [
+      "Priest of Dagnar"
+    ],
+    "enc:\\\\x13EE\\\\xE7E4\\\\xFFCE\\\\x0CAD": [
+      "Bucknar Runeguard"
+    ],
+    "enc:\\\\x13EF\\\\xF0F7\\\\xB93C\\\\x25C1": [
+      "Shalis Ironmantle"
+    ],
+    "enc:\\\\x13F1\\\\xA755\\\\xA65C\\\\x6905": [
+      "Durnar Skullcracker"
+    ],
+    "enc:\\\\x13F3\\\\xF5C6\\\\xA2C9\\\\x59BD": [
+      "Garris Nightwatch"
+    ],
     "enc:\\\\x13FA\\\\xC3B1\\\\xAC60\\\\x320F": [
       "Jonar Stonebender"
     ],
@@ -603,6 +657,9 @@
     ],
     "enc:\\\\x1410\\\\x9036\\\\xBB1E\\\\x1D82": [
       "Stone Summit Heretic"
+    ],
+    "enc:\\\\x1411\\\\xC8CB\\\\x1C6C": [
+      "Dolyak Rider"
     ],
     "enc:\\\\x1412\\\\x8CFE\\\\xBE02\\\\x56FE": [
       "Dolyak Master"
@@ -909,6 +966,36 @@
     ],
     "enc:\\\\x390A\\\\xBF01\\\\xD6CF\\\\x5211": [
       "Charr Warrior"
+    ],
+    "enc:\\\\x3A0C\\\\xB882\\\\x9B8A\\\\x4469": [
+      "Stone Summit Engineer"
+    ],
+    "enc:\\\\x3A73\\\\xD111\\\\xBDB6\\\\x117E": [
+      "Stone Summit Engineer"
+    ],
+    "enc:\\\\x3A7E\\\\x89FC\\\\x5F79": [
+      "Dagnar"
+    ],
+    "enc:\\\\x3A7F\\\\xCB01\\\\xEA2B\\\\x331D": [
+      "Stone Summit Warrior"
+    ],
+    "enc:\\\\x3A80\\\\xF947\\\\xA0D2\\\\x4F38": [
+      "Stone Summit Warrior"
+    ],
+    "enc:\\\\x3A81\\\\xA04C\\\\xD211\\\\x2B4B": [
+      "Stone Summit Warrior"
+    ],
+    "enc:\\\\x3A82\\\\x8934\\\\xEC3D\\\\x6028": [
+      "Stone Summit Warrior"
+    ],
+    "enc:\\\\x3A84\\\\xBF70\\\\xA07D\\\\x42DE": [
+      "Stone Summit Warrior"
+    ],
+    "enc:\\\\x3A85\\\\x8210\\\\xAFDA\\\\x2AD4": [
+      "Stone Summit Warrior"
+    ],
+    "enc:\\\\x3A86\\\\x9CC5\\\\xA21B\\\\x243F": [
+      "Stone Summit Crusher"
     ],
     "enc:\\\\x3ADF\\\\x8273\\\\xEA13\\\\x3437": [
       "Stone Summit Engineer"

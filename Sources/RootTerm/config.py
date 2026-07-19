@@ -34,6 +34,15 @@ MAP_NAHPUI_QUARTER = 216
 MAP_SENJIS_CORNER = 51
 MAP_TAHNNAKAI_TEMPLE = 217
 MAP_ZIN_KU_CORRIDOR = 284
+MAP_BORLIS_PASS = 25
+MAP_THE_FROST_GATE = 21
+MAP_BEACONS_PERCH = 133
+MAP_MINISTER_CHOS_ESTATE = 214
+MAP_RAN_MUSU_GARDENS = 251
+MAP_ZEN_DAIJUN = 213
+MAP_SEITUNG_HARBOR = 250
+MAP_SUNJIANG_DISTRICT = 220
+MAP_MAATU_KEEP = 283
 
 # Hero IDs used by Nightfall missions (from GwAu3 / HeroType)
 HERO_KOSS = 6
@@ -103,12 +112,40 @@ MISSION_CONFIG: dict[int, MissionConfig] = {
         required_hero=0,
         completion_map=MAP_YAKS_BEND,
     ),
+    940: MissionConfig(
+        quest_id=940,
+        town_map=MAP_BORLIS_PASS,
+        town_label='Borlis Pass',
+        mission_map=MAP_BORLIS_PASS,
+        map2=MAP_THE_FROST_GATE,
+        map3=0,
+        map4=0,
+        party_size=6,
+        required_hero=0,
+        completion_map=MAP_THE_FROST_GATE,
+    ),
+    941: MissionConfig(
+        quest_id=941,
+        town_map=MAP_THE_FROST_GATE,
+        town_label='The Frost Gate',
+        mission_map=MAP_THE_FROST_GATE,
+        map2=MAP_BEACONS_PERCH,
+        map3=0,
+        map4=0,
+        party_size=6,
+        required_hero=0,
+        completion_map=MAP_BEACONS_PERCH,
+    ),
+    961: MissionConfig(961, MAP_ZEN_DAIJUN, 'Zen Daijun', MAP_ZEN_DAIJUN,
+                       0, 0, 0, 6, 0, MAP_SEITUNG_HARBOR),
     962: MissionConfig(962, MAP_VIZUNAH_SQUARE_LOCAL, 'Vizunah Square', MAP_VIZUNAH_SQUARE_MISSION,
                        0, 0, 0, 8, 0, MAP_DRAGONS_THROAT),
     963: MissionConfig(963, MAP_NAHPUI_QUARTER, 'Nahpui Quarter', MAP_NAHPUI_QUARTER,
                        0, 0, 0, 8, 0, MAP_SENJIS_CORNER),
     964: MissionConfig(964, MAP_TAHNNAKAI_TEMPLE, 'Tahnnakai Temple', MAP_TAHNNAKAI_TEMPLE,
                        0, 0, 0, 8, 0, MAP_ZIN_KU_CORRIDOR),
+    967: MissionConfig(967, MAP_SUNJIANG_DISTRICT, 'Sunjiang District', MAP_SUNJIANG_DISTRICT,
+                       0, 0, 0, 8, 0, MAP_MAATU_KEEP),
     978: MissionConfig(
         quest_id=978,
         town_map=MAP_CHAHBEK_VILLAGE,
@@ -121,6 +158,8 @@ MISSION_CONFIG: dict[int, MissionConfig] = {
         required_hero=HERO_KOSS,
         completion_map=MAP_CHURRHIR_FIELDS,
     ),
+    1119: MissionConfig(1119, MAP_MINISTER_CHOS_ESTATE, "Minister Cho's Estate",
+                        MAP_MINISTER_CHOS_ESTATE, 0, 0, 0, 4, 0, MAP_RAN_MUSU_GARDENS),
     1003: MissionConfig(1003, MAP_LONGEYES_LEDGE, 'Against the Charr', MAP_AGAINST_THE_CHARR,
                         MAP_GROTHMAR_WARDOWNS, 0, 0, 8, 0, MAP_LONGEYES_LEDGE),
     1006: MissionConfig(1006, MAP_SIFHALLA, 'Curse of the Nornbear', MAP_CURSE_OF_THE_NORNBEAR,
