@@ -12,6 +12,7 @@ from typing import Tuple
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import AgentArray
 from Py4GWCoreLib import Botting
+from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Inventory
 from Py4GWCoreLib import Map
 from Py4GWCoreLib import Player
@@ -92,6 +93,36 @@ def interact_npc_xy(bot: Botting, x: float, y: float, step_name: str = '') -> No
 
 def set_title(bot: Botting, title_id: int) -> None:
     bot.Player.SetTitle(title_id)
+
+
+def enter_mission_coro(confirm_extra: bool = False, timeout_ms: int = 30000) -> Generator[Any, Any, bool]:
+    """Enter a mission and wait for the outpost to become an explorable instance."""
+    Map.EnterChallenge()
+
+    confirm_elapsed = 0
+    while confirm_extra and confirm_elapsed < 5000 and Map.IsOutpost():
+        yield from Routines.Yield.wait(100)
+        Map.ConfirmEnterChallenge()
+        confirm_elapsed += 100
+
+    elapsed = 0
+    while elapsed < timeout_ms:
+        if Map.IsMapReady() and Map.IsExplorable() and not Map.IsMapLoading():
+            yield from Routines.Yield.wait(1500)
+            return True
+        yield from Routines.Yield.wait(250)
+        elapsed += 250
+    return False
+
+
+def add_enter_mission(bot: Botting, name: str, confirm_extra: bool = False) -> None:
+    def _state():
+        if (yield from enter_mission_coro(confirm_extra=confirm_extra)):
+            return
+        ConsoleLog('RMA', f'{name}: mission instance failed to load.')
+        bot.Stop()
+
+    bot.States.AddCustomState(_state, f'{name} Enter Mission')
 
 
 def skip_cinematic_coro(timeout_ms: int = 30000) -> Generator[Any, Any, None]:

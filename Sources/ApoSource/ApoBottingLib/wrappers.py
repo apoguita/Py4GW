@@ -1168,7 +1168,14 @@ def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float =
         pause_on_combat=pause_on_combat,
     )
 
-def MoveDirect(pos: PointOrPath, pause_on_combat: bool | None = None, flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
+def MoveDirect(
+    pos: PointOrPath,
+    pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
+    log: bool = False,
+    timeout_ms: int = 15000,
+    tolerance: float = 50.0,
+) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "MoveDirect",
         lambda resolved_pause: RoutinesBT.Movement.MoveDirect(
@@ -1176,6 +1183,8 @@ def MoveDirect(pos: PointOrPath, pause_on_combat: bool | None = None, flag_heroe
             pause_on_combat=resolved_pause,
             flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
+            timeout_ms=timeout_ms,
+            tolerance=tolerance,
         ),
         pause_on_combat=pause_on_combat,
     )
@@ -1192,6 +1201,7 @@ def MoveAndKill(
     clear_area_radius: float = Range.Spirit.value,
     pause_on_combat: bool | None = None,
     flag_heroes_to_waypoint: bool = False,
+    timeout_ms: int = 15000,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "MoveAndKill",
@@ -1200,6 +1210,7 @@ def MoveAndKill(
             clear_area_radius=clear_area_radius,
             pause_on_combat=resolved_pause,
             flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+            timeout_ms=timeout_ms,
         ),
         pause_on_combat=pause_on_combat,
     )
@@ -1211,6 +1222,7 @@ def VanquishNode(
     pause_on_combat: bool | None = None,
     flag_heroes_to_waypoint: bool = False,
     name: str = 'VanquishNode',
+    timeout_ms: int = 15000,
 ) -> BehaviorTree:
     resolved_children: list[BehaviorTree | BehaviorTree.Node] = []
 
@@ -1228,6 +1240,7 @@ def VanquishNode(
                 clear_area_radius=step_clear_area_radius,
                 pause_on_combat=step_pause_on_combat,
                 flag_heroes_to_waypoint=step_flag_heroes_to_waypoint,
+                timeout_ms=timeout_ms,
             )
         )
 

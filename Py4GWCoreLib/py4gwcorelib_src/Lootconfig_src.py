@@ -503,6 +503,14 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Trick_Or_Treat_Bag,
         ],
     },
+    "Mission Items": {
+        "The Great Northern Wall": [
+            ModelID.Kilhn_Testibries_Crest,
+            ModelID.Kilhn_Testibries_Cuisse,
+            ModelID.Kilhn_Testibries_Greaves,
+            ModelID.Kilhn_Testibries_Pauldron,
+        ],
+    },
     "Quest Items": {
         "Map Pieces": [
             ModelID.Map_Piece_Bottom_Left,

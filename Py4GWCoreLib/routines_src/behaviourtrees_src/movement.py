@@ -1040,6 +1040,7 @@ class BTMovement:
         clear_area_radius: float = Range.Spirit.value,
         pause_on_combat: bool = True,
         flag_heroes_to_waypoint: bool = False,
+        timeout_ms: int = 15000,
     ) -> BehaviorTree:
         from .agents import BTAgents
 
@@ -1049,6 +1050,7 @@ class BTMovement:
                 y=coords.y,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                timeout_ms=timeout_ms,
             ),
             BTAgents.ClearEnemiesInArea(x=coords.x, y=coords.y, radius=clear_area_radius),
             name="MoveAndKill",
@@ -1230,6 +1232,7 @@ class BTMovement:
         clear_area_radius: float = Range.Spirit.value,
         pause_on_combat: bool = True,
         flag_heroes_to_waypoint: bool = False,
+        timeout_ms: int = 15000,
     ) -> BehaviorTree:
         """
         Build a tree that walks a path and clears enemies around each point.
@@ -1252,6 +1255,7 @@ class BTMovement:
                 clear_area_radius=clear_area_radius,
                 pause_on_combat=pause_on_combat,
                 flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                timeout_ms=timeout_ms,
             ),
         )
 

@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import PyImGui
 
-from Sources.incognito.catalog import CAMPAIGN_FACTIONS
-from Sources.incognito.catalog import CAMPAIGN_NAMES
-from Sources.incognito.catalog import CAMPAIGN_NIGHTFALL
-from Sources.incognito.catalog import CAMPAIGN_OTHER
-from Sources.incognito.catalog import CAMPAIGN_PROPHECIES
-from Sources.incognito.catalog import CATALOG
-from Sources.incognito.catalog import filter_by_campaign
-from Sources.incognito.config import is_playable
-from Sources.incognito.consumables import STONE_LABELS
-from Sources.incognito.options import OPTIONS
+from Sources.RootTerm.catalog import CAMPAIGN_FACTIONS
+from Sources.RootTerm.catalog import CAMPAIGN_NAMES
+from Sources.RootTerm.catalog import CAMPAIGN_NIGHTFALL
+from Sources.RootTerm.catalog import CAMPAIGN_OTHER
+from Sources.RootTerm.catalog import CAMPAIGN_PROPHECIES
+from Sources.RootTerm.catalog import CATALOG
+from Sources.RootTerm.catalog import filter_by_campaign
+from Sources.RootTerm.config import is_playable
+from Sources.RootTerm.consumables import STONE_LABELS
+from Sources.RootTerm.options import OPTIONS
 
 _CAMPAIGN_FILTER_LABELS = ['All', 'Prophecies', 'Factions', 'Nightfall', 'Eye of the North']
 _CAMPAIGN_FILTER_VALUES = [-1, CAMPAIGN_PROPHECIES, CAMPAIGN_FACTIONS, CAMPAIGN_NIGHTFALL, CAMPAIGN_OTHER]
@@ -22,10 +22,7 @@ _CAMPAIGN_FILTER_VALUES = [-1, CAMPAIGN_PROPHECIES, CAMPAIGN_FACTIONS, CAMPAIGN_
 def draw_missions_tab() -> None:
     """Full Missions tab: filters, checklist, consumables."""
     PyImGui.text('Reforged Mission Assistant')
-    PyImGui.text_wrapped(
-        'Phase 1 playable: Great Northern Wall, Fort Ranik, Chahbek Village. '
-        'Other missions are listed but disabled until ported.'
-    )
+    PyImGui.text_wrapped('Ported missions are enabled. Other missions remain disabled until their routes are available.')
     PyImGui.separator()
 
     OPTIONS.hard_mode = PyImGui.checkbox('Hard Mode (Guardian)', OPTIONS.hard_mode)
@@ -76,7 +73,7 @@ def draw_missions_tab() -> None:
             if entry.stub:
                 label = f'{label} [stub]'
             elif not playable:
-                label = f'{label} [not ported]'
+                label = f'{label} [Unavailable]'
             checked = OPTIONS.is_selected(entry.quest_id)
             if not playable:
                 PyImGui.begin_disabled(True)

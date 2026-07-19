@@ -160,6 +160,90 @@
     "enc:\\\\x0F9A\\\\xD398\\\\x831E\\\\x6C46": [
       "Spirit of Muddy Terrain"
     ],
+    "enc:\\\\x0FE3\\\\xCA14\\\\xF86A\\\\x19B3": [
+      "Scint the Malign"
+    ],
+    "enc:\\\\x0FE4\\\\x820E\\\\xEEE0\\\\x5019": [
+      "Burr Mankiller"
+    ],
+    "enc:\\\\x0FE5\\\\xC2B8\\\\xEAD4\\\\x1B2E": [
+      "Slaug Firehide"
+    ],
+    "enc:\\\\x0FE8\\\\xF7E5\\\\x83D7\\\\x5153": [
+      "Fling Bloodpelt"
+    ],
+    "enc:\\\\x0FEF\\\\x9E3D\\\\x9F4F\\\\x118E": [
+      "Marr Burnhorn"
+    ],
+    "enc:\\\\x0FF1\\\\x9AEB\\\\xA169\\\\x4424": [
+      "Fume Kindleflail"
+    ],
+    "enc:\\\\x0FF3\\\\xB09B\\\\xD098\\\\x1483": [
+      "Drub Gorefang"
+    ],
+    "enc:\\\\x0FF5\\\\xA1BB\\\\xA79A\\\\x2413": [
+      "Craze the Unforgiving"
+    ],
+    "enc:\\\\x0FF6\\\\xB7E4\\\\x9A14\\\\x3AF1": [
+      "Roarst One Eye"
+    ],
+    "enc:\\\\x0FF7\\\\x9A19\\\\xA63E\\\\x42DD": [
+      "Torch Spitfur"
+    ],
+    "enc:\\\\x0FF8\\\\xE090\\\\x0264": [
+      "Rrrack Whitefire"
+    ],
+    "enc:\\\\x0FF9\\\\xA93C\\\\xB901\\\\x6B5F": [
+      "Spar the Ravager"
+    ],
+    "enc:\\\\x0FFA\\\\xE8BA\\\\xBC8B\\\\x2ACF": [
+      "Klaww FeatherStorm"
+    ],
+    "enc:\\\\x1015\\\\xA8EA\\\\xC66A\\\\x59C9": [
+      "Charr Chaot"
+    ],
+    "enc:\\\\x1016\\\\xA236\\\\x59CC": [
+      "Charr Mind Spark"
+    ],
+    "enc:\\\\x1018\\\\xD4E8\\\\xA369\\\\x4F65": [
+      "Charr Ashen Claw"
+    ],
+    "enc:\\\\x1019\\\\xAA05\\\\xFF37\\\\x22B0": [
+      "Charr Ash Walker"
+    ],
+    "enc:\\\\x101B\\\\xC825\\\\xA6F1\\\\x0860": [
+      "Charr Flame Wielder"
+    ],
+    "enc:\\\\x101D\\\\xF6E5\\\\xD15C\\\\x2F5F": [
+      "Charr Fire Caller"
+    ],
+    "enc:\\\\x1020\\\\xC9A0\\\\x903A\\\\x2DF3": [
+      "Charr Shaman"
+    ],
+    "enc:\\\\x1021\\\\xAF21\\\\x895A\\\\x41AF": [
+      "Charr Overseer"
+    ],
+    "enc:\\\\x1022\\\\xF709\\\\xBA83\\\\x0CF7": [
+      "Charr Martyr"
+    ],
+    "enc:\\\\x1025\\\\xA8BD\\\\xC478\\\\x47C2": [
+      "Charr Axe Fiend"
+    ],
+    "enc:\\\\x1026\\\\x99E9\\\\x7770": [
+      "Charr Axe Warrior"
+    ],
+    "enc:\\\\x1027\\\\x838D\\\\x301E": [
+      "Charr Blade Storm"
+    ],
+    "enc:\\\\x1028\\\\xA504\\\\x339A": [
+      "Charr Blade Warrior"
+    ],
+    "enc:\\\\x102A\\\\xE056\\\\x87F8\\\\x1694": [
+      "Charr Hunter"
+    ],
+    "enc:\\\\x102C\\\\xEC41\\\\xF305\\\\x72A4": [
+      "Charr Stalker"
+    ],
     "enc:\\\\x102F\\\\xE176\\\\x9FFE\\\\x1977": [
       "Lynx"
     ],
@@ -367,8 +451,47 @@
     "enc:\\\\x12C5\\\\xD142\\\\xFA22\\\\x1E49": [
       "Grasping Darkness"
     ],
+    "enc:\\\\x12DC\\\\xE2C9\\\\xD1A7\\\\x4626": [
+      "Moa Bird"
+    ],
+    "enc:\\\\x12E3\\\\xB6D1\\\\xE860\\\\x6367": [
+      "Carrion Devourer"
+    ],
     "enc:\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9": [
       "Carrion Devourer"
+    ],
+    "enc:\\\\x12EA\\\\xCA7C\\\\xB9EC\\\\x0D76": [
+      "Gnash Underfoot"
+    ],
+    "enc:\\\\x12EB\\\\xAA04\\\\x84D1\\\\x5F73": [
+      "Fester Fang"
+    ],
+    "enc:\\\\x12EC\\\\xD24A\\\\x9E1D\\\\x79DA": [
+      "Hurl Foulspine"
+    ],
+    "enc:\\\\x12ED\\\\xE715\\\\xF108\\\\x254E": [
+      "Fleck Grokspit"
+    ],
+    "enc:\\\\x12EE\\\\xAA75\\\\xC690\\\\x3483": [
+      "Igg Fecpelter"
+    ],
+    "enc:\\\\x12F2\\\\xF630\\\\xAA59\\\\x46F3": [
+      "Plague Devourer"
+    ],
+    "enc:\\\\x12F4\\\\xF852\\\\xF995\\\\x6A96": [
+      "Plague Devourer"
+    ],
+    "enc:\\\\x12F5\\\\xEBF3\\\\xBFFA\\\\x7341": [
+      "Whiptail Devourer"
+    ],
+    "enc:\\\\x12F8\\\\xF641\\\\xCD0B\\\\x29AF": [
+      "Whiptail Devourer"
+    ],
+    "enc:\\\\x12FC\\\\xF42F\\\\xE2CD\\\\x1AF8": [
+      "Spazz Mindrender"
+    ],
+    "enc:\\\\x12FD\\\\x9BA5\\\\xFC06\\\\x0878": [
+      "Claw Fleshfixer"
     ],
     "enc:\\\\x1301\\\\xCE50\\\\x7AC8": [
       "Shatter Gargoyle"
@@ -378,6 +501,18 @@
     ],
     "enc:\\\\x1323\\\\xF632\\\\x2C75": [
       "Hulking Stone Elemental"
+    ],
+    "enc:\\\\x132C\\\\xD021\\\\xC425\\\\x3209": [
+      "Makani Ookook"
+    ],
+    "enc:\\\\x132D\\\\xAD2F\\\\x8EED\\\\x37BB": [
+      "Onaona Kubkub"
+    ],
+    "enc:\\\\x1334\\\\xAD50\\\\x8875\\\\x31AE": [
+      "Grawl Ulodyte"
+    ],
+    "enc:\\\\x1335\\\\xFF1A\\\\x81F2\\\\x7C07": [
+      "Grawl"
     ],
     "enc:\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406": [
       "Blessed Griffon"
@@ -633,6 +768,42 @@
     ],
     "enc:\\\\x1F81\\\\xC99C\\\\x8FA6\\\\x0605": [
       "Shadow Lord Vogris"
+    ],
+    "enc:\\\\x3778\\\\xC79B\\\\xE9A9\\\\x7937": [
+      "Flame Brazier"
+    ],
+    "enc:\\\\x3779\\\\xC517\\\\xCDEC\\\\x61E9": [
+      "Ember Bearer"
+    ],
+    "enc:\\\\x377B\\\\xD58B\\\\xF45D\\\\x6130": [
+      "Flame Keeper"
+    ],
+    "enc:\\\\x386A\\\\xD4C8\\\\xAC24\\\\x3986": [
+      "Bonfaaz Burntfur"
+    ],
+    "enc:\\\\x3875\\\\xB11A\\\\x8109\\\\x3286": [
+      "Charr Scout"
+    ],
+    "enc:\\\\x3876\\\\xE154\\\\x9CDD\\\\x5A00": [
+      "Charr Scout"
+    ],
+    "enc:\\\\x3877\\\\xA324\\\\xEBC1\\\\x6A1D": [
+      "Charr Scout"
+    ],
+    "enc:\\\\x3906\\\\xFC21\\\\xB814\\\\x651A": [
+      "Charr Stalker"
+    ],
+    "enc:\\\\x3907\\\\xEBF1\\\\x9F31\\\\x1DE8": [
+      "Charr Martyr"
+    ],
+    "enc:\\\\x3908\\\\xD6EE\\\\xE0A7\\\\x6FA6": [
+      "Charr Blade Warrior"
+    ],
+    "enc:\\\\x3909\\\\xEE70\\\\x8CE9\\\\x770A": [
+      "Charr Warrior"
+    ],
+    "enc:\\\\x390A\\\\xBF01\\\\xD6CF\\\\x5211": [
+      "Charr Warrior"
     ],
     "enc:\\\\x3ADF\\\\x8273\\\\xEA13\\\\x3437": [
       "Stone Summit Engineer"

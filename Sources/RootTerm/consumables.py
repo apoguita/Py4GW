@@ -14,7 +14,7 @@ from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Player
 from Py4GWCoreLib import Routines
 
-from Sources.incognito.options import OPTIONS
+from Sources.RootTerm.options import OPTIONS
 
 CONSET_EFFECT_IDS = {
     'essence': 2522,

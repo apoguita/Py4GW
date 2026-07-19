@@ -1423,6 +1423,18 @@
           "instance_type": "Explorable",
           "name": "Perdition Rock"
         },
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -1509,6 +1521,12 @@
           "instance_type": "Explorable",
           "name": "The Undercity"
         },
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
         "462": {
           "base_id": 462,
           "id": 462,
@@ -1567,6 +1585,1050 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x0FE3\\\\xCA14\\\\xF86A\\\\x19B3": {
+      "encoded_names": [
+        "\\\\x0FE3\\\\xCA14\\\\xF86A\\\\x19B3"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1611
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x0FE4\\\\x820E\\\\xEEE0\\\\x5019": {
+      "encoded_names": [
+        "\\\\x0FE4\\\\x820E\\\\xEEE0\\\\x5019"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1612
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "150": {
+          "id": 150,
+          "name": "Mark of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x0FE5\\\\xC2B8\\\\xEAD4\\\\x1B2E": {
+      "encoded_names": [
+        "\\\\x0FE5\\\\xC2B8\\\\xEAD4\\\\x1B2E"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1613
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "182": {
+          "id": 182,
+          "name": "Conjure Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x0FE8\\\\xF7E5\\\\x83D7\\\\x5153": {
+      "encoded_names": [
+        "\\\\x0FE8\\\\xF7E5\\\\x83D7\\\\x5153"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        1616
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "431": {
+          "id": 431,
+          "name": "Ignite Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "472": {
+          "id": 472,
+          "name": "Favorable Winds",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x0FEF\\\\x9E3D\\\\x9F4F\\\\x118E": {
+      "encoded_names": [
+        "\\\\x0FEF\\\\x9E3D\\\\x9F4F\\\\x118E"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1617
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x0FF1\\\\x9AEB\\\\xA169\\\\x4424": {
+      "encoded_names": [
+        "\\\\x0FF1\\\\x9AEB\\\\xA169\\\\x4424"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1619
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0FF3\\\\xB09B\\\\xD098\\\\x1483": {
+      "encoded_names": [
+        "\\\\x0FF3\\\\xB09B\\\\xD098\\\\x1483"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1621
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0FF5\\\\xA1BB\\\\xA79A\\\\x2413": {
+      "encoded_names": [
+        "\\\\x0FF5\\\\xA1BB\\\\xA79A\\\\x2413"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1623
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "37": {
+          "id": 37,
+          "name": "Illusion of Haste",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "40": {
+          "id": 40,
+          "name": "Ether Feast",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x0FF6\\\\xB7E4\\\\x9A14\\\\x3AF1": {
+      "encoded_names": [
+        "\\\\x0FF6\\\\xB7E4\\\\x9A14\\\\x3AF1"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1624
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "150": {
+          "id": 150,
+          "name": "Mark of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x0FF7\\\\x9A19\\\\xA63E\\\\x42DD": {
+      "encoded_names": [
+        "\\\\x0FF7\\\\x9A19\\\\xA63E\\\\x42DD"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1625
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "182": {
+          "id": 182,
+          "name": "Conjure Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x0FF8\\\\xE090\\\\x0264": {
+      "encoded_names": [
+        "\\\\x0FF8\\\\xE090\\\\x0264"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        1626
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "252": {
+          "id": 252,
+          "name": "Banish",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "280": {
+          "id": 280,
+          "name": "Heal Area",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "292": {
+          "id": 292,
+          "name": "Infuse Health",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "296": {
+          "id": 296,
+          "name": "Bane Signet",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x0FF9\\\\xA93C\\\\xB901\\\\x6B5F": {
+      "encoded_names": [
+        "\\\\x0FF9\\\\xA93C\\\\xB901\\\\x6B5F"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1627
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        },
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x0FFA\\\\xE8BA\\\\xBC8B\\\\x2ACF": {
+      "encoded_names": [
+        "\\\\x0FFA\\\\xE8BA\\\\xBC8B\\\\x2ACF"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        1628
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "431": {
+          "id": 431,
+          "name": "Ignite Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x1015\\\\xA8EA\\\\xC66A\\\\x59C9": {
+      "encoded_names": [
+        "\\\\x1015\\\\xA8EA\\\\xC66A\\\\x59C9"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1638
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "69": {
+          "id": 69,
+          "name": "Shatter Enchantment",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x1016\\\\xA236\\\\x59CC": {
+      "encoded_names": [
+        "\\\\x1016\\\\xA236\\\\x59CC"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1639
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "42": {
+          "id": 42,
+          "name": "Energy Burn",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "67": {
+          "id": 67,
+          "name": "Shatter Hex",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x1018\\\\xD4E8\\\\xA369\\\\x4F65": {
+      "encoded_names": [
+        "\\\\x1018\\\\xD4E8\\\\xA369\\\\x4F65"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1641
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "150": {
+          "id": 150,
+          "name": "Mark of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x1019\\\\xAA05\\\\xFF37\\\\x22B0": {
+      "encoded_names": [
+        "\\\\x1019\\\\xAA05\\\\xFF37\\\\x22B0"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        1642
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "109": {
+          "id": 109,
+          "name": "Life Siphon",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "id": 135,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x101B\\\\xC825\\\\xA6F1\\\\x0860": {
+      "encoded_names": [
+        "\\\\x101B\\\\xC825\\\\xA6F1\\\\x0860"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1644
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "182": {
+          "id": 182,
+          "name": "Conjure Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x101D\\\\xF6E5\\\\xD15C\\\\x2F5F": {
+      "encoded_names": [
+        "\\\\x101D\\\\xF6E5\\\\xD15C\\\\x2F5F"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        1646
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "182": {
+          "id": 182,
+          "name": "Conjure Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "194": {
+          "id": 194,
+          "name": "Flare",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "195": {
+          "id": 195,
+          "name": "Lava Font",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x1020\\\\xC9A0\\\\x903A\\\\x2DF3": {
+      "encoded_names": [
+        "\\\\x1020\\\\xC9A0\\\\x903A\\\\x2DF3"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        1649
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "252": {
+          "id": 252,
+          "name": "Banish",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "280": {
+          "id": 280,
+          "name": "Heal Area",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "292": {
+          "id": 292,
+          "name": "Infuse Health",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "296": {
+          "id": 296,
+          "name": "Bane Signet",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x1021\\\\xAF21\\\\x895A\\\\x41AF": {
+      "encoded_names": [
+        "\\\\x1021\\\\xAF21\\\\x895A\\\\x41AF"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        1650
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "280": {
+          "id": 280,
+          "name": "Heal Area",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "296": {
+          "id": 296,
+          "name": "Bane Signet",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x1022\\\\xF709\\\\xBA83\\\\x0CF7": {
+      "encoded_names": [
+        "\\\\x1022\\\\xF709\\\\xBA83\\\\x0CF7"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        1651
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "292": {
+          "id": 292,
+          "name": "Infuse Health",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x1025\\\\xA8BD\\\\xC478\\\\x47C2": {
+      "encoded_names": [
+        "\\\\x1025\\\\xA8BD\\\\xC478\\\\x47C2"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1654
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x1026\\\\x99E9\\\\x7770": {
+      "encoded_names": [
+        "\\\\x1026\\\\x99E9\\\\x7770"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x1027\\\\x838D\\\\x301E": {
+      "encoded_names": [
+        "\\\\x1027\\\\x838D\\\\x301E"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1656
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x1028\\\\xA504\\\\x339A": {
+      "encoded_names": [
+        "\\\\x1028\\\\xA504\\\\x339A"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1657
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x102A\\\\xE056\\\\x87F8\\\\x1694": {
+      "encoded_names": [
+        "\\\\x102A\\\\xE056\\\\x87F8\\\\x1694"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        1659
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "431": {
+          "id": 431,
+          "name": "Ignite Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x102C\\\\xEC41\\\\xF305\\\\x72A4": {
+      "encoded_names": [
+        "\\\\x102C\\\\xEC41\\\\xF305\\\\x72A4"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        1661
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "431": {
+          "id": 431,
+          "name": "Ignite Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
     },
     "enc:\\\\x102F\\\\xE176\\\\x9FFE\\\\x1977": {
       "encoded_names": [
@@ -4600,6 +5662,50 @@
         }
       }
     },
+    "enc:\\\\x12DC\\\\xE2C9\\\\xD1A7\\\\x4626": {
+      "encoded_names": [
+        "\\\\x12DC\\\\xE2C9\\\\xD1A7\\\\x4626"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1344
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12E3\\\\xB6D1\\\\xE860\\\\x6367": {
+      "encoded_names": [
+        "\\\\x12E3\\\\xB6D1\\\\xE860\\\\x6367"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2478
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9": {
       "encoded_names": [
         "\\\\x12E4\\\\xF4CF\\\\xC494\\\\x38A9"
@@ -4610,6 +5716,24 @@
         2479
       ],
       "observed_maps": {
+        "107": {
+          "base_id": 107,
+          "id": 107,
+          "instance_type": "Explorable",
+          "name": "Eastern Frontier"
+        },
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        },
         "33": {
           "base_id": 33,
           "id": 33,
@@ -4618,6 +5742,350 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x12EA\\\\xCA7C\\\\xB9EC\\\\x0D76": {
+      "encoded_names": [
+        "\\\\x12EA\\\\xCA7C\\\\xB9EC\\\\x0D76"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2434
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12EB\\\\xAA04\\\\x84D1\\\\x5F73": {
+      "encoded_names": [
+        "\\\\x12EB\\\\xAA04\\\\x84D1\\\\x5F73"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2435
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "159": {
+          "id": 159,
+          "name": "Weaken Armor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "95": {
+          "id": 95,
+          "name": "Putrid Explosion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "99": {
+          "id": 99,
+          "name": "Parasitic Bond",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12EC\\\\xD24A\\\\x9E1D\\\\x79DA": {
+      "encoded_names": [
+        "\\\\x12EC\\\\xD24A\\\\x9E1D\\\\x79DA"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        2436
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x12ED\\\\xE715\\\\xF108\\\\x254E": {
+      "encoded_names": [
+        "\\\\x12ED\\\\xE715\\\\xF108\\\\x254E"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2437
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "95": {
+          "id": 95,
+          "name": "Putrid Explosion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12EE\\\\xAA75\\\\xC690\\\\x3483": {
+      "encoded_names": [
+        "\\\\x12EE\\\\xAA75\\\\xC690\\\\x3483"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2438
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "475": {
+          "id": 475,
+          "name": "Quickening Zephyr",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x12F2\\\\xF630\\\\xAA59\\\\x46F3": {
+      "encoded_names": [
+        "\\\\x12F2\\\\xF630\\\\xAA59\\\\x46F3"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2480
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "159": {
+          "id": 159,
+          "name": "Weaken Armor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "95": {
+          "id": 95,
+          "name": "Putrid Explosion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "99": {
+          "id": 99,
+          "name": "Parasitic Bond",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12F4\\\\xF852\\\\xF995\\\\x6A96": {
+      "encoded_names": [
+        "\\\\x12F4\\\\xF852\\\\xF995\\\\x6A96"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2482
+      ],
+      "observed_maps": {
+        "107": {
+          "base_id": 107,
+          "id": 107,
+          "instance_type": "Explorable",
+          "name": "Eastern Frontier"
+        },
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "159": {
+          "id": 159,
+          "name": "Weaken Armor",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "95": {
+          "id": 95,
+          "name": "Putrid Explosion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x12F5\\\\xEBF3\\\\xBFFA\\\\x7341": {
+      "encoded_names": [
+        "\\\\x12F5\\\\xEBF3\\\\xBFFA\\\\x7341"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2483
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "403": {
+          "id": 403,
+          "name": "Called Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x12F8\\\\xF641\\\\xCD0B\\\\x29AF": {
+      "encoded_names": [
+        "\\\\x12F8\\\\xF641\\\\xCD0B\\\\x29AF"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        2486
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {
+        "403": {
+          "id": 403,
+          "name": "Called Shot",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x12FC\\\\xF42F\\\\xE2CD\\\\x1AF8": {
+      "encoded_names": [
+        "\\\\x12FC\\\\xF42F\\\\xE2CD\\\\x1AF8"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        2460
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "26": {
+          "id": 26,
+          "name": "Empathy",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "77": {
+          "id": 77,
+          "name": "Chaos Storm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x12FD\\\\x9BA5\\\\xFC06\\\\x0878": {
+      "encoded_names": [
+        "\\\\x12FD\\\\x9BA5\\\\xFC06\\\\x0878"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        2461
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "180": {
+          "id": 180,
+          "name": "Aura of Restoration",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "222": {
+          "id": 222,
+          "name": "Lightning Strike",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "229": {
+          "id": 229,
+          "name": "Lightning Orb",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
     },
     "enc:\\\\x1301\\\\xCE50\\\\x7AC8": {
       "encoded_names": [
@@ -4629,6 +6097,12 @@
         2497
       ],
       "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
         "33": {
           "base_id": 33,
           "id": 33,
@@ -4661,6 +6135,12 @@
         2499
       ],
       "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        },
         "33": {
           "base_id": 33,
           "id": 33,
@@ -4695,6 +6175,134 @@
         }
       },
       "observed_skills": {}
+    },
+    "enc:\\\\x132C\\\\xD021\\\\xC425\\\\x3209": {
+      "encoded_names": [
+        "\\\\x132C\\\\xD021\\\\xC425\\\\x3209"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2465
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "247": {
+          "id": 247,
+          "name": "Symbol of Wrath",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x132D\\\\xAD2F\\\\x8EED\\\\x37BB": {
+      "encoded_names": [
+        "\\\\x132D\\\\xAD2F\\\\x8EED\\\\x37BB"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2464
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x1334\\\\xAD50\\\\x8875\\\\x31AE": {
+      "encoded_names": [
+        "\\\\x1334\\\\xAD50\\\\x8875\\\\x31AE"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        2508
+      ],
+      "observed_maps": {
+        "107": {
+          "base_id": 107,
+          "id": 107,
+          "instance_type": "Explorable",
+          "name": "Eastern Frontier"
+        },
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "280": {
+          "id": 280,
+          "name": "Heal Area",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "286": {
+          "id": 286,
+          "name": "Heal Other",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x1335\\\\xFF1A\\\\x81F2\\\\x7C07": {
+      "encoded_names": [
+        "\\\\x1335\\\\xFF1A\\\\x81F2\\\\x7C07"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        2509
+      ],
+      "observed_maps": {
+        "107": {
+          "base_id": 107,
+          "id": 107,
+          "instance_type": "Explorable",
+          "name": "Eastern Frontier"
+        },
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {
+        "357": {
+          "id": 357,
+          "name": "Counter Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
     },
     "enc:\\\\x135C\\\\xB57D\\\\xA5B5\\\\x7406": {
       "encoded_names": [
@@ -8018,6 +9626,281 @@
           "name": "Consume Corpse",
           "profession": "Necromancer",
           "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x3778\\\\xC79B\\\\xE9A9\\\\x7937": {
+      "encoded_names": [
+        "\\\\x3778\\\\xC79B\\\\xE9A9\\\\x7937"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1630
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3779\\\\xC517\\\\xCDEC\\\\x61E9": {
+      "encoded_names": [
+        "\\\\x3779\\\\xC517\\\\xCDEC\\\\x61E9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1654
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x377B\\\\xD58B\\\\xF45D\\\\x6130": {
+      "encoded_names": [
+        "\\\\x377B\\\\xD58B\\\\xF45D\\\\x6130"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1645
+      ],
+      "observed_maps": {
+        "30": {
+          "base_id": 30,
+          "id": 30,
+          "instance_type": "Explorable",
+          "name": "Ruins of Surmia outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x386A\\\\xD4C8\\\\xAC24\\\\x3986": {
+      "encoded_names": [
+        "\\\\x386A\\\\xD4C8\\\\xAC24\\\\x3986"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1629
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3875\\\\xB11A\\\\x8109\\\\x3286": {
+      "encoded_names": [
+        "\\\\x3875\\\\xB11A\\\\x8109\\\\x3286"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1654
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3876\\\\xE154\\\\x9CDD\\\\x5A00": {
+      "encoded_names": [
+        "\\\\x3876\\\\xE154\\\\x9CDD\\\\x5A00"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1654
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3877\\\\xA324\\\\xEBC1\\\\x6A1D": {
+      "encoded_names": [
+        "\\\\x3877\\\\xA324\\\\xEBC1\\\\x6A1D"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        1657
+      ],
+      "observed_maps": {
+        "28": {
+          "base_id": 28,
+          "id": 28,
+          "instance_type": "Explorable",
+          "name": "The Great Northern Wall outpost"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x3906\\\\xFC21\\\\xB814\\\\x651A": {
+      "encoded_names": [
+        "\\\\x3906\\\\xFC21\\\\xB814\\\\x651A"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        1661
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "398": {
+          "id": 398,
+          "name": "Penetrating Attack",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "431": {
+          "id": 431,
+          "name": "Ignite Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x3907\\\\xEBF1\\\\x9F31\\\\x1DE8": {
+      "encoded_names": [
+        "\\\\x3907\\\\xEBF1\\\\x9F31\\\\x1DE8"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        1651
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "281": {
+          "id": 281,
+          "name": "Orison of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "292": {
+          "id": 292,
+          "name": "Infuse Health",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x3908\\\\xD6EE\\\\xE0A7\\\\x6FA6": {
+      "encoded_names": [
+        "\\\\x3908\\\\xD6EE\\\\xE0A7\\\\x6FA6"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1657
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "321": {
+          "id": 321,
+          "name": "Wild Blow",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x3909\\\\xEE70\\\\x8CE9\\\\x770A": {
+      "encoded_names": [
+        "\\\\x3909\\\\xEE70\\\\x8CE9\\\\x770A"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x390A\\\\xBF01\\\\xD6CF\\\\x5211": {
+      "encoded_names": [
+        "\\\\x390A\\\\xBF01\\\\xD6CF\\\\x5211"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        1655
+      ],
+      "observed_maps": {
+        "29": {
+          "base_id": 29,
+          "id": 29,
+          "instance_type": "Explorable",
+          "name": "Fort Ranik outpost"
+        }
+      },
+      "observed_skills": {
+        "330": {
+          "id": 330,
+          "name": "Cyclone Axe",
+          "profession": "Warrior",
+          "profession_id": 1
         }
       }
     },

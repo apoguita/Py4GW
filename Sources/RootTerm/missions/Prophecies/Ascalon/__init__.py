@@ -1,0 +1,1 @@
+"""Prophecies missions in Ascalon."""

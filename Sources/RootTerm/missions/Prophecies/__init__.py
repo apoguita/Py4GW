@@ -1,0 +1,1 @@
+"""Prophecies campaign missions."""
