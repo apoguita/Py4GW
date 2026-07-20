@@ -2,9 +2,9 @@ from Py4GWCoreLib import Botting, Agent, GLOBAL_CACHE, Routines, ActionQueueMana
 from Py4GWCoreLib.enums_src.Hero_enums import HeroType
 import PyImGui, Py4GW
 import os
-BOT_NAME = "Killroy Stoneskin"
+BOT_NAME = "Killroy Stonekin"
 MODULE_NAME = "Killroy Stonekin's Punch-Out Extravaganza!"
-MODULE_ICON = "Textures\\Module_Icons\\Leveler - Killroy Stoneskin.png"
+MODULE_ICON = "Textures\\Module_Icons\\Leveler - Killroy Stonekin.png"
 
 bot = Botting(BOT_NAME, config_stop_on_party_wipe=False)
 
@@ -143,7 +143,7 @@ def configure():
 def main():
     bot.Update()
     draw_window(bot)
-    path = os.path.join(Py4GW.Console.get_projects_path(),"Sources", "ApoSource", "textures","Kilroy Stonekins Punch-Out Extravaganza-art.png")
+    path = os.path.join(Py4GW.Console.get_projects_path(),"Sources", "ApoSource", "textures","Killroy Stoneskin Punch-Out Extravaganza-art.png")
     bot.UI.draw_window(icon_path=path)
 
 if __name__ == "__main__":
